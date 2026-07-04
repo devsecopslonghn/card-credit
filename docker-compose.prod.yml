@@ -1,7 +1,7 @@
 services:
   card-credit:
     container_name: card-credit
-    image: ${DOCKER_IMAGE:-card-credit}:latest
+    image: ${DOCKER_IMAGE:-card-credit}:${DOCKER_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile

@@ -23,7 +23,7 @@ pipeline {
     string(
       name: 'DOCKER_IMAGE',
       defaultValue: 'card-credit',
-      description: 'Local Docker image name'
+      description: 'Local Docker image name without tag'
     )
   }
 
@@ -66,9 +66,15 @@ pipeline {
             .replaceAll('-+', '-')
             .replaceAll('^-|-$', '')
 
-          env.IMAGE_TAG = "${env.SAFE_BRANCH_NAME}-${env.BUILD_NUMBER}"
-          env.FULL_IMAGE_NAME = "${params.DOCKER_IMAGE}:${env.IMAGE_TAG}"
+          if (!env.SAFE_BRANCH_NAME?.trim()) {
+            env.SAFE_BRANCH_NAME = 'unknown'
+          }
 
+          env.DOCKER_TAG = "${env.SAFE_BRANCH_NAME}-${env.BUILD_NUMBER}"
+          env.FULL_IMAGE_NAME = "${params.DOCKER_IMAGE}:${env.DOCKER_TAG}"
+
+          echo "Branch name: ${branchName}"
+          echo "Safe branch name: ${env.SAFE_BRANCH_NAME}"
           echo "Docker image: ${env.FULL_IMAGE_NAME}"
         }
       }
@@ -175,10 +181,14 @@ pipeline {
           sh '''
             set -eu
 
+            echo "Validating Docker Compose configuration"
+            echo "Docker image: ${FULL_IMAGE_NAME}"
+
             docker version
 
             APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${FULL_IMAGE_NAME}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
             MONGODB_URI="${MONGODB_URI}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -206,7 +216,8 @@ pipeline {
             echo "Building image: ${FULL_IMAGE_NAME}"
 
             APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${FULL_IMAGE_NAME}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
             MONGODB_URI="${MONGODB_URI}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -215,7 +226,9 @@ pipeline {
             docker image inspect "${FULL_IMAGE_NAME}" >/dev/null
 
             echo "Image built successfully:"
-            docker image ls "${FULL_IMAGE_NAME}"
+            docker image ls \
+              --filter "reference=${FULL_IMAGE_NAME}" \
+              --format 'table {{.Repository}}\\t{{.Tag}}\\t{{.ID}}\\t{{.Size}}'
           '''
         }
       }
@@ -241,10 +254,11 @@ pipeline {
           sh '''
             set -eu
 
-            echo "Deploying image: ${FULL_IMAGE_NAME}"
+            echo "Deploying master image: ${FULL_IMAGE_NAME}"
 
             APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${FULL_IMAGE_NAME}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
             MONGODB_URI="${MONGODB_URI}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -253,7 +267,8 @@ pipeline {
                 --remove-orphans
 
             APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${FULL_IMAGE_NAME}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
             MONGODB_URI="${MONGODB_URI}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -306,18 +321,29 @@ pipeline {
     always {
       node('eztechvn2') {
         script {
-          if (env.BRANCH_NAME != 'master' && env.FULL_IMAGE_NAME) {
+          if (
+            env.BRANCH_NAME != 'master' &&
+            env.FULL_IMAGE_NAME?.trim()
+          ) {
             sh '''
               echo "Removing temporary branch image: ${FULL_IMAGE_NAME}"
-              docker image rm "${FULL_IMAGE_NAME}" 2>/dev/null || true
+
+              docker image rm \
+                "${FULL_IMAGE_NAME}" \
+                2>/dev/null || true
             '''
-          } else if (env.BRANCH_NAME == 'master' && env.FULL_IMAGE_NAME) {
+          } else if (
+            env.BRANCH_NAME == 'master' &&
+            env.FULL_IMAGE_NAME?.trim()
+          ) {
             echo "Keeping deployed master image: ${env.FULL_IMAGE_NAME}"
           }
         }
 
         sh '''
           set +e
+
+          echo "Cleaning workspace build files"
 
           if command -v docker >/dev/null 2>&1; then
             docker run --rm \
@@ -334,6 +360,8 @@ pipeline {
                 mkdir -p data
                 printf "{}\\n" > data/card-image-manifest.json
               '
+
+            echo "Cleaning Docker build cache older than 24 hours"
 
             docker builder prune \
               -f \
