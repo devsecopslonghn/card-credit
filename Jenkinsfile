@@ -1,79 +1,181 @@
 pipeline {
-  agent any
+  agent none
 
   options {
     timestamps()
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
   }
 
   parameters {
-    string(name: 'DOCKER_IMAGE', defaultValue: 'card-credit', description: 'Docker image name, without tag')
-    string(name: 'DOCKER_REGISTRY', defaultValue: '', description: 'Optional registry, for example registry.example.com/team')
+    booleanParam(name: 'DEPLOY_LOCAL', defaultValue: false, description: 'Start the app on eztechvn2 after building the image')
+    string(name: 'APP_PORT', defaultValue: '8080', description: 'Host port for the Next.js container')
+    string(name: 'DOCKER_IMAGE', defaultValue: 'card-credit', description: 'Local Docker image name')
     string(name: 'BUILD_MONGODB_URI', defaultValue: 'mongodb://localhost:27017/card-credit', description: 'MongoDB URI used only during Next.js build')
-    booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push image to registry')
-    string(name: 'DOCKER_CREDENTIALS_ID', defaultValue: '', description: 'Jenkins username/password credentials ID for docker login')
+  }
+
+  environment {
+    DOCKER_BUILDKIT = '1'
   }
 
   stages {
-    stage('Install') {
+    stage('Checkout') {
+      agent {
+        label 'eztechvn2'
+      }
       steps {
-        sh 'node --version'
-        sh 'npm ci'
+        sh '''
+          echo "Jenkins node: ${NODE_NAME}"
+          echo "Workspace: ${WORKSPACE}"
+        '''
+        checkout scm
+      }
+    }
+
+    stage('Build Node Workspace') {
+      agent {
+        label 'eztechvn2'
+      }
+      steps {
+        sh '''
+          set -eu
+
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+
+          docker run --rm \
+            -u root:root \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -e MONGODB_URI="$BUILD_MONGODB_URI" \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            node:22-alpine \
+            sh -lc '
+              apk add --no-cache python3 make g++
+              rm -rf node_modules .next
+              npm ci --no-audit --no-fund
+              npm run build
+              chown -R "$HOST_UID:$HOST_GID" \
+                node_modules \
+                .next \
+                package-lock.json \
+                2>/dev/null || true
+            '
+        '''
       }
     }
 
     stage('Lint') {
+      agent {
+        label 'eztechvn2'
+      }
       steps {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-          sh 'npm run lint'
-        }
-      }
-    }
-
-    stage('Build') {
-      steps {
-        sh 'MONGODB_URI="$BUILD_MONGODB_URI" npm run build'
-      }
-    }
-
-    stage('Docker Build') {
-      steps {
-        script {
-          def imagePrefix = params.DOCKER_REGISTRY?.trim()
-          def imageName = params.DOCKER_IMAGE.trim()
-          env.IMAGE_TAG = imagePrefix ? "${imagePrefix}/${imageName}:${env.BUILD_NUMBER}" : "${imageName}:${env.BUILD_NUMBER}"
-          env.IMAGE_LATEST = imagePrefix ? "${imagePrefix}/${imageName}:latest" : "${imageName}:latest"
-        }
-
-        sh 'docker build --build-arg MONGODB_URI="$BUILD_MONGODB_URI" -t "$IMAGE_TAG" -t "$IMAGE_LATEST" .'
-      }
-    }
-
-    stage('Docker Push') {
-      when {
-        expression { return params.PUSH_IMAGE }
-      }
-      steps {
-        script {
-          if (!params.DOCKER_REGISTRY?.trim()) {
-            error('DOCKER_REGISTRY is required when PUSH_IMAGE is true')
-          }
-          if (!params.DOCKER_CREDENTIALS_ID?.trim()) {
-            error('DOCKER_CREDENTIALS_ID is required when PUSH_IMAGE is true')
-          }
-        }
-
-        withCredentials([usernamePassword(credentialsId: params.DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
           sh '''
             set -eu
-            echo "$DOCKER_PASSWORD" | docker login "$DOCKER_REGISTRY" --username "$DOCKER_USERNAME" --password-stdin
-            docker push "$IMAGE_TAG"
-            docker push "$IMAGE_LATEST"
-            docker logout "$DOCKER_REGISTRY"
+
+            HOST_UID="$(id -u)"
+            HOST_GID="$(id -g)"
+
+            docker run --rm \
+              -u root:root \
+              -e HOME=/tmp \
+              -e npm_config_cache=/tmp/.npm \
+              -e HOST_UID="$HOST_UID" \
+              -e HOST_GID="$HOST_GID" \
+              -v "$WORKSPACE:/workspace" \
+              -w /workspace \
+              node:22-alpine \
+              sh -lc '
+                npm run lint
+                chown -R "$HOST_UID:$HOST_GID" node_modules .next 2>/dev/null || true
+              '
+          '''
+        }
+      }
+    }
+
+    stage('Validate Docker') {
+      agent {
+        label 'eztechvn2'
+      }
+      steps {
+        withCredentials([string(credentialsId: 'MONGODB-ATLAS', variable: 'MONGODB_URI')]) {
+          sh '''
+            docker version
+            APP_PORT="${APP_PORT}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            BUILD_MONGODB_URI="${BUILD_MONGODB_URI}" \
+              docker compose -f docker-compose.prod.yml config --quiet
+          '''
+        }
+      }
+    }
+
+    stage('Build Production Image') {
+      agent {
+        label 'eztechvn2'
+      }
+      steps {
+        withCredentials([string(credentialsId: 'MONGODB-ATLAS', variable: 'MONGODB_URI')]) {
+          sh '''
+            APP_PORT="${APP_PORT}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            BUILD_MONGODB_URI="${BUILD_MONGODB_URI}" \
+              docker compose -f docker-compose.prod.yml build
+
+            docker image inspect "${DOCKER_IMAGE}:latest" >/dev/null
+          '''
+        }
+      }
+    }
+
+    stage('Start Application') {
+      agent {
+        label 'eztechvn2'
+      }
+      when {
+        expression { return params.DEPLOY_LOCAL }
+      }
+      steps {
+        withCredentials([string(credentialsId: 'MONGODB-ATLAS', variable: 'MONGODB_URI')]) {
+          sh '''
+            APP_PORT="${APP_PORT}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            BUILD_MONGODB_URI="${BUILD_MONGODB_URI}" \
+              docker compose -f docker-compose.prod.yml up -d
+
+            APP_PORT="${APP_PORT}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            BUILD_MONGODB_URI="${BUILD_MONGODB_URI}" \
+              docker compose -f docker-compose.prod.yml ps
+
+            docker run --rm --network host curlimages/curl:8.10.1 -fsS "http://localhost:${APP_PORT}/" >/dev/null
           '''
         }
       }
     }
   }
 
+  post {
+    always {
+      node('eztechvn2') {
+        sh '''
+          if command -v docker >/dev/null 2>&1; then
+            docker run --rm \
+              -u root:root \
+              -v "$WORKSPACE:/workspace" \
+              -w /workspace \
+              node:22-alpine \
+              sh -lc 'rm -rf node_modules .next'
+          else
+            rm -rf node_modules .next
+          fi
+        '''
+      }
+    }
+  }
 }

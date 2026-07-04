@@ -1,0 +1,15 @@
+services:
+  card-credit:
+    image: ${DOCKER_IMAGE:-card-credit}:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MONGODB_URI: ${BUILD_MONGODB_URI:-mongodb://localhost:27017/card-credit}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: ${MONGODB_URI:?MONGODB_URI is required}
+    ports:
+      - "${APP_PORT:-8080}:3000"
+    restart: unless-stopped
