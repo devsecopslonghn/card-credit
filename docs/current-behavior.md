@@ -6,7 +6,7 @@ This document records the current implementation before the Card Catalog migrati
 
 ## Repository State Reviewed
 
-- Branch: `master`
+- Branch: `ai-task/card-catalog-foundation`
 - Recent commits:
   - `85a8935 Do something`
   - `f7b087d Update`
@@ -14,7 +14,7 @@ This document records the current implementation before the Card Catalog migrati
   - `8f15da0 push export`
   - `f1cde91 fix`
 - Working tree before this batch already contained modified `AGENTS.md` and untracked `docs/`.
-- `README.md` is still the default Create Next App README and does not describe this application.
+- `README.md` now contains catalog foundation commands and sample-data notes.
 
 ## Source Structure
 
@@ -32,7 +32,8 @@ This document records the current implementation before the Card Catalog migrati
 - `models/CalendarNote.ts`: calendar note schema.
 - `data/card-presets.json`: current preset source data.
 - `lib/cardPresets.ts`: preset loader and generated image fallback.
-- `scripts/prepare-card-images.mjs`: caches remote preset images into `public/card-images/generated`.
+- `scripts/prepare-card-images.mjs`: caches remote preset images into `public/card-images/generated` and records placeholder/failure status in `data/card-image-manifest.json`.
+- `scripts/validate-card-catalog.mjs`: validates catalog schema without MongoDB or network access.
 - `scripts/crawl-card-presets.mjs`: fetches source pages and prints annual-fee hints.
 - `scripts/seed-sample.mjs`: seeds sample banks, card types, cards and notes.
 
@@ -209,13 +210,33 @@ There are no catalog fields yet in the Mongoose schema:
 - Source of truth is `data/card-presets.json`.
 - Loader is `lib/cardPresets.ts`.
 - Current JSON uses legacy field names: `id`, `bank`, `bankName`, `name`, `type`.
-- `lib/cardPresets.ts` now exposes catalog aliases in TypeScript at runtime:
-  - `presetId` from `id`
-  - `providerCode` from `bank`
-  - `providerName` from `bankName`
-  - `displayName` from `name`
-  - `network` from `type`
-- No `active` field exists in JSON. Current runtime treats all existing presets as active because the UI currently displays all presets.
+- Canonical catalog fields in JSON are now:
+  - `presetId`
+  - `providerCode`
+  - `providerName`
+  - `displayName`
+  - `network`
+  - `annualFee`
+  - `imageUrl`
+  - `sourceUrl`
+  - `sourceCheckedAt`
+  - `active`
+  - `sortOrder`
+- Temporary legacy compatibility aliases remain in JSON:
+  - `id` mirrors `presetId`
+  - `bank` mirrors `providerCode`
+  - `bankName` mirrors `providerName`
+  - `name` mirrors `displayName`
+  - `type` mirrors `network`
+- `lib/cardPresets.ts` exports a typed catalog service with helper functions:
+  - `getAllCatalogProducts()`
+  - `getActiveCatalogProducts()`
+  - `getCatalogProviders()`
+  - `getProductsByProvider(providerCode)`
+  - `getPresetById(presetId)`
+  - `groupProductsByProvider()`
+- `cardPresets` is now a legacy compatibility adapter for the current UI and includes active products only.
+- Inactive products remain in the full catalog but do not appear in the current add-card preset picker.
 - No `/api/card-catalog/**` endpoints exist.
 
 ## Sample Data Baseline
@@ -224,18 +245,26 @@ Existing `scripts/seed-sample.mjs` seeds:
 
 - One VCB card: `VCB Cashback Plus`, owner `Tôi`, with monthly data and payment due date.
 - One TCB card: `TCB Family Platinum`, owner `Mẹ`, with monthly data and payment due date.
+- One Sacombank card: `STB Visa Platinum Cashback`, owner `Long Ho`, with monthly data and payment due date.
+- One Sacombank card: `STB JCB Ultimate`, owner `Regression No Due Date`, with no `paymentDueDate`.
 - Two calendar notes.
-- Bank masterdata for VCB and TCB.
-- CardType masterdata for Visa and Mastercard.
+- Bank masterdata for VCB, TCB and STB.
+- CardType masterdata for Visa, Mastercard, JCB and American Express.
 
-Gaps against CC-001 sample-data target:
+Sample-data coverage:
 
-- No Sacombank sample user card is seeded.
-- No sample card from the seed script lacks `paymentDueDate`.
-- A card with monthly data exists.
-- A non-Sacombank bank card exists.
+- Sacombank sample user card exists.
+- Non-Sacombank sample user cards exist.
+- Cards with monthly data exist.
+- A card without payment due date exists.
 
-No sample data was changed in this batch.
+Run with:
+
+```bash
+MONGODB_URI="..." npm run seed:sample
+```
+
+Do not point this command at production data unless explicitly approved.
 
 ## Differences From Roadmap Target
 
@@ -244,10 +273,17 @@ No sample data was changed in this batch.
 - Server currently trusts the card request body.
 - `CardType` currently acts as network masterdata, not Card Product.
 - Catalog is not exposed through API endpoints.
-- Catalog JSON has not yet been normalized to target field names.
+- Catalog JSON is normalized to target field names, while temporary legacy aliases remain for compatibility.
 - CreditCard schema has not yet been extended with catalog fields.
 - Images may be remote, generated SVG data URLs, or uploaded data URLs.
 
 ## Local Run Notes
 
 The app requires `MONGODB_URI` for API routes and runtime data access. Without it, database-backed pages and API routes fail when they attempt to connect.
+
+Catalog validation and unit tests do not require MongoDB:
+
+```bash
+npm run validate:catalog
+npm test
+```

@@ -8,10 +8,23 @@ pipeline {
   }
 
   parameters {
-    booleanParam(name: 'DEPLOY_LOCAL', defaultValue: true, description: 'Start the app on eztechvn2 after building the image')
-    booleanParam(name: 'SEED_SAMPLE_DATA', defaultValue: false, description: 'Insert or update sample data after deploy')
-    string(name: 'APP_PORT', defaultValue: '8080', description: 'Host port for the Next.js container')
-    string(name: 'DOCKER_IMAGE', defaultValue: 'card-credit', description: 'Local Docker image name')
+    booleanParam(
+      name: 'SEED_SAMPLE_DATA',
+      defaultValue: false,
+      description: 'Insert or update sample data after deploy. Only runs on master branch.'
+    )
+
+    string(
+      name: 'APP_PORT',
+      defaultValue: '8080',
+      description: 'Host port for the Next.js container'
+    )
+
+    string(
+      name: 'DOCKER_IMAGE',
+      defaultValue: 'card-credit',
+      description: 'Local Docker image name without tag'
+    )
   }
 
   environment {
@@ -23,12 +36,51 @@ pipeline {
       agent {
         label 'eztechvn2'
       }
+
       steps {
         sh '''
+          set -eu
+
           echo "Jenkins node: ${NODE_NAME}"
           echo "Workspace: ${WORKSPACE}"
+          echo "Branch: ${BRANCH_NAME:-unknown}"
+          echo "Build number: ${BUILD_NUMBER}"
         '''
+
         checkout scm
+      }
+    }
+
+    stage('Prepare Build Variables') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        script {
+          String branchName = env.BRANCH_NAME ?: 'unknown'
+
+          env.SAFE_BRANCH_NAME = branchName
+            .toLowerCase()
+            .replaceAll('[^a-z0-9_.-]', '-')
+            .replaceAll('-+', '-')
+            .replaceAll('^-|-$', '')
+
+          if (!env.SAFE_BRANCH_NAME?.trim()) {
+            env.SAFE_BRANCH_NAME = 'unknown'
+          }
+
+          env.APP_PORT_VALUE = params.APP_PORT?.trim() ?: '8080'
+          env.DOCKER_IMAGE_NAME = params.DOCKER_IMAGE?.trim() ?: 'card-credit'
+
+          env.DOCKER_TAG = "${env.SAFE_BRANCH_NAME}-${env.BUILD_NUMBER}"
+          env.FULL_IMAGE_NAME = "${env.DOCKER_IMAGE_NAME}:${env.DOCKER_TAG}"
+
+          echo "Branch name: ${branchName}"
+          echo "Safe branch name: ${env.SAFE_BRANCH_NAME}"
+          echo "Application port: ${env.APP_PORT_VALUE}"
+          echo "Docker image: ${env.FULL_IMAGE_NAME}"
+        }
       }
     }
 
@@ -36,6 +88,7 @@ pipeline {
       agent {
         label 'eztechvn2'
       }
+
       steps {
         sh '''
           set -eu
@@ -53,11 +106,18 @@ pipeline {
             -w /workspace \
             node:22-alpine \
             sh -lc '
+              set -eu
+
               apk add --no-cache python3 make g++
+
               rm -rf node_modules .next
+
               npm ci --no-audit --no-fund
+              npm run validate:catalog
+              npm test
               npm run prepare:card-images
               npm run build
+
               chown -R "$HOST_UID:$HOST_GID" \
                 node_modules \
                 .next \
@@ -74,8 +134,12 @@ pipeline {
       agent {
         label 'eztechvn2'
       }
+
       steps {
-        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+        catchError(
+          buildResult: 'SUCCESS',
+          stageResult: 'UNSTABLE'
+        ) {
           sh '''
             set -eu
 
@@ -92,25 +156,48 @@ pipeline {
               -w /workspace \
               node:22-alpine \
               sh -lc '
+                set -eu
+
                 npm run lint
-                chown -R "$HOST_UID:$HOST_GID" node_modules .next 2>/dev/null || true
+
+                chown -R "$HOST_UID:$HOST_GID" \
+                  node_modules \
+                  .next \
+                  2>/dev/null || true
               '
           '''
         }
       }
     }
 
-    stage('Validate Docker') {
+    stage('Validate Docker Compose') {
       agent {
         label 'eztechvn2'
       }
+
       steps {
-        withCredentials([string(credentialsId: 'MONGODB-ATLAS', variable: 'MONGODB_URI')]) {
+        withCredentials([
+          string(
+            credentialsId: 'MONGODB-ATLAS',
+            variable: 'MONGODB_URI'
+          )
+        ]) {
           sh '''
+            set -eu
+
+            echo "Validating Docker Compose configuration"
+            echo "Docker image: ${FULL_IMAGE_NAME}"
+            echo "Application port: ${APP_PORT_VALUE}"
+
             docker version
-            APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE}" \
-              docker compose -f docker-compose.prod.yml config --quiet
+
+            APP_PORT="${APP_PORT_VALUE}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
+            MONGODB_URI="${MONGODB_URI}" \
+              docker compose \
+                -f docker-compose.prod.yml \
+                config --quiet
           '''
         }
       }
@@ -120,56 +207,109 @@ pipeline {
       agent {
         label 'eztechvn2'
       }
-      steps {
-        withCredentials([string(credentialsId: 'MONGODB-ATLAS', variable: 'MONGODB_URI')]) {
-          sh '''
-            APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE}" \
-              docker compose -f docker-compose.prod.yml build
 
-            docker image inspect "${DOCKER_IMAGE}:latest" >/dev/null
+      steps {
+        withCredentials([
+          string(
+            credentialsId: 'MONGODB-ATLAS',
+            variable: 'MONGODB_URI'
+          )
+        ]) {
+          sh '''
+            set -eu
+
+            echo "Building image: ${FULL_IMAGE_NAME}"
+
+            APP_PORT="${APP_PORT_VALUE}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
+            MONGODB_URI="${MONGODB_URI}" \
+              docker compose \
+                -f docker-compose.prod.yml \
+                build
+
+            docker image inspect "${FULL_IMAGE_NAME}" >/dev/null
           '''
         }
       }
     }
 
     stage('Start Application') {
+      when {
+        beforeAgent true
+        branch 'master'
+      }
+
       agent {
         label 'eztechvn2'
       }
-      when {
-        expression { return params.DEPLOY_LOCAL }
-      }
+
       steps {
-        withCredentials([string(credentialsId: 'MONGODB-ATLAS', variable: 'MONGODB_URI')]) {
+        withCredentials([
+          string(
+            credentialsId: 'MONGODB-ATLAS',
+            variable: 'MONGODB_URI'
+          )
+        ]) {
           sh '''
-            APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE}" \
-              docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
+            set -eu
+
+            echo "Deploying master image: ${FULL_IMAGE_NAME}"
 
             APP_PORT="${APP_PORT}" \
             DOCKER_IMAGE="${DOCKER_IMAGE}" \
-              docker compose -f docker-compose.prod.yml ps
+            DOCKER_TAG="${DOCKER_TAG}" \
+            MONGODB_URI="${MONGODB_URI}" \
+              docker compose \
+                -f docker-compose.prod.yml \
+                up -d \
+                --force-recreate \
+                --remove-orphans
 
-            docker port card-credit
+            APP_PORT="${APP_PORT}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            DOCKER_TAG="${DOCKER_TAG}" \
+            MONGODB_URI="${MONGODB_URI}" \
+              docker compose \
+                -f docker-compose.prod.yml \
+                ps
           '''
         }
       }
     }
 
     stage('Seed Sample Data') {
+      when {
+        beforeAgent true
+
+        allOf {
+          branch 'master'
+
+          expression {
+            return params.SEED_SAMPLE_DATA
+          }
+        }
+      }
+
       agent {
         label 'eztechvn2'
       }
-      when {
-        expression { return params.SEED_SAMPLE_DATA }
-      }
+
       steps {
-        withCredentials([string(credentialsId: 'MONGODB-ATLAS', variable: 'MONGODB_URI')]) {
+        withCredentials([
+          string(
+            credentialsId: 'MONGODB-ATLAS',
+            variable: 'MONGODB_URI'
+          )
+        ]) {
           sh '''
+            set -eu
+
+            echo "Seeding sample data using image: ${FULL_IMAGE_NAME}"
+
             docker run --rm \
               -e MONGODB_URI="$MONGODB_URI" \
-              "${DOCKER_IMAGE}:latest" \
+              "${FULL_IMAGE_NAME}" \
               npm run seed:sample
           '''
         }
@@ -180,20 +320,76 @@ pipeline {
   post {
     always {
       node('eztechvn2') {
+        script {
+          if (
+            env.BRANCH_NAME != 'master' &&
+            env.FULL_IMAGE_NAME?.trim()
+          ) {
+            sh '''
+              echo "Removing temporary branch image: ${FULL_IMAGE_NAME}"
+
+              docker image rm \
+                "${FULL_IMAGE_NAME}" \
+                2>/dev/null || true
+            '''
+          } else if (
+            env.BRANCH_NAME == 'master' &&
+            env.FULL_IMAGE_NAME?.trim()
+          ) {
+            echo "Keeping deployed master image: ${env.FULL_IMAGE_NAME}"
+          }
+        }
+
         sh '''
+          set +e
+
+          echo "Cleaning workspace build files"
+
           if command -v docker >/dev/null 2>&1; then
             docker run --rm \
               -u root:root \
               -v "$WORKSPACE:/workspace" \
               -w /workspace \
               node:22-alpine \
-              sh -lc 'rm -rf node_modules .next public/card-images/generated && printf "{}\\n" > data/card-image-manifest.json'
+              sh -lc '
+                rm -rf \
+                  node_modules \
+                  .next \
+                  public/card-images/generated
+
+                mkdir -p data
+                printf "{}\\n" > data/card-image-manifest.json
+              '
+
+            echo "Cleaning Docker build cache older than 24 hours"
+
+            docker builder prune \
+              -f \
+              --filter "until=24h" \
+              >/dev/null 2>&1 || true
           else
-            rm -rf node_modules .next public/card-images/generated
+            rm -rf \
+              node_modules \
+              .next \
+              public/card-images/generated
+
+            mkdir -p data
             printf "{}\\n" > data/card-image-manifest.json
           fi
         '''
       }
+    }
+
+    success {
+      echo "Pipeline successful for branch: ${env.BRANCH_NAME ?: 'unknown'}"
+    }
+
+    unstable {
+      echo "Pipeline unstable for branch: ${env.BRANCH_NAME ?: 'unknown'}"
+    }
+
+    failure {
+      echo "Pipeline failed for branch: ${env.BRANCH_NAME ?: 'unknown'}"
     }
   }
 }

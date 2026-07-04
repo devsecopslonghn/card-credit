@@ -16,6 +16,11 @@ export type CardCatalogProduct = {
   sourceCheckedAt?: string;
   active: boolean;
   sortOrder?: number;
+  benefits?: string[];
+  theme?: {
+    background: string;
+    accent: string;
+  };
 };
 
 export type CardCatalogProvider = {
@@ -23,6 +28,10 @@ export type CardCatalogProvider = {
   providerName: string;
   logoUrl?: string;
   products: CardCatalogProduct[];
+};
+
+export type CardCatalogApiResponse<T> = {
+  data: T;
 };
 
 export type LegacyCardPresetFields = {
@@ -33,3 +42,13 @@ export type LegacyCardPresetFields = {
   type: string;
   imageUrl: string;
 };
+
+export type CardImageManifestEntry = {
+  status: "cached" | "placeholder" | "remote" | "failed" | "skipped";
+  sourceUrl?: string | null;
+  localPath?: string;
+  reason?: string;
+  checkedAt: string;
+};
+
+export type CardImageManifest = Record<string, CardImageManifestEntry | string>;
