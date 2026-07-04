@@ -1,5 +1,6 @@
 services:
   card-credit:
+    container_name: card-credit
     image: ${DOCKER_IMAGE:-card-credit}:latest
     build:
       context: .
@@ -9,5 +10,5 @@ services:
       PORT: 3000
       MONGODB_URI: ${MONGODB_URI:?MONGODB_URI is required}
     ports:
-      - "${APP_PORT:-8080}:3000"
+      - "0.0.0.0:${APP_PORT:-8080}:3000"
     restart: unless-stopped

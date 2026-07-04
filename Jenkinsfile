@@ -8,7 +8,7 @@ pipeline {
   }
 
   parameters {
-    booleanParam(name: 'DEPLOY_LOCAL', defaultValue: false, description: 'Start the app on eztechvn2 after building the image')
+    booleanParam(name: 'DEPLOY_LOCAL', defaultValue: true, description: 'Start the app on eztechvn2 after building the image')
     string(name: 'APP_PORT', defaultValue: '8080', description: 'Host port for the Next.js container')
     string(name: 'DOCKER_IMAGE', defaultValue: 'card-credit', description: 'Local Docker image name')
   }
@@ -141,11 +141,13 @@ pipeline {
           sh '''
             APP_PORT="${APP_PORT}" \
             DOCKER_IMAGE="${DOCKER_IMAGE}" \
-              docker compose -f docker-compose.prod.yml up -d
+              docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
 
             APP_PORT="${APP_PORT}" \
             DOCKER_IMAGE="${DOCKER_IMAGE}" \
               docker compose -f docker-compose.prod.yml ps
+
+            docker port card-credit
 
             docker run --rm --network host curlimages/curl:8.10.1 -fsS "http://localhost:${APP_PORT}/" >/dev/null
           '''
