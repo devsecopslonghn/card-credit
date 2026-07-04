@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { cardPresets } from "@/lib/cardPresets";
 
 // Các hàm hỗ trợ format hiển thị dữ liệu
 const formatCurrency = (amount: number | string) => {
@@ -30,6 +31,7 @@ export default function CardsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [selectedPresetId, setSelectedPresetId] = useState("");
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
     const [cardToDelete, setCardToDelete] = useState<any>(null);
 
@@ -146,19 +148,37 @@ export default function CardsPage() {
 
     const openCreateModal = () => {
         setEditingId(null);
+        setSelectedPresetId("");
         setFormData({ bank: "", name: "", type: "", owner: "Tôi", imageUrl: "", annualFee: "" });
         setIsModalOpen(true);
     };
 
     const openEditModal = (card: any) => {
         setEditingId(card._id);
+        setSelectedPresetId("");
         setFormData({ bank: card.bank, name: card.name, type: card.type, owner: card.owner || "Tôi", imageUrl: card.imageUrl, annualFee: card.annualFee.toString() });
         setIsModalOpen(true);
     };
 
     const closeModal = () => {
         setIsModalOpen(false);
-        setTimeout(() => { setEditingId(null); setFormData({ bank: "", name: "", type: "", owner: "", imageUrl: "", annualFee: "" }); }, 200);
+        setTimeout(() => { setEditingId(null); setSelectedPresetId(""); setFormData({ bank: "", name: "", type: "", owner: "", imageUrl: "", annualFee: "" }); }, 200);
+    };
+
+    const handlePresetChange = (presetId: string) => {
+        setSelectedPresetId(presetId);
+        const preset = cardPresets.find((item) => item.id === presetId);
+
+        if (!preset) return;
+
+        setFormData({
+            ...formData,
+            bank: preset.bank,
+            name: preset.name,
+            type: preset.type,
+            imageUrl: preset.imageUrl,
+            annualFee: preset.annualFee.toString(),
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -207,6 +227,12 @@ export default function CardsPage() {
     };
 
     const uniqueOwners = Array.from(new Set(cards.map(c => c.owner?.trim()).filter(Boolean)));
+    const bankOptions = Array.from(
+        new Set([...banks.map((bank) => bank.shortname), ...cardPresets.map((preset) => preset.bank)]),
+    ).sort();
+    const cardTypeOptions = Array.from(
+        new Set([...cardTypes.map((cardType) => cardType.name), ...cardPresets.map((preset) => preset.type)]),
+    ).sort();
     const filteredCards = selectedOwner ? cards.filter(c => c.owner?.trim() === selectedOwner) : cards;
     const upcomingPayments = filteredCards.filter(c => c.paymentDueDate && !c.isPaidThisMonth)
         .sort((a, b) => new Date(a.paymentDueDate).getTime() - new Date(b.paymentDueDate).getTime());
@@ -236,6 +262,9 @@ export default function CardsPage() {
                                 {uniqueOwners.map((ownerStr, idx) => <option key={idx} value={ownerStr}>{ownerStr}</option>)}
                             </select>
                         </div>
+                        <a href="/api/reports/summary" target="_blank" rel="noopener noreferrer" className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 px-5 py-2.5 rounded-xl font-medium shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center text-sm">
+                            Xuất JSON
+                        </a>
                         <button onClick={openCreateModal} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center text-sm">
                             Thêm thẻ mới
                         </button>
@@ -444,13 +473,25 @@ export default function CardsPage() {
                                 <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">✕</button>
                             </div>
                             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-900 mb-1">Mẫu thẻ có sẵn</label>
+                                    <select className="w-full p-2.5 bg-white text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={selectedPresetId} onChange={(e) => handlePresetChange(e.target.value)}>
+                                        <option value="">Tự nhập hoặc chọn mẫu thẻ</option>
+                                        {cardPresets.map((preset) => (
+                                            <option key={preset.id} value={preset.id}>
+                                                {preset.bank} - {preset.name} ({preset.type})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-900 mb-1">Ngân hàng</label>
                                         <select required className="w-full p-2.5 bg-white text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                                             value={formData.bank} onChange={(e) => setFormData({ ...formData, bank: e.target.value })} >
                                             <option value="" disabled>Chọn ngân hàng</option>
-                                            {banks.map((b) => <option key={b._id} value={b.shortname}>{b.shortname}</option>)}
+                                            {bankOptions.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
                                         </select>
                                     </div>
                                     <div>
@@ -458,7 +499,7 @@ export default function CardsPage() {
                                         <select required className="w-full p-2.5 bg-white text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                                             value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>
                                             <option value="" disabled>Chọn loại thẻ</option>
-                                            {cardTypes.map((t) => <option key={t._id} value={t.name}>{t.name}</option>)}
+                                            {cardTypeOptions.map((type) => <option key={type} value={type}>{type}</option>)}
                                         </select>
                                     </div>
                                 </div>
@@ -481,8 +522,9 @@ export default function CardsPage() {
                                     <label className="block text-sm font-medium text-gray-900 mb-1">Hình ảnh thẻ</label>
                                     <div className="flex items-center gap-4">
                                         <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white cursor-pointer" />
-                                        {formData.imageUrl && <img src={formData.imageUrl} alt="Preview" className="w-20 h-12 object-cover rounded-md border" />}
+                                        {formData.imageUrl && <img src={formData.imageUrl} alt="Preview" className="w-24 h-14 object-contain rounded-md border bg-gray-50" />}
                                     </div>
+                                    {selectedPresetId && <p className="text-xs text-gray-500 mt-1">Đang dùng ảnh từ mẫu thẻ. Bạn vẫn có thể upload ảnh khác để thay thế.</p>}
                                 </div>
                                 <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
                                     <button type="button" onClick={closeModal} className="px-5 py-2.5 text-gray-900 font-medium hover:bg-gray-100 rounded-lg">Hủy bỏ</button>

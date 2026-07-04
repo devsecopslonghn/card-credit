@@ -9,6 +9,7 @@ pipeline {
 
   parameters {
     booleanParam(name: 'DEPLOY_LOCAL', defaultValue: true, description: 'Start the app on eztechvn2 after building the image')
+    booleanParam(name: 'SEED_SAMPLE_DATA', defaultValue: false, description: 'Insert or update sample data after deploy')
     string(name: 'APP_PORT', defaultValue: '8080', description: 'Host port for the Next.js container')
     string(name: 'DOCKER_IMAGE', defaultValue: 'card-credit', description: 'Local Docker image name')
   }
@@ -148,6 +149,25 @@ pipeline {
               docker compose -f docker-compose.prod.yml ps
 
             docker port card-credit
+          '''
+        }
+      }
+    }
+
+    stage('Seed Sample Data') {
+      agent {
+        label 'eztechvn2'
+      }
+      when {
+        expression { return params.SEED_SAMPLE_DATA }
+      }
+      steps {
+        withCredentials([string(credentialsId: 'MONGODB-ATLAS', variable: 'MONGODB_URI')]) {
+          sh '''
+            docker run --rm \
+              -e MONGODB_URI="$MONGODB_URI" \
+              "${DOCKER_IMAGE}:latest" \
+              npm run seed:sample
           '''
         }
       }
