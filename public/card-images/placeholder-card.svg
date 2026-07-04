@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="450" viewBox="0 0 720 450" role="img" aria-labelledby="title desc">
+  <title id="title">Card image placeholder</title>
+  <desc id="desc">Fallback credit card image used when a catalog product image is unavailable.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="1" stop-color="#475569"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="450" rx="38" fill="url(#background)"/>
+  <rect x="48" y="86" width="90" height="64" rx="12" fill="#f8fafc" opacity=".82"/>
+  <path d="M74 86v64M48 118h90M92 86c-12 16-12 48 0 64" stroke="#94a3b8" stroke-width="4" opacity=".65" fill="none"/>
+  <text x="48" y="240" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" fill="#ffffff">CARD IMAGE</text>
+  <text x="48" y="296" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#cbd5e1">Placeholder</text>
+  <text x="48" y="374" font-family="Arial, Helvetica, sans-serif" font-size="24" letter-spacing="6" fill="#ffffff" opacity=".82">****  ****  ****  2026</text>
+</svg>

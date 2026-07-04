@@ -121,6 +121,20 @@ async function seed() {
         upsert: true,
       },
     },
+    {
+      updateOne: {
+        filter: { shortname: "STB" },
+        update: {
+          $set: {
+            fullname: "Ngân hàng TMCP Sài Gòn Thương Tín",
+            name: "Ngân hàng Sacombank",
+            shortname: "STB",
+            logo: logoDataUri("STB", "f4a51c", "111827"),
+          },
+        },
+        upsert: true,
+      },
+    },
   ]);
 
   await CardType.bulkWrite([
@@ -135,6 +149,20 @@ async function seed() {
       updateOne: {
         filter: { name: "Mastercard" },
         update: { $set: { name: "Mastercard", logo: logoDataUri("MC", "ff5f00") } },
+        upsert: true,
+      },
+    },
+    {
+      updateOne: {
+        filter: { name: "JCB" },
+        update: { $set: { name: "JCB", logo: logoDataUri("JCB", "0f766e") } },
+        upsert: true,
+      },
+    },
+    {
+      updateOne: {
+        filter: { name: "American Express" },
+        update: { $set: { name: "American Express", logo: logoDataUri("AMEX", "1e3a8a") } },
         upsert: true,
       },
     },
@@ -183,6 +211,60 @@ async function seed() {
               ...item,
               spend: Math.round(item.spend * 0.62),
               cashback: Math.round(item.cashback * 0.5),
+            })),
+          },
+        },
+        upsert: true,
+      },
+    },
+    {
+      updateOne: {
+        filter: { bank: "STB", name: "Visa Platinum Cashback", owner: "Long Ho" },
+        update: {
+          $set: {
+            bank: "STB",
+            name: "Visa Platinum Cashback",
+            type: "Visa",
+            owner: "Long Ho",
+            imageUrl: svgDataUri("STB Visa Cashback", "111827", "f4a51c"),
+            annualFee: 599000,
+            targetSpendForWaiver: 0,
+            statementDate: "2026-07-18",
+            paymentDueDate: "2026-08-02",
+            amountDueThisMonth: 5620000,
+            isPaidThisMonth: false,
+            monthlyData: monthlyData.map((item) => ({
+              ...item,
+              spend: Math.round(item.spend * 0.48),
+              cashback: Math.round(item.cashback * 0.8),
+            })),
+          },
+        },
+        upsert: true,
+      },
+    },
+    {
+      updateOne: {
+        filter: { bank: "STB", name: "JCB Ultimate", owner: "Regression No Due Date" },
+        update: {
+          $set: {
+            bank: "STB",
+            name: "JCB Ultimate",
+            type: "JCB",
+            owner: "Regression No Due Date",
+            imageUrl: svgDataUri("STB JCB Ultimate", "4338ca"),
+            annualFee: 1699000,
+            targetSpendForWaiver: 400000000,
+            statementDate: "",
+            paymentDueDate: "",
+            amountDueThisMonth: 0,
+            isPaidThisMonth: false,
+            monthlyData: Array.from({ length: 12 }, (_, i) => ({
+              month: i + 1,
+              spend: 0,
+              cashback: 0,
+              fee: 0,
+              otherInterest: 0,
             })),
           },
         },

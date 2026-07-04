@@ -1,1 +1,111 @@
-{}
+{
+  "vcb-visa-platinum": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "vcb-vibe-platinum": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "techcombank-visa-signature": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "techcombank-priority-visa-signature": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "vpbank-stepup-mastercard": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "vpbank-shopee-platinum": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "hsbc-cashback": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "hsbc-livefree": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "hsbc-liveplus": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "sacombank-visa-platinum-cashback": {
+    "status": "cached",
+    "sourceUrl": "https://www.sacombank.com.vn/content/dam/sacombank/images/the-new/the-tin-dung/Visa%20Credit%20Plantinum%20Cashback_contactless-01.png",
+    "localPath": "/card-images/generated/sacombank-visa-platinum-cashback.png",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "sacombank-platinum-american-express": {
+    "status": "cached",
+    "sourceUrl": "https://www.sacombank.com.vn/content/dam/sacombank/images/the-new/the-tin-dung/thum-tin-dung-amex.png",
+    "localPath": "/card-images/generated/sacombank-platinum-american-express.png",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "sacombank-jcb-ultimate": {
+    "status": "cached",
+    "sourceUrl": "https://www.sacombank.com.vn/content/dam/sacombank/images/the-new/the-tin-dung/06.12.2018_JCB%20Ultimate_FA-01.png",
+    "localPath": "/card-images/generated/sacombank-jcb-ultimate.png",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "sacombank-visa-signature": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "acb-visa-platinum": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "acb-visa-signature": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "mb-visa-modern-youth": {
+    "status": "placeholder",
+    "sourceUrl": null,
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "empty imageUrl",
+    "checkedAt": "2026-07-04T18:47:00.557Z"
+  }
+}

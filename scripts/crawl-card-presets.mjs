@@ -25,6 +25,8 @@ const extractAnnualFeeHints = (text) => {
 };
 
 for (const preset of presets) {
+  const presetId = preset.presetId ?? preset.id;
+
   try {
     const res = await fetch(preset.sourceUrl, {
       headers: {
@@ -41,6 +43,7 @@ for (const preset of presets) {
       JSON.stringify(
         {
           id: preset.id,
+          presetId,
           status: res.status,
           contentType,
           sourceUrl: preset.sourceUrl,
@@ -56,6 +59,7 @@ for (const preset of presets) {
       JSON.stringify(
         {
           id: preset.id,
+          presetId,
           sourceUrl: preset.sourceUrl,
           error: error instanceof Error ? error.message : String(error),
         },

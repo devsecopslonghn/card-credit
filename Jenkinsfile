@@ -56,6 +56,8 @@ pipeline {
               apk add --no-cache python3 make g++
               rm -rf node_modules .next
               npm ci --no-audit --no-fund
+              npm run validate:catalog
+              npm test
               npm run prepare:card-images
               npm run build
               chown -R "$HOST_UID:$HOST_GID" \

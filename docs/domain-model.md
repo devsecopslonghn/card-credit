@@ -15,10 +15,15 @@ Target catalog field names:
 - `providerCode`
 - `providerName`
 
-Current source mapping:
+Current canonical source fields:
 
-- `data/card-presets.json` field `bank` maps to `providerCode`.
-- `data/card-presets.json` field `bankName` maps to `providerName`.
+- `data/card-presets.json` field `providerCode`.
+- `data/card-presets.json` field `providerName`.
+
+Temporary compatibility aliases:
+
+- `bank` mirrors `providerCode`.
+- `bankName` mirrors `providerName`.
 - `models/Bank.ts` currently stores bank masterdata and should be treated as provider masterdata in documentation, although its existing collection and route names remain unchanged for compatibility.
 
 ### Card Product
@@ -36,12 +41,23 @@ Target catalog field names:
 - `sourceCheckedAt`
 - `active`
 
-Current source mapping:
+Current canonical source fields:
 
-- `data/card-presets.json` field `id` maps to `presetId`.
-- `name` maps to `displayName`.
-- `type` maps to `network`.
-- There is no JSON `active` field yet; current code treats all presets as selectable.
+- `presetId`.
+- `displayName`.
+- `network`.
+- `annualFee`.
+- `imageUrl`.
+- `sourceUrl`.
+- `sourceCheckedAt`.
+- `active`.
+- `sortOrder`.
+
+Temporary compatibility aliases:
+
+- `id` mirrors `presetId`.
+- `name` mirrors `displayName`.
+- `type` mirrors `network`.
 
 ### Network
 
@@ -84,13 +100,13 @@ Current implementation:
 
 - `data/card-presets.json`
 - `lib/cardPresets.ts`
+- `lib/cardCatalogCore.mjs`
 
 Current limitations:
 
-- The JSON still uses legacy field names.
-- There are no catalog service helpers yet.
+- Legacy aliases still exist for the current UI.
 - There are no `/api/card-catalog/**` endpoints yet.
-- UI imports `cardPresets` directly.
+- UI imports `cardPresets`, which is now a legacy compatibility adapter over active catalog products.
 
 ### Snapshot
 
@@ -121,14 +137,14 @@ const displayName = card.displayName ?? card.name;
 const network = card.network ?? card.type;
 ```
 
-For current presets, `lib/cardPresets.ts` exposes both legacy and catalog names:
+For current presets, canonical fields are the source of truth. Legacy aliases are compatibility-only:
 
 ```ts
-presetId = id;
-providerCode = bank;
-providerName = bankName;
-displayName = name;
-network = type;
+id = presetId;
+bank = providerCode;
+bankName = providerName;
+name = displayName;
+type = network;
 ```
 
 ## TypeScript Types
@@ -139,7 +155,32 @@ Shared catalog types are defined in `types/cardCatalog.ts`:
 - `CardCatalogProvider`
 - `LegacyCardPresetFields`
 
-`lib/cardPresets.ts` uses these types while preserving the legacy fields consumed by the current UI.
+`lib/cardPresets.ts` uses these types and exposes catalog helpers while preserving a legacy adapter for the current UI.
+
+## Inactive Product Behavior
+
+Inactive products remain in `getAllCatalogProducts()` for history and migration review.
+
+Normal picker helpers exclude inactive products:
+
+- `getActiveCatalogProducts()`
+- `getProductsByProvider(providerCode)`
+- `groupProductsByProvider()`
+- `cardPresets`
+
+Current inactive product:
+
+- `vpbank-shopee-platinum`
+
+## Image Fallback Behavior
+
+Catalog image lookup order:
+
+1. Cached image from `data/card-image-manifest.json` when status is `cached`.
+2. Valid product `imageUrl`.
+3. Stable local placeholder: `/card-images/placeholder-card.svg`.
+
+`scripts/prepare-card-images.mjs` records cache, placeholder and failure state in the manifest. A failed remote image should not fail the whole build.
 
 ## Boundaries For This Batch
 

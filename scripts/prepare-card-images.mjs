@@ -1,9 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { CARD_IMAGE_PLACEHOLDER_URL } from "../lib/cardCatalogCore.mjs";
 
 const presetsPath = new URL("../data/card-presets.json", import.meta.url);
 const outputDir = new URL("../public/card-images/generated/", import.meta.url);
 const manifestPath = new URL("../data/card-image-manifest.json", import.meta.url);
+const checkedAt = new Date().toISOString();
 
 const presets = JSON.parse(await fs.readFile(presetsPath, "utf8"));
 
@@ -21,12 +23,32 @@ const extensionFromUrl = (url) => {
   return [".png", ".jpg", ".jpeg", ".webp", ".svg"].includes(extension) ? extension : "";
 };
 
+const manifestKey = (preset) => preset.presetId ?? preset.id;
+
+const placeholderEntry = (preset, reason) => ({
+  status: "placeholder",
+  sourceUrl: preset.imageUrl ?? null,
+  localPath: CARD_IMAGE_PLACEHOLDER_URL,
+  reason,
+  checkedAt,
+});
+
 await fs.mkdir(outputDir, { recursive: true });
 
 const manifest = {};
 
 for (const preset of presets) {
-  if (!preset.imageUrl || !/^https?:\/\//.test(preset.imageUrl)) continue;
+  const key = manifestKey(preset);
+
+  if (!preset.imageUrl) {
+    manifest[key] = placeholderEntry(preset, "empty imageUrl");
+    continue;
+  }
+
+  if (!/^https?:\/\//.test(preset.imageUrl)) {
+    manifest[key] = placeholderEntry(preset, "non-remote imageUrl");
+    continue;
+  }
 
   try {
     const res = await fetch(preset.imageUrl, {
@@ -36,28 +58,54 @@ for (const preset of presets) {
     });
 
     if (!res.ok) {
-      console.warn(`Skip ${preset.id}: ${res.status} ${res.statusText}`);
+      manifest[key] = {
+        status: "failed",
+        sourceUrl: preset.imageUrl,
+        localPath: CARD_IMAGE_PLACEHOLDER_URL,
+        reason: `${res.status} ${res.statusText}`,
+        checkedAt,
+      };
+      console.warn(`Use placeholder for ${key}: ${res.status} ${res.statusText}`);
       continue;
     }
 
     const contentType = res.headers.get("content-type") || "";
     if (!contentType.startsWith("image/")) {
-      console.warn(`Skip ${preset.id}: unsupported content-type ${contentType}`);
+      manifest[key] = {
+        status: "failed",
+        sourceUrl: preset.imageUrl,
+        localPath: CARD_IMAGE_PLACEHOLDER_URL,
+        reason: `unsupported content-type ${contentType}`,
+        checkedAt,
+      };
+      console.warn(`Use placeholder for ${key}: unsupported content-type ${contentType}`);
       continue;
     }
 
     const extension = extensionFromUrl(preset.imageUrl) || extensionFromContentType(contentType) || ".img";
-    const fileName = `${preset.id}${extension === ".jpeg" ? ".jpg" : extension}`;
+    const fileName = `${key}${extension === ".jpeg" ? ".jpg" : extension}`;
     const filePath = new URL(fileName, outputDir);
     const buffer = Buffer.from(await res.arrayBuffer());
 
     await fs.writeFile(filePath, buffer);
-    manifest[preset.id] = `/card-images/generated/${fileName}`;
-    console.log(`Cached ${preset.id} -> ${manifest[preset.id]}`);
+    manifest[key] = {
+      status: "cached",
+      sourceUrl: preset.imageUrl,
+      localPath: `/card-images/generated/${fileName}`,
+      checkedAt,
+    };
+    console.log(`Cached ${key} -> ${manifest[key].localPath}`);
   } catch (error) {
-    console.warn(`Skip ${preset.id}: ${error instanceof Error ? error.message : String(error)}`);
+    manifest[key] = {
+      status: "failed",
+      sourceUrl: preset.imageUrl,
+      localPath: CARD_IMAGE_PLACEHOLDER_URL,
+      reason: error instanceof Error ? error.message : String(error),
+      checkedAt,
+    };
+    console.warn(`Use placeholder for ${key}: ${manifest[key].reason}`);
   }
 }
 
 await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`Wrote ${Object.keys(manifest).length} cached image mapping(s).`);
+console.log(`Wrote ${Object.keys(manifest).length} image manifest entrie(s).`);
