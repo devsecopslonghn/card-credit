@@ -30,6 +30,10 @@ export type CardCatalogProvider = {
   products: CardCatalogProduct[];
 };
 
+export type CardCatalogApiResponse<T> = {
+  data: T;
+};
+
 export type LegacyCardPresetFields = {
   id: string;
   bank: string;

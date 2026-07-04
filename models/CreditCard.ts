@@ -10,12 +10,20 @@ const MonthDataSchema = new Schema({
 
 const CreditCardSchema = new Schema(
   {
+    presetId: { type: String, default: null },
+    providerCode: { type: String, default: null },
+    providerName: { type: String, default: null },
+    displayName: { type: String, default: null },
+    network: { type: String, default: null },
+    catalogVersion: { type: String, default: null },
+    legacy: { type: Boolean, default: true },
+
     bank: { type: String, required: true },
     name: { type: String, required: true },
     type: { type: String, required: true },
     owner: { type: String, default: "Tôi" }, // Thêm trường này, mặc định là "Tôi"
     imageUrl: { type: String, required: true },
-    annualFee: { type: Number, required: true },
+    annualFee: { type: Number, default: null },
     targetSpendForWaiver: { type: Number, default: 0 },
 
     // 3 Trường mới thêm vào (Lưu chuỗi date dạng YYYY-MM-DD từ HTML5 input)
@@ -38,6 +46,9 @@ const CreditCardSchema = new Schema(
   },
   { timestamps: true },
 );
+
+CreditCardSchema.index({ presetId: 1 });
+CreditCardSchema.index({ providerCode: 1 });
 
 const CreditCard = models.CreditCard || model("CreditCard", CreditCardSchema);
 export default CreditCard;
