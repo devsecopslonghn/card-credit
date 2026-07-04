@@ -1,5 +1,6 @@
 import rawCardPresets from "@/data/card-presets.json";
 import cardImageManifest from "@/data/card-image-manifest.json";
+import type { CardCatalogProduct, LegacyCardPresetFields } from "@/types/cardCatalog";
 
 type RawCardPreset = {
   id: string;
@@ -20,9 +21,9 @@ type RawCardPreset = {
   };
 };
 
-export type CardPreset = Omit<RawCardPreset, "imageUrl"> & {
-  imageUrl: string;
-};
+export type CardPreset = Omit<RawCardPreset, "imageUrl"> &
+  LegacyCardPresetFields &
+  CardCatalogProduct;
 
 const cardImage = (title: string, subtitle: string, background: string, accent: string) => {
   const svg = `
@@ -46,9 +47,8 @@ const cardImage = (title: string, subtitle: string, background: string, accent: 
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 };
 
-export const cardPresets: CardPreset[] = (rawCardPresets as RawCardPreset[]).map((preset) => ({
-  ...preset,
-  imageUrl:
+export const cardPresets: CardPreset[] = (rawCardPresets as RawCardPreset[]).map((preset, index) => {
+  const imageUrl =
     (cardImageManifest as Record<string, string>)[preset.id] ||
     preset.imageUrl ||
     cardImage(
@@ -56,5 +56,17 @@ export const cardPresets: CardPreset[] = (rawCardPresets as RawCardPreset[]).map
       `${preset.bankName} ${preset.type}`,
       preset.theme.background,
       preset.theme.accent,
-    ),
-}));
+    );
+
+  return {
+    ...preset,
+    imageUrl,
+    presetId: preset.id,
+    providerCode: preset.bank,
+    providerName: preset.bankName,
+    displayName: preset.name,
+    network: preset.type,
+    active: true,
+    sortOrder: index + 1,
+  };
+});
