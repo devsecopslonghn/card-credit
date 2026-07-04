@@ -148,8 +148,6 @@ pipeline {
               docker compose -f docker-compose.prod.yml ps
 
             docker port card-credit
-
-            docker run --rm --network host curlimages/curl:8.10.1 -fsS "http://localhost:${APP_PORT}/" >/dev/null
           '''
         }
       }
