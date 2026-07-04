@@ -11,7 +11,6 @@ pipeline {
     booleanParam(name: 'DEPLOY_LOCAL', defaultValue: false, description: 'Start the app on eztechvn2 after building the image')
     string(name: 'APP_PORT', defaultValue: '8080', description: 'Host port for the Next.js container')
     string(name: 'DOCKER_IMAGE', defaultValue: 'card-credit', description: 'Local Docker image name')
-    string(name: 'BUILD_MONGODB_URI', defaultValue: 'mongodb://localhost:27017/card-credit', description: 'MongoDB URI used only during Next.js build')
   }
 
   environment {
@@ -47,7 +46,6 @@ pipeline {
             -u root:root \
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
-            -e MONGODB_URI="$BUILD_MONGODB_URI" \
             -e HOST_UID="$HOST_UID" \
             -e HOST_GID="$HOST_GID" \
             -v "$WORKSPACE:/workspace" \
@@ -108,7 +106,6 @@ pipeline {
             docker version
             APP_PORT="${APP_PORT}" \
             DOCKER_IMAGE="${DOCKER_IMAGE}" \
-            BUILD_MONGODB_URI="${BUILD_MONGODB_URI}" \
               docker compose -f docker-compose.prod.yml config --quiet
           '''
         }
@@ -124,7 +121,6 @@ pipeline {
           sh '''
             APP_PORT="${APP_PORT}" \
             DOCKER_IMAGE="${DOCKER_IMAGE}" \
-            BUILD_MONGODB_URI="${BUILD_MONGODB_URI}" \
               docker compose -f docker-compose.prod.yml build
 
             docker image inspect "${DOCKER_IMAGE}:latest" >/dev/null
@@ -145,12 +141,10 @@ pipeline {
           sh '''
             APP_PORT="${APP_PORT}" \
             DOCKER_IMAGE="${DOCKER_IMAGE}" \
-            BUILD_MONGODB_URI="${BUILD_MONGODB_URI}" \
               docker compose -f docker-compose.prod.yml up -d
 
             APP_PORT="${APP_PORT}" \
             DOCKER_IMAGE="${DOCKER_IMAGE}" \
-            BUILD_MONGODB_URI="${BUILD_MONGODB_URI}" \
               docker compose -f docker-compose.prod.yml ps
 
             docker run --rm --network host curlimages/curl:8.10.1 -fsS "http://localhost:${APP_PORT}/" >/dev/null

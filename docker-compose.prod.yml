@@ -4,8 +4,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        MONGODB_URI: ${BUILD_MONGODB_URI:-mongodb://localhost:27017/card-credit}
     environment:
       NODE_ENV: production
       PORT: 3000

@@ -12,8 +12,6 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
-ARG MONGODB_URI=mongodb://localhost:27017/card-credit
-ENV MONGODB_URI=$MONGODB_URI
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
