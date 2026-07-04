@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /out/
+/public/card-images/generated/
 
 # production
 /build

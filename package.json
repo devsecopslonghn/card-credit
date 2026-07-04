@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:sample": "node scripts/seed-sample.mjs"
+    "prepare:card-images": "node scripts/prepare-card-images.mjs",
+    "seed:sample": "node scripts/seed-sample.mjs",
+    "crawl:cards": "node scripts/crawl-card-presets.mjs"
   },
   "dependencies": {
     "mongoose": "^9.6.2",

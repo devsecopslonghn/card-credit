@@ -177,7 +177,7 @@ export default function CardsPage() {
             name: preset.name,
             type: preset.type,
             imageUrl: preset.imageUrl,
-            annualFee: preset.annualFee.toString(),
+            annualFee: preset.annualFee === null ? "" : preset.annualFee.toString(),
         });
     };
 

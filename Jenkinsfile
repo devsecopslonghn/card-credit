@@ -56,10 +56,13 @@ pipeline {
               apk add --no-cache python3 make g++
               rm -rf node_modules .next
               npm ci --no-audit --no-fund
+              npm run prepare:card-images
               npm run build
               chown -R "$HOST_UID:$HOST_GID" \
                 node_modules \
                 .next \
+                public/card-images \
+                data/card-image-manifest.json \
                 package-lock.json \
                 2>/dev/null || true
             '
@@ -184,9 +187,10 @@ pipeline {
               -v "$WORKSPACE:/workspace" \
               -w /workspace \
               node:22-alpine \
-              sh -lc 'rm -rf node_modules .next'
+              sh -lc 'rm -rf node_modules .next public/card-images/generated && printf "{}\\n" > data/card-image-manifest.json'
           else
-            rm -rf node_modules .next
+            rm -rf node_modules .next public/card-images/generated
+            printf "{}\\n" > data/card-image-manifest.json
           fi
         '''
       }

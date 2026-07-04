@@ -1,10 +1,26 @@
-export type CardPreset = {
+import rawCardPresets from "@/data/card-presets.json";
+import cardImageManifest from "@/data/card-image-manifest.json";
+
+type RawCardPreset = {
   id: string;
   bank: string;
   bankName: string;
   name: string;
   type: string;
-  annualFee: number;
+  segment?: string;
+  annualFee: number | null;
+  targetSpendForWaiver?: number | null;
+  imageUrl?: string | null;
+  benefits?: string[];
+  sourceUrl: string;
+  sourceCheckedAt: string;
+  theme: {
+    background: string;
+    accent: string;
+  };
+};
+
+export type CardPreset = Omit<RawCardPreset, "imageUrl"> & {
   imageUrl: string;
 };
 
@@ -30,59 +46,15 @@ const cardImage = (title: string, subtitle: string, background: string, accent: 
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 };
 
-export const cardPresets: CardPreset[] = [
-  {
-    id: "vcb-cashback-plus",
-    bank: "VCB",
-    bankName: "Vietcombank",
-    name: "Cashback Plus",
-    type: "Visa",
-    annualFee: 499000,
-    imageUrl: cardImage("VCB Cashback Plus", "Vietcombank Visa", "#047857", "#064e3b"),
-  },
-  {
-    id: "tcb-family-platinum",
-    bank: "TCB",
-    bankName: "Techcombank",
-    name: "Family Platinum",
-    type: "Mastercard",
-    annualFee: 990000,
-    imageUrl: cardImage("TCB Family Platinum", "Techcombank Mastercard", "#dc2626", "#7f1d1d"),
-  },
-  {
-    id: "mb-hi-collection",
-    bank: "MBB",
-    bankName: "MB Bank",
-    name: "Hi Collection",
-    type: "Visa",
-    annualFee: 399000,
-    imageUrl: cardImage("MB Hi Collection", "MB Bank Visa", "#1d4ed8", "#172554"),
-  },
-  {
-    id: "vpbank-stepup",
-    bank: "VPB",
-    bankName: "VPBank",
-    name: "StepUP Cashback",
-    type: "Mastercard",
-    annualFee: 499000,
-    imageUrl: cardImage("VPBank StepUP", "VPBank Mastercard", "#16a34a", "#1e3a8a"),
-  },
-  {
-    id: "hsbc-cashback",
-    bank: "HSBC",
-    bankName: "HSBC",
-    name: "Cashback Credit Card",
-    type: "Visa",
-    annualFee: 800000,
-    imageUrl: cardImage("HSBC Cashback", "HSBC Visa", "#111827", "#b91c1c"),
-  },
-  {
-    id: "sacombank-jcb",
-    bank: "STB",
-    bankName: "Sacombank",
-    name: "JCB Ultimate",
-    type: "JCB",
-    annualFee: 699000,
-    imageUrl: cardImage("Sacombank JCB", "Sacombank Ultimate", "#4338ca", "#0f766e"),
-  },
-];
+export const cardPresets: CardPreset[] = (rawCardPresets as RawCardPreset[]).map((preset) => ({
+  ...preset,
+  imageUrl:
+    (cardImageManifest as Record<string, string>)[preset.id] ||
+    preset.imageUrl ||
+    cardImage(
+      `${preset.bank} ${preset.name}`,
+      `${preset.bankName} ${preset.type}`,
+      preset.theme.background,
+      preset.theme.accent,
+    ),
+}));
