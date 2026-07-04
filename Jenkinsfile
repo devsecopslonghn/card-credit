@@ -70,11 +70,15 @@ pipeline {
             env.SAFE_BRANCH_NAME = 'unknown'
           }
 
+          env.APP_PORT_VALUE = params.APP_PORT?.trim() ?: '8080'
+          env.DOCKER_IMAGE_NAME = params.DOCKER_IMAGE?.trim() ?: 'card-credit'
+
           env.DOCKER_TAG = "${env.SAFE_BRANCH_NAME}-${env.BUILD_NUMBER}"
-          env.FULL_IMAGE_NAME = "${params.DOCKER_IMAGE}:${env.DOCKER_TAG}"
+          env.FULL_IMAGE_NAME = "${env.DOCKER_IMAGE_NAME}:${env.DOCKER_TAG}"
 
           echo "Branch name: ${branchName}"
           echo "Safe branch name: ${env.SAFE_BRANCH_NAME}"
+          echo "Application port: ${env.APP_PORT_VALUE}"
           echo "Docker image: ${env.FULL_IMAGE_NAME}"
         }
       }
@@ -183,11 +187,12 @@ pipeline {
 
             echo "Validating Docker Compose configuration"
             echo "Docker image: ${FULL_IMAGE_NAME}"
+            echo "Application port: ${APP_PORT_VALUE}"
 
             docker version
 
-            APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            APP_PORT="${APP_PORT_VALUE}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
             DOCKER_TAG="${DOCKER_TAG}" \
             MONGODB_URI="${MONGODB_URI}" \
               docker compose \
@@ -215,8 +220,8 @@ pipeline {
 
             echo "Building image: ${FULL_IMAGE_NAME}"
 
-            APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            APP_PORT="${APP_PORT_VALUE}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
             DOCKER_TAG="${DOCKER_TAG}" \
             MONGODB_URI="${MONGODB_URI}" \
               docker compose \
@@ -224,11 +229,6 @@ pipeline {
                 build
 
             docker image inspect "${FULL_IMAGE_NAME}" >/dev/null
-
-            echo "Image built successfully:"
-            docker image ls \
-              --filter "reference=${FULL_IMAGE_NAME}" \
-              --format 'table {{.Repository}}\\t{{.Tag}}\\t{{.ID}}\\t{{.Size}}'
           '''
         }
       }
