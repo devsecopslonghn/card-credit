@@ -84,7 +84,7 @@ pipeline {
       }
     }
 
-    stage('Build Node Workspace') {
+    stage('Install Dependencies') {
       agent {
         label 'eztechvn2'
       }
@@ -110,22 +110,55 @@ pipeline {
 
               apk add --no-cache python3 make g++
 
-              rm -rf node_modules .next
+              rm -rf node_modules .next public/card-images/generated
 
               npm ci --no-audit --no-fund
-              npm run validate:catalog
-              npm test
-              npm run prepare:card-images
-              npm run build
 
               chown -R "$HOST_UID:$HOST_GID" \
                 node_modules \
-                .next \
-                public/card-images \
-                data/card-image-manifest.json \
                 package-lock.json \
                 2>/dev/null || true
             '
+        '''
+      }
+    }
+
+    stage('Validate Catalog') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          docker run --rm \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            node:22-alpine \
+            sh -lc 'set -eu; npm run validate:catalog'
+        '''
+      }
+    }
+
+    stage('Type Check') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          docker run --rm \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            node:22-alpine \
+            sh -lc 'set -eu; npm run typecheck'
         '''
       }
     }
@@ -136,37 +169,126 @@ pipeline {
       }
 
       steps {
-        catchError(
-          buildResult: 'SUCCESS',
-          stageResult: 'UNSTABLE'
-        ) {
-          sh '''
-            set -eu
+        sh '''
+          set -eu
 
-            HOST_UID="$(id -u)"
-            HOST_GID="$(id -g)"
+          docker run --rm \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            node:22-alpine \
+            sh -lc 'set -eu; npm run lint'
+        '''
+      }
+    }
 
-            docker run --rm \
-              -u root:root \
-              -e HOME=/tmp \
-              -e npm_config_cache=/tmp/.npm \
-              -e HOST_UID="$HOST_UID" \
-              -e HOST_GID="$HOST_GID" \
-              -v "$WORKSPACE:/workspace" \
-              -w /workspace \
-              node:22-alpine \
-              sh -lc '
-                set -eu
+    stage('Unit Tests') {
+      agent {
+        label 'eztechvn2'
+      }
 
-                npm run lint
+      steps {
+        sh '''
+          set -eu
 
-                chown -R "$HOST_UID:$HOST_GID" \
-                  node_modules \
-                  .next \
-                  2>/dev/null || true
-              '
-          '''
-        }
+          docker run --rm \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            node:22-alpine \
+            sh -lc 'set -eu; npm run test:unit'
+        '''
+      }
+    }
+
+    stage('Integration Tests') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          docker run --rm \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            node:22-alpine \
+            sh -lc 'set -eu; npm run test:integration'
+        '''
+      }
+    }
+
+    stage('Prepare Card Images') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+
+          docker run --rm \
+            -u root:root \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            node:22-alpine \
+            sh -lc '
+              set -eu
+
+              npm run prepare:card-images
+
+              chown -R "$HOST_UID:$HOST_GID" \
+                public/card-images \
+                data/card-image-manifest.json \
+                2>/dev/null || true
+            '
+        '''
+      }
+    }
+
+    stage('Build Application') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+
+          docker run --rm \
+            -u root:root \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            node:22-alpine \
+            sh -lc '
+              set -eu
+
+              npm run build
+
+              chown -R "$HOST_UID:$HOST_GID" \
+                .next \
+                2>/dev/null || true
+            '
+        '''
       }
     }
 
@@ -229,6 +351,62 @@ pipeline {
                 build
 
             docker image inspect "${FULL_IMAGE_NAME}" >/dev/null
+          '''
+        }
+      }
+    }
+
+    stage('Container Smoke Test') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        withCredentials([
+          string(
+            credentialsId: 'MONGODB-ATLAS',
+            variable: 'MONGODB_URI'
+          )
+        ]) {
+          sh '''
+            set -eu
+
+            SMOKE_CONTAINER="card-credit-smoke-${BUILD_NUMBER}"
+
+            cleanup() {
+              docker rm -f "$SMOKE_CONTAINER" >/dev/null 2>&1 || true
+            }
+            trap cleanup EXIT
+
+            cleanup
+
+            docker run -d \
+              --name "$SMOKE_CONTAINER" \
+              -e NODE_ENV=production \
+              -e PORT=3000 \
+              -e MONGODB_URI="$MONGODB_URI" \
+              "${FULL_IMAGE_NAME}" \
+              >/dev/null
+
+            for attempt in $(seq 1 30); do
+              if docker exec "$SMOKE_CONTAINER" node -e '
+                const endpoints = ["/cards", "/api/card-catalog/providers"];
+                Promise.all(endpoints.map(async (endpoint) => {
+                  const response = await fetch(`http://127.0.0.1:3000${endpoint}`);
+                  if (!response.ok) throw new Error(`${endpoint} ${response.status}`);
+                })).then(() => process.exit(0)).catch(() => process.exit(1));
+              '; then
+                echo "Container smoke test passed"
+                exit 0
+              fi
+
+              echo "Waiting for container smoke test attempt ${attempt}/30"
+              sleep 2
+            done
+
+            echo "Container smoke test failed"
+            docker logs "$SMOKE_CONTAINER" || true
+            exit 1
           '''
         }
       }
@@ -356,10 +534,14 @@ pipeline {
                   node_modules \
                   .next \
                   public/card-images/generated
-
-                mkdir -p data
-                printf "{}\\n" > data/card-image-manifest.json
               '
+
+            if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
+              git -C "$WORKSPACE" checkout -- data/card-image-manifest.json 2>/dev/null || true
+            else
+              mkdir -p "$WORKSPACE/data"
+              printf "{}\\n" > "$WORKSPACE/data/card-image-manifest.json"
+            fi
 
             echo "Cleaning Docker build cache older than 24 hours"
 
@@ -373,8 +555,12 @@ pipeline {
               .next \
               public/card-images/generated
 
-            mkdir -p data
-            printf "{}\\n" > data/card-image-manifest.json
+            if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
+              git -C "$WORKSPACE" checkout -- data/card-image-manifest.json 2>/dev/null || true
+            else
+              mkdir -p data
+              printf "{}\\n" > data/card-image-manifest.json
+            fi
           fi
         '''
       }

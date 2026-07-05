@@ -30,11 +30,12 @@ export async function POST(request: Request) {
     const updatedNote = await CalendarNote.findOneAndUpdate(
       { date },
       { content: content.trim() },
-      { new: true, upsert: true, returnDocument: "after" }
+      { new: true, upsert: true, returnDocument: "after" },
     );
 
     return NextResponse.json(updatedNote);
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message || "Lỗi xử lý server" }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Lỗi xử lý server";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }

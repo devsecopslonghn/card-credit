@@ -1,8 +1,27 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+type Bank = {
+  _id: string;
+  fullname: string;
+  name: string;
+  shortname: string;
+  logo: string;
+};
+
+type ApiMessage = {
+  message?: string;
+};
+
+const fetchBanksData = async () => {
+  const res = await fetch(`/api/banks?timestamp=${new Date().getTime()}`, {
+    cache: "no-store",
+  });
+  return (await res.json()) as Bank[];
+};
 
 export default function BankMasterdataPage() {
-  const [banks, setBanks] = useState<any[]>([]);
+  const [banks, setBanks] = useState<Bank[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -14,17 +33,19 @@ export default function BankMasterdataPage() {
     logo: "",
   });
 
-  useEffect(() => {
-    fetchBanks();
+  const refreshBanks = useCallback(async () => {
+    setBanks(await fetchBanksData());
   }, []);
 
-  const fetchBanks = async () => {
-    const res = await fetch(`/api/banks?timestamp=${new Date().getTime()}`, {
-      cache: "no-store",
+  useEffect(() => {
+    let active = true;
+    void fetchBanksData().then((data) => {
+      if (active) setBanks(data);
     });
-    const data = await res.json();
-    setBanks(data);
-  };
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const openCreateModal = () => {
     setEditingId(null);
@@ -32,7 +53,7 @@ export default function BankMasterdataPage() {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (bank: any) => {
+  const openEditModal = (bank: Bank) => {
     setEditingId(bank._id);
     setFormData({
       fullname: bank.fullname,
@@ -85,7 +106,7 @@ export default function BankMasterdataPage() {
       body: JSON.stringify(formData),
     });
 
-    const result = await res.json();
+    const result = (await res.json()) as ApiMessage;
     setIsSubmitting(false);
 
     if (!res.ok) {
@@ -94,13 +115,13 @@ export default function BankMasterdataPage() {
     }
 
     closeModal();
-    fetchBanks();
+    void refreshBanks();
   };
 
   const handleDelete = async (id: string) => {
     if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa ngân hàng này khỏi hệ thống?")) {
       await fetch(`/api/banks/${id}`, { method: "DELETE" });
-      fetchBanks();
+      void refreshBanks();
     }
   };
 

@@ -15,6 +15,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN npm run validate:catalog
+RUN npm run typecheck
+RUN npm run lint
+RUN npm run test:unit
+RUN npm run test:integration
 RUN npm run prepare:card-images
 RUN npm run build
 

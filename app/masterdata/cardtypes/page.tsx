@@ -1,8 +1,25 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+type CardType = {
+  _id: string;
+  name: string;
+  logo: string;
+};
+
+type ApiMessage = {
+  message?: string;
+};
+
+const fetchCardTypesData = async () => {
+  const res = await fetch(`/api/cardtypes?timestamp=${new Date().getTime()}`, {
+    cache: "no-store",
+  });
+  return (await res.json()) as CardType[];
+};
 
 export default function CardTypeMasterdataPage() {
-  const [cardTypes, setCardTypes] = useState<any[]>([]);
+  const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -12,17 +29,19 @@ export default function CardTypeMasterdataPage() {
     logo: "",
   });
 
-  useEffect(() => {
-    fetchCardTypes();
+  const refreshCardTypes = useCallback(async () => {
+    setCardTypes(await fetchCardTypesData());
   }, []);
 
-  const fetchCardTypes = async () => {
-    const res = await fetch(`/api/cardtypes?timestamp=${new Date().getTime()}`, {
-      cache: "no-store",
+  useEffect(() => {
+    let active = true;
+    void fetchCardTypesData().then((data) => {
+      if (active) setCardTypes(data);
     });
-    const data = await res.json();
-    setCardTypes(data);
-  };
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const openCreateModal = () => {
     setEditingId(null);
@@ -30,7 +49,7 @@ export default function CardTypeMasterdataPage() {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (cardType: any) => {
+  const openEditModal = (cardType: CardType) => {
     setEditingId(cardType._id);
     setFormData({
       name: cardType.name,
@@ -80,7 +99,7 @@ export default function CardTypeMasterdataPage() {
       body: JSON.stringify(formData),
     });
 
-    const result = await res.json();
+    const result = (await res.json()) as ApiMessage;
     setIsSubmitting(false);
 
     if (!res.ok) {
@@ -89,13 +108,13 @@ export default function CardTypeMasterdataPage() {
     }
 
     closeModal();
-    fetchCardTypes();
+    void refreshCardTypes();
   };
 
   const handleDelete = async (id: string) => {
     if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa loại thẻ này?")) {
       await fetch(`/api/cardtypes/${id}`, { method: "DELETE" });
-      fetchCardTypes();
+      void refreshCardTypes();
     }
   };
 
