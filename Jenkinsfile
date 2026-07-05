@@ -341,6 +341,8 @@ pipeline {
             set -eu
 
             echo "Building image: ${FULL_IMAGE_NAME}"
+            export AUTH_SECRET="$(openssl rand -base64 48)"
+            export AUTH_USERS_JSON='[{"id":"long-admin","email":"long@example.com","password":"MatKhauCuaBan","role":"admin","workspaceId":"long-personal"}]'
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
