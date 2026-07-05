@@ -122,6 +122,7 @@ Current behavior:
 - For compatibility, `bank` currently stores the provider code, matching existing preset behavior.
 - Normal card update APIs do not allow editing catalog identity or snapshot fields.
 - The `/cards` listing edit modal exposes only operational fields and keeps product snapshot data read-only.
+- The card detail page also keeps product snapshot fields read-only and submits only operational update payloads.
 
 ### Legacy Card
 
@@ -132,6 +133,20 @@ Current behavior:
 - Existing cards without `presetId` are legacy cards by the roadmap definition.
 - Legacy cards remain supported by existing listing, detail, owner filter, upcoming payments and report flows.
 - The `/cards` listing shows legacy cards in provider groups using fallback fields and marks them with a small Legacy badge.
+- The detail page shows legacy cards with the same fallback fields and does not require selecting a catalog preset.
+
+## Report Compatibility
+
+`GET /api/reports/summary` returns canonical catalog fields for each card while preserving legacy compatibility fields:
+
+- Canonical: `presetId`, `providerCode`, `providerName`, `displayName`, `network`, `imageUrl`, `legacy`.
+- Compatibility: `bank`, `name`, `type`.
+
+Annual fee snapshot policy in reports:
+
+- `annualFee: null` remains `null` in card output.
+- Calculations treat unknown annual fee as `0` only for totals to avoid `NaN`.
+- `annualFeeKnown` tells consumers whether the annual fee was known.
 
 ## Current Compatibility Mapping
 
@@ -196,5 +211,4 @@ This batch does not:
 - Remove legacy API compatibility.
 - Add catalog database collections.
 - Migrate existing cards.
-- Update the detail page catalog-field editing model.
 - Complete full accessibility audit/focus trap work.

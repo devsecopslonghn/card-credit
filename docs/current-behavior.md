@@ -6,14 +6,14 @@ This document records the current implementation before the Card Catalog migrati
 
 ## Repository State Reviewed
 
-- Branch: `ai-task/catalog-ui`
+- Branch: `ai-task/catalog-detail-report`
 - Recent commits:
-  - `41d10ec 1111`
-  - `2bb026b Update`
-  - `44a8e50 feat: CC-010 to CC-016`
-  - `c8364ca feat: establish canonical card catalog foundation`
-  - `026adf3 feat: establish canonical card catalog foundation`
-- Working tree changes in this continuation are scoped to `/cards` catalog-first UI, docs and tests.
+  - `a6ea48f Merge pull request #7 from devsecopslonghn/add-card`
+  - `1fcdbcf Update image URLs in card presets`
+  - `85f315d Merge pull request #5 from devsecopslonghn/add-card`
+  - `7025ad7 add more card`
+  - `ee7574a Merge pull request #3 from devsecopslonghn/ai-task/catalog-ui`
+- Working tree changes in this continuation are scoped to detail/report catalog-first behavior, docs and a JSON syntax fix required for validation.
 - `README.md` now contains catalog foundation commands and sample-data notes.
 
 ## Source Structure
@@ -71,10 +71,15 @@ This document records the current implementation before the Card Catalog migrati
   - The list is sorted by payment due date ascending.
 - Card detail:
   - Detail page fetches all cards, then finds the selected card by id client-side.
-  - Detail page supports editing annual fee, target spend for waiver, statement date, payment due date and amount due this month.
+  - Detail page displays provider, product display name, network, owner, annual fee snapshot, statement date, payment due date, amount due, paid state and monthly data.
+  - Product identity fields are read-only on detail: `presetId`, `providerCode`, `providerName`, `displayName`, `network`, `bank`, `name`, `type`, `annualFee`, `imageUrl`, `catalogVersion`, `legacy`.
+  - Detail page supports editing operational fields only: owner, target spend for waiver, statement date, payment due date, amount due this month, paid state and monthly data.
   - Detail page supports editing 12 monthly records with `spend`, `cashback`, `fee` and `otherInterest`.
+  - Legacy cards open with fallback fields and a Legacy badge.
 - Summary report:
   - `GET /api/reports/summary` returns totals, card summaries and notes.
+  - Card summaries include canonical catalog fields plus compatibility fields.
+  - Annual fee `null` remains unknown in output and is treated as `0` only for report calculations.
   - Optional query params: `owner`, `includeNotes=false`.
 
 ## Current API Contract
@@ -189,7 +194,25 @@ Response includes:
   "generatedAt": "ISO datetime",
   "filters": { "owner": null, "includeNotes": true },
   "totals": {},
-  "cards": [],
+  "cards": [
+    {
+      "id": "string",
+      "_id": "string",
+      "presetId": "string or null",
+      "providerCode": "string or null",
+      "providerName": "Sacombank",
+      "displayName": "JCB Ultimate",
+      "network": "JCB",
+      "imageUrl": "string or null",
+      "legacy": false,
+      "bank": "STB",
+      "name": "JCB Ultimate",
+      "type": "JCB",
+      "annualFee": null,
+      "annualFeeKnown": false,
+      "monthlyData": []
+    }
+  ],
   "notes": []
 }
 ```
@@ -333,8 +356,6 @@ Do not point this command at production data unless explicitly approved.
 
 ## Remaining Differences From Roadmap Target
 
-- Detail page catalog-field cleanup is still tracked by CC-023.
-- Report/export UI changes are still tracked by CC-024.
 - Full accessibility audit and focus trap are still tracked by CC-026.
 - `CardType` current masterdata still acts as network masterdata and has not been renamed.
 - Catalog is still JSON-backed, not MongoDB-backed.

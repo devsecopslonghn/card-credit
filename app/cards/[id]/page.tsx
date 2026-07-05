@@ -82,7 +82,7 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
   }, []);
 
   const metrics = useMemo(() => (card ? calculateCardMetrics(card) : null), [card]);
-  const monthlyData = useMemo(() => (card ? getMonthlyData(card) : []), [card]);
+  const monthlyData = useMemo<MonthlyData[]>(() => (card ? (getMonthlyData(card) as MonthlyData[]) : []), [card]);
 
   const openGeneralEdit = () => {
     if (!card) return;
