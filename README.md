@@ -49,6 +49,8 @@ Temporary legacy aliases remain for current UI compatibility:
 
 Inactive products stay in the catalog for history but are excluded from normal picker helpers.
 
+Snapshot and future sync rules are documented in [`docs/catalog-snapshot-policy.md`](docs/catalog-snapshot-policy.md).
+
 ### Catalog API
 
 Read-only catalog endpoints return `{ "data": ... }` and expose active products only:
@@ -176,6 +178,8 @@ monthlyData
 `displayName`, `network`, `imageUrl`, `legacy`) and keeps compatibility fields (`bank`, `name`, `type`).
 Annual fee `null` remains `null` in output; calculations treat unknown annual fee as `0` only for totals
 and expose `annualFeeKnown`.
+
+Reports read User Card snapshots only; they do not refresh metadata from the catalog or mutate cards.
 
 ## Validation And Tests
 

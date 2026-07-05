@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   buildAllowedUpdate,
+  buildCardSnapshotFromProduct,
   createCardFromPreset,
   createCardFromRequestBody,
   createLegacyCard,
@@ -45,6 +46,46 @@ test("creates card from active preset with canonical snapshot and legacy aliases
   assert.notEqual(card.imageUrl, "client-override");
   assert.equal(card.legacy, false);
   assert.equal(card.monthlyData.length, 12);
+});
+
+test("card snapshots preserve existing values when catalog product metadata changes", () => {
+  const originalProduct = {
+    presetId: "bank-snapshot-card",
+    providerCode: "BNK",
+    providerName: "Bank",
+    displayName: "Snapshot Card",
+    network: "Visa",
+    imageUrl: "/card-images/original.svg",
+    annualFee: 100,
+    targetSpendForWaiver: 1000,
+  };
+  const changedProduct = {
+    ...originalProduct,
+    providerName: "Bank Renamed",
+    displayName: "Snapshot Card Renamed",
+    network: "Mastercard",
+    imageUrl: "/card-images/changed.svg",
+    annualFee: 200,
+    targetSpendForWaiver: 2000,
+  };
+
+  const existingCard = buildCardSnapshotFromProduct(originalProduct, "Long");
+  const newCard = buildCardSnapshotFromProduct(changedProduct, "Long");
+
+  assert.equal(existingCard.providerName, "Bank");
+  assert.equal(existingCard.displayName, "Snapshot Card");
+  assert.equal(existingCard.network, "Visa");
+  assert.equal(existingCard.imageUrl, "/card-images/original.svg");
+  assert.equal(existingCard.annualFee, 100);
+  assert.equal(existingCard.targetSpendForWaiver, 1000);
+  assert.equal(existingCard.monthlyData.length, 12);
+
+  assert.equal(newCard.providerName, "Bank Renamed");
+  assert.equal(newCard.displayName, "Snapshot Card Renamed");
+  assert.equal(newCard.network, "Mastercard");
+  assert.equal(newCard.imageUrl, "/card-images/changed.svg");
+  assert.equal(newCard.annualFee, 200);
+  assert.equal(newCard.targetSpendForWaiver, 2000);
 });
 
 test("create card from preset rejects missing preset", async () => {
