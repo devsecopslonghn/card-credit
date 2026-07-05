@@ -54,3 +54,22 @@ test("serializer does not mutate Mongoose-like documents", () => {
   assert.equal("providerName" in document, false);
   assert.equal(serialized.providerName, "VCB");
 });
+
+test("serializer handles missing optional fields without losing payment or monthly data", () => {
+  const serialized = serializeCreditCard({
+    bank: "UNKNOWN",
+    amountDueThisMonth: 123,
+    paymentDueDate: "",
+    isPaidThisMonth: false,
+    annualFee: null,
+    monthlyData: [{ month: 2, spend: 0, cashback: 0 }],
+  });
+
+  assert.equal(serialized.providerName, "UNKNOWN");
+  assert.equal(serialized.displayName, undefined);
+  assert.equal(serialized.network, undefined);
+  assert.equal(serialized.legacy, true);
+  assert.equal(serialized.annualFee, null);
+  assert.equal(serialized.amountDueThisMonth, 123);
+  assert.deepEqual(serialized.monthlyData, [{ month: 2, spend: 0, cashback: 0 }]);
+});

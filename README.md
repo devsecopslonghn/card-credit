@@ -147,9 +147,35 @@ The listing groups cards by provider, uses legacy fallbacks for old cards, and u
 
 Known UI transition limits:
 
-- Detail page catalog-field cleanup is tracked separately in CC-023.
-- Report/export UI changes are tracked separately in CC-024.
 - Full focus trap/accessibility audit is tracked separately in CC-026.
+
+## Detail And Reports
+
+`/cards/:id` displays product identity from the User Card snapshot using catalog-compatible fields:
+
+```text
+providerName ?? bank
+displayName ?? name
+network ?? type
+legacy ?? !presetId
+```
+
+Product identity fields are read-only on the detail page. Detail edits only send operational fields:
+
+```text
+owner
+targetSpendForWaiver
+statementDate
+paymentDueDate
+amountDueThisMonth
+isPaidThisMonth
+monthlyData
+```
+
+`GET /api/reports/summary` includes canonical fields (`presetId`, `providerCode`, `providerName`,
+`displayName`, `network`, `imageUrl`, `legacy`) and keeps compatibility fields (`bank`, `name`, `type`).
+Annual fee `null` remains `null` in output; calculations treat unknown annual fee as `0` only for totals
+and expose `annualFeeKnown`.
 
 ## Validation And Tests
 
