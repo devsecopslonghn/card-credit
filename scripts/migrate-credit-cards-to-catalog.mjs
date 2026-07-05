@@ -6,6 +6,7 @@ import rawCardPresets from "../data/card-presets.json" with { type: "json" };
 import cardImageManifest from "../data/card-image-manifest.json" with { type: "json" };
 import { createCatalogService } from "../lib/cardCatalogCore.mjs";
 import { runCatalogMigration } from "../lib/catalogMigrationCore.mjs";
+import { errorContext, logError, logInfo } from "../lib/observability/logger.mjs";
 
 const usage = `Usage:
   npm run migrate:catalog -- [--dry-run] [--apply] [--output migration-report.json]
@@ -98,6 +99,10 @@ const run = async () => {
     });
 
     printReport(report, options);
+    logInfo("CATALOG_MIGRATION_RESULT", {
+      mode: options.apply ? "apply" : "dry-run",
+      ...report.summary,
+    });
 
     if (options.output) {
       await fs.writeFile(options.output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
@@ -109,6 +114,7 @@ const run = async () => {
 };
 
 run().catch(async (error) => {
+  logError("CATALOG_MIGRATION_FAILURE", errorContext(error));
   console.error(error.message);
   await mongoose.disconnect();
   process.exit(1);

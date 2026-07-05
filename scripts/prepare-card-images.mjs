@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CARD_IMAGE_PLACEHOLDER_URL } from "../lib/cardCatalogCore.mjs";
+import { errorContext, logInfo, logWarn } from "../lib/observability/logger.mjs";
 
 const presetsPath = new URL("../data/card-presets.json", import.meta.url);
 const outputDir = new URL("../public/card-images/generated/", import.meta.url);
@@ -65,6 +66,11 @@ for (const preset of presets) {
         reason: `${res.status} ${res.statusText}`,
         checkedAt,
       };
+      logWarn("IMAGE_DOWNLOAD_FAILURE", {
+        presetId: key,
+        status: res.status,
+        reason: res.statusText,
+      });
       console.warn(`Use placeholder for ${key}: ${res.status} ${res.statusText}`);
       continue;
     }
@@ -78,6 +84,11 @@ for (const preset of presets) {
         reason: `unsupported content-type ${contentType}`,
         checkedAt,
       };
+      logWarn("IMAGE_DOWNLOAD_FAILURE", {
+        presetId: key,
+        reason: "unsupported content-type",
+        contentType,
+      });
       console.warn(`Use placeholder for ${key}: unsupported content-type ${contentType}`);
       continue;
     }
@@ -94,6 +105,11 @@ for (const preset of presets) {
       localPath: `/card-images/generated/${fileName}`,
       checkedAt,
     };
+    logInfo("IMAGE_DOWNLOAD_SUCCESS", {
+      presetId: key,
+      localPath: manifest[key].localPath,
+      contentType,
+    });
     console.log(`Cached ${key} -> ${manifest[key].localPath}`);
   } catch (error) {
     manifest[key] = {
@@ -103,6 +119,10 @@ for (const preset of presets) {
       reason: error instanceof Error ? error.message : String(error),
       checkedAt,
     };
+    logWarn("IMAGE_DOWNLOAD_FAILURE", {
+      presetId: key,
+      ...errorContext(error),
+    });
     console.warn(`Use placeholder for ${key}: ${manifest[key].reason}`);
   }
 }
