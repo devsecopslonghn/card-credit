@@ -389,13 +389,11 @@ pipeline {
               >/dev/null
 
             for attempt in $(seq 1 30); do
-              if docker exec "$SMOKE_CONTAINER" node -e '
-                const endpoints = ["/cards", "/api/card-catalog/providers"];
-                Promise.all(endpoints.map(async (endpoint) => {
-                  const response = await fetch(`http://127.0.0.1:3000${endpoint}`);
-                  if (!response.ok) throw new Error(`${endpoint} ${response.status}`);
-                })).then(() => process.exit(0)).catch(() => process.exit(1));
-              '; then
+              if docker exec \
+                -e SMOKE_BASE_URL="http://127.0.0.1:3000" \
+                -e SMOKE_TIMEOUT_MS="10000" \
+                "$SMOKE_CONTAINER" \
+                npm run smoke:deploy; then
                 echo "Container smoke test passed"
                 exit 0
               fi
