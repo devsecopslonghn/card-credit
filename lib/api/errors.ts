@@ -1,4 +1,11 @@
 import { NextResponse } from "next/server";
+import {
+  ApiError as ApiErrorCore,
+  apiErrorResponse as apiErrorResponseCore,
+  handleApiError as handleApiErrorCore,
+  internalErrorResponse as internalErrorResponseCore,
+  parseJsonRequest as parseJsonRequestCore,
+} from "./errorsCore.mjs";
 
 export type ApiErrorCode =
   | "INVALID_REQUEST"
@@ -21,72 +28,23 @@ export type ApiErrorBody = {
   };
 };
 
-export class ApiError extends Error {
-  status: number;
-  code: ApiErrorCode;
-  fields?: Record<string, string>;
+export class ApiError extends ApiErrorCore {
+  declare status: number;
+  declare code: ApiErrorCode;
+  declare fields: Record<string, string> | undefined;
 
   constructor(status: number, code: ApiErrorCode, message: string, fields?: Record<string, string>) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.code = code;
-    this.fields = fields;
+    super(status, code, message, fields);
   }
 }
 
-export const apiErrorResponse = (error: ApiError) =>
-  NextResponse.json<ApiErrorBody>(
-    {
-      error: {
-        code: error.code,
-        message: error.message,
-        ...(error.fields ? { fields: error.fields } : {}),
-      },
-    },
-    { status: error.status },
-  );
+export const apiErrorResponse = apiErrorResponseCore as (error: ApiError) => NextResponse<ApiErrorBody>;
 
-export const internalErrorResponse = (context: string, error: unknown) => {
-  console.error(context, error);
-  return apiErrorResponse(new ApiError(500, "INTERNAL_ERROR", "Lỗi hệ thống."));
-};
+export const internalErrorResponse = internalErrorResponseCore as (
+  context: string,
+  error: unknown,
+) => NextResponse<ApiErrorBody>;
 
-export const handleApiError = (context: string, error: unknown) => {
-  if (error instanceof ApiError) return apiErrorResponse(error);
-  if (
-    error &&
-    typeof error === "object" &&
-    "status" in error &&
-    "code" in error &&
-    "message" in error &&
-    typeof error.status === "number" &&
-    typeof error.code === "string" &&
-    typeof error.message === "string"
-  ) {
-    return apiErrorResponse(
-      new ApiError(
-        error.status,
-        error.code as ApiErrorCode,
-        error.message,
-        "fields" in error && error.fields && typeof error.fields === "object"
-          ? (error.fields as Record<string, string>)
-          : undefined,
-      ),
-    );
-  }
-  return internalErrorResponse(context, error);
-};
+export const handleApiError = handleApiErrorCore as (context: string, error: unknown) => NextResponse<ApiErrorBody>;
 
-export const parseJsonRequest = async (request: Request): Promise<Record<string, unknown>> => {
-  try {
-    const body: unknown = await request.json();
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
-      throw new ApiError(400, "INVALID_REQUEST", "Request body không hợp lệ.");
-    }
-    return body as Record<string, unknown>;
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(400, "INVALID_JSON", "Request body phải là JSON hợp lệ.");
-  }
-};
+export const parseJsonRequest = parseJsonRequestCore as (request: Request) => Promise<Record<string, unknown>>;
