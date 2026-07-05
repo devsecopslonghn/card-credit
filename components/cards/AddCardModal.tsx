@@ -1,0 +1,262 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchCatalogProducts, fetchCatalogProviders } from "@/lib/api/cardCatalogClient";
+import { createCard } from "@/lib/api/cardsClient";
+import { OwnerField } from "@/components/cards/OwnerField";
+import { ProductPicker } from "@/components/cards/ProductPicker";
+import { ProviderPicker } from "@/components/cards/ProviderPicker";
+import {
+  CARD_IMAGE_PLACEHOLDER_URL,
+  buildCreateCardPayload,
+  formatAnnualFee,
+  normalizeOwnerInput,
+  validateOwnerInput,
+  type CatalogProductOption,
+  type CatalogProviderOption,
+} from "@/components/cards/cardTypes";
+
+type AddCardModalProps = {
+  open: boolean;
+  ownerOptions: string[];
+  onClose: () => void;
+  onCreated: () => void;
+  onSuccess: (message: string) => void;
+};
+
+export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess }: AddCardModalProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [providers, setProviders] = useState<CatalogProviderOption[]>([]);
+  const [products, setProducts] = useState<CatalogProductOption[]>([]);
+  const [selectedProviderCode, setSelectedProviderCode] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<CatalogProductOption | null>(null);
+  const [owner, setOwner] = useState("Tôi");
+  const [ownerError, setOwnerError] = useState("");
+  const [providerLoading, setProviderLoading] = useState(false);
+  const [productLoading, setProductLoading] = useState(false);
+  const [providerError, setProviderError] = useState("");
+  const [productError, setProductError] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const selectedProvider = useMemo(
+    () => providers.find((provider) => provider.providerCode === selectedProviderCode),
+    [providers, selectedProviderCode],
+  );
+
+  const resetForm = useCallback(() => {
+    setProducts([]);
+    setSelectedProviderCode("");
+    setSelectedProduct(null);
+    setOwner("Tôi");
+    setOwnerError("");
+    setProductError("");
+    setCreateError("");
+  }, []);
+
+  const handleClose = useCallback(() => {
+    resetForm();
+    onClose();
+  }, [onClose, resetForm]);
+
+  const loadProviders = useCallback(async () => {
+    setProviderLoading(true);
+    setProviderError("");
+    try {
+      setProviders(await fetchCatalogProviders());
+    } catch (error) {
+      setProviderError(error instanceof Error ? error.message : "Không thể tải provider.");
+    } finally {
+      setProviderLoading(false);
+    }
+  }, []);
+
+  const loadProducts = useCallback(async (providerCode: string) => {
+    if (!providerCode) return;
+    setProductLoading(true);
+    setProductError("");
+    try {
+      setProducts(await fetchCatalogProducts(providerCode));
+    } catch (error) {
+      setProductError(error instanceof Error ? error.message : "Không thể tải sản phẩm thẻ.");
+    } finally {
+      setProductLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const timeoutId = window.setTimeout(() => void loadProviders(), 0);
+    requestAnimationFrame(() => closeButtonRef.current?.focus());
+    return () => window.clearTimeout(timeoutId);
+  }, [loadProviders, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isSubmitting) handleClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleClose, isSubmitting, open]);
+
+  if (!open) return null;
+
+  const handleProviderSelect = (providerCode: string) => {
+    setSelectedProviderCode(providerCode);
+    setSelectedProduct(null);
+    setProducts([]);
+    setProductError("");
+    setCreateError("");
+    void loadProducts(providerCode);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCreateError("");
+
+    if (!selectedProviderCode) {
+      setCreateError("Vui lòng chọn provider.");
+      return;
+    }
+
+    if (!selectedProduct) {
+      setCreateError("Vui lòng chọn Card Product.");
+      return;
+    }
+
+    const ownerValidation = validateOwnerInput(owner);
+    setOwner(ownerValidation.owner);
+    setOwnerError(ownerValidation.message);
+    if (!ownerValidation.valid) return;
+
+    setIsSubmitting(true);
+    try {
+      await createCard(buildCreateCardPayload(selectedProduct.presetId, ownerValidation.owner));
+      resetForm();
+      onClose();
+      onCreated();
+      onSuccess("Đã thêm thẻ mới.");
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "Không thể tạo thẻ.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-card-title"
+        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
+          <div>
+            <h3 id="add-card-title" className="text-lg font-bold text-gray-900">
+              Thêm thẻ từ Card Catalog
+            </h3>
+            <p className="text-sm text-gray-500">Chọn sản phẩm thẻ, sau đó nhập chủ thẻ.</p>
+          </div>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            aria-label="Đóng modal thêm thẻ"
+            className="rounded-lg p-2 text-gray-500 outline-none hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            x
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 p-5">
+          <ProviderPicker
+            providers={providers}
+            selectedProviderCode={selectedProviderCode}
+            loading={providerLoading}
+            error={providerError}
+            onSelect={handleProviderSelect}
+            onRetry={loadProviders}
+          />
+
+          <ProductPicker
+            products={products}
+            selectedPresetId={selectedProduct?.presetId ?? ""}
+            providerSelected={Boolean(selectedProviderCode)}
+            loading={productLoading}
+            error={productError}
+            onSelect={(product) => {
+              setSelectedProduct(product);
+              setCreateError("");
+            }}
+            onRetry={() => loadProducts(selectedProviderCode)}
+          />
+
+          {selectedProduct && (
+            <section aria-labelledby="product-preview-title" className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <h4 id="product-preview-title" className="mb-3 text-sm font-bold text-gray-900">
+                3. Xem trước thông tin sản phẩm
+              </h4>
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <img
+                  src={selectedProduct.imageUrl || CARD_IMAGE_PLACEHOLDER_URL}
+                  alt={`${selectedProduct.providerName} ${selectedProduct.displayName}`}
+                  className="aspect-[16/10] w-full rounded-lg bg-white object-contain sm:w-48"
+                  onError={(event) => {
+                    event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL;
+                  }}
+                />
+                <div className="min-w-0 space-y-1 text-sm">
+                  <p className="font-semibold text-gray-600">{selectedProvider?.providerName ?? selectedProduct.providerName}</p>
+                  <p className="break-words text-lg font-bold text-gray-900">{selectedProduct.displayName}</p>
+                  <p className="text-gray-600">Network: {selectedProduct.network}</p>
+                  <p className="font-semibold text-gray-900">Phí thường niên: {formatAnnualFee(selectedProduct.annualFee)}</p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          <OwnerField
+            value={owner}
+            error={ownerError}
+            ownerOptions={ownerOptions}
+            disabled={isSubmitting}
+            onChange={(value) => {
+              setOwner(value);
+              if (ownerError) setOwnerError(validateOwnerInput(value).message);
+              if (createError) setCreateError("");
+            }}
+          />
+
+          {createError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{createError}</p>
+          )}
+
+          <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="rounded-lg px-5 py-2.5 font-medium text-gray-800 outline-none hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || providerLoading || productLoading}
+              className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white outline-none hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => {
+                const normalizedOwner = normalizeOwnerInput(owner);
+                if (normalizedOwner !== owner) setOwner(normalizedOwner);
+              }}
+            >
+              {isSubmitting ? "Đang tạo..." : "Tạo thẻ"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

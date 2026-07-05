@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { handleApiError, parseJsonRequest, ApiError } from "@/lib/api/errors";
+import { handleApiError, parseJsonRequest } from "@/lib/api/errors";
 import { serializeCreditCard, serializeCreditCards } from "@/lib/cards/serializer";
 import { connectToDatabase } from "@/lib/mongodb";
-import { createCardFromPreset, createLegacyCard } from "@/lib/services/cardService.mjs";
+import { createCardFromRequestBody } from "@/lib/services/cardService.mjs";
 import CreditCard from "@/models/CreditCard";
 
 // Khai báo dòng này để báo cho Next.js biết đây là API động, không được lưu cache
@@ -23,20 +23,10 @@ export async function POST(request: Request) {
   try {
     await connectToDatabase();
     const body = await parseJsonRequest(request);
-    const usesCatalogContract = typeof body.presetId === "string";
+    const { card, deprecatedLegacy } = await createCardFromRequestBody(body, { CardModel: CreditCard });
 
-    if (!usesCatalogContract && !("bank" in body)) {
-      throw new ApiError(400, "INVALID_REQUEST", "Request body không hợp lệ.", {
-        presetId: "presetId là bắt buộc cho catalog-first contract.",
-      });
-    }
-
-    const newCard = usesCatalogContract
-      ? await createCardFromPreset(body, { CardModel: CreditCard })
-      : await createLegacyCard(body, { CardModel: CreditCard });
-
-    const response = NextResponse.json(serializeCreditCard(newCard), { status: 201 });
-    if (!usesCatalogContract) response.headers.set("X-Deprecated-Contract", "legacy-card-create");
+    const response = NextResponse.json(serializeCreditCard(card), { status: 201 });
+    if (deprecatedLegacy) response.headers.set("X-Deprecated-Contract", "legacy-card-create");
     return response;
   } catch (error) {
     return handleApiError("POST /api/cards failed", error);
