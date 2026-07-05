@@ -10,6 +10,9 @@ const MonthDataSchema = new Schema({
 
 const CreditCardSchema = new Schema(
   {
+    userId: { type: String, default: null },
+    workspaceId: { type: String, default: null },
+
     presetId: { type: String, default: null },
     providerCode: { type: String, default: null },
     providerName: { type: String, default: null },
@@ -49,6 +52,8 @@ const CreditCardSchema = new Schema(
 
 CreditCardSchema.index({ presetId: 1 });
 CreditCardSchema.index({ providerCode: 1 });
+CreditCardSchema.index({ workspaceId: 1, createdAt: -1 });
+CreditCardSchema.index({ workspaceId: 1, owner: 1 });
 
 const CreditCard = models.CreditCard || model("CreditCard", CreditCardSchema);
 export default CreditCard;

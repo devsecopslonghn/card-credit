@@ -7,6 +7,7 @@ import {
 } from "../lib/api/cardCatalogRouteCore.mjs";
 import { createCardDetailRouteHandlers, createCardsRouteHandlers } from "../lib/api/cardsRouteCore.mjs";
 import { createReportSummaryRouteHandler } from "../lib/api/reportSummaryRouteCore.mjs";
+import { ApiError } from "../lib/api/errorsCore.mjs";
 
 const ids = {
   catalog: "507f1f77bcf86cd799439011",
@@ -121,6 +122,23 @@ const createHandlers = (initialCards = [], notes = []) => {
     detail: createCardDetailRouteHandlers({ connectToDatabase, CardModel }),
     report: createReportSummaryRouteHandler({ connectToDatabase, CardModel, CalendarNoteModel }),
     connectCalls,
+  };
+};
+
+const users = {
+  alice: { userId: "alice", email: "alice@example.test", role: "user", workspaceId: "workspace-a" },
+  bob: { userId: "bob", email: "bob@example.test", role: "user", workspaceId: "workspace-b" },
+};
+
+const createAuthorizedHandlers = (initialCards = [], session = users.alice) => {
+  const CardModel = createFakeCardModel(initialCards);
+  const connectToDatabase = async () => {};
+  const requireAuth = () => session;
+
+  return {
+    CardModel,
+    cards: createCardsRouteHandlers({ connectToDatabase, CardModel, requireAuth }),
+    detail: createCardDetailRouteHandlers({ connectToDatabase, CardModel, requireAuth }),
   };
 };
 
@@ -357,6 +375,53 @@ test("Card detail route updates operational fields, blocks product identity upda
   assert.equal(deleted.status, 200);
   assert.equal(deleted.body.message, "Đã xóa thẻ thành công");
   assert.deepEqual(CardModel.state.deletedIds, [ids.catalog]);
+});
+
+test("Authorization filters cards by workspace and hides other users card details", async () => {
+  const aliceCard = { ...catalogCard, _id: ids.catalog, userId: users.alice.userId, workspaceId: users.alice.workspaceId };
+  const bobCard = { ...legacyCard, _id: ids.legacy, userId: users.bob.userId, workspaceId: users.bob.workspaceId };
+  const { cards, detail } = createAuthorizedHandlers([aliceCard, bobCard], users.alice);
+
+  const list = await readJson(await cards.GET(new Request("https://test.local/api/cards")));
+  assert.equal(list.status, 200);
+  assert.deepEqual(
+    list.body.map((card) => card._id),
+    [ids.catalog],
+  );
+
+  const bobDetail = await readJson(
+    await detail.GET(new Request(`https://test.local/api/cards/${ids.legacy}`), {
+      params: Promise.resolve({ id: ids.legacy }),
+    }),
+  );
+  assert.equal(bobDetail.status, 404);
+  assert.equal(bobDetail.body.error.code, "CARD_NOT_FOUND");
+});
+
+test("Authorization requires session for mutations and stamps created cards with account ownership", async () => {
+  const noSessionCardModel = createFakeCardModel();
+  const noSessionHandlers = createCardsRouteHandlers({
+    connectToDatabase: async () => {},
+    CardModel: noSessionCardModel,
+    requireAuth() {
+      throw new ApiError(401, "UNAUTHENTICATED", "Vui lòng đăng nhập.");
+    },
+  });
+
+  const unauthorized = await readJson(
+    await noSessionHandlers.POST(jsonRequest("https://test.local/api/cards", { presetId: "sacombank-jcb-ultimate", owner: "Long" })),
+  );
+  assert.equal(unauthorized.status, 401);
+  assert.equal(unauthorized.body.error.code, "UNAUTHENTICATED");
+  assert.equal(noSessionCardModel.state.createCalls.length, 0);
+
+  const { CardModel, cards } = createAuthorizedHandlers([], users.alice);
+  const created = await readJson(
+    await cards.POST(jsonRequest("https://test.local/api/cards", { presetId: "sacombank-jcb-ultimate", owner: "Long" })),
+  );
+  assert.equal(created.status, 201);
+  assert.equal(CardModel.state.createCalls[0].userId, users.alice.userId);
+  assert.equal(CardModel.state.createCalls[0].workspaceId, users.alice.workspaceId);
 });
 
 test("Reports route summarizes mixed catalog and legacy cards with canonical and compatibility fields", async () => {

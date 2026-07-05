@@ -101,6 +101,16 @@ const json = (route: Route, body: unknown, status = 200) =>
   });
 
 async function mockCardApis(page: Page, cardFixture: CreditCard[] = initialCards) {
+  await page.context().addCookies([
+    {
+      name: "card_credit_session",
+      value: "e2e-session-placeholder",
+      url: "http://127.0.0.1:3000",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
+
   let cards = structuredClone(cardFixture);
   const createRequests: unknown[] = [];
   const updateRequests: Array<{ id: string; body: unknown }> = [];
