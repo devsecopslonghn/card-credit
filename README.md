@@ -1,59 +1,157 @@
 # Card Credit
 
-Next.js app for tracking user credit cards, payment reminders, monthly spend/cashback data and card catalog presets.
+Card Credit la ung dung Next.js de quan ly the tin dung ca nhan: danh sach the, ngay sao ke, han thanh toan, so tien can tra, du lieu chi tieu theo thang, ghi chu lich va Card Catalog dung de tao the theo preset ngan hang.
 
-## Local Development
+## Muc Tieu
+
+- Tao User Card tu Card Catalog theo contract `presetId + owner`.
+- Luu snapshot thong tin san pham tai thoi diem tao the de card cu khong bi thay doi khi catalog cap nhat.
+- Theo doi cac truong van hanh cua tung the: chu the, ngay sao ke, han thanh toan, so tien can tra, trang thai da thanh toan va monthly data.
+- Bao ve du lieu rieng theo session va workspace.
+- Ho tro catalog validation, migration, E2E va smoke test cho deploy.
+
+## Kien Truc
+
+- `app/`: Next.js App Router, UI pages va API routes.
+- `components/cards/`: card list, modal tao the, picker provider/product va controls lien quan.
+- `lib/api/`: route core co the test bang dependency injection.
+- `lib/services/`: domain service tao/cap nhat User Card.
+- `lib/cards/`: serializer, UI helpers va accessibility helpers.
+- `lib/auth/`: session cookie HMAC va role helpers.
+- `lib/catalog/`: store cho admin catalog JSON.
+- `models/`: Mongoose models.
+- `data/`: Card Catalog JSON va image manifest.
+- `scripts/`: validate catalog, migrate, seed, cache images va smoke test.
+- `tests/`: unit/integration tests bang `node:test`; `tests/e2e/` dung Playwright.
+- `docs/`: roadmap, current behavior, release plan va snapshot policy.
+
+## Tech Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Mongoose/MongoDB
+- Playwright E2E
+- Node.js `node:test`
+- Docker/Jenkins pipeline
+
+## Bien Moi Truong
+
+```bash
+MONGODB_URI="mongodb connection string"
+AUTH_SECRET="long random secret for signed auth cookies"
+AUTH_USERS_JSON='[
+  {"id":"user-1","email":"user@example.test","password":"change-me","role":"user","workspaceId":"workspace-1"},
+  {"id":"admin-1","email":"admin@example.test","password":"change-me","role":"admin","workspaceId":"admin-workspace"}
+]'
+```
+
+`AUTH_SECRET` bat buoc trong production. Neu thieu o local, app dung dev fallback de tien chay thu.
+
+Khong dung production MongoDB cho test, seed, migration dry-run hoac Playwright. Dung database rieng cho local/staging.
+
+## Chay Local
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000/cards`.
+Mo `http://localhost:3000/cards`.
 
-Database-backed API routes require:
+Dang nhap bang user trong `AUTH_USERS_JSON`. Cac route UI rieng tu nhu `/cards` va `/masterdata/**` yeu cau cookie session.
+
+## Chay Docker
+
+Build image:
 
 ```bash
-MONGODB_URI="mongodb connection string"
+docker build -t card-credit:local .
+```
+
+Chay container:
+
+```bash
+docker run --rm -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e MONGODB_URI="$MONGODB_URI" \
+  -e AUTH_SECRET="$AUTH_SECRET" \
+  -e AUTH_USERS_JSON="$AUTH_USERS_JSON" \
+  card-credit:local
+```
+
+Voi compose production:
+
+```bash
+APP_PORT=8080 MONGODB_URI="$MONGODB_URI" AUTH_SECRET="$AUTH_SECRET" AUTH_USERS_JSON="$AUTH_USERS_JSON" docker compose -f docker-compose.prod.yml up -d
+```
+
+## Auth Va Phan Quyen
+
+- Session duoc luu trong cookie `card_credit_session`, signed bang HMAC SHA-256.
+- User thuong duoc xem catalog va quan ly User Card trong workspace cua minh.
+- Admin duoc dung API admin catalog va masterdata mutation.
+- API cards/reports/notes filter theo `workspaceId`.
+- Mutation API kiem tra session o server, khong chi an nut tren frontend.
+
+Auth endpoints:
+
+```text
+POST /api/auth/login
+POST /api/auth/logout
+GET  /api/auth/me
 ```
 
 ## Card Catalog
 
-Catalog source of truth for this milestone:
+Nguon catalog hien tai:
 
 - `data/card-presets.json`
-- `lib/cardPresets.ts`
+- `data/card-image-manifest.json`
 - `lib/cardCatalogCore.mjs`
 
-Canonical product fields:
+Vi du catalog entry:
 
-- `presetId`
-- `providerCode`
-- `providerName`
-- `displayName`
-- `network`
-- `annualFee`
-- `imageUrl`
-- `sourceUrl`
-- `sourceCheckedAt`
-- `active`
-- `sortOrder`
+```json
+{
+  "presetId": "sacombank-visa-platinum-cashback",
+  "providerCode": "STB",
+  "providerName": "Sacombank",
+  "displayName": "Visa Platinum Cashback",
+  "network": "Visa",
+  "segment": "Platinum",
+  "annualFee": 599000,
+  "targetSpendForWaiver": 100000000,
+  "imageUrl": "/card-images/placeholder-card.svg",
+  "benefits": ["Hoan tien theo dieu kien chuong trinh"],
+  "sourceUrl": "https://www.sacombank.com.vn/",
+  "sourceCheckedAt": "2026-07-05",
+  "active": true,
+  "sortOrder": 301,
+  "theme": { "background": "#111827", "accent": "#f8fafc" },
+  "id": "sacombank-visa-platinum-cashback",
+  "bank": "STB",
+  "bankName": "Sacombank",
+  "name": "Visa Platinum Cashback",
+  "type": "Visa"
+}
+```
 
-Temporary legacy aliases remain for current UI compatibility:
+Legacy aliases tam thoi phai khop canonical fields:
 
-- `id = presetId`
-- `bank = providerCode`
-- `bankName = providerName`
-- `name = displayName`
-- `type = network`
+```text
+id = presetId
+bank = providerCode
+bankName = providerName
+name = displayName
+type = network
+```
 
-Inactive products stay in the catalog for history but are excluded from normal picker helpers.
+Inactive products van nam trong catalog de giu lich su nhung khong xuat hien trong picker va khong tao duoc card moi.
 
-Snapshot and future sync rules are documented in [`docs/catalog-snapshot-policy.md`](docs/catalog-snapshot-policy.md).
+## Catalog API
 
-### Catalog API
-
-Read-only catalog endpoints return `{ "data": ... }` and expose active products only:
+Read-only endpoints chi tra active products:
 
 ```text
 GET /api/card-catalog/providers
@@ -62,13 +160,31 @@ GET /api/card-catalog/products?provider=STB
 GET /api/card-catalog/products/:presetId
 ```
 
-Catalog API responses use canonical product fields and omit temporary legacy aliases such as `bank`,
-`name` and `type`. Unknown product ids return `404 PRESET_NOT_FOUND`; unknown providers or providers
-without active products return `404 PROVIDER_NOT_FOUND`.
+Admin endpoints yeu cau role `admin`:
 
-### Card API Compatibility
+```text
+GET   /api/admin/card-catalog/products
+POST  /api/admin/card-catalog/products
+PATCH /api/admin/card-catalog/products/:presetId
+PATCH /api/admin/card-catalog/providers/:providerCode
+```
 
-New card creation contract:
+Admin catalog update validate toan bo `data/card-presets.json` truoc khi ghi va response co audit:
+
+```json
+{
+  "audit": {
+    "updatedBy": "admin@example.test",
+    "updatedByUserId": "admin-1",
+    "updatedAt": "2026-07-05T00:00:00.000Z",
+    "storage": "data/card-presets.json"
+  }
+}
+```
+
+## Card API
+
+Tao card theo catalog-first contract:
 
 ```json
 {
@@ -77,16 +193,15 @@ New card creation contract:
 }
 ```
 
-The server resolves product metadata from the catalog and snapshots both canonical fields
-(`presetId`, `providerCode`, `providerName`, `displayName`, `network`) and legacy fields
-(`bank`, `name`, `type`, `imageUrl`, `annualFee`) so the current UI keeps working. Client metadata
-overrides such as `annualFee`, `imageUrl`, `providerName`, `displayName` and `network` are ignored
-for catalog-first creation.
+Server resolve metadata tu catalog, snapshot canonical fields (`presetId`, `providerCode`, `providerName`, `displayName`, `network`) va legacy fields (`bank`, `name`, `type`, `imageUrl`, `annualFee`). Client overrides nhu `annualFee`, `imageUrl`, `providerName`, `displayName`, `network` bi bo qua khi tao card tu preset.
 
-The legacy `POST /api/cards` payload remains temporarily supported for the current UI. It is
-allowlisted, marked with `X-Deprecated-Contract: legacy-card-create`, and logged as deprecated.
+Legacy `POST /api/cards` van tam ho tro, duoc allowlist va tra header:
 
-`PUT /api/cards/:id` accepts only operational fields:
+```text
+X-Deprecated-Contract: legacy-card-create
+```
+
+`PUT /api/cards/:id` chi nhan operational fields:
 
 ```text
 owner
@@ -98,170 +213,130 @@ isPaidThisMonth
 monthlyData
 ```
 
-Identity and catalog snapshot fields such as `presetId`, `annualFee`, `imageUrl`, `bank`, `name` and
-`type` are not updated through the normal card update route.
-
-API validation errors use:
+Vi du loi API:
 
 ```json
 {
   "error": {
     "code": "INVALID_OWNER",
-    "message": "Tên chủ thẻ không hợp lệ.",
+    "message": "Ten chu the khong hop le.",
     "fields": {
-      "owner": "Tên chủ thẻ không được để trống."
+      "owner": "Ten chu the khong duoc de trong."
     }
   }
 }
 ```
 
-Card reads serialize legacy documents with fallback values:
+## Seed Du Lieu
 
-```ts
-providerName ?? bank
-displayName ?? name
-network ?? type
-legacy ?? !presetId
-```
-
-## Cards UI
-
-`/cards` now uses the catalog-first add-card flow:
-
-```text
-Select Provider
-Select Card Product
-Review product preview
-Enter owner
-Create card
-```
-
-The UI reads catalog data through `/api/card-catalog/**` and creates cards with only:
-
-```json
-{
-  "presetId": "sacombank-visa-platinum-cashback",
-  "owner": "Long Ho"
-}
-```
-
-The listing groups cards by provider, uses legacy fallbacks for old cards, and uses responsive flex wrapping so cards collapse to one column on narrow screens.
-
-Known UI transition limits:
-
-- Full focus trap/accessibility audit is tracked separately in CC-026.
-
-## Detail And Reports
-
-`/cards/:id` displays product identity from the User Card snapshot using catalog-compatible fields:
-
-```text
-providerName ?? bank
-displayName ?? name
-network ?? type
-legacy ?? !presetId
-```
-
-Product identity fields are read-only on the detail page. Detail edits only send operational fields:
-
-```text
-owner
-targetSpendForWaiver
-statementDate
-paymentDueDate
-amountDueThisMonth
-isPaidThisMonth
-monthlyData
-```
-
-`GET /api/reports/summary` includes canonical fields (`presetId`, `providerCode`, `providerName`,
-`displayName`, `network`, `imageUrl`, `legacy`) and keeps compatibility fields (`bank`, `name`, `type`).
-Annual fee `null` remains `null` in output; calculations treat unknown annual fee as `0` only for totals
-and expose `annualFeeKnown`.
-
-Reports read User Card snapshots only; they do not refresh metadata from the catalog or mutate cards.
-
-## Catalog Migration
-
-Preview legacy-card mapping before any write:
-
-```bash
-MONGODB_URI="mongodb connection string" npm run migrate:catalog -- --dry-run
-```
-
-Dry-run is the default and prints `total`, `exact`, `probable`, `ambiguous`, `unmatched`,
-`alreadyMigrated` and `wouldUpdate`, plus per-card `cardId`, current `bank/name/type`, match status,
-matched `presetId` when available and a review reason. A JSON report can be written with:
-
-```bash
-npm run migrate:catalog -- --dry-run --output migration-report.json
-```
-
-Review all `probable`, `ambiguous` and `unmatched` cards before applying. Apply mode updates exact
-matches only:
-
-```bash
-MONGODB_URI="mongodb connection string" npm run migrate:catalog -- --apply
-```
-
-Take a database backup before apply. The migration is idempotent and skips cards that already have
-`presetId`. It sets only `presetId`, `providerCode`, `providerName`, `displayName`, `network`,
-`catalogVersion` and `legacy: false`; it preserves legacy snapshot fields (`bank`, `name`, `type`,
-`annualFee`, `imageUrl`), owner, payment fields and `monthlyData`. Rollback should restore from the
-backup or explicitly unset the catalog fields for the affected exact-match card ids from the reviewed
-report.
-
-## Validation And Tests
-
-```bash
-npm run validate:catalog
-npm test
-npm run lint
-npm run build
-```
-
-`validate:catalog` and `npm test` do not require MongoDB or network access.
-
-Known baseline: lint currently reports pre-existing app/API issues outside the catalog files.
-
-## Images
-
-Remote card images are cached by:
-
-```bash
-npm run prepare:card-images
-```
-
-The script writes status to `data/card-image-manifest.json`. Missing, invalid or failed remote images use:
-
-```text
-/card-images/placeholder-card.svg
-```
-
-Docker and Jenkins run the same image preparation script before build.
-
-## Sample Data
-
-Seed safe regression data with:
+Seed sample data vao database local/staging:
 
 ```bash
 MONGODB_URI="mongodb connection string" npm run seed:sample
 ```
 
-The sample seed includes:
+Khong chay seed vao production DB neu chua duoc phe duyet ro rang.
 
-- Sacombank user cards.
-- Non-Sacombank user cards.
-- Cards with monthly data.
-- A card without payment due date.
+## Them Card Product
 
-Do not run sample seed against production data unless explicitly approved.
+1. Them entry vao `data/card-presets.json` bang canonical fields.
+2. Dong bo legacy aliases trong thoi gian UI con can compatibility.
+3. Dung `annualFee: null` neu chua xac minh duoc phi.
+4. Dung `active: false` cho san pham ngung mo moi.
+5. Ghi `sourceUrl` va `sourceCheckedAt`.
+6. Chay `npm run validate:catalog` va `npm test`.
 
-## Adding A Card Product
+Co the dung admin API neu dang chay server voi admin session; API se validate truoc khi ghi JSON.
 
-1. Add an entry to `data/card-presets.json` using canonical fields.
-2. Keep temporary legacy aliases matching canonical fields while the current UI still depends on them.
-3. Use official product `sourceUrl` when available.
-4. Use `annualFee: null` for unverified fees.
-5. Set `active: false` for products that should not appear in the normal picker.
-6. Run `npm run validate:catalog` and `npm test`.
+## Validate Catalog
+
+```bash
+npm run validate:catalog
+```
+
+Validation kiem tra duplicate `presetId`, alias mismatch, provider code, network, annual fee, `active`, `sortOrder`, source URL/date va image fallback.
+
+## Test
+
+```bash
+npm run typecheck
+npm run lint
+npm run test:unit
+npm run test:integration
+npm test
+npm run test:e2e
+npm run build
+```
+
+Playwright dung mocked API cho catalog/card flows, khong can external network hay MongoDB. Trace, screenshot va video duoc giu khi test fail theo `playwright.config.ts`.
+
+Baseline hien tai: `npm run lint` pass nhung con warning `<img>` cua Next.js trong UI hien co.
+
+## Migration
+
+Preview mapping truoc khi ghi:
+
+```bash
+MONGODB_URI="mongodb connection string" npm run migrate:catalog -- --dry-run
+```
+
+Ghi report:
+
+```bash
+npm run migrate:catalog -- --dry-run --output migration-report.json
+```
+
+Apply chi cap nhat exact matches:
+
+```bash
+MONGODB_URI="mongodb connection string" npm run migrate:catalog -- --apply
+```
+
+Backup database truoc apply. Migration idempotent, bo qua card da co `presetId`, va khong thay doi snapshot tai chinh nhu `annualFee`, `imageUrl`, owner, payment fields hoac `monthlyData`.
+
+## Card Images
+
+Cache remote images:
+
+```bash
+npm run prepare:card-images
+```
+
+Script ghi `data/card-image-manifest.json`. Anh thieu, remote fail hoac URL khong hop le fallback ve:
+
+```text
+/card-images/placeholder-card.svg
+```
+
+## Deployment
+
+Checklist toi thieu:
+
+```bash
+npm install
+npm run validate:catalog
+npm run typecheck
+npm run lint
+npm test
+npm run test:e2e
+npm run build
+```
+
+Smoke test sau deploy:
+
+```bash
+SMOKE_BASE_URL="https://your-app.example" npm run smoke:deploy
+```
+
+Jenkinsfile hien chay catalog validation, tests, build, Docker smoke va deploy smoke. Xem `docs/release-plan.md` de biet rollback, backup MongoDB va manual verification.
+
+## Troubleshooting
+
+- `Vui long dinh nghia bien MONGODB_URI`: API route can database nhung env thieu.
+- `AUTH_SECRET is required in production`: them `AUTH_SECRET` khi `NODE_ENV=production`.
+- Login that bai: kiem tra `AUTH_USERS_JSON` la JSON array hop le va email/password dung.
+- `/cards` redirect ve `/login`: chua co cookie session hop le.
+- `PRESET_INACTIVE`: product inactive khong tao duoc card moi; card snapshot cu van render.
+- Playwright khong co browser: chay `npx playwright install chromium`.
+- Catalog validation fail: sua `data/card-presets.json`, nhat la alias, duplicate sortOrder/source date/image URL.
+- Khong test bang production DB; tao database local/staging rieng cho seed, migration va regression.
