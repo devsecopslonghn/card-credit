@@ -100,8 +100,8 @@ const json = (route: Route, body: unknown, status = 200) =>
     body: JSON.stringify(body),
   });
 
-async function mockCardApis(page: Page) {
-  let cards = structuredClone(initialCards);
+async function mockCardApis(page: Page, cardFixture: CreditCard[] = initialCards) {
+  let cards = structuredClone(cardFixture);
   const createRequests: unknown[] = [];
   const updateRequests: Array<{ id: string; body: unknown }> = [];
   const deleteRequests: string[] = [];
@@ -310,5 +310,74 @@ test.describe("CC-033 card catalog E2E", () => {
 
     const hasHorizontalScroll = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     expect(hasHorizontalScroll).toBe(false);
+  });
+});
+
+test.describe("CC-034 card edge cases E2E", () => {
+  test("renders missing, broken, data URI, long-name and empty-date cards without broken UI", async ({ page }) => {
+    test.skip(page.viewportSize()?.width === 375, "Edge rendering is covered once in the desktop project.");
+    const longName =
+      "Zero Fee Empty Image Product With An Extremely Long Official Display Name For Layout Regression Coverage";
+    const dataUri =
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='100'%3E%3Crect width='160' height='100' fill='%230f766e'/%3E%3C/svg%3E";
+
+    await page.route("**/card-images/does-not-exist.png", (route) => route.fulfill({ status: 404 }));
+    await mockCardApis(page, [
+      {
+        _id: "edge-empty-image",
+        presetId: "edge-zero-fee",
+        providerCode: "EDGE",
+        providerName: "Edge Bank",
+        displayName: longName,
+        network: "Visa",
+        owner: "Long Ho",
+        imageUrl: "",
+        annualFee: 0,
+        statementDate: "",
+        paymentDueDate: "",
+        amountDueThisMonth: undefined,
+      },
+      {
+        _id: "edge-broken-image",
+        presetId: "edge-null-fee",
+        providerCode: "EDGE",
+        providerName: "Edge Bank",
+        displayName: "Broken Image Product",
+        network: "Visa",
+        owner: "Long Ho",
+        imageUrl: "/card-images/does-not-exist.png",
+        annualFee: null,
+      },
+      {
+        _id: "edge-data-uri-legacy",
+        legacy: true,
+        bank: "Legacy Data Bank",
+        name: "Legacy Data URI Product",
+        type: "Mastercard",
+        owner: "Long Ho",
+        imageUrl: dataUri,
+        annualFee: null,
+        paymentDueDate: "",
+        statementDate: "",
+      },
+    ]);
+
+    await page.goto("/cards");
+    await expect(page.getByRole("heading", { name: longName })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Broken Image Product" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Legacy Data URI Product" })).toBeVisible();
+    await expect(page.getByText("0 ₫").first()).toBeVisible();
+    await expect(page.getByText("Chưa xác định").first()).toBeVisible();
+    await expect(page.getByText("Chưa thiết lập").first()).toBeVisible();
+
+    const emptyImage = page.getByAltText(`Edge Bank ${longName}`);
+    await expect(emptyImage).toHaveAttribute("src", "/card-images/placeholder-card.svg");
+
+    const brokenImage = page.getByAltText("Edge Bank Broken Image Product");
+    await expect.poll(async () => brokenImage.getAttribute("src")).toBe("/card-images/placeholder-card.svg");
+
+    await expect(page.getByAltText("Legacy Data Bank Legacy Data URI Product")).toHaveAttribute("src", dataUri);
+    await expect(page.locator("body")).not.toContainText("NaN");
+    await expect(page.locator("body")).not.toContainText("undefinedđ");
   });
 });
