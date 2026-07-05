@@ -80,12 +80,14 @@ export function CardItem({ card, busy, onEdit, onDelete, onTogglePaid }: CardIte
           <label className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-700">
             <input
               type="checkbox"
+              aria-label={`${card.isPaidThisMonth ? "Bỏ đánh dấu đã thanh toán" : "Đánh dấu đã thanh toán"} ${displayName}`}
               className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
               checked={Boolean(card.isPaidThisMonth)}
               disabled={busy}
               onChange={(event) => onTogglePaid(card, event.target.checked)}
             />
             <span className={card.isPaidThisMonth ? "text-emerald-600 line-through" : ""}>
+              <span aria-hidden="true">{card.isPaidThisMonth ? "✓ " : "! "}</span>
               {card.isPaidThisMonth ? "Đã thanh toán" : "Chưa thanh toán"}
             </span>
           </label>

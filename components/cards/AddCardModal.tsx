@@ -6,6 +6,7 @@ import { createCard } from "@/lib/api/cardsClient";
 import { OwnerField } from "@/components/cards/OwnerField";
 import { ProductPicker } from "@/components/cards/ProductPicker";
 import { ProviderPicker } from "@/components/cards/ProviderPicker";
+import { getFocusableElements } from "@/lib/cards/accessibility.mjs";
 import {
   CARD_IMAGE_PLACEHOLDER_URL,
   buildCreateCardPayload,
@@ -26,6 +27,7 @@ type AddCardModalProps = {
 
 export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess }: AddCardModalProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [providers, setProviders] = useState<CatalogProviderOption[]>([]);
   const [products, setProducts] = useState<CatalogProductOption[]>([]);
   const [selectedProviderCode, setSelectedProviderCode] = useState("");
@@ -94,7 +96,35 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isSubmitting) handleClose();
+      if (event.key === "Escape" && !isSubmitting) {
+        event.preventDefault();
+        handleClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getFocusableElements<HTMLElement>(dialogRef.current);
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (!dialogRef.current?.contains(activeElement)) {
+        event.preventDefault();
+        firstElement.focus();
+      } else if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -147,17 +177,22 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-card-title"
+        aria-describedby="add-card-description"
+        tabIndex={-1}
         className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
           <div>
-            <h3 id="add-card-title" className="text-lg font-bold text-gray-900">
+            <h2 id="add-card-title" className="text-lg font-bold text-gray-900">
               Thêm thẻ từ Card Catalog
-            </h3>
-            <p className="text-sm text-gray-500">Chọn sản phẩm thẻ, sau đó nhập chủ thẻ.</p>
+            </h2>
+            <p id="add-card-description" className="text-sm text-gray-500">
+              Chọn provider, chọn Card Product, xem phí thường niên rồi nhập chủ thẻ.
+            </p>
           </div>
           <button
             ref={closeButtonRef}
@@ -171,7 +206,7 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 p-5">
+        <form onSubmit={handleSubmit} aria-describedby={createError ? "add-card-submit-error" : undefined} className="space-y-5 p-5">
           <ProviderPicker
             providers={providers}
             selectedProviderCode={selectedProviderCode}
@@ -196,9 +231,9 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
 
           {selectedProduct && (
             <section aria-labelledby="product-preview-title" className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <h4 id="product-preview-title" className="mb-3 text-sm font-bold text-gray-900">
+              <h3 id="product-preview-title" className="mb-3 text-sm font-bold text-gray-900">
                 3. Xem trước thông tin sản phẩm
-              </h4>
+              </h3>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <img
                   src={selectedProduct.imageUrl || CARD_IMAGE_PLACEHOLDER_URL}
@@ -219,6 +254,7 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
           )}
 
           <OwnerField
+            id="add-card-owner"
             value={owner}
             error={ownerError}
             ownerOptions={ownerOptions}
@@ -231,7 +267,13 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
           />
 
           {createError && (
-            <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{createError}</p>
+            <p
+              id="add-card-submit-error"
+              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"
+              role="alert"
+            >
+              {createError}
+            </p>
           )}
 
           <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">

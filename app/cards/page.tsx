@@ -161,7 +161,8 @@ export default function CardsPage() {
     <div className="min-h-screen overflow-x-hidden bg-gray-50 px-4 py-10 md:px-8">
       {toast && (
         <div
-          role="status"
+          role={toast.type === "success" ? "status" : "alert"}
+          aria-live={toast.type === "success" ? "polite" : "assertive"}
           className={`fixed bottom-6 right-6 z-[100] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl px-5 py-3.5 font-medium text-white shadow-2xl ${
             toast.type === "success" ? "bg-emerald-600" : "bg-red-600"
           }`}
