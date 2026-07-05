@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
     "validate:catalog": "node scripts/validate-card-catalog.mjs",
+    "migrate:catalog": "node scripts/migrate-credit-cards-to-catalog.mjs",
     "prepare:card-images": "node scripts/prepare-card-images.mjs",
     "seed:sample": "node scripts/seed-sample.mjs",
     "crawl:cards": "node scripts/crawl-card-presets.mjs"
