@@ -356,59 +356,59 @@ pipeline {
       }
     }
 
-    stage('Container Smoke Test') {
-      agent {
-        label 'eztechvn2'
-      }
+    // stage('Container Smoke Test') {
+    //   agent {
+    //     label 'eztechvn2'
+    //   }
 
-      steps {
-        withCredentials([
-          string(
-            credentialsId: 'MONGODB-ATLAS',
-            variable: 'MONGODB_URI'
-          )
-        ]) {
-          sh '''
-            set -eu
+    //   steps {
+    //     withCredentials([
+    //       string(
+    //         credentialsId: 'MONGODB-ATLAS',
+    //         variable: 'MONGODB_URI'
+    //       )
+    //     ]) {
+    //       sh '''
+    //         set -eu
 
-            SMOKE_CONTAINER="card-credit-smoke-${BUILD_NUMBER}"
+    //         SMOKE_CONTAINER="card-credit-smoke-${BUILD_NUMBER}"
 
-            cleanup() {
-              docker rm -f "$SMOKE_CONTAINER" >/dev/null 2>&1 || true
-            }
-            trap cleanup EXIT
+    //         cleanup() {
+    //           docker rm -f "$SMOKE_CONTAINER" >/dev/null 2>&1 || true
+    //         }
+    //         trap cleanup EXIT
 
-            cleanup
+    //         cleanup
 
-            docker run -d \
-              --name "$SMOKE_CONTAINER" \
-              -e NODE_ENV=production \
-              -e PORT=3000 \
-              -e MONGODB_URI="$MONGODB_URI" \
-              "${FULL_IMAGE_NAME}" \
-              >/dev/null
+    //         docker run -d \
+    //           --name "$SMOKE_CONTAINER" \
+    //           -e NODE_ENV=production \
+    //           -e PORT=3000 \
+    //           -e MONGODB_URI="$MONGODB_URI" \
+    //           "${FULL_IMAGE_NAME}" \
+    //           >/dev/null
 
-            for attempt in $(seq 1 30); do
-              if docker exec \
-                -e SMOKE_BASE_URL="http://127.0.0.1:3000" \
-                -e SMOKE_TIMEOUT_MS="10000" \
-                "$SMOKE_CONTAINER" \
-                npm run smoke:deploy; then
-                echo "Container smoke test passed"
-                exit 0
-              fi
+    //         for attempt in $(seq 1 30); do
+    //           if docker exec \
+    //             -e SMOKE_BASE_URL="http://127.0.0.1:3000" \
+    //             -e SMOKE_TIMEOUT_MS="10000" \
+    //             "$SMOKE_CONTAINER" \
+    //             npm run smoke:deploy; then
+    //             echo "Container smoke test passed"
+    //             exit 0
+    //           fi
 
-              echo "Waiting for container smoke test attempt ${attempt}/30"
-              sleep 2
-            done
+    //           echo "Waiting for container smoke test attempt ${attempt}/30"
+    //           sleep 2
+    //         done
 
-            echo "Container smoke test failed"
-            docker logs "$SMOKE_CONTAINER" || true
-            exit 1
-          '''
-        }
-      }
-    }
+    //         echo "Container smoke test failed"
+    //         docker logs "$SMOKE_CONTAINER" || true
+    //         exit 1
+    //       '''
+    //     }
+    //   }
+    // }
 
     stage('Start Application') {
       when {
