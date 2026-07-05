@@ -49,6 +49,79 @@ Temporary legacy aliases remain for current UI compatibility:
 
 Inactive products stay in the catalog for history but are excluded from normal picker helpers.
 
+### Catalog API
+
+Read-only catalog endpoints return `{ "data": ... }` and expose active products only:
+
+```text
+GET /api/card-catalog/providers
+GET /api/card-catalog/products
+GET /api/card-catalog/products?provider=STB
+GET /api/card-catalog/products/:presetId
+```
+
+Catalog API responses use canonical product fields and omit temporary legacy aliases such as `bank`,
+`name` and `type`. Unknown product ids return `404 PRESET_NOT_FOUND`; unknown providers or providers
+without active products return `404 PROVIDER_NOT_FOUND`.
+
+### Card API Compatibility
+
+New card creation contract:
+
+```json
+{
+  "presetId": "sacombank-visa-platinum-cashback",
+  "owner": "Long Ho"
+}
+```
+
+The server resolves product metadata from the catalog and snapshots both canonical fields
+(`presetId`, `providerCode`, `providerName`, `displayName`, `network`) and legacy fields
+(`bank`, `name`, `type`, `imageUrl`, `annualFee`) so the current UI keeps working. Client metadata
+overrides such as `annualFee`, `imageUrl`, `providerName`, `displayName` and `network` are ignored
+for catalog-first creation.
+
+The legacy `POST /api/cards` payload remains temporarily supported for the current UI. It is
+allowlisted, marked with `X-Deprecated-Contract: legacy-card-create`, and logged as deprecated.
+
+`PUT /api/cards/:id` accepts only operational fields:
+
+```text
+owner
+targetSpendForWaiver
+statementDate
+paymentDueDate
+amountDueThisMonth
+isPaidThisMonth
+monthlyData
+```
+
+Identity and catalog snapshot fields such as `presetId`, `annualFee`, `imageUrl`, `bank`, `name` and
+`type` are not updated through the normal card update route.
+
+API validation errors use:
+
+```json
+{
+  "error": {
+    "code": "INVALID_OWNER",
+    "message": "Tên chủ thẻ không hợp lệ.",
+    "fields": {
+      "owner": "Tên chủ thẻ không được để trống."
+    }
+  }
+}
+```
+
+Card reads serialize legacy documents with fallback values:
+
+```ts
+providerName ?? bank
+displayName ?? name
+network ?? type
+legacy ?? !presetId
+```
+
 ## Validation And Tests
 
 ```bash

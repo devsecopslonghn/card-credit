@@ -6,22 +6,23 @@ This document records the current implementation before the Card Catalog migrati
 
 ## Repository State Reviewed
 
-- Branch: `ai-task/card-catalog-foundation`
+- Branch: `ai-task/catalog-backend`
 - Recent commits:
-  - `85a8935 Do something`
-  - `f7b087d Update`
-  - `764b07e 1111`
-  - `8f15da0 push export`
-  - `f1cde91 fix`
-- Working tree before this batch already contained modified `AGENTS.md` and untracked `docs/`.
+  - `41d10ec 1111`
+  - `2bb026b Update`
+  - `44a8e50 feat: CC-010 to CC-016`
+  - `c8364ca feat: establish canonical card catalog foundation`
+  - `026adf3 feat: establish canonical card catalog foundation`
+- Working tree changes in this continuation are scoped to backend catalog/card API behavior, docs and tests.
 - `README.md` now contains catalog foundation commands and sample-data notes.
 
 ## Source Structure
 
 - `app/cards/page.tsx`: main card list page, add/edit/delete modal, owner filter, calendar notes, upcoming payment list.
 - `app/cards/[id]/page.tsx`: card detail page, general card payment settings, monthly data table and monthly edit modal.
-- `app/api/cards/route.ts`: list and create cards.
-- `app/api/cards/[id]/route.ts`: update and delete cards.
+- `app/api/cards/route.ts`: list and create cards with catalog-first and transitional legacy contracts.
+- `app/api/cards/[id]/route.ts`: update operational fields and delete cards.
+- `app/api/card-catalog/**`: read-only catalog provider and product endpoints.
 - `app/api/reports/summary/route.ts`: JSON summary export.
 - `app/api/notes/route.ts`: calendar notes.
 - `app/api/banks/**`: bank masterdata.
@@ -47,10 +48,11 @@ This document records the current implementation before the Card Catalog migrati
   - The add modal supports either selecting a preset or manually entering card metadata.
   - User-entered fields include `bank`, `type`, `owner`, `name`, `annualFee` and image upload.
   - Selecting a preset fills the same legacy fields from `cardPresets`.
-  - `POST /api/cards` currently stores the request body directly with `CreditCard.create(data)`.
+  - `POST /api/cards` now prefers the catalog-first `{ presetId, owner }` contract.
+  - Legacy full-card payloads are temporarily supported through an allowlisted service path.
 - Edit card from listing:
-  - The listing edit modal updates legacy identity fields and image data.
-  - `PUT /api/cards/:id` removes `_id`, `createdAt`, `updatedAt`, then passes the remaining body to `findByIdAndUpdate`.
+  - Current UI may still send full card payloads.
+  - `PUT /api/cards/:id` now updates only operational fields and ignores identity fields when at least one allowed operational field is present.
 - Delete card:
   - Listing has a delete confirmation modal.
   - `DELETE /api/cards/:id` deletes the document by id.
@@ -80,7 +82,16 @@ This document records the current implementation before the Card Catalog migrati
 
 Returns an array of `CreditCard` documents from MongoDB.
 
-Current fields are not explicitly shaped by the API route. They reflect the Mongoose document, including:
+Response is serialized for legacy read compatibility. It includes stored fields and derives:
+
+```ts
+providerName = providerName ?? bank
+displayName = displayName ?? name
+network = network ?? type
+legacy = legacy ?? !presetId
+```
+
+Typical fields include:
 
 ```json
 {
@@ -102,7 +113,18 @@ Current fields are not explicitly shaped by the API route. They reflect the Mong
 
 ### `POST /api/cards`
 
-Current request body is the legacy full-card payload. The route does not validate or allowlist fields.
+Preferred request body is catalog-first:
+
+```json
+{
+  "presetId": "sacombank-visa-platinum-cashback",
+  "owner": "Long Ho"
+}
+```
+
+The route resolves product metadata from the catalog. Client overrides for product metadata are not trusted.
+
+The legacy full-card payload remains transitional and allowlisted:
 
 ```json
 {
@@ -115,13 +137,23 @@ Current request body is the legacy full-card payload. The route does not validat
 }
 ```
 
-Response: created MongoDB document, HTTP `201`.
+Response: created card, HTTP `201`. Legacy create responses include `X-Deprecated-Contract: legacy-card-create`.
 
 ### `PUT /api/cards/:id`
 
-Current request body is a partial or full card document. The route removes `_id`, `createdAt` and `updatedAt`, but otherwise accepts all remaining fields.
+Current request body may be partial or a full card document from the old UI. The route applies an explicit allowlist:
 
-Response: updated MongoDB document, HTTP `200`; `{ "message": "Không tìm thấy thẻ" }`, HTTP `404` if not found.
+- `owner`
+- `targetSpendForWaiver`
+- `statementDate`
+- `paymentDueDate`
+- `amountDueThisMonth`
+- `isPaidThisMonth`
+- `monthlyData`
+
+Identity/snapshot fields such as `presetId`, `annualFee`, `imageUrl`, `bank`, `name` and `type` are not updated.
+
+Response: serialized updated card, HTTP `200`; structured `CARD_NOT_FOUND`, HTTP `404` if not found.
 
 ### `DELETE /api/cards/:id`
 
@@ -195,7 +227,7 @@ Cardholder/operational fields:
 - `isPaidThisMonth`
 - `monthlyData`
 
-There are no catalog fields yet in the Mongoose schema:
+Catalog-compatible fields now exist in the Mongoose schema and are optional for old documents:
 
 - `presetId`
 - `providerCode`
@@ -204,6 +236,8 @@ There are no catalog fields yet in the Mongoose schema:
 - `network`
 - `catalogVersion`
 - `legacy`
+
+Non-unique indexes exist for `presetId` and `providerCode` because many user cards may point at the same product while future reads/filtering need stable lookup fields.
 
 ## Current Preset Behavior
 
@@ -237,7 +271,28 @@ There are no catalog fields yet in the Mongoose schema:
   - `groupProductsByProvider()`
 - `cardPresets` is now a legacy compatibility adapter for the current UI and includes active products only.
 - Inactive products remain in the full catalog but do not appear in the current add-card preset picker.
-- No `/api/card-catalog/**` endpoints exist.
+- `/api/card-catalog/providers` returns provider groups with active products.
+- `/api/card-catalog/products` returns active products.
+- `/api/card-catalog/products?provider=STB` returns active products for a provider code.
+- `/api/card-catalog/products/:presetId` returns one active product or `404 PRESET_NOT_FOUND`.
+
+## Current Error Response
+
+Card catalog and card APIs now use a structured error body:
+
+```json
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Request body không hợp lệ.",
+    "fields": {}
+  }
+}
+```
+
+Known codes include `INVALID_REQUEST`, `INVALID_JSON`, `INVALID_CARD_ID`, `INVALID_OWNER`,
+`PRESET_NOT_FOUND`, `PRESET_INACTIVE`, `PROVIDER_NOT_FOUND`, `CARD_NOT_FOUND`,
+`FORBIDDEN_UPDATE_FIELD`, `DATABASE_ERROR` and `INTERNAL_ERROR`.
 
 ## Sample Data Baseline
 

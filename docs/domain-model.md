@@ -88,9 +88,10 @@ The person or label associated with a User Card, currently stored as `owner`.
 
 Current behavior:
 
-- Add-card submit trims owner and defaults empty values to `Tôi`.
+- Catalog-first card creation requires an explicit non-empty owner.
+- Legacy UI submit still trims owner before sending and defaults empty values to `Tôi`.
 - Owner filtering compares trimmed stored owner values client-side.
-- There is no centralized owner normalization helper yet.
+- Backend owner normalization trims and collapses whitespace, rejects non-string/empty values and caps length at 120 characters.
 
 ### Catalog
 
@@ -102,10 +103,10 @@ Current implementation:
 - `lib/cardPresets.ts`
 - `lib/cardCatalogCore.mjs`
 
-Current limitations:
+Current implementation notes:
 
 - Legacy aliases still exist for the current UI.
-- There are no `/api/card-catalog/**` endpoints yet.
+- Read-only `/api/card-catalog/**` endpoints expose active catalog products to new clients.
 - UI imports `cardPresets`, which is now a legacy compatibility adapter over active catalog products.
 
 ### Snapshot
@@ -114,9 +115,10 @@ Product information copied to a User Card at creation time.
 
 Current behavior:
 
-- The existing app stores product-like fields directly on `CreditCard` documents: `bank`, `name`, `type`, `imageUrl`, `annualFee`.
-- This is effectively a manual snapshot, but it is not yet linked to a `presetId`.
-- The current API does not distinguish catalog identity from operational card updates.
+- Catalog-first card creation stores canonical snapshot fields: `presetId`, `providerCode`, `providerName`, `displayName`, `network`, `catalogVersion`, `legacy`.
+- It also stores legacy snapshot fields: `bank`, `name`, `type`, `imageUrl`, `annualFee`.
+- For compatibility, `bank` currently stores the provider code, matching existing preset behavior.
+- Normal card update APIs do not allow editing catalog identity or snapshot fields.
 
 ### Legacy Card
 
@@ -124,7 +126,7 @@ A current or future `CreditCard` document without `presetId`.
 
 Current behavior:
 
-- All existing cards are legacy cards by the roadmap definition because `CreditCard` has no `presetId` field yet.
+- Existing cards without `presetId` are legacy cards by the roadmap definition.
 - Legacy cards remain supported by existing listing, detail, owner filter, upcoming payments and report flows.
 
 ## Current Compatibility Mapping
@@ -187,8 +189,7 @@ Catalog image lookup order:
 This batch does not:
 
 - Rename database fields.
-- Change API request or response contracts.
+- Remove legacy API compatibility.
 - Add catalog database collections.
-- Add card-catalog API routes.
 - Migrate existing cards.
 - Redesign the add-card UI.

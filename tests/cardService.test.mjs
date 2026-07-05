@@ -1,0 +1,198 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import {
+  buildAllowedUpdate,
+  createCardFromPreset,
+  createCardFromRequestBody,
+  createLegacyCard,
+  updateCardById,
+} from "../lib/services/cardService.mjs";
+
+const createCapturingModel = () => {
+  const calls = [];
+  return {
+    calls,
+    async create(payload) {
+      calls.push(payload);
+      return { _id: "created-id", ...payload };
+    },
+  };
+};
+
+test("creates card from active preset with canonical snapshot and legacy aliases", async () => {
+  const CardModel = createCapturingModel();
+  const card = await createCardFromPreset(
+    {
+      presetId: "sacombank-visa-platinum-cashback",
+      owner: "  Long   Ho  ",
+      annualFee: 1,
+      imageUrl: "client-override",
+      providerName: "Client Provider",
+    },
+    { CardModel },
+  );
+
+  assert.equal(card.presetId, "sacombank-visa-platinum-cashback");
+  assert.equal(card.providerCode, "STB");
+  assert.equal(card.providerName, "Sacombank");
+  assert.equal(card.displayName, "Visa Platinum Cashback");
+  assert.equal(card.network, "Visa");
+  assert.equal(card.bank, "STB");
+  assert.equal(card.name, "Visa Platinum Cashback");
+  assert.equal(card.type, "Visa");
+  assert.equal(card.owner, "Long Ho");
+  assert.notEqual(card.annualFee, 1);
+  assert.notEqual(card.imageUrl, "client-override");
+  assert.equal(card.legacy, false);
+  assert.equal(card.monthlyData.length, 12);
+});
+
+test("create card from preset rejects missing preset", async () => {
+  const CardModel = createCapturingModel();
+
+  await assert.rejects(
+    () => createCardFromPreset({ presetId: "missing-preset", owner: "Long" }, { CardModel }),
+    (error) => error.status === 404 && error.code === "PRESET_NOT_FOUND",
+  );
+});
+
+test("create card from preset rejects inactive preset", async () => {
+  const CardModel = createCapturingModel();
+
+  await assert.rejects(
+    () => createCardFromPreset({ presetId: "vpbank-shopee-platinum", owner: "Long" }, { CardModel }),
+    (error) => error.status === 409 && error.code === "PRESET_INACTIVE",
+  );
+});
+
+test("POST catalog-first contract succeeds and ignores client metadata", async () => {
+  const CardModel = createCapturingModel();
+  const result = await createCardFromRequestBody(
+    {
+      presetId: "sacombank-jcb-ultimate",
+      owner: "Long",
+      annualFee: 0,
+      displayName: "Override",
+    },
+    { CardModel },
+  );
+
+  assert.equal(result.deprecatedLegacy, false);
+  assert.equal(result.card.displayName, "JCB Ultimate");
+  assert.notEqual(result.card.annualFee, 0);
+});
+
+test("POST catalog-first contract rejects missing owner", async () => {
+  const CardModel = createCapturingModel();
+
+  await assert.rejects(
+    () => createCardFromRequestBody({ presetId: "sacombank-jcb-ultimate" }, { CardModel }),
+    (error) => error.status === 400 && error.code === "INVALID_OWNER",
+  );
+});
+
+test("POST contract rejects missing preset when no legacy payload is present", async () => {
+  const CardModel = createCapturingModel();
+
+  await assert.rejects(
+    () => createCardFromRequestBody({ owner: "Long" }, { CardModel }),
+    (error) => error.status === 400 && error.code === "INVALID_REQUEST",
+  );
+});
+
+test("legacy POST contract still works with explicit allowlist", async () => {
+  const CardModel = createCapturingModel();
+  const legacyCard = await createLegacyCard(
+    {
+      bank: "MANUAL",
+      name: "Manual Card",
+      type: "Visa",
+      owner: " Long ",
+      imageUrl: "data:image/svg+xml,<svg/>",
+      annualFee: 1000,
+      presetId: "client-should-not-set",
+      providerName: "client-should-not-set",
+    },
+    { CardModel },
+  );
+
+  assert.equal(legacyCard.legacy, true);
+  assert.equal(legacyCard.owner, "Long");
+  assert.equal(legacyCard.presetId, undefined);
+  assert.equal(legacyCard.providerName, undefined);
+});
+
+test("buildAllowedUpdate accepts operational fields", () => {
+  const result = buildAllowedUpdate({
+    owner: "  Long   Ho ",
+    targetSpendForWaiver: 5000000,
+    statementDate: "2026-07-01",
+    paymentDueDate: "2026-07-20",
+    amountDueThisMonth: 100000,
+    isPaidThisMonth: true,
+    monthlyData: [{ month: 1, spend: 1, cashback: 2, fee: 3, otherInterest: 4 }],
+  });
+
+  assert.equal(result.update.owner, "Long Ho");
+  assert.equal(result.update.isPaidThisMonth, true);
+  assert.equal(result.update.monthlyData.length, 1);
+});
+
+test("buildAllowedUpdate blocks annualFee-only update", () => {
+  assert.throws(
+    () => buildAllowedUpdate({ annualFee: 0 }),
+    (error) => error.status === 400 && error.code === "FORBIDDEN_UPDATE_FIELD",
+  );
+});
+
+test("buildAllowedUpdate blocks presetId-only update", () => {
+  assert.throws(
+    () => buildAllowedUpdate({ presetId: "sacombank-jcb-ultimate" }),
+    (error) => error.status === 400 && error.code === "FORBIDDEN_UPDATE_FIELD",
+  );
+});
+
+test("updateCardById rejects invalid ObjectId", async () => {
+  const CardModel = {
+    async findByIdAndUpdate() {
+      throw new Error("should not be called");
+    },
+  };
+
+  await assert.rejects(
+    () => updateCardById("bad-id", { owner: "Long" }, { CardModel }),
+    (error) => error.status === 400 && error.code === "INVALID_CARD_ID",
+  );
+});
+
+test("updateCardById returns not found for missing card", async () => {
+  const CardModel = {
+    async findByIdAndUpdate() {
+      return null;
+    },
+  };
+
+  await assert.rejects(
+    () => updateCardById("507f1f77bcf86cd799439011", { owner: "Long" }, { CardModel }),
+    (error) => error.status === 404 && error.code === "CARD_NOT_FOUND",
+  );
+});
+
+test("updateCardById updates payment fields", async () => {
+  const CardModel = {
+    async findByIdAndUpdate(id, update, options) {
+      return { _id: id, ...update, options };
+    },
+  };
+
+  const card = await updateCardById(
+    "507f1f77bcf86cd799439011",
+    { owner: "Long", amountDueThisMonth: 100000, isPaidThisMonth: true },
+    { CardModel },
+  );
+
+  assert.equal(card.owner, "Long");
+  assert.equal(card.amountDueThisMonth, 100000);
+  assert.equal(card.isPaidThisMonth, true);
+  assert.equal(card.options.returnDocument, "after");
+});
