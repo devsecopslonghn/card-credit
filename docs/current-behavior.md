@@ -6,19 +6,20 @@ This document records the current implementation before the Card Catalog migrati
 
 ## Repository State Reviewed
 
-- Branch: `ai-task/catalog-backend`
+- Branch: `ai-task/catalog-ui`
 - Recent commits:
   - `41d10ec 1111`
   - `2bb026b Update`
   - `44a8e50 feat: CC-010 to CC-016`
   - `c8364ca feat: establish canonical card catalog foundation`
   - `026adf3 feat: establish canonical card catalog foundation`
-- Working tree changes in this continuation are scoped to backend catalog/card API behavior, docs and tests.
+- Working tree changes in this continuation are scoped to `/cards` catalog-first UI, docs and tests.
 - `README.md` now contains catalog foundation commands and sample-data notes.
 
 ## Source Structure
 
-- `app/cards/page.tsx`: main card list page, add/edit/delete modal, owner filter, calendar notes, upcoming payment list.
+- `app/cards/page.tsx`: orchestration for card list, owner filter, calendar notes, upcoming payment list and modals.
+- `components/cards/**`: card catalog modal, provider/product picker, card list, provider sections, card item, edit modal, upcoming payments and calendar notes.
 - `app/cards/[id]/page.tsx`: card detail page, general card payment settings, monthly data table and monthly edit modal.
 - `app/api/cards/route.ts`: list and create cards with catalog-first and transitional legacy contracts.
 - `app/api/cards/[id]/route.ts`: update operational fields and delete cards.
@@ -42,24 +43,24 @@ This document records the current implementation before the Card Catalog migrati
 
 - Card listing:
   - `GET /api/cards` fetches all cards sorted by `createdAt` descending.
-  - UI renders cards in a responsive CSS grid.
-  - Each card shows image, bank, name, type/network, owner, payment due date, amount due and paid checkbox.
+  - UI groups cards by Provider and renders responsive flex sections.
+  - Each card shows image, provider, product name, network, owner, annual fee, statement date, payment due date, amount due and paid checkbox.
+  - Legacy cards use `providerName ?? bank`, `displayName ?? name`, `network ?? type` and show a small Legacy badge.
 - Add card:
-  - The add modal supports either selecting a preset or manually entering card metadata.
-  - User-entered fields include `bank`, `type`, `owner`, `name`, `annualFee` and image upload.
-  - Selecting a preset fills the same legacy fields from `cardPresets`.
-  - `POST /api/cards` now prefers the catalog-first `{ presetId, owner }` contract.
-  - Legacy full-card payloads are temporarily supported through an allowlisted service path.
+  - The add modal uses catalog-first flow: select Provider, select Card Product, preview, enter owner, create.
+  - UI no longer imports `cardPresets` or sends product metadata for new cards.
+  - UI creates cards with `{ presetId, owner }`.
+  - Legacy full-card payloads remain backend-compatible but are not used by the new listing UI.
 - Edit card from listing:
-  - Current UI may still send full card payloads.
-  - `PUT /api/cards/:id` now updates only operational fields and ignores identity fields when at least one allowed operational field is present.
+  - Listing edit modal updates only operational fields: owner, target spend, statement date, payment due date and amount due this month.
+  - Product identity fields are displayed as snapshot context and are not editable from listing.
 - Delete card:
   - Listing has a delete confirmation modal.
   - `DELETE /api/cards/:id` deletes the document by id.
 - Mark paid:
   - Listing checkbox updates `isPaidThisMonth` through `PUT /api/cards/:id`.
 - Filter by owner:
-  - UI derives owners from loaded cards with `card.owner?.trim()`.
+  - UI derives owners from loaded cards using trimmed/collapsed owner values.
   - Filtering is client-side.
 - Calendar note:
   - Calendar on `/cards` supports selecting a date and saving a text note.
@@ -138,6 +139,15 @@ The legacy full-card payload remains transitional and allowlisted:
 ```
 
 Response: created card, HTTP `201`. Legacy create responses include `X-Deprecated-Contract: legacy-card-create`.
+
+Current `/cards` UI sends only:
+
+```json
+{
+  "presetId": "sacombank-visa-platinum-cashback",
+  "owner": "Long Ho"
+}
+```
 
 ### `PUT /api/cards/:id`
 
@@ -321,16 +331,14 @@ MONGODB_URI="..." npm run seed:sample
 
 Do not point this command at production data unless explicitly approved.
 
-## Differences From Roadmap Target
+## Remaining Differences From Roadmap Target
 
-- Current creation contract is not `{ "presetId": "...", "owner": "..." }`.
-- Client can currently submit or override product metadata.
-- Server currently trusts the card request body.
-- `CardType` currently acts as network masterdata, not Card Product.
-- Catalog is not exposed through API endpoints.
-- Catalog JSON is normalized to target field names, while temporary legacy aliases remain for compatibility.
-- CreditCard schema has not yet been extended with catalog fields.
-- Images may be remote, generated SVG data URLs, or uploaded data URLs.
+- Detail page catalog-field cleanup is still tracked by CC-023.
+- Report/export UI changes are still tracked by CC-024.
+- Full accessibility audit and focus trap are still tracked by CC-026.
+- `CardType` current masterdata still acts as network masterdata and has not been renamed.
+- Catalog is still JSON-backed, not MongoDB-backed.
+- Images may be remote, generated local paths, placeholder paths or legacy uploaded data URLs.
 
 ## Local Run Notes
 

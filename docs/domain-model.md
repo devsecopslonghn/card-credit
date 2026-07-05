@@ -90,8 +90,9 @@ Current behavior:
 
 - Catalog-first card creation requires an explicit non-empty owner.
 - Legacy UI submit still trims owner before sending and defaults empty values to `Tôi`.
-- Owner filtering compares trimmed stored owner values client-side.
+- Owner filtering compares trimmed/collapsed stored owner values client-side.
 - Backend owner normalization trims and collapses whitespace, rejects non-string/empty values and caps length at 120 characters.
+- The `/cards` UI applies the same conservative trim/collapse behavior for validation and filtering, without uppercasing or changing Vietnamese characters.
 
 ### Catalog
 
@@ -107,7 +108,8 @@ Current implementation notes:
 
 - Legacy aliases still exist for the current UI.
 - Read-only `/api/card-catalog/**` endpoints expose active catalog products to new clients.
-- UI imports `cardPresets`, which is now a legacy compatibility adapter over active catalog products.
+- The `/cards` add-card UI reads catalog data through `/api/card-catalog/**`; it does not import catalog JSON or `cardPresets`.
+- `cardPresets` remains as a legacy compatibility adapter for code that has not moved to the catalog API yet.
 
 ### Snapshot
 
@@ -119,6 +121,7 @@ Current behavior:
 - It also stores legacy snapshot fields: `bank`, `name`, `type`, `imageUrl`, `annualFee`.
 - For compatibility, `bank` currently stores the provider code, matching existing preset behavior.
 - Normal card update APIs do not allow editing catalog identity or snapshot fields.
+- The `/cards` listing edit modal exposes only operational fields and keeps product snapshot data read-only.
 
 ### Legacy Card
 
@@ -128,6 +131,7 @@ Current behavior:
 
 - Existing cards without `presetId` are legacy cards by the roadmap definition.
 - Legacy cards remain supported by existing listing, detail, owner filter, upcoming payments and report flows.
+- The `/cards` listing shows legacy cards in provider groups using fallback fields and marks them with a small Legacy badge.
 
 ## Current Compatibility Mapping
 
@@ -192,4 +196,5 @@ This batch does not:
 - Remove legacy API compatibility.
 - Add catalog database collections.
 - Migrate existing cards.
-- Redesign the add-card UI.
+- Update the detail page catalog-field editing model.
+- Complete full accessibility audit/focus trap work.

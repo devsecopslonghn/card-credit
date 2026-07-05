@@ -122,6 +122,35 @@ network ?? type
 legacy ?? !presetId
 ```
 
+## Cards UI
+
+`/cards` now uses the catalog-first add-card flow:
+
+```text
+Select Provider
+Select Card Product
+Review product preview
+Enter owner
+Create card
+```
+
+The UI reads catalog data through `/api/card-catalog/**` and creates cards with only:
+
+```json
+{
+  "presetId": "sacombank-visa-platinum-cashback",
+  "owner": "Long Ho"
+}
+```
+
+The listing groups cards by provider, uses legacy fallbacks for old cards, and uses responsive flex wrapping so cards collapse to one column on narrow screens.
+
+Known UI transition limits:
+
+- Detail page catalog-field cleanup is tracked separately in CC-023.
+- Report/export UI changes are tracked separately in CC-024.
+- Full focus trap/accessibility audit is tracked separately in CC-026.
+
 ## Validation And Tests
 
 ```bash
