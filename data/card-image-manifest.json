@@ -107,5 +107,78 @@
     "localPath": "/card-images/placeholder-card.svg",
     "reason": "empty imageUrl",
     "checkedAt": "2026-07-04T18:47:00.557Z"
+  },
+  "uob-prvi-miles": {
+    "status": "cached",
+    "sourceUrl": "https://www.uob.com.vn/assets/web-resources/personal/image/cards/credit-card/mc-privimiles.png",
+    "localPath": "/card-images/generated/uob-prvi-miles.jpg",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "uob-one": {
+    "status": "cached",
+    "sourceUrl": "https://www.uob.com.vn/assets/web-resources/personal/image/cards/credit-card/visa-one.png",
+    "localPath": "/card-images/generated/uob-one.jpg",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "uob-world": {
+    "status": "cached",
+    "sourceUrl": "https://www.uob.com.vn/assets/web-resources/personal/image/cards/credit-card/mc-world.png",
+    "localPath": "/card-images/generated/uob-world.jpg",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "uob-lazada": {
+    "status": "cached",
+    "sourceUrl": "https://www.uob.com.vn/assets/web-resources/personal/image/cards/credit-card/mc-lazada.png",
+    "localPath": "/card-images/generated/uob-lazada.jpg",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "vib-max-card": {
+    "status": "failed",
+    "sourceUrl": "https://www.vib.com.vn/wps/wcm/connect/d7c833c7-5b5a-4f2c-8d39-bda18b604aba/qrcode%2B%284%29.png.webp?CACHEID=ROOTWORKSPACE-d7c833c7-5b5a-4f2c-8d39-bda18b604aba-pYsmVtO&MOD=AJPERES",
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "403 Forbidden from VIB WCM image CDN for non-browser downloader",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "vib-family-link": {
+    "status": "failed",
+    "sourceUrl": "https://www.vib.com.vn/wps/wcm/connect/60197637-f0bf-445e-9243-58384144058d/Family.webp?CACHEID=ROOTWORKSPACE-60197637-f0bf-445e-9243-58384144058d-pYrzOJ3&MOD=AJPERES",
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "403 Forbidden from VIB WCM image CDN for non-browser downloader",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "vib-cash-back": {
+    "status": "failed",
+    "sourceUrl": "https://www.vib.com.vn/wps/wcm/connect/f74899fe-73c4-4ad4-95a1-61a36e132029/Cashback.webp?CACHEID=ROOTWORKSPACE-f74899fe-73c4-4ad4-95a1-61a36e132029-pYrA214&MOD=AJPERES",
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "403 Forbidden from VIB WCM image CDN for non-browser downloader",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "vib-travel-elite": {
+    "status": "failed",
+    "sourceUrl": "https://www.vib.com.vn/wps/wcm/connect/0c25bd02-7410-4c58-b187-e43eecc73735/travel%2BElite.webp?CACHEID=ROOTWORKSPACE-0c25bd02-7410-4c58-b187-e43eecc73735-pYrAaiD&MOD=AJPERES",
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "403 Forbidden from VIB WCM image CDN for non-browser downloader",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "vib-ivy-card": {
+    "status": "failed",
+    "sourceUrl": "https://www.vib.com.vn/wps/wcm/connect/12dce587-ad96-4e9a-96cc-4ef6b7c54bf0/qrcode%2B%288%29.png.webp?CACHEID=ROOTWORKSPACE-12dce587-ad96-4e9a-96cc-4ef6b7c54bf0-pYspv3y&MOD=AJPERES",
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "403 Forbidden from VIB WCM image CDN for non-browser downloader",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "vib-rewards-unlimited": {
+    "status": "failed",
+    "sourceUrl": "https://www.vib.com.vn/wps/wcm/connect/4171d0f5-5c92-4ebf-bcaa-42393abddbe5/Rewards.webp?CACHEID=ROOTWORKSPACE-4171d0f5-5c92-4ebf-bcaa-42393abddbe5-pXV70AV&MOD=AJPERES",
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "403 Forbidden from VIB WCM image CDN for non-browser downloader",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
+  },
+  "vib-premier-boundless": {
+    "status": "failed",
+    "sourceUrl": "https://www.vib.com.vn/wps/wcm/connect/5f5ac49f-65c8-43f2-b0d6-9ca300d6d653/Lotus.webp?CACHEID=ROOTWORKSPACE-5f5ac49f-65c8-43f2-b0d6-9ca300d6d653-pYrAsNx&MOD=AJPERES",
+    "localPath": "/card-images/placeholder-card.svg",
+    "reason": "403 Forbidden from VIB WCM image CDN for non-browser downloader",
+    "checkedAt": "2026-07-05T02:52:33.311Z"
   }
 }
