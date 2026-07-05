@@ -31,12 +31,16 @@ export function CardList({
   onTogglePaid,
 }: CardListProps) {
   if (loading) {
-    return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-gray-500">Đang tải danh sách thẻ...</div>;
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-gray-500" role="status">
+        Đang tải danh sách thẻ...
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center" role="alert">
         <p className="font-semibold text-red-700">{error}</p>
         <button type="button" onClick={onRetry} className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">
           Tải lại

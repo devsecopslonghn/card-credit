@@ -49,6 +49,8 @@ Temporary legacy aliases remain for current UI compatibility:
 
 Inactive products stay in the catalog for history but are excluded from normal picker helpers.
 
+Snapshot and future sync rules are documented in [`docs/catalog-snapshot-policy.md`](docs/catalog-snapshot-policy.md).
+
 ### Catalog API
 
 Read-only catalog endpoints return `{ "data": ... }` and expose active products only:
@@ -176,6 +178,38 @@ monthlyData
 `displayName`, `network`, `imageUrl`, `legacy`) and keeps compatibility fields (`bank`, `name`, `type`).
 Annual fee `null` remains `null` in output; calculations treat unknown annual fee as `0` only for totals
 and expose `annualFeeKnown`.
+
+Reports read User Card snapshots only; they do not refresh metadata from the catalog or mutate cards.
+
+## Catalog Migration
+
+Preview legacy-card mapping before any write:
+
+```bash
+MONGODB_URI="mongodb connection string" npm run migrate:catalog -- --dry-run
+```
+
+Dry-run is the default and prints `total`, `exact`, `probable`, `ambiguous`, `unmatched`,
+`alreadyMigrated` and `wouldUpdate`, plus per-card `cardId`, current `bank/name/type`, match status,
+matched `presetId` when available and a review reason. A JSON report can be written with:
+
+```bash
+npm run migrate:catalog -- --dry-run --output migration-report.json
+```
+
+Review all `probable`, `ambiguous` and `unmatched` cards before applying. Apply mode updates exact
+matches only:
+
+```bash
+MONGODB_URI="mongodb connection string" npm run migrate:catalog -- --apply
+```
+
+Take a database backup before apply. The migration is idempotent and skips cards that already have
+`presetId`. It sets only `presetId`, `providerCode`, `providerName`, `displayName`, `network`,
+`catalogVersion` and `legacy: false`; it preserves legacy snapshot fields (`bank`, `name`, `type`,
+`annualFee`, `imageUrl`), owner, payment fields and `monthlyData`. Rollback should restore from the
+backup or explicitly unset the catalog fields for the affected exact-match card ids from the reviewed
+report.
 
 ## Validation And Tests
 

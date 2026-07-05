@@ -115,6 +115,8 @@ Current implementation notes:
 
 Product information copied to a User Card at creation time.
 
+Detailed snapshot and future sync rules are defined in [`catalog-snapshot-policy.md`](catalog-snapshot-policy.md).
+
 Current behavior:
 
 - Catalog-first card creation stores canonical snapshot fields: `presetId`, `providerCode`, `providerName`, `displayName`, `network`, `catalogVersion`, `legacy`.

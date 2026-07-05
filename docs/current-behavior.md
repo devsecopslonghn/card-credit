@@ -371,3 +371,27 @@ Catalog validation and unit tests do not require MongoDB:
 npm run validate:catalog
 npm test
 ```
+
+## Catalog Migration Behavior
+
+`npm run migrate:catalog` maps legacy user cards to JSON catalog presets by provider/bank, product
+name and network. Dry-run is the default:
+
+```bash
+MONGODB_URI="..." npm run migrate:catalog -- --dry-run
+```
+
+The report groups cards as `exact`, `probable`, `ambiguous`, `unmatched` and `already-migrated`.
+Only `exact` records are eligible for automatic apply. `probable`, `ambiguous` and `unmatched`
+records remain legacy and must be reviewed manually.
+
+Apply mode requires a backup first:
+
+```bash
+MONGODB_URI="..." npm run migrate:catalog -- --apply
+```
+
+Apply writes only catalog identity fields for exact matches: `presetId`, `providerCode`,
+`providerName`, `displayName`, `network`, `catalogVersion` and `legacy: false`. It does not overwrite
+`bank`, `name`, `type`, `annualFee`, `imageUrl`, owner, payment fields or `monthlyData`. Running apply
+again is safe because cards with `presetId` are classified as already migrated and skipped.
