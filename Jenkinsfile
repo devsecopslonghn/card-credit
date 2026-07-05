@@ -302,10 +302,58 @@ pipeline {
           string(
             credentialsId: 'MONGODB-ATLAS',
             variable: 'MONGODB_URI'
+          ),
+          string(
+            credentialsId: 'CARD-CREDIT-AUTH-SECRET',
+            variable: 'AUTH_SECRET'
+          ),
+          string(
+            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
+            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
             set -eu
+
+            echo "Validating authentication configuration"
+
+            if [ "${#AUTH_SECRET}" -lt 32 ]; then
+              echo "AUTH_SECRET must contain at least 32 characters"
+              exit 1
+            fi
+
+            docker run --rm \
+              --env AUTH_USERS_JSON \
+              node:22-alpine \
+              node -e '
+                const users = JSON.parse(process.env.AUTH_USERS_JSON || "[]");
+
+                if (!Array.isArray(users) || users.length === 0) {
+                  throw new Error("AUTH_USERS_JSON must be a non-empty JSON array");
+                }
+
+                for (const user of users) {
+                  if (
+                    !user.id ||
+                    !user.email ||
+                    !user.password ||
+                    !user.role ||
+                    !user.workspaceId
+                  ) {
+                    throw new Error(
+                      "Each auth user must contain id, email, password, role and workspaceId"
+                    );
+                  }
+
+                  if (!["admin", "user"].includes(user.role)) {
+                    throw new Error(
+                      `Unsupported role for ${user.email}: ${user.role}`
+                    );
+                  }
+                }
+
+                console.log(`Authentication configuration contains ${users.length} user(s)`);
+              '
 
             echo "Validating Docker Compose configuration"
             echo "Docker image: ${FULL_IMAGE_NAME}"
@@ -316,10 +364,11 @@ pipeline {
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
             DOCKER_TAG="${DOCKER_TAG}" \
-            MONGODB_URI="${MONGODB_URI}" \
               docker compose \
                 -f docker-compose.prod.yml \
                 config --quiet
+
+            echo "Docker Compose configuration is valid"
           '''
         }
       }
@@ -335,19 +384,24 @@ pipeline {
           string(
             credentialsId: 'MONGODB-ATLAS',
             variable: 'MONGODB_URI'
+          ),
+          string(
+            credentialsId: 'CARD-CREDIT-AUTH-SECRET',
+            variable: 'AUTH_SECRET'
+          ),
+          string(
+            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
+            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
             set -eu
 
             echo "Building image: ${FULL_IMAGE_NAME}"
-            export AUTH_SECRET="$(openssl rand -base64 48)"
-            export AUTH_USERS_JSON='[{"id":"long-admin","email":"long@example.com","password":"MatKhauCuaBan","role":"admin","workspaceId":"long-personal"}]'
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
             DOCKER_TAG="${DOCKER_TAG}" \
-            MONGODB_URI="${MONGODB_URI}" \
               docker compose \
                 -f docker-compose.prod.yml \
                 build
@@ -358,59 +412,71 @@ pipeline {
       }
     }
 
-    // stage('Container Smoke Test') {
-    //   agent {
-    //     label 'eztechvn2'
-    //   }
+    /*
+    stage('Container Smoke Test') {
+      agent {
+        label 'eztechvn2'
+      }
 
-    //   steps {
-    //     withCredentials([
-    //       string(
-    //         credentialsId: 'MONGODB-ATLAS',
-    //         variable: 'MONGODB_URI'
-    //       )
-    //     ]) {
-    //       sh '''
-    //         set -eu
+      steps {
+        withCredentials([
+          string(
+            credentialsId: 'MONGODB-ATLAS',
+            variable: 'MONGODB_URI'
+          ),
+          string(
+            credentialsId: 'CARD-CREDIT-AUTH-SECRET',
+            variable: 'AUTH_SECRET'
+          ),
+          string(
+            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
+            variable: 'AUTH_USERS_JSON'
+          )
+        ]) {
+          sh '''
+            set -eu
 
-    //         SMOKE_CONTAINER="card-credit-smoke-${BUILD_NUMBER}"
+            SMOKE_CONTAINER="card-credit-smoke-${BUILD_NUMBER}"
 
-    //         cleanup() {
-    //           docker rm -f "$SMOKE_CONTAINER" >/dev/null 2>&1 || true
-    //         }
-    //         trap cleanup EXIT
+            cleanup() {
+              docker rm -f "$SMOKE_CONTAINER" >/dev/null 2>&1 || true
+            }
 
-    //         cleanup
+            trap cleanup EXIT
+            cleanup
 
-    //         docker run -d \
-    //           --name "$SMOKE_CONTAINER" \
-    //           -e NODE_ENV=production \
-    //           -e PORT=3000 \
-    //           -e MONGODB_URI="$MONGODB_URI" \
-    //           "${FULL_IMAGE_NAME}" \
-    //           >/dev/null
+            docker run -d \
+              --name "$SMOKE_CONTAINER" \
+              -e NODE_ENV=production \
+              -e PORT=3000 \
+              -e MONGODB_URI \
+              -e AUTH_SECRET \
+              -e AUTH_USERS_JSON \
+              "${FULL_IMAGE_NAME}" \
+              >/dev/null
 
-    //         for attempt in $(seq 1 30); do
-    //           if docker exec \
-    //             -e SMOKE_BASE_URL="http://127.0.0.1:3000" \
-    //             -e SMOKE_TIMEOUT_MS="10000" \
-    //             "$SMOKE_CONTAINER" \
-    //             npm run smoke:deploy; then
-    //             echo "Container smoke test passed"
-    //             exit 0
-    //           fi
+            for attempt in $(seq 1 30); do
+              if docker exec \
+                -e SMOKE_BASE_URL="http://127.0.0.1:3000" \
+                -e SMOKE_TIMEOUT_MS="10000" \
+                "$SMOKE_CONTAINER" \
+                npm run smoke:deploy; then
+                echo "Container smoke test passed"
+                exit 0
+              fi
 
-    //           echo "Waiting for container smoke test attempt ${attempt}/30"
-    //           sleep 2
-    //         done
+              echo "Waiting for container smoke test attempt ${attempt}/30"
+              sleep 2
+            done
 
-    //         echo "Container smoke test failed"
-    //         docker logs "$SMOKE_CONTAINER" || true
-    //         exit 1
-    //       '''
-    //     }
-    //   }
-    // }
+            echo "Container smoke test failed"
+            docker logs "$SMOKE_CONTAINER" || true
+            exit 1
+          '''
+        }
+      }
+    }
+    */
 
     stage('Start Application') {
       when {
@@ -427,6 +493,14 @@ pipeline {
           string(
             credentialsId: 'MONGODB-ATLAS',
             variable: 'MONGODB_URI'
+          ),
+          string(
+            credentialsId: 'CARD-CREDIT-AUTH-SECRET',
+            variable: 'AUTH_SECRET'
+          ),
+          string(
+            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
+            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -434,23 +508,39 @@ pipeline {
 
             echo "Deploying master image: ${FULL_IMAGE_NAME}"
 
-            APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            APP_PORT="${APP_PORT_VALUE}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
             DOCKER_TAG="${DOCKER_TAG}" \
-            MONGODB_URI="${MONGODB_URI}" \
               docker compose \
                 -f docker-compose.prod.yml \
                 up -d \
                 --force-recreate \
                 --remove-orphans
 
-            APP_PORT="${APP_PORT}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE}" \
+            APP_PORT="${APP_PORT_VALUE}" \
+            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
             DOCKER_TAG="${DOCKER_TAG}" \
-            MONGODB_URI="${MONGODB_URI}" \
               docker compose \
                 -f docker-compose.prod.yml \
                 ps
+
+            echo "Checking authentication variables inside the running container"
+
+            docker exec card-credit sh -lc '
+              test -n "$AUTH_SECRET" &&
+                echo "AUTH_SECRET=set" ||
+                {
+                  echo "AUTH_SECRET=missing"
+                  exit 1
+                }
+
+              test -n "$AUTH_USERS_JSON" &&
+                echo "AUTH_USERS_JSON=set" ||
+                {
+                  echo "AUTH_USERS_JSON=missing"
+                  exit 1
+                }
+            '
           '''
         }
       }
@@ -486,7 +576,7 @@ pipeline {
             echo "Seeding sample data using image: ${FULL_IMAGE_NAME}"
 
             docker run --rm \
-              -e MONGODB_URI="$MONGODB_URI" \
+              -e MONGODB_URI \
               "${FULL_IMAGE_NAME}" \
               npm run seed:sample
           '''
