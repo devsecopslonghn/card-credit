@@ -18,6 +18,7 @@
     "prepare:card-images": "node scripts/prepare-card-images.mjs",
     "smoke:deploy": "node scripts/smoke-test.mjs",
     "seed:sample": "node scripts/seed-sample.mjs",
+    "seed:auth-users": "node scripts/seed-auth-users.mjs",
     "crawl:cards": "node scripts/crawl-card-presets.mjs"
   },
   "dependencies": {

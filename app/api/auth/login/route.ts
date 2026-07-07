@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { authenticateCredentials, AUTH_COOKIE_NAME, createSessionCookieValue } from "@/lib/auth/sessionCore.mjs";
 import { handleApiError, parseJsonRequest } from "@/lib/api/errorsCore.mjs";
+import { connectToDatabase } from "@/lib/mongodb";
+import User from "@/models/User";
 
 export async function POST(request: Request) {
   try {
     const body = await parseJsonRequest(request);
-    const session = authenticateCredentials({ email: body.email, password: body.password });
+    await connectToDatabase();
+    const session = await authenticateCredentials({ email: body.email, password: body.password }, { UserModel: User });
     const response = NextResponse.json({
       user: {
         email: session.email,

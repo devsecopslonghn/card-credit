@@ -1634,6 +1634,219 @@ Sau đó:
 
 ---
 
+# PHASE 10 — AUTH, RBAC, DATA OPERATIONS VÀ SECURITY HARDENING
+
+## CC-047 — Chuyển auth từ AUTH_USERS_JSON sang User model và password hash
+
+**Ưu tiên:** P0
+**Kích thước:** L
+**Files:** `models/User.ts`, `lib/auth/sessionCore.mjs`, `app/api/auth/login/route.ts`, `README.md`
+
+### Todo
+
+* Tạo `User` model với:
+
+  * `email`
+  * `passwordHash`
+  * `role`
+  * `workspaceId`
+  * `displayName`
+  * `active`
+  * `lockedAt`
+  * `lastLoginAt`
+* Tạo helper hash/verify password.
+* Thay `getConfiguredUsers()` bằng database lookup.
+* Giữ `AUTH_USERS_JSON` chỉ để seed local hoặc bootstrap.
+* Thêm script seed user local/staging.
+* Cập nhật README và biến môi trường.
+
+### Definition of Done
+
+* Đăng nhập dùng password hash, không so sánh plain-text.
+* Session hiện tại vẫn trả `email`, `role`, `workspaceId`.
+* User inactive hoặc locked không đăng nhập được.
+* Có migration/seed rõ ràng cho local.
+* Không làm vỡ middleware và auth routes hiện có.
+
+---
+
+## CC-048 — Bổ sung RBAC, hồ sơ người dùng và quản lý role
+
+**Ưu tiên:** P0
+**Kích thước:** M
+**Files:** `app/profile/page.tsx`, `app/api/profile/route.ts`, `lib/auth/rbac.ts`, `middleware.ts`
+
+### Todo
+
+* Tạo trang hồ sơ người dùng:
+
+  * Xem email.
+  * Xem role.
+  * Xem workspace.
+  * Cập nhật display name.
+* Tạo policy helper:
+
+  * `canManageCatalog`
+  * `canManageUsers`
+  * `canReadWorkspace`
+* Tạo API cập nhật hồ sơ.
+* Tạo màn hình admin quản lý user/role/workspace.
+* Áp role guard ở server, không chỉ ẩn nút ở UI.
+
+### Definition of Done
+
+* User thường không sửa role của mình.
+* Admin có thể đổi role/workspace của user.
+* Các route profile yêu cầu session hợp lệ.
+* Policy dùng chung giữa UI và API.
+* Test xác nhận không có privilege escalation.
+
+---
+
+## CC-049 — Thêm password reset an toàn
+
+**Ưu tiên:** P0
+**Kích thước:** M
+**Files:** `app/api/auth/forgot-password/route.ts`, `app/api/auth/reset-password/route.ts`, `models/PasswordResetToken.ts`
+
+### Todo
+
+* Tạo flow “quên mật khẩu”.
+* Sinh reset token có TTL.
+* Chỉ lưu hash của token.
+* Thêm trang nhập email và trang đặt lại mật khẩu.
+* Invalidate token sau một lần dùng.
+* Invalidate session cũ sau khi reset thành công.
+
+### Definition of Done
+
+* Không lộ thông tin email có tồn tại hay không.
+* Token hết hạn không dùng được.
+* Token một lần dùng không thể reuse.
+* User đổi được password và đăng nhập lại bình thường.
+* Có test các case hết hạn, replay, email không tồn tại.
+
+---
+
+## CC-050 — Lưu audit logs cho auth và admin mutation
+
+**Ưu tiên:** P0
+**Kích thước:** M
+**Files:** `models/AuthAuditLog.ts`, `lib/audit/logAuthEvent.ts`, `app/api/auth/*`, `lib/api/adminCatalogRouteCore.mjs`
+
+### Todo
+
+* Tạo collection audit log.
+* Ghi các event:
+
+  * `LOGIN_SUCCESS`
+  * `LOGIN_FAILURE`
+  * `LOGOUT`
+  * `PASSWORD_RESET_REQUESTED`
+  * `PASSWORD_RESET_COMPLETED`
+  * `CATALOG_PRODUCT_CREATED`
+  * `CATALOG_PRODUCT_UPDATED`
+  * `CATALOG_PROVIDER_BULK_UPDATED`
+* Ghi `userId`, `email`, `role`, `workspaceId`, `ip`, `userAgent`, `resource`.
+* Thêm correlation id nếu có.
+
+### Definition of Done
+
+* Event quan trọng đều có log bền vững.
+* Không log password, secret, token thô.
+* Có thể lọc log theo user hoặc resource.
+* Catalog admin action có target rõ ràng.
+* Test xác nhận event được ghi đúng khi success/failure.
+
+---
+
+## CC-051 — Deduplicate và merge danh sách User Card
+
+**Ưu tiên:** P0
+**Kích thước:** L
+**Files:** `lib/cards/dedupeCore.ts`, `lib/services/cardService.mjs`, `app/api/cards/route.ts`, `components/cards/DuplicateResolver.tsx`
+
+### Todo
+
+* Xây fingerprint duplicate theo:
+
+  * `workspaceId`
+  * `presetId`
+  * `normalizedOwner`
+* Tạo dry-run API phát hiện duplicate.
+* Tạo UI review duplicate.
+* Cho phép merge hai card:
+
+  * Chọn record gốc.
+  * Chọn cách hợp nhất `monthlyData`.
+  * Giữ audit thông tin merge.
+* Cảnh báo duplicate ngay khi import hoặc tạo card mới.
+
+### Definition of Done
+
+* Duplicate exact-match được phát hiện ổn định.
+* Không merge nhầm giữa hai workspace.
+* Merge không làm mất `monthlyData` ngoài ý muốn.
+* UI cho biết rõ lý do record bị xem là duplicate.
+* Có test dry-run, merge success và edge cases.
+
+---
+
+## CC-052 — Import/export danh sách thẻ với preview validation
+
+**Ưu tiên:** P0
+**Kích thước:** L
+**Files:** `app/cards/import/page.tsx`, `app/api/cards/import/route.ts`, `app/api/cards/export/route.ts`, `lib/cards/importExportCore.ts`
+
+### Todo
+
+* Hỗ trợ import CSV và JSON.
+* Parse vào staging trước khi ghi.
+* Validate:
+
+  * owner
+  * date
+  * annual fee
+  * monthly data
+  * presetId active/inactive
+  * duplicate record
+* Cho người dùng preview lỗi theo từng dòng.
+* Hỗ trợ export JSON canonical và CSV thân thiện.
+
+### Definition of Done
+
+* Import dry-run không ghi dữ liệu.
+* File lỗi hỗn hợp vẫn cho preview đầy đủ.
+* Export không làm mất field quan trọng.
+* Có thể round-trip import/export với dữ liệu chuẩn.
+* Test bao phủ parse lỗi, preview, commit thành công.
+
+---
+
+## CC-053 — Bổ sung 2FA bằng TOTP cho admin và tùy chọn cho user
+
+**Ưu tiên:** P1
+**Kích thước:** M
+**Files:** `app/api/auth/2fa/*`, `app/profile/page.tsx`, `models/User.ts`
+
+### Todo
+
+* Thêm setup TOTP.
+* Thêm verify TOTP sau khi password đúng.
+* Bắt buộc admin bật 2FA trước khi dùng admin mutation.
+* Tạo recovery codes.
+* Cho phép disable 2FA sau khi re-auth hợp lệ.
+
+### Definition of Done
+
+* Admin không thể bỏ qua bước 2FA.
+* Recovery code dùng một lần.
+* User có thể bật/tắt 2FA hợp lệ.
+* Login flow vẫn rõ ràng trên mobile và desktop.
+* Có test cho verify, recovery, disable, bypass attempts.
+
+---
+
 # MỐC TRIỂN KHAI ĐỀ XUẤT
 
 ## Milestone 1 — Catalog foundation
@@ -1712,6 +1925,19 @@ Kết quả:
 * Có màn hình admin.
 * Masterdata được tách đúng domain.
 * Contract legacy được loại bỏ có kiểm soát.
+
+## Milestone 7 — Auth, RBAC và data operations hardening
+
+Bao gồm:
+
+* CC-047 đến CC-053.
+
+Kết quả:
+
+* Auth dùng `User` model và password hash.
+* Có RBAC, profile, quản lý user và audit logs.
+* Có password reset an toàn và kế hoạch 2FA.
+* User Card có dedupe/merge và import/export có preview validation.
 
 ---
 

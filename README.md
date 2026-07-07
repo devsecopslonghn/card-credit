@@ -41,12 +41,13 @@ Card Credit la ung dung Next.js de quan ly the tin dung ca nhan: danh sach the, 
 MONGODB_URI="mongodb connection string"
 AUTH_SECRET="long random secret for signed auth cookies"
 AUTH_USERS_JSON='[
-  {"id":"user-1","email":"user@example.test","password":"change-me","role":"user","workspaceId":"workspace-1"},
-  {"id":"admin-1","email":"admin@example.test","password":"change-me","role":"admin","workspaceId":"admin-workspace"}
+  {"email":"user@example.test","password":"change-me-123","role":"user","workspaceId":"workspace-1","displayName":"Local User"},
+  {"email":"admin@example.test","password":"change-me-123","role":"admin","workspaceId":"admin-workspace","displayName":"Local Admin"}
 ]'
 ```
 
 `AUTH_SECRET` bat buoc trong production. Neu thieu o local, app dung dev fallback de tien chay thu.
+`AUTH_USERS_JSON` chi dung cho seed/bootstrap local hoac staging, khong duoc dung lam nguon dang nhap runtime. Sau khi seed, login doc user tu collection `users` va so sanh password bang hash.
 
 Khong dung production MongoDB cho test, seed, migration dry-run hoac Playwright. Dung database rieng cho local/staging.
 
@@ -54,12 +55,13 @@ Khong dung production MongoDB cho test, seed, migration dry-run hoac Playwright.
 
 ```bash
 npm install
+npm run seed:auth-users
 npm run dev
 ```
 
 Mo `http://localhost:3000/cards`.
 
-Dang nhap bang user trong `AUTH_USERS_JSON`. Cac route UI rieng tu nhu `/cards` va `/masterdata/**` yeu cau cookie session.
+Dang nhap bang user da seed vao MongoDB tu `AUTH_USERS_JSON`. Cac route UI rieng tu nhu `/cards` va `/masterdata/**` yeu cau cookie session.
 
 ## Chay Docker
 
@@ -76,19 +78,20 @@ docker run --rm -p 3000:3000 \
   -e NODE_ENV=production \
   -e MONGODB_URI="$MONGODB_URI" \
   -e AUTH_SECRET="$AUTH_SECRET" \
-  -e AUTH_USERS_JSON="$AUTH_USERS_JSON" \
   card-credit:local
 ```
 
 Voi compose production:
 
 ```bash
-APP_PORT=8080 MONGODB_URI="$MONGODB_URI" AUTH_SECRET="$AUTH_SECRET" AUTH_USERS_JSON="$AUTH_USERS_JSON" docker compose -f docker-compose.prod.yml up -d
+APP_PORT=8080 MONGODB_URI="$MONGODB_URI" AUTH_SECRET="$AUTH_SECRET" docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## Auth Va Phan Quyen
 
 - Session duoc luu trong cookie `card_credit_session`, signed bang HMAC SHA-256.
+- User dang nhap duoc doc tu MongoDB collection `users`; password chi luu dang `passwordHash`.
+- `AUTH_USERS_JSON` chi dung cho `npm run seed:auth-users` khi bootstrap local/staging.
 - User thuong duoc xem catalog va quan ly User Card trong workspace cua minh.
 - Admin duoc dung API admin catalog va masterdata mutation.
 - API cards/reports/notes filter theo `workspaceId`.
@@ -229,6 +232,17 @@ Vi du loi API:
 
 ## Seed Du Lieu
 
+Seed auth user local/staging tu `AUTH_USERS_JSON`:
+
+```bash
+MONGODB_URI="mongodb connection string" AUTH_USERS_JSON='[
+  {"email":"user@example.test","password":"change-me-123","role":"user","workspaceId":"workspace-1"},
+  {"email":"admin@example.test","password":"change-me-123","role":"admin","workspaceId":"admin-workspace"}
+]' npm run seed:auth-users
+```
+
+Script se hash `password` truoc khi ghi DB. Neu da co hash san, co the dung `passwordHash` thay cho `password`. Script tu choi chay voi `NODE_ENV=production` tru khi dat `ALLOW_PRODUCTION_AUTH_SEED=true`.
+
 Seed sample data vao database local/staging:
 
 ```bash
@@ -334,7 +348,7 @@ Jenkinsfile hien chay catalog validation, tests, build, Docker smoke va deploy s
 
 - `Vui long dinh nghia bien MONGODB_URI`: API route can database nhung env thieu.
 - `AUTH_SECRET is required in production`: them `AUTH_SECRET` khi `NODE_ENV=production`.
-- Login that bai: kiem tra `AUTH_USERS_JSON` la JSON array hop le va email/password dung.
+- Login that bai: kiem tra da chay `npm run seed:auth-users`, user `active` va khong co `lockedAt`, email/password dung.
 - `/cards` redirect ve `/login`: chua co cookie session hop le.
 - `PRESET_INACTIVE`: product inactive khong tao duoc card moi; card snapshot cu van render.
 - Playwright khong co browser: chay `npx playwright install chromium`.
