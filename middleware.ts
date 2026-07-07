@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const AUTH_COOKIE_NAME = "card_credit_session";
 
-const privateUiPrefixes = ["/cards", "/masterdata"];
-const privateApiPrefixes = ["/api/admin", "/api/cards", "/api/notes", "/api/reports", "/api/banks", "/api/cardtypes"];
+const privateUiPrefixes = ["/cards", "/masterdata", "/profile", "/admin"];
+const privateApiPrefixes = ["/api/admin", "/api/profile", "/api/cards", "/api/notes", "/api/reports", "/api/banks", "/api/cardtypes"];
 
 const hasSessionCookie = (request: NextRequest) => Boolean(request.cookies.get(AUTH_COOKIE_NAME)?.value);
 
@@ -29,5 +29,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/cards/:path*", "/masterdata/:path*", "/api/admin/:path*", "/api/cards/:path*", "/api/notes/:path*", "/api/reports/:path*", "/api/banks/:path*", "/api/cardtypes/:path*"],
+  matcher: ["/cards/:path*", "/masterdata/:path*", "/profile/:path*", "/admin/:path*", "/api/admin/:path*", "/api/profile/:path*", "/api/cards/:path*", "/api/notes/:path*", "/api/reports/:path*", "/api/banks/:path*", "/api/cardtypes/:path*"],
 };
