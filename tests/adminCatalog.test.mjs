@@ -48,6 +48,7 @@ const readJson = async (response) => ({
 const createHandlers = (initialProducts, session = admin) => {
   let products = clone(initialProducts);
   const writes = [];
+  const auditLogs = [];
   const handlers = createAdminCatalogRouteHandlers({
     readCatalogProducts: async () => clone(products),
     writeCatalogProducts: async (nextProducts) => {
@@ -55,9 +56,15 @@ const createHandlers = (initialProducts, session = admin) => {
       writes.push(clone(nextProducts));
     },
     requireAuth: () => session,
+    AuditLogModel: {
+      create: async (record) => {
+        auditLogs.push(clone(record));
+        return clone(record);
+      },
+    },
   });
 
-  return { handlers, writes, getProducts: () => clone(products) };
+  return { handlers, writes, auditLogs, getProducts: () => clone(products) };
 };
 
 test("admin catalog endpoints reject normal users server-side", async () => {
@@ -74,7 +81,7 @@ test("admin catalog endpoints reject normal users server-side", async () => {
 });
 
 test("admin can update product fee image active state and receives audit metadata", async () => {
-  const { handlers, getProducts, writes } = createHandlers([product()]);
+  const { handlers, getProducts, writes, auditLogs } = createHandlers([product()]);
   const response = await readJson(
     await handlers.updateProduct(
       jsonRequest("https://test.local/api/admin/card-catalog/products/admin-test-card", {
@@ -93,10 +100,15 @@ test("admin can update product fee image active state and receives audit metadat
   assert.equal(response.body.audit.storage, "data/card-presets.json");
   assert.equal(writes.length, 1);
   assert.equal(getProducts()[0].active, false);
+  assert.equal(auditLogs.length, 1);
+  assert.equal(auditLogs[0].event, "CATALOG_PRODUCT_UPDATED");
+  assert.equal(auditLogs[0].userId, admin.userId);
+  assert.equal(auditLogs[0].resource.id, "admin-test-card");
+  assert.deepEqual(auditLogs[0].resource.fields, ["annualFee", "imageUrl", "active"]);
 });
 
 test("admin can create products and update provider metadata in one provider section", async () => {
-  const { handlers, getProducts } = createHandlers([product()]);
+  const { handlers, getProducts, auditLogs } = createHandlers([product()]);
   const createResponse = await readJson(
     await handlers.createProduct(
       jsonRequest(
@@ -117,6 +129,8 @@ test("admin can create products and update provider metadata in one provider sec
   );
   assert.equal(createResponse.status, 201);
   assert.equal(createResponse.body.data.id, "admin-test-card-two");
+  assert.equal(auditLogs[0].event, "CATALOG_PRODUCT_CREATED");
+  assert.equal(auditLogs[0].resource.id, "admin-test-card-two");
 
   const providerResponse = await readJson(
     await handlers.updateProvider(
@@ -131,6 +145,9 @@ test("admin can create products and update provider metadata in one provider sec
   assert.equal(providerResponse.status, 200);
   assert.equal(providerResponse.body.data.affectedProducts, 2);
   assert.equal(getProducts().every((item) => item.providerName === "Admin Bank Updated" && item.active === false), true);
+  assert.equal(auditLogs[1].event, "CATALOG_PROVIDER_BULK_UPDATED");
+  assert.equal(auditLogs[1].resource.id, "ADM");
+  assert.equal(auditLogs[1].resource.affectedProducts, 2);
 });
 
 test("inactive presets cannot create new cards while old snapshots still render", async () => {
@@ -161,4 +178,3 @@ test("inactive presets cannot create new cards while old snapshots still render"
   assert.equal(oldSnapshot.displayName, "Shopee Platinum");
   assert.equal(oldSnapshot.legacy, false);
 });
-

@@ -9,7 +9,10 @@ import {
 import { hashPassword, verifyPassword } from "../lib/auth/passwordCore.mjs";
 import { canManageCatalog, canManageUsers, canReadWorkspace } from "../lib/auth/rbacCore.mjs";
 import { createAdminUsersRouteHandlers, createProfileRouteHandlers } from "../lib/api/userProfileRouteCore.mjs";
+import { createAuditLogsRouteHandler } from "../lib/api/auditLogsRouteCore.mjs";
+import { createLoginRouteHandler, createLogoutRouteHandler } from "../lib/api/authRouteCore.mjs";
 import { ApiError } from "../lib/api/errorsCore.mjs";
+import { logAuthEvent, sanitizeAuditResource } from "../lib/audit/logAuthEventCore.mjs";
 
 const jsonRequest = (url, body, method = "PATCH") =>
   new Request(url, {
@@ -59,6 +62,42 @@ const createFakeUserModel = (initialUsers) => {
       state.updates.push({ id, update: clone(update) });
       state.users[index] = { ...state.users[index], ...clone(update) };
       return clone(state.users[index]);
+    },
+  };
+};
+
+const createFakeAuditLogModel = (initialLogs = []) => {
+  const state = {
+    logs: initialLogs.map(clone),
+  };
+
+  const queryMatches = (log, query = {}) =>
+    Object.entries(query).every(([field, value]) => {
+      if (field === "resource.type") return log.resource?.type === value;
+      if (field === "resource.id") return log.resource?.id === value;
+      return log[field] === value;
+    });
+
+  return {
+    state,
+    async create(record) {
+      const log = { _id: `audit-${state.logs.length + 1}`, createdAt: new Date(0).toISOString(), ...clone(record) };
+      state.logs.push(log);
+      return clone(log);
+    },
+    find(query = {}) {
+      const filtered = state.logs.filter((log) => queryMatches(log, query));
+      return {
+        sort() {
+          return {
+            limit(limit) {
+              return {
+                lean: async () => clone(filtered.slice(0, limit)),
+              };
+            },
+          };
+        },
+      };
     },
   };
 };
@@ -308,4 +347,153 @@ test("admin users route lets admin change role and workspace but blocks normal u
   );
   assert.equal(blocked.status, 403);
   assert.equal(blocked.body.error.code, "FORBIDDEN");
+});
+
+test("audit helper records request context and redacts sensitive resource fields", async () => {
+  const AuditLogModel = createFakeAuditLogModel();
+  const request = new Request("https://test.local/api/auth/login", {
+    headers: {
+      "x-forwarded-for": "203.0.113.10, 10.0.0.1",
+      "user-agent": "node-test",
+      "x-correlation-id": "corr-1",
+    },
+  });
+
+  await logAuthEvent({
+    AuditLogModel,
+    event: "PASSWORD_RESET_REQUESTED",
+    request,
+    email: "alice@example.test",
+    resource: {
+      type: "auth",
+      rawToken: "secret-token",
+      nested: { password: "never-log" },
+    },
+  });
+
+  assert.equal(AuditLogModel.state.logs[0].event, "PASSWORD_RESET_REQUESTED");
+  assert.equal(AuditLogModel.state.logs[0].email, "alice@example.test");
+  assert.equal(AuditLogModel.state.logs[0].ip, "203.0.113.10");
+  assert.equal(AuditLogModel.state.logs[0].userAgent, "node-test");
+  assert.equal(AuditLogModel.state.logs[0].correlationId, "corr-1");
+  assert.equal(AuditLogModel.state.logs[0].resource.rawToken, "[redacted]");
+  assert.equal(AuditLogModel.state.logs[0].resource.nested.password, "[redacted]");
+  assert.deepEqual(sanitizeAuditResource({ passwordHash: "x", safe: "y" }), { passwordHash: "[redacted]", safe: "y" });
+});
+
+test("login route writes success and failure audit events without passwords", async () => {
+  const AuditLogModel = createFakeAuditLogModel();
+  const session = { userId: "alice", email: "alice@example.test", role: "user", workspaceId: "workspace-a" };
+  const login = createLoginRouteHandler({
+    authenticateCredentials: async ({ password }) => {
+      if (password !== "valid-pass") {
+        throw new ApiError(401, "UNAUTHENTICATED", "Email hoặc mật khẩu không đúng.");
+      }
+      return session;
+    },
+    createSessionCookieValue: () => "signed-session",
+    authCookieName: "test_session",
+    connectToDatabase: async () => {},
+    UserModel: {},
+    AuditLogModel,
+  });
+
+  const success = await readJson(
+    await login(
+      jsonRequest(
+        "https://test.local/api/auth/login",
+        { email: " Alice@Example.Test ", password: "valid-pass" },
+        "POST",
+      ),
+    ),
+  );
+  assert.equal(success.status, 200);
+  assert.equal(AuditLogModel.state.logs[0].event, "LOGIN_SUCCESS");
+  assert.equal(AuditLogModel.state.logs[0].userId, "alice");
+  assert.equal(JSON.stringify(AuditLogModel.state.logs[0]).includes("valid-pass"), false);
+
+  const failure = await readJson(
+    await login(
+      jsonRequest(
+        "https://test.local/api/auth/login",
+        { email: " Alice@Example.Test ", password: "wrong-pass" },
+        "POST",
+      ),
+    ),
+  );
+  assert.equal(failure.status, 401);
+  assert.equal(AuditLogModel.state.logs[1].event, "LOGIN_FAILURE");
+  assert.equal(AuditLogModel.state.logs[1].email, "alice@example.test");
+  assert.equal(AuditLogModel.state.logs[1].resource.errorCode, "UNAUTHENTICATED");
+  assert.equal(JSON.stringify(AuditLogModel.state.logs[1]).includes("wrong-pass"), false);
+});
+
+test("logout route writes audit event when session is present", async () => {
+  const AuditLogModel = createFakeAuditLogModel();
+  const session = { userId: "alice", email: "alice@example.test", role: "user", workspaceId: "workspace-a" };
+  const logout = createLogoutRouteHandler({
+    authCookieName: "test_session",
+    requireAuth: () => session,
+    AuditLogModel,
+  });
+
+  const response = await readJson(await logout(new Request("https://test.local/api/auth/logout", { method: "POST" })));
+  assert.equal(response.status, 200);
+  assert.equal(AuditLogModel.state.logs[0].event, "LOGOUT");
+  assert.equal(AuditLogModel.state.logs[0].userId, "alice");
+});
+
+test("audit logs route supports admin filters by user and resource", async () => {
+  const AuditLogModel = createFakeAuditLogModel([
+    {
+      _id: "audit-1",
+      event: "LOGIN_SUCCESS",
+      userId: "alice",
+      email: "alice@example.test",
+      role: "user",
+      workspaceId: "workspace-a",
+      resource: { type: "auth", id: "login" },
+      createdAt: "2026-07-07T00:00:00.000Z",
+    },
+    {
+      _id: "audit-2",
+      event: "CATALOG_PRODUCT_UPDATED",
+      userId: "admin",
+      email: "admin@example.test",
+      role: "admin",
+      workspaceId: "admin",
+      resource: { type: "catalog_product", id: "product-a" },
+      createdAt: "2026-07-07T00:01:00.000Z",
+    },
+  ]);
+  const adminSession = { userId: "admin", email: "admin@example.test", role: "admin", workspaceId: "admin" };
+  const handler = createAuditLogsRouteHandler({
+    connectToDatabase: async () => {},
+    AuditLogModel,
+    requireAuth: () => adminSession,
+  });
+
+  const byUser = await readJson(await handler(new Request("https://test.local/api/admin/audit-logs?userId=alice")));
+  assert.equal(byUser.status, 200);
+  assert.deepEqual(
+    byUser.body.logs.map((log) => log.id),
+    ["audit-1"],
+  );
+
+  const byResource = await readJson(
+    await handler(new Request("https://test.local/api/admin/audit-logs?resourceType=catalog_product&resourceId=product-a")),
+  );
+  assert.equal(byResource.status, 200);
+  assert.deepEqual(
+    byResource.body.logs.map((log) => log.id),
+    ["audit-2"],
+  );
+
+  const userHandler = createAuditLogsRouteHandler({
+    connectToDatabase: async () => {},
+    AuditLogModel,
+    requireAuth: () => ({ userId: "alice", email: "alice@example.test", role: "user", workspaceId: "workspace-a" }),
+  });
+  const blocked = await readJson(await userHandler(new Request("https://test.local/api/admin/audit-logs")));
+  assert.equal(blocked.status, 403);
 });
