@@ -2,9 +2,9 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { CardImage } from "@/components/cards/CardImage";
 import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
 import {
-  CARD_IMAGE_PLACEHOLDER_URL,
   formatAnnualFee,
   formatDateDisplay,
   formatRateBps,
@@ -263,7 +263,12 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
         <section className="cc-section mb-8 p-6" aria-labelledby="card-detail-title">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[18rem_minmax(0,1fr)]">
             <div className="cc-panel flex flex-col items-center justify-center p-4">
-              <img src={card.imageUrl || CARD_IMAGE_PLACEHOLDER_URL} alt={`${providerName} ${displayName}`} className="mb-3 h-32 w-full object-contain" onError={(event) => { event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL; }} />
+              <CardImage
+                src={card.imageUrl}
+                alt={`${providerName} ${displayName}`}
+                sizes="288px"
+                className="mb-3 h-32 w-full object-contain"
+              />
               <p className="text-sm font-semibold cc-text-muted">{providerName}</p>
               <h1 id="card-detail-title" className="text-center text-xl font-bold cc-text">{displayName}</h1>
               <p className="mt-1 text-sm text-blue-700">{network} · {card.owner || "Tôi"}</p>
