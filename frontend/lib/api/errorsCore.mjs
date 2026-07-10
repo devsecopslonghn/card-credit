@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server.js";
+import { createApiErrorBody } from "@card-credit/contracts";
 import { errorContext, logError } from "../observability/logger.mjs";
 
 export class ApiError extends Error {
@@ -13,13 +14,7 @@ export class ApiError extends Error {
 
 export const apiErrorResponse = (error) =>
   NextResponse.json(
-    {
-      error: {
-        code: error.code,
-        message: error.message,
-        ...(error.fields ? { fields: error.fields } : {}),
-      },
-    },
+    createApiErrorBody(error.code, error.message, error.fields),
     { status: error.status },
   );
 

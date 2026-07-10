@@ -1,4 +1,5 @@
 import type { FastifyError, FastifyInstance } from "fastify";
+import { createApiErrorBody } from "@card-credit/contracts";
 
 export class ApiError extends Error {
   constructor(
@@ -16,12 +17,10 @@ export const installErrorHandler = (app: FastifyInstance) => {
     const known = error instanceof ApiError;
     const statusCode = known ? error.statusCode : 500;
     request.log.error({ err: error, event: "REQUEST_FAILED" }, error.message);
-    return reply.status(statusCode).send({
-      error: {
-        code: known ? error.code : "INTERNAL_ERROR",
-        message: known ? error.message : "Internal server error.",
-        ...(known && error.fields ? { fields: error.fields } : {}),
-      },
-    });
+    return reply.status(statusCode).send(createApiErrorBody(
+      known ? error.code : "INTERNAL_ERROR",
+      known ? error.message : "Internal server error.",
+      known ? error.fields : undefined,
+    ));
   });
 };

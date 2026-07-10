@@ -52,7 +52,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 1 — Repository layout and consistency | DONE |
 | Phase 2 — Backend extraction design | DONE |
 | Phase 3 — Minimal backend runtime | DONE |
-| Phase 4 — Shared boundaries | TODO |
+| Phase 4 — Shared boundaries | DONE |
 | Phase 5 — API migration by route group | TODO |
 | Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
 | Phase 7 — Two real production Dockerfiles | TODO |
@@ -64,7 +64,7 @@ consistent repository layout while the UI and API continue to run together.
 
 ## Current phase
 
-Phase 3 — Minimal backend runtime.
+Phase 4 — Shared boundaries.
 
 ## Acceptance criteria
 
@@ -120,6 +120,13 @@ Phase 3 — Minimal backend runtime.
   `npm run validate` passed typecheck, lint, 3 unit tests, and build. No business
   API or Dockerfile was added. Remaining risk: a real MongoDB lifecycle test is
   deferred to the isolated test-database phase.
+- 2026-07-11: Phase 4 added `@card-credit/contracts`, a pure framework-free
+  package containing the shared API error DTO/envelope, and wired both runtimes
+  to consume it. Database models, environment, authentication, and validation
+  remain server-only. Shared build/test, backend validation, frontend typecheck,
+  and 103 frontend unit tests passed. Files: `shared/**`, both package manifests
+  and locks, both error adapters, ignore rules, and this plan. Remaining risk:
+  additional DTOs should move only alongside actual migrated consumers.
 
 ## Known issues
 
