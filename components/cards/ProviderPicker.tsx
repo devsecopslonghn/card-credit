@@ -51,7 +51,7 @@ export function ProviderPicker({
       </div>
 
       {loading && (
-        <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500" role="status">
+        <p className="cc-panel rounded-lg p-3 text-sm font-medium cc-text-muted" role="status">
           Đang tải provider...
         </p>
       )}
@@ -61,7 +61,7 @@ export function ProviderPicker({
         </p>
       )}
       {!loading && !error && providers.length === 0 && (
-        <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500" role="status">
+        <p className="cc-panel rounded-lg p-3 text-sm font-medium cc-text-muted" role="status">
           Chưa có provider khả dụng.
         </p>
       )}
@@ -86,7 +86,7 @@ export function ProviderPicker({
                 }`}
               >
                 <span className="block truncate font-bold">{provider.providerName}</span>
-                <span className="block text-xs text-gray-500">
+                <span className="block text-xs font-semibold cc-text-muted">
                   {provider.providerCode} · {provider.products?.length ?? 0} sản phẩm
                 </span>
               </button>

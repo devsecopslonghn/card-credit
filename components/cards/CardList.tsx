@@ -28,7 +28,7 @@ export function CardList({
 }: CardListProps) {
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-gray-500" role="status">
+      <div className="cc-section rounded-xl p-10 text-center font-medium cc-text-muted" role="status">
         Đang tải danh sách thẻ...
       </div>
     );
@@ -47,18 +47,18 @@ export function CardList({
 
   if (cardsCount === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
-        <p className="font-semibold text-gray-700">Chưa có thẻ nào.</p>
-        <p className="mt-1 text-sm text-gray-500">Thêm thẻ đầu tiên bằng Card Catalog.</p>
+      <div className="cc-section rounded-xl border-dashed p-10 text-center">
+        <p className="font-bold cc-text-primary">Chưa có thẻ nào.</p>
+        <p className="mt-1 text-sm font-medium cc-text-muted">Thêm thẻ đầu tiên bằng Card Catalog.</p>
       </div>
     );
   }
 
   if (filteredCardsCount === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
-        <p className="font-semibold text-gray-700">Không có thẻ phù hợp với bộ lọc.</p>
-        <p className="mt-1 text-sm text-gray-500">Bộ lọc hiện tại: {selectedOwner || "Không xác định"}.</p>
+      <div className="cc-section rounded-xl border-dashed p-10 text-center">
+        <p className="font-bold cc-text-primary">Không có thẻ phù hợp với bộ lọc.</p>
+        <p className="mt-1 text-sm font-medium cc-text-muted">Bộ lọc hiện tại: {selectedOwner || "Không xác định"}.</p>
       </div>
     );
   }

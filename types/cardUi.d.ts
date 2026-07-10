@@ -61,3 +61,45 @@ declare module "@/lib/reports/summaryCore.mjs" {
     filters?: Record<string, unknown>;
   }) => Record<string, unknown>;
 }
+
+declare module "@/lib/cards/dueStatementsCore.mjs" {
+  export type DueStatementStatus = "UPCOMING" | "DUE_TODAY" | "OVERDUE" | "PAID";
+  export type DueStatementRow = {
+    statement: Record<string, unknown> & {
+      _id: string;
+      userCardId: string;
+      statementDate: string;
+      paymentDueDate: string;
+      paymentStatus?: string;
+      effectivePaymentStatus?: string;
+      summary?: { totalAmountDue?: number };
+    };
+    card: Record<string, unknown> & {
+      _id: string;
+      providerName?: string;
+      bank?: string;
+      displayName?: string;
+      name?: string;
+      owner?: string;
+    };
+    amountDue: number;
+    status: DueStatementStatus;
+  };
+  export const getStatementDueStatus: (statement: Record<string, unknown>, today?: string) => DueStatementStatus;
+  export const buildDueStatementGroups: (input: {
+    statements?: Array<Record<string, unknown>>;
+    cards?: Array<Record<string, unknown>>;
+    today?: string;
+  }) => Array<{
+    monthKey: string;
+    monthLabel: string;
+    dueCount: number;
+    dueAmount: number;
+    rows: DueStatementRow[];
+  }>;
+  export const buildOverdueStatementRows: (input: {
+    statements?: Array<Record<string, unknown>>;
+    cards?: Array<Record<string, unknown>>;
+    today?: string;
+  }) => DueStatementRow[];
+}
