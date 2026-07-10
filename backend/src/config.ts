@@ -5,6 +5,7 @@ export type BackendConfig = {
   authSecret: string;
   logLevel: string;
   shutdownTimeoutMs: number;
+  catalogDataDir: string;
 };
 
 const required = (env: NodeJS.ProcessEnv, name: string) => {
@@ -32,5 +33,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     authSecret,
     logLevel: env.LOG_LEVEL?.trim() || "info",
     shutdownTimeoutMs: integer(env.SHUTDOWN_TIMEOUT_MS, 10000, "SHUTDOWN_TIMEOUT_MS"),
+    catalogDataDir: env.CATALOG_DATA_DIR?.trim() || "../frontend/data",
   };
 };

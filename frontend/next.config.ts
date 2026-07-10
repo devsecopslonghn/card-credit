@@ -1,6 +1,17 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@card-credit/contracts"],
+  turbopack: { root: path.resolve(process.cwd(), "..") },
+  async rewrites() {
+    const backend = process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:3001";
+    return [
+      { source: "/api/card-catalog/providers", destination: `${backend}/api/card-catalog/providers` },
+      { source: "/api/card-catalog/products", destination: `${backend}/api/card-catalog/products` },
+      { source: "/api/card-catalog/products/:presetId", destination: `${backend}/api/card-catalog/products/:presetId` },
+    ];
+  },
   allowedDevOrigins: ["127.0.0.1"],
   images: {
     remotePatterns: [

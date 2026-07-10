@@ -53,7 +53,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 2 — Backend extraction design | DONE |
 | Phase 3 — Minimal backend runtime | DONE |
 | Phase 4 — Shared boundaries | DONE |
-| Phase 5 — API migration by route group | TODO |
+| Phase 5 — API migration by route group | IN_PROGRESS |
 | Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
 | Phase 7 — Two real production Dockerfiles | TODO |
 | Phase 8 — Two-service Docker Compose | TODO |
@@ -64,7 +64,7 @@ consistent repository layout while the UI and API continue to run together.
 
 ## Current phase
 
-Phase 4 — Shared boundaries.
+Phase 5 — API migration by route group.
 
 ## Acceptance criteria
 
@@ -127,6 +127,13 @@ Phase 4 — Shared boundaries.
   and 103 frontend unit tests passed. Files: `shared/**`, both package manifests
   and locks, both error adapters, ignore rules, and this plan. Remaining risk:
   additional DTOs should move only alongside actual migrated consumers.
+- 2026-07-11: Phase 5 public/catalog group moved the three read-only catalog
+  endpoints to Fastify, added contract tests and a same-origin Next.js rewrite,
+  and removed the three Next route implementations. Backend validation (4 tests)
+  and frontend typecheck, lint, 18 integration tests, and build passed after
+  clearing stale ignored `.next` route metadata. Files: backend catalog/config/
+  routes/tests, `frontend/next.config.ts`, removed catalog route adapters, and
+  this plan. Remaining Phase 5 groups: authentication, domain, and admin/reset.
 
 ## Known issues
 

@@ -1,10 +1,11 @@
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { DatabaseLifecycle } from "./database.js";
+import { CatalogRepository } from "./catalog.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
-const app = buildApp(database, config.logLevel);
+const app = buildApp(database, config.logLevel, new CatalogRepository(config.catalogDataDir));
 let stopping = false;
 
 const shutdown = async (signal: string) => {
