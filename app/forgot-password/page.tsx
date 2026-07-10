@@ -1,20 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function ForgotPasswordPage() {
-  const [token, setToken] = useState("");
+  const [token] = useState(() =>
+    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("token") || "",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
   const [resetLink, setResetLink] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    setToken(new URLSearchParams(window.location.search).get("token") || "");
-  }, []);
 
   const requestReset = async (event: React.FormEvent) => {
     event.preventDefault();

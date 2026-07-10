@@ -40,14 +40,19 @@ Card Credit la ung dung Next.js de quan ly the tin dung ca nhan: danh sach the, 
 ```bash
 MONGODB_URI="mongodb connection string"
 AUTH_SECRET="long random secret for signed auth cookies"
+AUTH_BOOTSTRAP_TOKEN="long random token for POST /api/auth/bootstrap-users"
 AUTH_USERS_JSON='[
   {"email":"user@example.test","password":"change-me-123","role":"user","workspaceId":"workspace-1","displayName":"Local User"},
   {"email":"admin@example.test","password":"change-me-123","role":"admin","workspaceId":"admin-workspace","displayName":"Local Admin"}
 ]'
+# Optional local/staging helper. Non-production returns resetLink by default.
+PASSWORD_RESET_RETURN_TOKEN="false"
 ```
 
 `AUTH_SECRET` bat buoc trong production. Neu thieu o local, app dung dev fallback de tien chay thu.
 `AUTH_USERS_JSON` chi dung cho seed/bootstrap local hoac staging, khong duoc dung lam nguon dang nhap runtime. Sau khi seed, login doc user tu collection `users` va so sanh password bang hash.
+`AUTH_BOOTSTRAP_TOKEN` bat buoc de bat `POST /api/auth/bootstrap-users`; neu thieu, route tra `BOOTSTRAP_DISABLED`. Gui token bang `Authorization: Bearer ...` hoac header `x-bootstrap-token`.
+`PASSWORD_RESET_RETURN_TOKEN=true` chi nen dung local/staging de API forgot password tra `resetLink` phuc vu test thu cong. Production khong nen tra raw reset token trong response.
 
 Khong dung production MongoDB cho test, seed, migration dry-run hoac Playwright. Dung database rieng cho local/staging.
 
@@ -102,8 +107,16 @@ Auth endpoints:
 ```text
 POST /api/auth/login
 POST /api/auth/logout
+POST /api/auth/register
+POST /api/auth/forgot-password
+POST /api/auth/reset-password
+POST /api/auth/bootstrap-users
 GET  /api/auth/me
 ```
+
+`/register` tao user moi, hash password va dang nhap ngay bang cookie session. User dau tien duoc gan role `admin`, cac user sau mac dinh role `user`.
+`/forgot-password` tao token ngau nhien, chi luu SHA-256 hash trong collection `passwordresettokens`, co TTL qua `expiresAt`. `/reset-password` cap nhat password hash va danh dau token da dung de khong reuse.
+`/bootstrap-users` upsert user tu `AUTH_USERS_JSON`; route yeu cau `AUTH_BOOTSTRAP_TOKEN` va khong ghi password/token tho vao audit log.
 
 ## Card Catalog
 
@@ -243,6 +256,15 @@ MONGODB_URI="mongodb connection string" AUTH_USERS_JSON='[
 
 Script se hash `password` truoc khi ghi DB. Neu da co hash san, co the dung `passwordHash` thay cho `password`. Script tu choi chay voi `NODE_ENV=production` tru khi dat `ALLOW_PRODUCTION_AUTH_SEED=true`.
 
+Bootstrap user qua API tu `AUTH_USERS_JSON`:
+
+```bash
+curl -X POST "http://localhost:3000/api/auth/bootstrap-users" \
+  -H "Authorization: Bearer $AUTH_BOOTSTRAP_TOKEN"
+```
+
+API bootstrap upsert theo email va hash `password` truoc khi ghi DB. Khong truyen token nay cho client browser.
+
 Seed sample data vao database local/staging:
 
 ```bash
@@ -348,6 +370,7 @@ Jenkinsfile hien chay catalog validation, tests, build, Docker smoke va deploy s
 
 - `Vui long dinh nghia bien MONGODB_URI`: API route can database nhung env thieu.
 - `AUTH_SECRET is required in production`: them `AUTH_SECRET` khi `NODE_ENV=production`.
+- `BOOTSTRAP_DISABLED`: them `AUTH_BOOTSTRAP_TOKEN` neu can dung `/api/auth/bootstrap-users`.
 - Login that bai: kiem tra da chay `npm run seed:auth-users`, user `active` va khong co `lockedAt`, email/password dung.
 - `/cards` redirect ve `/login`: chua co cookie session hop le.
 - `PRESET_INACTIVE`: product inactive khong tao duoc card moi; card snapshot cu van render.

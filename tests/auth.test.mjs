@@ -11,6 +11,7 @@ import { canManageCatalog, canManageUsers, canReadWorkspace } from "../lib/auth/
 import { createAdminUsersRouteHandlers, createProfileRouteHandlers } from "../lib/api/userProfileRouteCore.mjs";
 import { createAuditLogsRouteHandler } from "../lib/api/auditLogsRouteCore.mjs";
 import {
+  createBootstrapUsersRouteHandler,
   createForgotPasswordRouteHandler,
   createRegisterRouteHandler,
   createResetPasswordRouteHandler,
@@ -31,7 +32,12 @@ const readJson = async (response) => ({
   body: await response.json(),
 });
 
-const clone = (value) => JSON.parse(JSON.stringify(value));
+const clone = (value) => {
+  if (value instanceof Date) return new Date(value);
+  if (Array.isArray(value)) return value.map(clone);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).map(([key, entryValue]) => [key, clone(entryValue)]));
+};
 
 const createUserQuery = (users) => ({
   sort(sortSpec = {}) {
@@ -595,6 +601,105 @@ test("forgot and reset password flow stores only token hash and blocks replay", 
   );
   assert.equal(replay.status, 400);
   assert.equal(replay.body.error.code, "INVALID_TOKEN");
+});
+
+test("bootstrap users route requires token and upserts configured users without auditing secrets", async () => {
+  const previousToken = process.env.AUTH_BOOTSTRAP_TOKEN;
+  process.env.AUTH_BOOTSTRAP_TOKEN = "bootstrap-secret";
+
+  try {
+    const AuditLogModel = createFakeAuditLogModel();
+    const updates = [];
+    const UserModel = {
+      async updateOne(query, update, options) {
+        updates.push({ query: clone(query), update: clone(update), options: clone(options) });
+      },
+    };
+    const configuredUsers = [
+      {
+        email: " Admin@Example.Test ",
+        password: "never-log-this-password",
+        role: "admin",
+        workspaceId: "admin-workspace",
+        displayName: "  Admin User  ",
+        active: true,
+      },
+    ];
+    const bootstrap = createBootstrapUsersRouteHandler({
+      connectToDatabase: async () => {},
+      UserModel,
+      getConfiguredUsers: () => configuredUsers,
+      AuditLogModel,
+    });
+
+    const missingToken = await readJson(
+      await bootstrap(new Request("https://test.local/api/auth/bootstrap-users", { method: "POST" })),
+    );
+    assert.equal(missingToken.status, 403);
+    assert.equal(updates.length, 0);
+
+    const response = await readJson(
+      await bootstrap(
+        new Request("https://test.local/api/auth/bootstrap-users", {
+          method: "POST",
+          headers: { authorization: "Bearer bootstrap-secret" },
+        }),
+      ),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.body.users, [
+      { email: "admin@example.test", role: "admin", workspaceId: "admin-workspace" },
+    ]);
+    assert.equal(updates.length, 1);
+    assert.deepEqual(updates[0].query, { email: "admin@example.test" });
+    assert.match(updates[0].update.$set.passwordHash, /^scrypt\$/);
+    assert.equal(await verifyPassword("never-log-this-password", updates[0].update.$set.passwordHash), true);
+    assert.equal(updates[0].options.upsert, true);
+    assert.equal(AuditLogModel.state.logs.at(-1).event, "USER_BOOTSTRAPPED");
+    assert.equal(AuditLogModel.state.logs.at(-1).resource.count, 1);
+    assert.equal(JSON.stringify(AuditLogModel.state.logs).includes("never-log-this-password"), false);
+    assert.equal(JSON.stringify(AuditLogModel.state.logs).includes("bootstrap-secret"), false);
+  } finally {
+    if (previousToken === undefined) {
+      delete process.env.AUTH_BOOTSTRAP_TOKEN;
+    } else {
+      process.env.AUTH_BOOTSTRAP_TOKEN = previousToken;
+    }
+  }
+});
+
+test("bootstrap users route is disabled when AUTH_BOOTSTRAP_TOKEN is missing", async () => {
+  const previousToken = process.env.AUTH_BOOTSTRAP_TOKEN;
+  delete process.env.AUTH_BOOTSTRAP_TOKEN;
+
+  try {
+    const bootstrap = createBootstrapUsersRouteHandler({
+      connectToDatabase: async () => {
+        throw new Error("database should not be reached");
+      },
+      UserModel: {},
+      getConfiguredUsers: () => [],
+      AuditLogModel: createFakeAuditLogModel(),
+    });
+
+    const response = await readJson(
+      await bootstrap(
+        new Request("https://test.local/api/auth/bootstrap-users", {
+          method: "POST",
+          headers: { "x-bootstrap-token": "anything" },
+        }),
+      ),
+    );
+    assert.equal(response.status, 503);
+    assert.equal(response.body.error.code, "BOOTSTRAP_DISABLED");
+  } finally {
+    if (previousToken === undefined) {
+      delete process.env.AUTH_BOOTSTRAP_TOKEN;
+    } else {
+      process.env.AUTH_BOOTSTRAP_TOKEN = previousToken;
+    }
+  }
 });
 
 test("logout route writes audit event when session is present", async () => {
