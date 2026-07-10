@@ -30,6 +30,7 @@ const jsonRequest = (url, body, method = "PATCH") =>
 
 const readJson = async (response) => ({
   status: response.status,
+  headers: response.headers,
   body: await response.json(),
 });
 
@@ -728,6 +729,8 @@ test("logout route writes audit event when session is present", async () => {
 
   const response = await readJson(await logout(new Request("https://test.local/api/auth/logout", { method: "POST" })));
   assert.equal(response.status, 200);
+  assert.match(response.headers.get("set-cookie"), /test_session=/);
+  assert.match(response.headers.get("set-cookie"), /Max-Age=0/i);
   assert.equal(AuditLogModel.state.logs[0].event, "LOGOUT");
   assert.equal(AuditLogModel.state.logs[0].userId, "alice");
 });

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { canManageUsers } from "@/lib/auth/rbac";
 
 type ManagedUser = {
@@ -138,9 +139,12 @@ export default function AdminUsersPage() {
             <h1 className="text-3xl font-bold">Quản lý user</h1>
             <p className="mt-1 text-sm text-gray-500">Cập nhật role và workspace bằng quyền admin.</p>
           </div>
-          <Link href="/profile" className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            Hồ sơ
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/profile" className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              Hồ sơ
+            </Link>
+            <LogoutButton />
+          </div>
         </div>
 
         {loading ? <p role="status" className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500">Đang tải user...</p> : null}

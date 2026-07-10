@@ -6,6 +6,7 @@ import { CalendarNotes } from "@/components/cards/CalendarNotes";
 import { CardList } from "@/components/cards/CardList";
 import { DuplicateResolver } from "@/components/cards/DuplicateResolver";
 import { EditCardModal } from "@/components/cards/EditCardModal";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { UpcomingPayments } from "@/components/cards/UpcomingPayments";
 import {
   filterCardsByOwner,
@@ -224,6 +225,7 @@ export default function CardsPage() {
             >
               Thêm thẻ mới
             </button>
+            <LogoutButton className="w-full sm:w-auto" />
           </div>
         </header>
 

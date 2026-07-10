@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { canManageUsers } from "@/lib/auth/rbac";
 
 type ProfileUser = {
@@ -95,6 +96,7 @@ export default function ProfilePage() {
                 Quản lý user
               </Link>
             ) : null}
+            <LogoutButton />
           </div>
         </div>
 
