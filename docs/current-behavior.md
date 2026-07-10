@@ -18,26 +18,26 @@ This document records the current implementation before the Card Catalog migrati
 
 ## Source Structure
 
-- `app/cards/page.tsx`: orchestration for card list, owner filter, calendar notes, upcoming payment list and modals.
-- `components/cards/**`: card catalog modal, provider/product picker, card list, provider sections, card item, edit modal, upcoming payments and calendar notes.
-- `app/cards/[id]/page.tsx`: card detail page, general card payment settings, monthly data table and monthly edit modal.
-- `app/api/cards/route.ts`: list and create cards with catalog-first and transitional legacy contracts.
-- `app/api/cards/[id]/route.ts`: update operational fields and delete cards.
-- `app/api/card-catalog/**`: read-only catalog provider and product endpoints.
-- `app/api/reports/summary/route.ts`: JSON summary export.
-- `app/api/notes/route.ts`: calendar notes.
-- `app/api/banks/**`: bank masterdata.
-- `app/api/cardtypes/**`: card type/network masterdata.
-- `models/CreditCard.ts`: current user card schema.
-- `models/Bank.ts`: bank masterdata schema.
-- `models/CardType.ts`: network/card type masterdata schema.
-- `models/CalendarNote.ts`: calendar note schema.
-- `data/card-presets.json`: current preset source data.
-- `lib/cardPresets.ts`: preset loader and generated image fallback.
-- `scripts/prepare-card-images.mjs`: caches remote preset images into `public/card-images/generated` and records placeholder/failure status in `data/card-image-manifest.json`.
-- `scripts/validate-card-catalog.mjs`: validates catalog schema without MongoDB or network access.
-- `scripts/crawl-card-presets.mjs`: fetches source pages and prints annual-fee hints.
-- `scripts/seed-sample.mjs`: seeds sample banks, card types, cards and notes.
+- `frontend/app/cards/page.tsx`: orchestration for card list, owner filter, calendar notes, upcoming payment list and modals.
+- `frontend/components/cards/**`: card catalog modal, provider/product picker, card list, provider sections, card item, edit modal, upcoming payments and calendar notes.
+- `frontend/app/cards/[id]/page.tsx`: card detail page, general card payment settings, monthly data table and monthly edit modal.
+- `frontend/app/api/cards/route.ts`: list and create cards with catalog-first and transitional legacy contracts.
+- `frontend/app/api/cards/[id]/route.ts`: update operational fields and delete cards.
+- `frontend/app/api/card-catalog/**`: read-only catalog provider and product endpoints.
+- `frontend/app/api/reports/summary/route.ts`: JSON summary export.
+- `frontend/app/api/notes/route.ts`: calendar notes.
+- `frontend/app/api/banks/**`: bank masterdata.
+- `frontend/app/api/cardtypes/**`: card type/network masterdata.
+- `frontend/models/CreditCard.ts`: current user card schema.
+- `frontend/models/Bank.ts`: bank masterdata schema.
+- `frontend/models/CardType.ts`: network/card type masterdata schema.
+- `frontend/models/CalendarNote.ts`: calendar note schema.
+- `frontend/data/card-presets.json`: current preset source data.
+- `frontend/lib/cardPresets.ts`: preset loader and generated image fallback.
+- `frontend/scripts/prepare-card-images.mjs`: caches remote preset images into `frontend/public/card-images/generated` and records placeholder/failure status in `frontend/data/card-image-manifest.json`.
+- `frontend/scripts/validate-card-catalog.mjs`: validates catalog schema without MongoDB or network access.
+- `frontend/scripts/crawl-card-presets.mjs`: fetches source pages and prints annual-fee hints.
+- `frontend/scripts/seed-sample.mjs`: seeds sample banks, card types, cards and notes.
 
 ## Current User Features
 
@@ -274,8 +274,8 @@ Non-unique indexes exist for `presetId` and `providerCode` because many user car
 
 ## Current Preset Behavior
 
-- Source of truth is `data/card-presets.json`.
-- Loader is `lib/cardPresets.ts`.
+- Source of truth is `frontend/data/card-presets.json`.
+- Loader is `frontend/lib/cardPresets.ts`.
 - Current JSON uses legacy field names: `id`, `bank`, `bankName`, `name`, `type`.
 - Canonical catalog fields in JSON are now:
   - `presetId`
@@ -295,7 +295,7 @@ Non-unique indexes exist for `presetId` and `providerCode` because many user car
   - `bankName` mirrors `providerName`
   - `name` mirrors `displayName`
   - `type` mirrors `network`
-- `lib/cardPresets.ts` exports a typed catalog service with helper functions:
+- `frontend/lib/cardPresets.ts` exports a typed catalog service with helper functions:
   - `getAllCatalogProducts()`
   - `getActiveCatalogProducts()`
   - `getCatalogProviders()`
@@ -329,7 +329,7 @@ Known codes include `INVALID_REQUEST`, `INVALID_JSON`, `INVALID_CARD_ID`, `INVAL
 
 ## Sample Data Baseline
 
-Existing `scripts/seed-sample.mjs` seeds:
+Existing `frontend/scripts/seed-sample.mjs` seeds:
 
 - One VCB card: `VCB Cashback Plus`, owner `Tôi`, with monthly data and payment due date.
 - One TCB card: `TCB Family Platinum`, owner `Mẹ`, with monthly data and payment due date.
@@ -349,6 +349,7 @@ Sample-data coverage:
 Run with:
 
 ```bash
+cd frontend
 MONGODB_URI="..." npm run seed:sample
 ```
 
@@ -368,6 +369,7 @@ The app requires `MONGODB_URI` for API routes and runtime data access. Without i
 Catalog validation and unit tests do not require MongoDB:
 
 ```bash
+cd frontend
 npm run validate:catalog
 npm test
 ```
@@ -378,6 +380,7 @@ npm test
 name and network. Dry-run is the default:
 
 ```bash
+cd frontend
 MONGODB_URI="..." npm run migrate:catalog -- --dry-run
 ```
 
@@ -388,6 +391,7 @@ records remain legacy and must be reviewed manually.
 Apply mode requires a backup first:
 
 ```bash
+cd frontend
 MONGODB_URI="..." npm run migrate:catalog -- --apply
 ```
 

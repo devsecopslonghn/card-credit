@@ -5,7 +5,7 @@ WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY package.json package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 FROM node:22-alpine AS builder
@@ -14,7 +14,7 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY frontend/ .
 RUN npm run validate:catalog
 RUN npm run typecheck
 RUN npm run lint
@@ -32,7 +32,7 @@ ENV PORT=3000
 
 RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 
-COPY package.json package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/.next ./.next

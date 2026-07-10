@@ -12,18 +12,23 @@ Card Credit la ung dung Next.js de quan ly the tin dung ca nhan: danh sach the, 
 
 ## Kien Truc
 
-- `app/`: Next.js App Router, UI pages va API routes.
-- `components/cards/`: card list, modal tao the, picker provider/product va controls lien quan.
-- `lib/api/`: route core co the test bang dependency injection.
-- `lib/services/`: domain service tao/cap nhat User Card.
-- `lib/cards/`: serializer, UI helpers va accessibility helpers.
-- `lib/auth/`: session cookie HMAC va role helpers.
-- `lib/catalog/`: store cho admin catalog JSON.
-- `models/`: Mongoose models.
-- `data/`: Card Catalog JSON va image manifest.
-- `scripts/`: validate catalog, migrate, seed, cache images va smoke test.
-- `tests/`: unit/integration tests bang `node:test`; `tests/e2e/` dung Playwright.
+- `frontend/`: ung dung Next.js hien tai, bao gom UI va cac API routes tam thoi.
+- `frontend/app/`: Next.js App Router, UI pages va API routes.
+- `frontend/app/api/**`: API hien van chay trong Next.js trong Phase 1; chua duoc tach sang backend runtime rieng.
+- `frontend/components/cards/`: card list, modal tao the, picker provider/product va controls lien quan.
+- `frontend/lib/api/`: route core co the test bang dependency injection.
+- `frontend/lib/services/`: domain service tao/cap nhat User Card.
+- `frontend/lib/cards/`: serializer, UI helpers va accessibility helpers.
+- `frontend/lib/auth/`: session cookie HMAC va role helpers.
+- `frontend/lib/catalog/`: store cho admin catalog JSON.
+- `frontend/models/`: Mongoose models.
+- `frontend/data/`: Card Catalog JSON va image manifest.
+- `frontend/scripts/`: validate catalog, migrate, seed, cache images va smoke test.
+- `frontend/tests/`: unit/integration tests bang `node:test`; `frontend/tests/e2e/` dung Playwright.
+- `backend/`: placeholder cho Phase 2, chua chay production backend.
 - `docs/`: roadmap, current behavior, release plan va snapshot policy.
+
+Day moi la Phase 1 ve repository layout. Backend extraction se duoc thuc hien trong task rieng sau khi co thiet ke framework, auth, CORS, API base URL va deployment topology.
 
 ## Tech Stack
 
@@ -59,7 +64,8 @@ Khong dung production MongoDB cho test, seed, migration dry-run hoac Playwright.
 ## Chay Local
 
 ```bash
-npm install
+cd frontend
+npm ci
 npm run seed:auth-users
 npm run dev
 ```
@@ -122,9 +128,9 @@ GET  /api/auth/me
 
 Nguon catalog hien tai:
 
-- `data/card-presets.json`
-- `data/card-image-manifest.json`
-- `lib/cardCatalogCore.mjs`
+- `frontend/data/card-presets.json`
+- `frontend/data/card-image-manifest.json`
+- `frontend/lib/cardCatalogCore.mjs`
 
 Vi du catalog entry:
 
@@ -185,7 +191,7 @@ PATCH /api/admin/card-catalog/products/:presetId
 PATCH /api/admin/card-catalog/providers/:providerCode
 ```
 
-Admin catalog update validate toan bo `data/card-presets.json` truoc khi ghi va response co audit:
+Admin catalog update validate toan bo `frontend/data/card-presets.json` truoc khi ghi va response co audit:
 
 ```json
 {
@@ -193,7 +199,7 @@ Admin catalog update validate toan bo `data/card-presets.json` truoc khi ghi va 
     "updatedBy": "admin@example.test",
     "updatedByUserId": "admin-1",
     "updatedAt": "2026-07-05T00:00:00.000Z",
-    "storage": "data/card-presets.json"
+    "storage": "frontend/data/card-presets.json"
   }
 }
 ```
@@ -257,6 +263,7 @@ Vi du loi API:
 Seed auth user local/staging tu `AUTH_USERS_JSON`:
 
 ```bash
+cd frontend
 MONGODB_URI="mongodb connection string" AUTH_USERS_JSON='[
   {"email":"user@example.test","password":"change-me-123","role":"user","workspaceId":"workspace-1"},
   {"email":"admin@example.test","password":"change-me-123","role":"admin","workspaceId":"admin-workspace"}
@@ -277,6 +284,7 @@ API bootstrap upsert theo email va hash `password` truoc khi ghi DB. Khong truye
 Seed sample data vao database local/staging:
 
 ```bash
+cd frontend
 MONGODB_URI="mongodb connection string" npm run seed:sample
 ```
 
@@ -284,18 +292,19 @@ Khong chay seed vao production DB neu chua duoc phe duyet ro rang.
 
 ## Them Card Product
 
-1. Them entry vao `data/card-presets.json` bang canonical fields.
+1. Them entry vao `frontend/data/card-presets.json` bang canonical fields.
 2. Dong bo legacy aliases trong thoi gian UI con can compatibility.
 3. Dung `annualFee: null` neu chua xac minh duoc phi.
 4. Dung `active: false` cho san pham ngung mo moi.
 5. Ghi `sourceUrl` va `sourceCheckedAt`.
-6. Chay `npm run validate:catalog` va `npm test`.
+6. Chay `cd frontend && npm run validate:catalog` va `cd frontend && npm test`.
 
 Co the dung admin API neu dang chay server voi admin session; API se validate truoc khi ghi JSON.
 
 ## Validate Catalog
 
 ```bash
+cd frontend
 npm run validate:catalog
 ```
 
@@ -304,6 +313,7 @@ Validation kiem tra duplicate `presetId`, alias mismatch, provider code, network
 ## Test
 
 ```bash
+cd frontend
 npm run typecheck
 npm run lint
 npm run test:unit
@@ -313,7 +323,7 @@ npm run test:e2e
 npm run build
 ```
 
-Playwright dung mocked API cho catalog/card flows, khong can external network hay MongoDB. Trace, screenshot va video duoc giu khi test fail theo `playwright.config.ts`.
+Playwright dung mocked API cho catalog/card flows, khong can external network hay MongoDB. Trace, screenshot va video duoc giu khi test fail theo `frontend/playwright.config.ts`.
 
 Baseline hien tai: `npm run lint` pass nhung con warning `<img>` cua Next.js trong UI hien co.
 
@@ -322,18 +332,21 @@ Baseline hien tai: `npm run lint` pass nhung con warning `<img>` cua Next.js tro
 Preview mapping truoc khi ghi:
 
 ```bash
+cd frontend
 MONGODB_URI="mongodb connection string" npm run migrate:catalog -- --dry-run
 ```
 
 Ghi report:
 
 ```bash
+cd frontend
 npm run migrate:catalog -- --dry-run --output migration-report.json
 ```
 
 Apply chi cap nhat exact matches:
 
 ```bash
+cd frontend
 MONGODB_URI="mongodb connection string" npm run migrate:catalog -- --apply
 ```
 
@@ -344,10 +357,11 @@ Backup database truoc apply. Migration idempotent, bo qua card da co `presetId`,
 Cache remote images:
 
 ```bash
+cd frontend
 npm run prepare:card-images
 ```
 
-Script ghi `data/card-image-manifest.json`. Anh thieu, remote fail hoac URL khong hop le fallback ve:
+Script ghi `frontend/data/card-image-manifest.json`. Anh thieu, remote fail hoac URL khong hop le fallback ve:
 
 ```text
 /card-images/placeholder-card.svg
@@ -358,7 +372,8 @@ Script ghi `data/card-image-manifest.json`. Anh thieu, remote fail hoac URL khon
 Checklist toi thieu:
 
 ```bash
-npm install
+cd frontend
+npm ci
 npm run validate:catalog
 npm run typecheck
 npm run lint
@@ -370,6 +385,7 @@ npm run build
 Smoke test sau deploy:
 
 ```bash
+cd frontend
 SMOKE_BASE_URL="https://your-app.example" npm run smoke:deploy
 ```
 
@@ -380,9 +396,9 @@ Jenkinsfile hien chay catalog validation, tests, build, Docker smoke va deploy s
 - `Vui long dinh nghia bien MONGODB_URI`: API route can database nhung env thieu.
 - `AUTH_SECRET is required`: them `AUTH_SECRET` cho runtime dang chay.
 - `BOOTSTRAP_DISABLED`: them `AUTH_BOOTSTRAP_TOKEN` neu can dung `/api/auth/bootstrap-users`.
-- Login that bai: kiem tra da chay `npm run seed:auth-users`, user `active` va khong co `lockedAt`, email/password dung.
+- Login that bai: kiem tra da chay `cd frontend && npm run seed:auth-users`, user `active` va khong co `lockedAt`, email/password dung.
 - `/cards` redirect ve `/login`: chua co cookie session hop le.
 - `PRESET_INACTIVE`: product inactive khong tao duoc card moi; card snapshot cu van render.
-- Playwright khong co browser: chay `npx playwright install chromium`.
-- Catalog validation fail: sua `data/card-presets.json`, nhat la alias, duplicate sortOrder/source date/image URL.
+- Playwright khong co browser: chay `cd frontend && npx playwright install chromium`.
+- Catalog validation fail: sua `frontend/data/card-presets.json`, nhat la alias, duplicate sortOrder/source date/image URL.
 - Khong test bang production DB; tao database local/staging rieng cho seed, migration va regression.

@@ -149,7 +149,7 @@ Cashback status is tracked per transaction:
 
 ## Cashback Cap Strategy
 
-Cashback cap logic is isolated in `lib/cards/cashbackCapCore.mjs`.
+Cashback cap logic is isolated in `frontend/lib/cards/cashbackCapCore.mjs`.
 
 The current public helper is:
 

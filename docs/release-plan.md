@@ -39,6 +39,7 @@ Out of scope:
 - [ ] Run quality gates on the release candidate:
 
 ```bash
+cd frontend
 npm ci
 npm run validate:catalog
 npm run typecheck
@@ -136,6 +137,7 @@ curl -fsS "$BASE_URL/api/card-catalog/products/sacombank-visa-platinum-cashback"
 Run dry-run first and save the report:
 
 ```bash
+cd frontend
 MONGODB_URI="$MONGODB_URI" npm run migrate:catalog -- --dry-run --output migration-dry-run.json
 ```
 
@@ -153,6 +155,7 @@ Review required:
 Apply only after dry-run approval:
 
 ```bash
+cd frontend
 MONGODB_URI="$MONGODB_URI" npm run migrate:catalog -- --apply --output migration-apply.json
 ```
 

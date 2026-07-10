@@ -2,15 +2,15 @@
 
 Last reviewed: 2026-07-05
 
-Scope: `data/card-presets.json`, `lib/cardPresets.ts`, `lib/cardCatalogCore.mjs`, image pipeline and catalog validation.
+Scope: `frontend/data/card-presets.json`, `frontend/lib/cardPresets.ts`, `frontend/lib/cardCatalogCore.mjs`, image pipeline and catalog validation.
 
 ## Audit Method
 
-- Parsed `data/card-presets.json`.
+- Parsed `frontend/data/card-presets.json`.
 - Checked canonical schema fields, legacy alias consistency, duplicate preset ids, provider codes, network values, annual-fee types and `sourceCheckedAt` format.
 - Checked Sacombank product pages from the official Sacombank website.
 - Checked official image URLs for the required Sacombank products.
-- Ran catalog validation through `npm run validate:catalog`.
+- Ran catalog validation through `cd frontend && npm run validate:catalog`.
 - Did not infer unverified fees or metadata from unofficial sources.
 
 ## Canonical Schema
@@ -37,7 +37,7 @@ Temporary legacy compatibility aliases:
 - `name` mirrors `displayName`
 - `type` mirrors `network`
 
-`npm run validate:catalog` fails if legacy aliases diverge from canonical fields.
+`cd frontend && npm run validate:catalog` fails if legacy aliases diverge from canonical fields.
 
 ## Summary
 
@@ -65,7 +65,7 @@ Temporary legacy compatibility aliases:
 - Image behavior:
   - Remote official images are used where verified.
   - Missing or failed images fall back to `/card-images/placeholder-card.svg`.
-  - `data/card-image-manifest.json` records cache/placeholder/failure status after image preparation.
+  - `frontend/data/card-image-manifest.json` records cache/placeholder/failure status after image preparation.
 
 ## Verified Sacombank Products
 

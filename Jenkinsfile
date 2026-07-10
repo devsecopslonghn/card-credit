@@ -103,7 +103,7 @@ pipeline {
             -e HOST_UID="$HOST_UID" \
             -e HOST_GID="$HOST_GID" \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc '
               set -eu
@@ -136,7 +136,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run validate:catalog'
         '''
@@ -156,7 +156,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run typecheck'
         '''
@@ -176,7 +176,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run lint'
         '''
@@ -196,7 +196,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run test:unit'
         '''
@@ -216,7 +216,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run test:integration'
         '''
@@ -242,7 +242,7 @@ pipeline {
             -e HOST_UID="$HOST_UID" \
             -e HOST_GID="$HOST_GID" \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc '
               set -eu
@@ -277,7 +277,7 @@ pipeline {
             -e HOST_UID="$HOST_UID" \
             -e HOST_GID="$HOST_GID" \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc '
               set -eu
@@ -621,16 +621,16 @@ pipeline {
               node:22-alpine \
               sh -lc '
                 rm -rf \
-                  node_modules \
-                  .next \
-                  public/card-images/generated
+                  frontend/node_modules \
+                  frontend/.next \
+                  frontend/public/card-images/generated
               '
 
             if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
-              git -C "$WORKSPACE" checkout -- data/card-image-manifest.json 2>/dev/null || true
+              git -C "$WORKSPACE" checkout -- frontend/data/card-image-manifest.json 2>/dev/null || true
             else
-              mkdir -p "$WORKSPACE/data"
-              printf "{}\\n" > "$WORKSPACE/data/card-image-manifest.json"
+              mkdir -p "$WORKSPACE/frontend/data"
+              printf "{}\\n" > "$WORKSPACE/frontend/data/card-image-manifest.json"
             fi
 
             echo "Cleaning Docker build cache older than 24 hours"
@@ -641,15 +641,15 @@ pipeline {
               >/dev/null 2>&1 || true
           else
             rm -rf \
-              node_modules \
-              .next \
-              public/card-images/generated
+              frontend/node_modules \
+              frontend/.next \
+              frontend/public/card-images/generated
 
             if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
-              git -C "$WORKSPACE" checkout -- data/card-image-manifest.json 2>/dev/null || true
+              git -C "$WORKSPACE" checkout -- frontend/data/card-image-manifest.json 2>/dev/null || true
             else
-              mkdir -p data
-              printf "{}\\n" > data/card-image-manifest.json
+              mkdir -p frontend/data
+              printf "{}\\n" > frontend/data/card-image-manifest.json
             fi
           fi
         '''

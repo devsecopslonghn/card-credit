@@ -67,9 +67,9 @@ Server chịu trách nhiệm lấy toàn bộ thông tin sản phẩm từ catal
   * Một thẻ chưa có ngày thanh toán.
 * Chạy và ghi nhận kết quả:
 
-  * `npm install`
-  * `npm run lint`
-  * `npm run build`
+  * `cd frontend && npm install`
+  * `cd frontend && npm run lint`
+  * `cd frontend && npm run build`
   * Chạy ứng dụng local.
 
 ### Definition of Done
@@ -115,7 +115,7 @@ Không sử dụng `CardType` để vừa biểu diễn network, vừa biểu di
 
 **Ưu tiên:** P0
 **Kích thước:** S
-**Files:** `lib/cardPresets.ts` hoặc thư mục `types/`
+**Files:** `frontend/lib/cardPresets.ts` hoặc thư mục `types/`
 
 ### Todo
 
@@ -166,7 +166,7 @@ type CardCatalogProvider = {
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `data/card-presets.json`
+**Files:** `frontend/data/card-presets.json`
 
 ### Todo
 
@@ -202,7 +202,7 @@ Kiểm tra từng preset:
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `data/card-presets.json`
+**Files:** `frontend/data/card-presets.json`
 
 ### Todo
 
@@ -247,7 +247,7 @@ Chuẩn hóa:
 
 **Ưu tiên:** P0
 **Kích thước:** S
-**Files:** `data/card-presets.json`
+**Files:** `frontend/data/card-presets.json`
 
 ### Todo
 
@@ -279,11 +279,11 @@ Không sử dụng số phí ví dụ trong báo cáo nếu chưa xác minh từ
 
 ---
 
-## CC-007 — Refactor `lib/cardPresets.ts` thành catalog service
+## CC-007 — Refactor `frontend/lib/cardPresets.ts` thành catalog service
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `lib/cardPresets.ts`
+**Files:** `frontend/lib/cardPresets.ts`
 
 ### Todo
 
@@ -320,7 +320,7 @@ Quy tắc:
 
 **Ưu tiên:** P1
 **Kích thước:** M
-**Files:** `scripts/prepare-card-images.mjs`, `data/card-image-manifest.json`
+**Files:** `frontend/scripts/prepare-card-images.mjs`, `frontend/data/card-image-manifest.json`
 
 ### Todo
 
@@ -347,13 +347,14 @@ Quy tắc:
 
 **Ưu tiên:** P1
 **Kích thước:** M
-**Files:** `scripts/validate-card-catalog.mjs`, `package.json`
+**Files:** `frontend/scripts/validate-card-catalog.mjs`, `frontend/package.json`
 
 ### Todo
 
 Tạo command:
 
 ```bash
+cd frontend
 npm run validate:catalog
 ```
 
@@ -386,7 +387,7 @@ Kiểm tra:
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `app/api/card-catalog/**`
+**Files:** `frontend/app/api/card-catalog/**`
 
 ### Todo
 
@@ -421,7 +422,7 @@ Response phải:
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `models/CreditCard.ts`
+**Files:** `frontend/models/CreditCard.ts`
 
 ### Todo
 
@@ -463,7 +464,7 @@ Không xóa field cũ trong release đầu tiên.
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** đề xuất `lib/services/cardService.ts`
+**Files:** đề xuất `frontend/lib/services/cardService.ts`
 
 ### Todo
 
@@ -499,7 +500,7 @@ Service phải:
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `app/api/cards/route.ts`
+**Files:** `frontend/app/api/cards/route.ts`
 
 ### Todo
 
@@ -543,7 +544,7 @@ Trong thời gian migration có thể hỗ trợ contract cũ bằng chế độ
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `app/api/cards/[id]/route.ts`
+**Files:** `frontend/app/api/cards/[id]/route.ts`
 
 ### Todo
 
@@ -583,7 +584,7 @@ Nếu cần đổi sản phẩm, tạo nghiệp vụ riêng thay vì update tùy
 
 **Ưu tiên:** P1
 **Kích thước:** M
-**Files:** `app/api/**`, đề xuất `lib/api/`
+**Files:** `frontend/app/api/**`, đề xuất `frontend/lib/api/`
 
 ### Todo
 
@@ -651,11 +652,11 @@ khi không có `presetId`.
 
 # PHASE 3 — UI/UX CATALOG-FIRST
 
-## CC-017 — Tách nhỏ `app/cards/page.tsx`
+## CC-017 — Tách nhỏ `frontend/app/cards/page.tsx`
 
 **Ưu tiên:** P1
 **Kích thước:** L
-**Files:** `app/cards/page.tsx`, đề xuất `components/cards/`
+**Files:** `frontend/app/cards/page.tsx`, đề xuất `frontend/components/cards/`
 
 ### Todo
 
@@ -684,7 +685,7 @@ Tách:
 
 ### Definition of Done
 
-* `app/cards/page.tsx` chủ yếu làm orchestration.
+* `frontend/app/cards/page.tsx` chủ yếu làm orchestration.
 * Component không chứa API logic không liên quan.
 * Type được dùng chung.
 * Không thay đổi chức năng ngoài phạm vi refactor.
@@ -875,7 +876,7 @@ Mỗi card hiển thị tối thiểu:
 
 **Ưu tiên:** P1
 **Kích thước:** M
-**Files:** `app/cards/[id]/page.tsx`
+**Files:** `frontend/app/cards/[id]/page.tsx`
 
 ### Todo
 
@@ -902,7 +903,7 @@ Mỗi card hiển thị tối thiểu:
 
 **Ưu tiên:** P1
 **Kích thước:** M
-**Files:** `app/api/reports/summary/route.ts` và chức năng export liên quan
+**Files:** `frontend/app/api/reports/summary/route.ts` và chức năng export liên quan
 
 ### Todo
 
@@ -991,7 +992,7 @@ Trong màn hình quản trị Card Product tương lai:
 
 **Ưu tiên:** P0
 **Kích thước:** L
-**Files:** đề xuất `scripts/migrate-credit-cards-to-catalog.mjs`
+**Files:** đề xuất `frontend/scripts/migrate-credit-cards-to-catalog.mjs`
 
 ### Todo
 
@@ -1011,6 +1012,7 @@ Các trạng thái:
 Hỗ trợ:
 
 ```bash
+cd frontend
 npm run migrate:catalog -- --dry-run
 npm run migrate:catalog -- --apply
 ```
@@ -1097,7 +1099,7 @@ Khuyến nghị:
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `package.json`
+**Files:** `frontend/package.json`
 
 ### Todo
 
@@ -1111,6 +1113,7 @@ Bổ sung:
 * Scripts:
 
 ```bash
+cd frontend
 npm run test
 npm run test:unit
 npm run test:integration
@@ -1484,7 +1487,7 @@ README gồm:
 
 **Ưu tiên:** P2
 **Kích thước:** S
-**Files:** `app/layout.tsx`
+**Files:** `frontend/app/layout.tsx`
 
 ### Todo
 
@@ -1640,7 +1643,7 @@ Sau đó:
 
 **Ưu tiên:** P0
 **Kích thước:** L
-**Files:** `models/User.ts`, `lib/auth/sessionCore.mjs`, `app/api/auth/login/route.ts`, `README.md`
+**Files:** `frontend/models/User.ts`, `frontend/lib/auth/sessionCore.mjs`, `frontend/app/api/auth/login/route.ts`, `README.md`
 
 ### Todo
 
@@ -1674,7 +1677,7 @@ Sau đó:
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `app/profile/page.tsx`, `app/api/profile/route.ts`, `lib/auth/rbac.ts`, `middleware.ts`
+**Files:** `frontend/app/profile/page.tsx`, `frontend/app/api/profile/route.ts`, `frontend/lib/auth/rbac.ts`, `frontend/middleware.ts`
 
 ### Todo
 
@@ -1707,7 +1710,7 @@ Sau đó:
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `app/api/auth/forgot-password/route.ts`, `app/api/auth/reset-password/route.ts`, `models/PasswordResetToken.ts`
+**Files:** `frontend/app/api/auth/forgot-password/route.ts`, `frontend/app/api/auth/reset-password/route.ts`, `frontend/models/PasswordResetToken.ts`
 
 ### Todo
 
@@ -1732,7 +1735,7 @@ Sau đó:
 
 **Ưu tiên:** P0
 **Kích thước:** M
-**Files:** `models/AuthAuditLog.ts`, `lib/audit/logAuthEvent.ts`, `app/api/auth/*`, `lib/api/adminCatalogRouteCore.mjs`
+**Files:** `frontend/models/AuthAuditLog.ts`, `frontend/lib/audit/logAuthEvent.ts`, `frontend/app/api/auth/*`, `frontend/lib/api/adminCatalogRouteCore.mjs`
 
 ### Todo
 
@@ -1764,7 +1767,7 @@ Sau đó:
 
 **Ưu tiên:** P0
 **Kích thước:** L
-**Files:** `lib/cards/dedupeCore.ts`, `lib/services/cardService.mjs`, `app/api/cards/route.ts`, `components/cards/DuplicateResolver.tsx`
+**Files:** `frontend/lib/cards/dedupeCore.ts`, `frontend/lib/services/cardService.mjs`, `frontend/app/api/cards/route.ts`, `frontend/components/cards/DuplicateResolver.tsx`
 
 ### Todo
 
@@ -1796,7 +1799,7 @@ Sau đó:
 
 **Ưu tiên:** P0
 **Kích thước:** L
-**Files:** `app/cards/import/page.tsx`, `app/api/cards/import/route.ts`, `app/api/cards/export/route.ts`, `lib/cards/importExportCore.ts`
+**Files:** `frontend/app/cards/import/page.tsx`, `frontend/app/api/cards/import/route.ts`, `frontend/app/api/cards/export/route.ts`, `frontend/lib/cards/importExportCore.ts`
 
 ### Todo
 
@@ -1827,7 +1830,7 @@ Sau đó:
 
 **Ưu tiên:** P1
 **Kích thước:** M
-**Files:** `app/api/auth/2fa/*`, `app/profile/page.tsx`, `models/User.ts`
+**Files:** `frontend/app/api/auth/2fa/*`, `frontend/app/profile/page.tsx`, `frontend/models/User.ts`
 
 ### Todo
 

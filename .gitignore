@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/frontend/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -14,11 +15,17 @@
 /coverage
 /playwright-report
 /test-results
+/frontend/playwright-report
+/frontend/test-results
+/frontend/blob-report
 
 # next.js
 /.next/
+/frontend/.next/
 /out/
+/frontend/out/
 /public/card-images/generated/
+/frontend/public/card-images/generated/
 
 # production
 /build

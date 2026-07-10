@@ -17,14 +17,14 @@ Target catalog field names:
 
 Current canonical source fields:
 
-- `data/card-presets.json` field `providerCode`.
-- `data/card-presets.json` field `providerName`.
+- `frontend/data/card-presets.json` field `providerCode`.
+- `frontend/data/card-presets.json` field `providerName`.
 
 Temporary compatibility aliases:
 
 - `bank` mirrors `providerCode`.
 - `bankName` mirrors `providerName`.
-- `models/Bank.ts` currently stores bank masterdata and should be treated as provider masterdata in documentation, although its existing collection and route names remain unchanged for compatibility.
+- `frontend/models/Bank.ts` currently stores bank masterdata and should be treated as provider masterdata in documentation, although its existing collection and route names remain unchanged for compatibility.
 
 ### Card Product
 
@@ -65,8 +65,8 @@ The payment network only: Visa, Mastercard, JCB, American Express and similar ne
 
 Current source mapping:
 
-- `models/CardType.ts` is current network masterdata despite the legacy name `CardType`.
-- `app/masterdata/cardtypes/page.tsx` labels this as "Loại thẻ", but the examples and schema show it is a payment network list.
+- `frontend/models/CardType.ts` is current network masterdata despite the legacy name `CardType`.
+- `frontend/app/masterdata/cardtypes/page.tsx` labels this as "Loại thẻ", but the examples and schema show it is a payment network list.
 - New catalog code must not call a full card product such as `Visa Platinum Cashback` a `CardType`.
 
 ### User Card or CreditCard
@@ -75,7 +75,7 @@ A specific card owned by an application user.
 
 Current model:
 
-- `models/CreditCard.ts`
+- `frontend/models/CreditCard.ts`
 
 Current user-card fields combine product metadata and operational/cardholder data:
 
@@ -100,9 +100,9 @@ The centralized Card Product definitions.
 
 Current implementation:
 
-- `data/card-presets.json`
-- `lib/cardPresets.ts`
-- `lib/cardCatalogCore.mjs`
+- `frontend/data/card-presets.json`
+- `frontend/lib/cardPresets.ts`
+- `frontend/lib/cardCatalogCore.mjs`
 
 Current implementation notes:
 
@@ -178,7 +178,7 @@ Shared catalog types are defined in `types/cardCatalog.ts`:
 - `CardCatalogProvider`
 - `LegacyCardPresetFields`
 
-`lib/cardPresets.ts` uses these types and exposes catalog helpers while preserving a legacy adapter for the current UI.
+`frontend/lib/cardPresets.ts` uses these types and exposes catalog helpers while preserving a legacy adapter for the current UI.
 
 ## Inactive Product Behavior
 
@@ -199,11 +199,11 @@ Current inactive product:
 
 Catalog image lookup order:
 
-1. Cached image from `data/card-image-manifest.json` when status is `cached`.
+1. Cached image from `frontend/data/card-image-manifest.json` when status is `cached`.
 2. Valid product `imageUrl`.
 3. Stable local placeholder: `/card-images/placeholder-card.svg`.
 
-`scripts/prepare-card-images.mjs` records cache, placeholder and failure state in the manifest. A failed remote image should not fail the whole build.
+`frontend/scripts/prepare-card-images.mjs` records cache, placeholder and failure state in the manifest. A failed remote image should not fail the whole build.
 
 ## Boundaries For This Batch
 
