@@ -1,3 +1,7 @@
+> **Status:** Reference / previous implementation roadmap
+>
+> This document describes the Card Catalog implementation roadmap.
+> It is not the active plan for the frontend/backend split.
 # CARD-CREDIT — TODO LIST VÀ DEFINITION OF DONE
 
 ## 1. Mục tiêu kiến trúc

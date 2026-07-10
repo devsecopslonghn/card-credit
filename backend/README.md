@@ -1,27 +1,16 @@
-# Backend Placeholder
+# Backend
 
-`backend/` is reserved for Phase 2 of the frontend/backend split.
+The standalone backend runtime has not been implemented yet.
 
-Production backend runtime does not run from this directory yet. Current API routes still run inside the Next.js app at:
+The current API routes still run inside the Next.js application under:
 
-```text
-frontend/app/api/**
-```
+`frontend/app/api/`
 
-This Phase 1 layout change must not be interpreted as a completed backend extraction. No source code is copied or duplicated into this directory.
+This directory is reserved for the future backend extraction.
 
-`backend/Dockerfile` is a placeholder too. It is not referenced by production Docker Compose or Jenkins deploy stages and must not be treated as a backend service image.
+Until the backend runtime is implemented:
 
-Expected Phase 2 scope, after a concrete design is approved:
-
-- `frontend/app/api/**`
-- `frontend/models/**`
-- `frontend/lib/api/**`
-- `frontend/lib/auth/**`
-- `frontend/lib/catalog/**`
-- `frontend/lib/services/**`
-- `frontend/lib/reports/**`
-- `frontend/lib/observability/**`
-- `frontend/lib/mongodb.ts`
-- related server-side scripts
-- related integration tests
+- There is no backend package or entrypoint.
+- There is no backend Docker image.
+- Docker Compose runs only the existing Next.js application.
+- API implementations must not be duplicated into this directory.
