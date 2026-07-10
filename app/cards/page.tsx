@@ -9,6 +9,7 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
 import { UpcomingPayments } from "@/components/cards/UpcomingPayments";
 import {
+  buildCardSummary,
   filterCardsByOwner,
   getDisplayName,
   getUniqueOwners,
@@ -45,6 +46,10 @@ export default function CardsPage() {
   const [busyCardId, setBusyCardId] = useState("");
   const [toast, setToast] = useState<Toast | null>(null);
   const [duplicateRefreshKey, setDuplicateRefreshKey] = useState(0);
+  const [calendarPeriod, setCalendarPeriod] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -91,6 +96,28 @@ export default function CardsPage() {
   const filteredCards = useMemo(() => filterCardsByOwner(cards, selectedOwner), [cards, selectedOwner]);
   const providerGroups = useMemo(() => groupCardsByProvider(filteredCards), [filteredCards]);
   const filteredCardIds = useMemo(() => new Set(filteredCards.map((card) => card._id)), [filteredCards]);
+  const statementsByCardId = useMemo(() => {
+    const groups = new Map<string, CardStatementView[]>();
+    for (const statement of statements) {
+      const cardStatements = groups.get(statement.userCardId) ?? [];
+      cardStatements.push(statement);
+      groups.set(statement.userCardId, cardStatements);
+    }
+    return groups;
+  }, [statements]);
+  const cardSummaries = useMemo(
+    () =>
+      Object.fromEntries(
+        cards.map((card) => [
+          card._id,
+          buildCardSummary(card, statementsByCardId.get(card._id) ?? [], {
+            year: calendarPeriod.year,
+            month: calendarPeriod.month + 1,
+          }),
+        ]),
+      ),
+    [calendarPeriod.month, calendarPeriod.year, cards, statementsByCardId],
+  );
   const dashboardStatements = useMemo(
     () => statements.filter((statement) => filteredCardIds.has(statement.userCardId)),
     [filteredCardIds, statements],
@@ -213,6 +240,9 @@ export default function CardsPage() {
 
         <CalendarTransactions
           transactions={transactions}
+          currentYear={calendarPeriod.year}
+          currentMonth={calendarPeriod.month}
+          onPeriodChange={setCalendarPeriod}
           onAdd={(date) => openTransactionForm(date)}
           onEdit={(transaction) => openTransactionForm(transaction.transactionDate, transaction)}
         />
@@ -228,6 +258,7 @@ export default function CardsPage() {
           cardsCount={cards.length}
           filteredCardsCount={filteredCards.length}
           providerGroups={providerGroups}
+          cardSummaries={cardSummaries}
           selectedOwner={selectedOwner}
           busyCardId={busyCardId}
           onRetry={loadCards}

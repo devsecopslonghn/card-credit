@@ -6,14 +6,22 @@ import type { CardTransactionView } from "@/lib/api/transactionsClient";
 
 type CalendarTransactionsProps = {
   transactions: CardTransactionView[];
+  currentYear: number;
+  currentMonth: number;
+  onPeriodChange: (period: { year: number; month: number }) => void;
   onAdd: (date: string) => void;
   onEdit: (transaction: CardTransactionView) => void;
 };
 
-export function CalendarTransactions({ transactions, onAdd, onEdit }: CalendarTransactionsProps) {
+export function CalendarTransactions({
+  transactions,
+  currentYear,
+  currentMonth,
+  onPeriodChange,
+  onAdd,
+  onEdit,
+}: CalendarTransactionsProps) {
   const todayObj = useMemo(() => new Date(), []);
-  const [currentYear, setCurrentYear] = useState<number>(todayObj.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState<number>(todayObj.getMonth());
   const [selectedDateStr, setSelectedDateStr] = useState("");
 
   const byDate = useMemo(() => {
@@ -42,12 +50,22 @@ export function CalendarTransactions({ transactions, onAdd, onEdit }: CalendarTr
           Lịch giao dịch chi tiêu
         </h2>
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          <select aria-label="Chọn tháng" className="cc-control rounded-lg p-2 text-sm font-semibold" value={currentMonth} onChange={(event) => setCurrentMonth(Number(event.target.value))}>
+          <select
+            aria-label="Chọn tháng"
+            className="cc-control rounded-lg p-2 text-sm font-semibold"
+            value={currentMonth}
+            onChange={(event) => onPeriodChange({ year: currentYear, month: Number(event.target.value) })}
+          >
             {Array.from({ length: 12 }, (_, index) => (
               <option key={index} value={index}>Tháng {index + 1}</option>
             ))}
           </select>
-          <select aria-label="Chọn năm" className="cc-control rounded-lg p-2 text-sm font-semibold" value={currentYear} onChange={(event) => setCurrentYear(Number(event.target.value))}>
+          <select
+            aria-label="Chọn năm"
+            className="cc-control rounded-lg p-2 text-sm font-semibold"
+            value={currentYear}
+            onChange={(event) => onPeriodChange({ year: Number(event.target.value), month: currentMonth })}
+          >
             {yearOptions.map((year) => (
               <option key={year} value={year}>Năm {year}</option>
             ))}

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  buildCardSummary,
   buildCreateCardPayload,
   filterCardsByOwner,
   formatAnnualFee,
@@ -55,6 +56,50 @@ test("annual fee formatter handles number zero null and undefined", () => {
   assert.equal(formatAnnualFee(0), "0 ₫");
   assert.equal(formatAnnualFee(null), "Chưa xác định");
   assert.equal(formatAnnualFee(undefined), "Chưa xác định");
+});
+
+test("card summary uses selected statement month and real payment due date", () => {
+  const summary = buildCardSummary(
+    { statementDay: 25, paymentDueDays: 10 },
+    [
+      {
+        statementDate: "2026-12-25",
+        paymentStatus: "STATEMENT_CLOSED",
+        effectivePaymentStatus: "STATEMENT_CLOSED",
+        summary: { totalAmountDue: 1_200_000 },
+      },
+      {
+        statementDate: "2027-01-25",
+        paymentStatus: "OPEN",
+        effectivePaymentStatus: "OPEN",
+        summary: { totalAmountDue: 500_000 },
+      },
+      {
+        statementDate: "2026-11-25",
+        paymentStatus: "PAID",
+        effectivePaymentStatus: "PAID",
+        summary: { totalAmountDue: 300_000 },
+      },
+    ],
+    { year: 2026, month: 12 },
+  );
+
+  assert.equal(summary.statementDate, "2026-12-25");
+  assert.equal(summary.paymentDueDate, "2027-01-04");
+  assert.equal(summary.currentOutstandingBalance, 1_700_000);
+  assert.equal(summary.statementAmountDue, 1_200_000);
+});
+
+test("card summary clamps statement day to the last day of selected month", () => {
+  const summary = buildCardSummary(
+    { statementDay: 31, paymentDueDays: 1 },
+    [{ statementDate: "2028-02-29", summary: { totalAmountDue: 900_000 } }],
+    { year: 2028, month: 2 },
+  );
+
+  assert.equal(summary.statementDate, "2028-02-29");
+  assert.equal(summary.paymentDueDate, "2028-03-01");
+  assert.equal(summary.statementAmountDue, 900_000);
 });
 
 test("owner validation trims collapses whitespace and rejects invalid values", () => {
