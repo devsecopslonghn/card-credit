@@ -5,6 +5,11 @@
 - `architecture/domain-model.md`
 - `architecture/catalog-snapshot-policy.md`
 - `architecture/card-transaction-statement-model.md`
+- `architecture/backend-extraction-design.md`
+
+## Decisions
+
+- `decisions/0001-fastify-same-origin-backend.md`
 
 ## Active work
 

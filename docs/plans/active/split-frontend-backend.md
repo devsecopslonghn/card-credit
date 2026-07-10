@@ -50,7 +50,7 @@ consistent repository layout while the UI and API continue to run together.
 |---|---|
 | Phase 0 — Repository audit | DONE |
 | Phase 1 — Repository layout and consistency | DONE |
-| Phase 2 — Backend extraction design | TODO |
+| Phase 2 — Backend extraction design | DONE |
 | Phase 3 — Minimal backend runtime | TODO |
 | Phase 4 — Shared boundaries | TODO |
 | Phase 5 — API migration by route group | TODO |
@@ -64,7 +64,7 @@ consistent repository layout while the UI and API continue to run together.
 
 ## Current phase
 
-Phase 1 — Repository layout and consistency.
+Phase 2 — Backend extraction design.
 
 ## Acceptance criteria
 
@@ -104,6 +104,14 @@ Phase 1 — Repository layout and consistency.
   to `AGENTS.md`, `docs/README.md`, and a staged roadmap move; preserved them.
 - 2026-07-11: Removed the fake backend Dockerfile, normalized optional auth
   bootstrap variables, added Jenkins layout checks, and corrected README/docs.
+- 2026-07-11: Phase 2 inventoried all 32 API route files and selected a Node 22
+  TypeScript Fastify backend behind same-origin Next.js rewrites. Added the
+  runtime, security, migration, rollback, dependency, and shared-boundary design
+  plus ADR 0001. Files: `docs/architecture/backend-extraction-design.md`,
+  `docs/decisions/0001-fastify-same-origin-backend.md`, and documentation indexes.
+  Validation: route inventory count (32), stale-path review, `git diff --check`,
+  and full diff review passed. No runtime code changed. Remaining risk: cookie
+  forwarding and catalog-write persistence require implementation validation.
 
 ## Known issues
 
