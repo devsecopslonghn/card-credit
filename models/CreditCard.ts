@@ -31,6 +31,8 @@ const CreditCardSchema = new Schema(
     annualFeeWaiverTarget: { type: Number, default: null },
     statementDay: { type: Number, default: 1, min: 1, max: 31 },
     paymentDueDays: { type: Number, default: 15, min: 1 },
+    cashbackCapAmount: { type: Number, default: null, min: 0 },
+    cashbackCapPeriod: { type: String, enum: ["STATEMENT", "CALENDAR_MONTH"], default: "STATEMENT" },
     active: { type: Boolean, default: true },
 
     // 3 Trường mới thêm vào (Lưu chuỗi date dạng YYYY-MM-DD từ HTML5 input)

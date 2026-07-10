@@ -15,6 +15,8 @@ test("detail update payload only includes operational fields", () => {
     annualFeeWaiverTarget: 10,
     statementDay: 7,
     paymentDueDays: 15,
+    cashbackCapAmount: 500000,
+    cashbackCapPeriod: "STATEMENT",
     active: true,
     statementDate: "2026-07-01",
     paymentDueDate: "2026-07-20",
@@ -37,6 +39,8 @@ test("detail update payload only includes operational fields", () => {
     annualFeeWaiverTarget: 10,
     statementDay: 7,
     paymentDueDays: 15,
+    cashbackCapAmount: 500000,
+    cashbackCapPeriod: "STATEMENT",
     active: true,
   });
 });

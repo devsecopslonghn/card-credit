@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   buildStatementPeriod,
+  calculateEligibleCashback,
   calculateTransactionDerived,
   deriveIncomeFromRate,
   deriveRateFromIncome,
@@ -53,9 +54,41 @@ test("statement summary keeps bank amount due separate from profit", () => {
   assert.equal(summary.totalAmountDue, 3_000_000);
   assert.equal(summary.totalIncome, 2_850_000);
   assert.equal(summary.totalServiceFee, 150_000);
-  assert.equal(summary.expectedCashback, 200_000);
+  assert.equal(summary.cashbackByRate, 200_000);
+  assert.equal(summary.eligibleCashback, 200_000);
   assert.equal(summary.expectedNetProfit, 50_000);
   assert.equal(summary.annualEligibleSpend, 1_000_000);
+});
+
+test("statement cashback cap limits eligible cashback but not actual cashback", () => {
+  const summary = summarizeTransactions(
+    [
+      { outcomeAmount: 3_000_000, incomeAmount: 2_900_000, cashbackRateBps: 1000 },
+      { outcomeAmount: 3_000_000, incomeAmount: 2_900_000, cashbackRateBps: 1000, cashbackStatus: "RECEIVED", actualCashbackAmount: 480_000 },
+    ],
+    { cashbackCapAmount: 500_000, cashbackCapPeriod: "STATEMENT" },
+  );
+
+  assert.equal(summary.cashbackByRate, 600_000);
+  assert.equal(summary.eligibleCashback, 500_000);
+  assert.equal(summary.expectedCashback, 500_000);
+  assert.equal(summary.actualCashback, 480_000);
+  assert.equal(summary.exceededCashback, 100_000);
+  assert.equal(summary.remainingCashback, 0);
+  assert.equal(summary.cashbackCap.capUsedPercent, 100);
+  assert.equal(summary.expectedNetProfit, 300_000);
+});
+
+test("cashback cap strategy reports remaining cashback for statement period", () => {
+  const cap = calculateEligibleCashback([], 500_000, "STATEMENT", {
+    cashbackByRate: 420_000,
+    actualCashback: 0,
+  });
+
+  assert.equal(cap.eligibleCashback, 420_000);
+  assert.equal(cap.remainingCashback, 80_000);
+  assert.equal(cap.exceededCashback, 0);
+  assert.equal(cap.capUsedPercent, 84);
 });
 
 test("paid statements block transaction creation in service layer", async () => {

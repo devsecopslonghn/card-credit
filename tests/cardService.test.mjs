@@ -170,6 +170,8 @@ test("buildAllowedUpdate accepts operational fields", () => {
     annualFeeWaiverTarget: 5000000,
     statementDay: 7,
     paymentDueDays: 15,
+    cashbackCapAmount: 500000,
+    cashbackCapPeriod: "STATEMENT",
     active: false,
   });
 
@@ -177,6 +179,8 @@ test("buildAllowedUpdate accepts operational fields", () => {
   assert.equal(result.update.annualFeeWaiverTarget, 5000000);
   assert.equal(result.update.statementDay, 7);
   assert.equal(result.update.paymentDueDays, 15);
+  assert.equal(result.update.cashbackCapAmount, 500000);
+  assert.equal(result.update.cashbackCapPeriod, "STATEMENT");
   assert.equal(result.update.active, false);
 });
 
@@ -229,7 +233,7 @@ test("updateCardById updates card configuration fields", async () => {
 
   const card = await updateCardById(
     "507f1f77bcf86cd799439011",
-    { owner: "Long", statementDay: 10, paymentDueDays: 20, annualFeeWaiverTarget: 1000000 },
+    { owner: "Long", statementDay: 10, paymentDueDays: 20, annualFeeWaiverTarget: 1000000, cashbackCapAmount: 500000 },
     { CardModel },
   );
 
@@ -237,5 +241,6 @@ test("updateCardById updates card configuration fields", async () => {
   assert.equal(card.statementDay, 10);
   assert.equal(card.paymentDueDays, 20);
   assert.equal(card.annualFeeWaiverTarget, 1000000);
+  assert.equal(card.cashbackCapAmount, 500000);
   assert.equal(card.options.returnDocument, "after");
 });

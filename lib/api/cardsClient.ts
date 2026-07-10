@@ -76,6 +76,8 @@ export const updateCardOperational = async (
       | "annualFeeWaiverTarget"
       | "statementDay"
       | "paymentDueDays"
+      | "cashbackCapAmount"
+      | "cashbackCapPeriod"
       | "active"
     >
   >,
