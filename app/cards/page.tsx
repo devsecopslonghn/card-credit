@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { AddCardModal } from "@/components/cards/AddCardModal";
 import { CalendarNotes } from "@/components/cards/CalendarNotes";
 import { CardList } from "@/components/cards/CardList";
+import { DuplicateResolver } from "@/components/cards/DuplicateResolver";
 import { EditCardModal } from "@/components/cards/EditCardModal";
 import { UpcomingPayments } from "@/components/cards/UpcomingPayments";
 import {
@@ -32,6 +33,7 @@ export default function CardsPage() {
   const [cardToDelete, setCardToDelete] = useState<CreditCardView | null>(null);
   const [busyCardId, setBusyCardId] = useState("");
   const [toast, setToast] = useState<Toast | null>(null);
+  const [duplicateRefreshKey, setDuplicateRefreshKey] = useState(0);
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -49,6 +51,11 @@ export default function CardsPage() {
       setCardsLoading(false);
     }
   }, []);
+
+  const refreshCardsAndDuplicates = useCallback(() => {
+    setDuplicateRefreshKey((current) => current + 1);
+    void loadCards();
+  }, [loadCards]);
 
   const loadCalendarNotes = useCallback(async () => {
     try {
@@ -133,6 +140,7 @@ export default function CardsPage() {
     try {
       const updatedCard = await updateCardOperational(editingCard._id, payload);
       setCards((current) => current.map((card) => (card._id === editingCard._id ? updatedCard : card)));
+      setDuplicateRefreshKey((current) => current + 1);
       setEditingCard(null);
       showToast("Đã cập nhật thông tin thẻ.");
     } catch (error) {
@@ -148,6 +156,7 @@ export default function CardsPage() {
     try {
       await deleteCard(cardToDelete._id);
       setCards((current) => current.filter((card) => card._id !== cardToDelete._id));
+      setDuplicateRefreshKey((current) => current + 1);
       setCardToDelete(null);
       showToast("Đã xóa thẻ khỏi hệ thống.");
     } catch (error) {
@@ -220,6 +229,11 @@ export default function CardsPage() {
 
         <CalendarNotes notes={calendarNotes} submitting={noteSubmitting} onSave={handleSaveNote} />
         <UpcomingPayments cards={upcomingPayments} selectedOwner={selectedOwner} />
+        <DuplicateResolver
+          refreshKey={duplicateRefreshKey}
+          onMerged={refreshCardsAndDuplicates}
+          onStatus={showToast}
+        />
         <CardList
           loading={cardsLoading}
           error={cardsError}
@@ -241,7 +255,7 @@ export default function CardsPage() {
           open={isAddModalOpen}
           ownerOptions={ownerOptions}
           onClose={closeAddModal}
-          onCreated={loadCards}
+          onCreated={refreshCardsAndDuplicates}
           onSuccess={(message) => showToast(message)}
         />
 

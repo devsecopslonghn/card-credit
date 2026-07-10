@@ -45,11 +45,11 @@ AUTH_USERS_JSON='[
   {"email":"user@example.test","password":"change-me-123","role":"user","workspaceId":"workspace-1","displayName":"Local User"},
   {"email":"admin@example.test","password":"change-me-123","role":"admin","workspaceId":"admin-workspace","displayName":"Local Admin"}
 ]'
-# Optional local/staging helper. Non-production returns resetLink by default.
+# Optional local/staging helper. Returns resetLink only when explicitly enabled.
 PASSWORD_RESET_RETURN_TOKEN="false"
 ```
 
-`AUTH_SECRET` bat buoc trong production. Neu thieu o local, app dung dev fallback de tien chay thu.
+`AUTH_SECRET` bat buoc cho moi runtime vi app luon dung cau hinh cookie/session production-mode.
 `AUTH_USERS_JSON` chi dung cho seed/bootstrap local hoac staging, khong duoc dung lam nguon dang nhap runtime. Sau khi seed, login doc user tu collection `users` va so sanh password bang hash.
 `AUTH_BOOTSTRAP_TOKEN` bat buoc de bat `POST /api/auth/bootstrap-users`; neu thieu, route tra `BOOTSTRAP_DISABLED`. Gui token bang `Authorization: Bearer ...` hoac header `x-bootstrap-token`.
 `PASSWORD_RESET_RETURN_TOKEN=true` chi nen dung local/staging de API forgot password tra `resetLink` phuc vu test thu cong. Production khong nen tra raw reset token trong response.
@@ -229,6 +229,15 @@ isPaidThisMonth
 monthlyData
 ```
 
+Duplicate User Card:
+
+```text
+GET /api/cards/duplicates
+POST /api/cards/duplicates
+```
+
+Dry-run duplicate chi match exact theo `workspaceId + presetId + owner` da normalize. Merge yeu cau `sourceCardId` va `targetCardId`, chi cho phep hai card cung fingerprint, cong `monthlyData` vao target va xoa source.
+
 Vi du loi API:
 
 ```json
@@ -369,7 +378,7 @@ Jenkinsfile hien chay catalog validation, tests, build, Docker smoke va deploy s
 ## Troubleshooting
 
 - `Vui long dinh nghia bien MONGODB_URI`: API route can database nhung env thieu.
-- `AUTH_SECRET is required in production`: them `AUTH_SECRET` khi `NODE_ENV=production`.
+- `AUTH_SECRET is required`: them `AUTH_SECRET` cho runtime dang chay.
 - `BOOTSTRAP_DISABLED`: them `AUTH_BOOTSTRAP_TOKEN` neu can dung `/api/auth/bootstrap-users`.
 - Login that bai: kiem tra da chay `npm run seed:auth-users`, user `active` va khong co `lockedAt`, email/password dung.
 - `/cards` redirect ve `/login`: chua co cookie session hop le.

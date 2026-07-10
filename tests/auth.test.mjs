@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   assertAdmin,
   authenticateCredentials,
+  authCookieOptions,
   createSessionCookieValue,
   verifySessionCookieValue,
 } from "../lib/auth/sessionCore.mjs";
@@ -441,6 +442,7 @@ test("login route writes success and failure audit events without passwords", as
     },
     createSessionCookieValue: () => "signed-session",
     authCookieName: "test_session",
+    authCookieOptions,
     connectToDatabase: async () => {},
     UserModel: {},
     AuditLogModel,
@@ -508,6 +510,7 @@ test("register route creates a hashed user and signs in the first account as adm
     authenticateCredentials,
     createSessionCookieValue: () => "signed-register-session",
     authCookieName: "test_session",
+    authCookieOptions,
     AuditLogModel,
   });
 
@@ -538,6 +541,8 @@ test("register route creates a hashed user and signs in the first account as adm
 });
 
 test("forgot and reset password flow stores only token hash and blocks replay", async () => {
+  const previousReturnToken = process.env.PASSWORD_RESET_RETURN_TOKEN;
+  process.env.PASSWORD_RESET_RETURN_TOKEN = "true";
   const AuditLogModel = createFakeAuditLogModel();
   const PasswordResetTokenModel = createFakePasswordResetTokenModel();
   const user = {
@@ -563,44 +568,53 @@ test("forgot and reset password flow stores only token hash and blocks replay", 
     },
   };
 
-  const forgot = createForgotPasswordRouteHandler({
-    connectToDatabase: async () => {},
-    UserModel,
-    PasswordResetTokenModel,
-    AuditLogModel,
-  });
-  const forgotResponse = await readJson(
-    await forgot(jsonRequest("https://test.local/api/auth/forgot-password", { email: "alice@example.test" }, "POST")),
-  );
+  try {
+    const forgot = createForgotPasswordRouteHandler({
+      connectToDatabase: async () => {},
+      UserModel,
+      PasswordResetTokenModel,
+      AuditLogModel,
+    });
+    const forgotResponse = await readJson(
+      await forgot(jsonRequest("https://test.local/api/auth/forgot-password", { email: "alice@example.test" }, "POST")),
+    );
 
-  assert.equal(forgotResponse.status, 200);
-  assert.match(forgotResponse.body.resetLink, /^https:\/\/test\.local\/forgot-password\?token=/);
-  const rawToken = new URL(forgotResponse.body.resetLink).searchParams.get("token");
-  assert.equal(JSON.stringify(PasswordResetTokenModel.state.tokens).includes(rawToken), false);
-  assert.equal(PasswordResetTokenModel.state.tokens.length, 1);
+    assert.equal(forgotResponse.status, 200);
+    assert.match(forgotResponse.body.resetLink, /^https:\/\/test\.local\/forgot-password\?token=/);
+    const rawToken = new URL(forgotResponse.body.resetLink).searchParams.get("token");
+    assert.equal(JSON.stringify(PasswordResetTokenModel.state.tokens).includes(rawToken), false);
+    assert.equal(PasswordResetTokenModel.state.tokens.length, 1);
 
-  const reset = createResetPasswordRouteHandler({
-    connectToDatabase: async () => {},
-    UserModel,
-    PasswordResetTokenModel,
-    AuditLogModel,
-    authCookieName: "test_session",
-  });
+    const reset = createResetPasswordRouteHandler({
+      connectToDatabase: async () => {},
+      UserModel,
+      PasswordResetTokenModel,
+      AuditLogModel,
+      authCookieName: "test_session",
+      authCookieOptions,
+    });
 
-  const resetResponse = await readJson(
-    await reset(jsonRequest("https://test.local/api/auth/reset-password", { token: rawToken, password: "new-valid-pass" }, "POST")),
-  );
-  assert.equal(resetResponse.status, 200);
-  assert.equal(await verifyPassword("new-valid-pass", user.passwordHash), true);
-  assert.ok(user.passwordChangedAt instanceof Date);
-  assert.ok(PasswordResetTokenModel.state.tokens[0].usedAt instanceof Date);
-  assert.equal(AuditLogModel.state.logs.at(-1).event, "PASSWORD_RESET_COMPLETED");
+    const resetResponse = await readJson(
+      await reset(jsonRequest("https://test.local/api/auth/reset-password", { token: rawToken, password: "new-valid-pass" }, "POST")),
+    );
+    assert.equal(resetResponse.status, 200);
+    assert.equal(await verifyPassword("new-valid-pass", user.passwordHash), true);
+    assert.ok(user.passwordChangedAt instanceof Date);
+    assert.ok(PasswordResetTokenModel.state.tokens[0].usedAt instanceof Date);
+    assert.equal(AuditLogModel.state.logs.at(-1).event, "PASSWORD_RESET_COMPLETED");
 
-  const replay = await readJson(
-    await reset(jsonRequest("https://test.local/api/auth/reset-password", { token: rawToken, password: "another-pass" }, "POST")),
-  );
-  assert.equal(replay.status, 400);
-  assert.equal(replay.body.error.code, "INVALID_TOKEN");
+    const replay = await readJson(
+      await reset(jsonRequest("https://test.local/api/auth/reset-password", { token: rawToken, password: "another-pass" }, "POST")),
+    );
+    assert.equal(replay.status, 400);
+    assert.equal(replay.body.error.code, "INVALID_TOKEN");
+  } finally {
+    if (previousReturnToken === undefined) {
+      delete process.env.PASSWORD_RESET_RETURN_TOKEN;
+    } else {
+      process.env.PASSWORD_RESET_RETURN_TOKEN = previousReturnToken;
+    }
+  }
 });
 
 test("bootstrap users route requires token and upserts configured users without auditing secrets", async () => {
@@ -707,6 +721,7 @@ test("logout route writes audit event when session is present", async () => {
   const session = { userId: "alice", email: "alice@example.test", role: "user", workspaceId: "workspace-a" };
   const logout = createLogoutRouteHandler({
     authCookieName: "test_session",
+    authCookieOptions,
     requireAuth: () => session,
     AuditLogModel,
   });

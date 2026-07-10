@@ -1,5 +1,5 @@
 import { createResetPasswordRouteHandler } from "@/lib/api/authAccountRouteCore.mjs";
-import { AUTH_COOKIE_NAME } from "@/lib/auth/sessionCore.mjs";
+import { authCookieOptions, AUTH_COOKIE_NAME } from "@/lib/auth/sessionCore.mjs";
 import { connectToDatabase } from "@/lib/mongodb";
 import AuthAuditLog from "@/models/AuthAuditLog";
 import PasswordResetToken from "@/models/PasswordResetToken";
@@ -13,4 +13,5 @@ export const POST = createResetPasswordRouteHandler({
   PasswordResetTokenModel: PasswordResetToken,
   AuditLogModel: AuthAuditLog,
   authCookieName: AUTH_COOKIE_NAME,
+  authCookieOptions,
 });

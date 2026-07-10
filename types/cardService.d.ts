@@ -20,6 +20,15 @@ declare module "@/lib/services/cardService.mjs" {
     ignoredForbiddenFields: string[];
   };
   export const updateCardById: (id: string, input: Record<string, unknown>, deps?: Record<string, unknown>) => Promise<unknown>;
+  export const findDuplicateCards: (deps?: Record<string, unknown>) => Promise<unknown[]>;
+  export const mergeDuplicateCards: (
+    input: Record<string, unknown>,
+    deps?: Record<string, unknown>,
+  ) => Promise<{
+    targetCard: unknown;
+    deletedSourceId: string;
+    merge: Record<string, unknown>;
+  }>;
 }
 
 declare module "@/lib/api/cardCatalogApi.mjs" {
