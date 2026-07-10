@@ -151,6 +151,15 @@ Phase 5 — API migration by route group.
   validation passed (typecheck, lint, 8 tests, build); shared validation passed;
   frontend catalog validation, typecheck, lint, 99 unit tests, 18 integration
   tests, and build passed. No MongoDB connection/import was executed.
+- 2026-07-11: Phase 5 authentication group moved login, logout, session lookup,
+  registration, forgot/reset password, and guarded bootstrap routes to Fastify
+  behind the same-origin rewrite. Added repository-injected Mongo authentication,
+  compatible scrypt hashes, signed secure cookies, hashed one-use reset tokens,
+  forwarded-origin reset links, optional bootstrap inputs, and audit events.
+  Removed all seven Next auth route adapters. Backend validation passed with 10
+  tests; frontend typecheck, lint, 99 unit tests, 18 integration tests, and build
+  passed. Old transport cores remain temporarily because remaining Next domain/
+  admin tests import the shared session helpers; remove after those route groups.
 
 ## Known issues
 

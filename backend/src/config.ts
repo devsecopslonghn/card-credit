@@ -5,6 +5,9 @@ export type BackendConfig = {
   authSecret: string;
   logLevel: string;
   shutdownTimeoutMs: number;
+  bootstrapToken?: string;
+  configuredUsers: Array<Record<string, unknown>>;
+  returnResetToken: boolean;
 };
 
 const required = (env: NodeJS.ProcessEnv, name: string) => {
@@ -25,6 +28,12 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
   const authSecret = required(env, "AUTH_SECRET");
   if (authSecret.length < 32) throw new Error("AUTH_SECRET must contain at least 32 characters");
 
+  let configuredUsers: Array<Record<string, unknown>> = [];
+  if (env.AUTH_USERS_JSON?.trim()) {
+    const parsed = JSON.parse(env.AUTH_USERS_JSON) as unknown;
+    if (!Array.isArray(parsed)) throw new Error("AUTH_USERS_JSON must be an array");
+    configuredUsers = parsed as Array<Record<string, unknown>>;
+  }
   return {
     host: env.BACKEND_HOST?.trim() || "0.0.0.0",
     port: integer(env.BACKEND_PORT, 3001, "BACKEND_PORT"),
@@ -32,5 +41,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     authSecret,
     logLevel: env.LOG_LEVEL?.trim() || "info",
     shutdownTimeoutMs: integer(env.SHUTDOWN_TIMEOUT_MS, 10000, "SHUTDOWN_TIMEOUT_MS"),
+    bootstrapToken: env.AUTH_BOOTSTRAP_TOKEN?.trim() || undefined,
+    configuredUsers,
+    returnResetToken: env.PASSWORD_RESET_RETURN_TOKEN === "true",
   };
 };

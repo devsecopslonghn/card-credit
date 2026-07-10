@@ -26,3 +26,12 @@ export const writeCatalogAudit: CatalogAuditWriter = async ({ event, actor, requ
     updatedAt: new Date(),
   });
 };
+
+export const writeAuthAudit = async (event: string, request: FastifyRequest, actor?: Session | null, email?: string | null, resource?: Record<string, unknown>) => {
+  await mongoose.connection.collection("authauditlogs").insertOne({
+    event, userId: actor?.userId ?? null, email: actor?.email ?? email ?? null,
+    role: actor?.role ?? null, workspaceId: actor?.workspaceId ?? null,
+    ip: request.ip || null, userAgent: request.headers["user-agent"] || null,
+    correlationId: request.id, resource: resource ?? null, createdAt: new Date(), updatedAt: new Date(),
+  });
+};
