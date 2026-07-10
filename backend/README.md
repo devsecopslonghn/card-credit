@@ -14,3 +14,5 @@ Until the backend runtime is implemented:
 - There is no backend Docker image.
 - Docker Compose runs only the existing Next.js application.
 - API implementations must not be duplicated into this directory.
+- A real Dockerfile will be created together with the package, entrypoint,
+  build/start commands, and health endpoint for the standalone runtime.

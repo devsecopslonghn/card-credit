@@ -25,8 +25,8 @@ Card Credit la ung dung Next.js de quan ly the tin dung ca nhan: danh sach the, 
 - `frontend/data/`: Card Catalog JSON va image manifest.
 - `frontend/scripts/`: validate catalog, migrate, seed, cache images va smoke test.
 - `frontend/tests/`: unit/integration tests bang `node:test`; `frontend/tests/e2e/` dung Playwright.
-- `backend/`: placeholder cho Phase 2, chua chay production backend.
-- `docs/`: roadmap, current behavior, release plan va snapshot policy.
+- `backend/`: khu vuc duoc danh rieng cho backend sau nay; hien chi co tai lieu va chua co runtime hay Docker image.
+- `docs/`: kien truc hien tai, audit, active plan va archived plans.
 
 Day moi la Phase 1 ve repository layout. Backend extraction se duoc thuc hien trong task rieng sau khi co thiet ke framework, auth, CORS, API base URL va deployment topology.
 
@@ -76,10 +76,13 @@ Dang nhap bang user da seed vao MongoDB tu `AUTH_USERS_JSON`. Cac route UI rieng
 
 ## Chay Docker
 
-Build image:
+Build image (repository root la Docker build context):
 
 ```bash
-docker build -t card-credit:local .
+docker build \
+  -f frontend/Dockerfile \
+  -t card-credit:local \
+  .
 ```
 
 Chay container:
@@ -97,6 +100,10 @@ Voi compose production:
 ```bash
 APP_PORT=8080 MONGODB_URI="$MONGODB_URI" AUTH_SECRET="$AUTH_SECRET" docker compose -f docker-compose.prod.yml up -d
 ```
+
+Image hien tai van chay ca Next.js UI va API routes trong mot runtime. Compose
+chi chay mot application service. Day la tach repository layout, chua phai tach
+frontend/backend runtime.
 
 ## Auth Va Phan Quyen
 
@@ -389,7 +396,11 @@ cd frontend
 SMOKE_BASE_URL="https://your-app.example" npm run smoke:deploy
 ```
 
-Jenkinsfile hien chay catalog validation, tests, build, Docker smoke va deploy smoke. Xem `docs/release-plan.md` de biet rollback, backup MongoDB va manual verification.
+Jenkinsfile hien chay catalog validation, unit/integration tests, application
+build, production image build va master-only deployment. Container smoke-test
+stage hien dang tat. Xem
+`docs/plans/archive/2026-07-card-catalog-release-plan.md` de tham khao rollback,
+backup MongoDB va manual verification lich su.
 
 ## Troubleshooting
 

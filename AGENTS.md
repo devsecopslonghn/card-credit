@@ -1,53 +1,67 @@
-# AGENTS.md
+# Repository Agent Policy
 
-## Before changing code
+## Before editing
 
-- Read README.md and any file under docs/plans/active/.
-- Check the current branch with `git branch --show-current`.
-- Review `git status` and the existing diff before editing.
-- Do not overwrite unrelated user changes.
+1. Read `README.md`, `docs/README.md`, and the relevant active plan under
+   `docs/plans/active/`.
+2. Inspect the requested branch, `git status`, the current diff, and the actual
+   package scripts and configuration involved.
+3. Treat the local working tree as the source of truth and preserve unrelated
+   changes.
 
-## Scope
+If the requested branch does not match, stop. If the relevant active plan is
+ambiguous, ask before editing.
 
-- Only change files required by the current task.
-- Do not change business logic unless explicitly requested.
-- Preserve existing API contracts and user-visible behavior.
-- Prefer small, reviewable changes.
+## Scope and phased work
 
-## Git safety
+- Make only the changes required for the current task; preserve behavior, API
+  contracts, routes, and environment requirements unless explicitly approved.
+- Complete only one phase per iteration and do not start the next phase
+  automatically.
+- Do not duplicate implementations or create artifacts that pretend a future
+  runtime is operational.
+- Before stopping, update the active plan with status, decisions, changed files,
+  validations and actual results, blockers, and remaining risks.
+- After context compaction, reread this file, the active plan, status, and diff.
 
-- Do not commit, push, merge, rebase, or force-push unless explicitly requested.
-- Do not switch branches unless explicitly requested.
-- Do not rewrite repository history.
-- Do not delete user changes.
+## Git and security
 
-## Data and security
+- Do not switch branches, commit, push, merge, rebase, reset, cherry-pick, or
+  rewrite history without explicit permission.
+- Use `git mv` for tracked moves. Do not discard user changes or delete unrelated
+  untracked files.
+- Never use a production database for tests, seeds, migrations, smoke tests, or
+  E2E. Do not run destructive database operations without explicit approval.
+- Never expose or commit secrets, tokens, passwords, cookies, private keys, or
+  connection strings. Keep server secrets out of browser-visible configuration.
+- Do not weaken authentication, authorization, cookie, CORS, or CSRF controls to
+  make validation pass.
 
-- Never use a production database for tests, seed data, migrations, or E2E.
-- Do not run destructive database operations.
-- Do not commit or print secrets, tokens, passwords, or connection strings.
-- Do not place server-only secrets in frontend code.
+## Implementation and documentation
 
-## Validation
+- Inspect existing code and reuse its conventions where appropriate.
+- Keep frontend-safe and server-only modules separate; avoid circular
+  dependencies and copied API/database implementations.
+- Do not add a Dockerfile, service, health check, or deployment definition for a
+  runtime that lacks a real package, entrypoint, build/start commands, and health
+  behavior.
+- Documentation must describe implemented behavior. Use `docs/architecture/`
+  for current architecture, `docs/audits/` for point-in-time audits,
+  `docs/plans/active/` for current work, and `docs/plans/archive/` for historical
+  plans. Do not create empty documentation categories.
+- Update links and references whenever files move.
 
-- Inspect package scripts before choosing validation commands.
-- Run relevant lint, typecheck, test, and build commands.
-- Run `git diff --check`.
-- Do not report a command as passed unless it was actually executed.
-- Clearly separate existing failures from failures introduced by the task.
+## Validation and completion
 
-## Long-running tasks
+- Run validations appropriate to the changed files and never claim a command
+  passed unless it was executed.
+- Run `git diff --check`, inspect `git status --short` and `git diff --stat`, and
+  review the full diff before stopping.
+- Run database-backed, migration, seed, smoke, or E2E commands only after a safe,
+  isolated non-production environment is confirmed.
+- Report the branch, phase status, file changes, decisions, actual validation
+  results, skipped checks, blockers/risks, diff summary, and next planned phase.
 
-- Use files under `docs/plans/active/` for task-specific progress.
-- Complete only one phase per iteration when a phased plan exists.
-- Update the active plan before stopping.
-- After context compaction, reread this file, the active plan, `git status`, and the diff.
-
-## Project references
-
-- README.md
-- docs/domain-model.md
-- docs/current-behavior.md
-- docs/catalog-snapshot-policy.md
-- docs/release-plan.md
-- docs/card-catalog-roadmap.md
+Current task details belong in
+`docs/plans/active/split-frontend-backend.md`; archived Card Catalog plans are
+historical references, not active instructions.

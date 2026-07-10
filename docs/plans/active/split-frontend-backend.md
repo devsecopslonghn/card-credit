@@ -2,57 +2,123 @@
 
 ## Goal
 
-Split the current Next.js monolith into:
+Move from the current Next.js monolith toward separate `frontend/` and
+`backend/` runtimes through reviewable phases. Phase 1 only establishes a
+consistent repository layout while the UI and API continue to run together.
 
-- `frontend/`: Next.js UI
-- `backend/`: standalone API runtime
+## Non-goals
 
-## Current State
+- Implementing or scaffolding a standalone backend runtime.
+- Moving API routes out of `frontend/app/api/**`.
+- Changing business behavior, routes, API contracts, or database schemas.
+- Adding a backend image, Compose service, or pipeline.
 
-- Next.js application has been moved into `frontend/`.
-- API routes remain under `frontend/app/api/**`.
-- Docker Compose currently runs one application container.
-- Standalone backend runtime does not exist yet.
+## Current state
+
+- The Next.js application is under `frontend/` and includes both UI and API routes.
+- `frontend/Dockerfile` is the single production Dockerfile and uses the repository
+  root as its build context.
+- `backend/` contains documentation only; no package, entrypoint, or image exists.
+- Compose and Jenkins operate one Next.js application runtime.
 
 ## Constraints
 
-- Preserve existing routes and behavior.
-- Do not use production MongoDB for testing.
-- Do not duplicate API implementations.
-- Do not commit or push unless requested.
+- Preserve behavior and public URLs.
+- Never duplicate API implementations into `backend/`.
+- Never use a production database for validation.
+- Do not commit, push, or proceed to another phase without permission.
 
-## Phase Status
+## Decisions
+
+- Keep `frontend/Dockerfile`; the obsolete root Dockerfile is already absent.
+- Delete the nonfunctional `backend/Dockerfile` and create a real one only with a
+  real backend runtime.
+- Keep a single Compose service with required `MONGODB_URI` and `AUTH_SECRET`.
+- Treat auth bootstrap/reset variables as optional, explicit operational inputs.
+- Keep the container smoke-test stage disabled until a safe isolated database or
+  fully mocked runtime path is verified.
+
+## Open questions
+
+- Backend framework, package boundaries, and ownership of shared contracts.
+- API base URL, proxy topology, authentication/cookie boundary, CORS, and CSRF.
+- Safe isolated database strategy for container smoke tests and E2E.
+
+## Phase status table
 
 | Phase | Status |
 |---|---|
 | Phase 0 — Repository audit | DONE |
-| Phase 1 — Repository layout | IN_PROGRESS |
-| Phase 2 — Backend design | TODO |
-| Phase 3 — Backend runtime | TODO |
-| Phase 4 — API migration | TODO |
-| Phase 5 — Docker and Jenkins | TODO |
-| Phase 6 — E2E and cleanup | TODO |
+| Phase 1 — Repository layout and consistency | DONE |
+| Phase 2 — Backend extraction design | TODO |
+| Phase 3 — Minimal backend runtime | TODO |
+| Phase 4 — Shared boundaries | TODO |
+| Phase 5 — API migration by route group | TODO |
+| Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
+| Phase 7 — Two real production Dockerfiles | TODO |
+| Phase 8 — Two-service Docker Compose | TODO |
+| Phase 9 — Frontend/backend Jenkins pipeline | TODO |
+| Phase 10 — Safe test database and E2E | TODO |
+| Phase 11 — Documentation and cleanup | TODO |
+| Phase 12 — Final review | TODO |
 
-## Current Phase
+## Current phase
 
-### Phase 1 — Repository layout
+Phase 1 — Repository layout and consistency.
 
-Acceptance criteria:
+## Acceptance criteria
 
-- [x] Application lives under `frontend/`
-- [x] `backend/` exists
-- [ ] Frontend Dockerfile is consistent
-- [ ] Compose uses the correct Dockerfile
-- [ ] Jenkins paths are consistent
-- [ ] Documentation matches the actual layout
-- [ ] Validation passes
+- [x] The application lives under `frontend/`.
+- [x] API routes remain under `frontend/app/api/**`.
+- [x] No API implementation is duplicated under `backend/`.
+- [x] `backend/` does not pretend to be a working runtime.
+- [x] The current production Dockerfile is `frontend/Dockerfile`.
+- [x] Compose references `frontend/Dockerfile` and runs one service.
+- [x] Jenkins uses `/workspace/frontend` and validates the Phase 1 layout.
+- [x] Root README Docker commands match the layout and runtime boundaries.
+- [x] Documentation paths are valid.
+- [x] Environment-variable documentation matches runtime and CI behavior.
+- [x] Relevant validations pass or have explicitly documented blockers.
 
-## Validation
+## Validation matrix
 
-```bash
-git diff --check
-cd frontend
-npm run typecheck
-npm run lint
-npm run test:unit
-npm run build
+| Validation | Result |
+|---|---|
+| Preflight branch/status/log/diffs/file inventory | PASS — expected branch; preserved existing documentation changes |
+| Stale documentation path search | PASS — no matches in current files |
+| `git diff --check` | PASS |
+| `npm ci` | PASS — 385 packages installed; npm reported 3 moderate vulnerabilities |
+| `npm run validate:catalog` | PASS — 27 products |
+| `npm run typecheck` | PASS |
+| `npm run lint` | PASS |
+| `npm run test:unit` | PASS — 103/103 |
+| `npm run test:integration` | PASS — 18/18 |
+| `npm run build` | PASS — existing Next.js middleware deprecation warning |
+| Production Docker image build | PASS — `card-credit:phase1-layout-test` |
+| Compose config without `AUTH_USERS_JSON` | PASS |
+| Playwright E2E | SKIPPED — safety must be confirmed before execution |
+
+## Progress log
+
+- 2026-07-11: Audited the local branch and working tree. Found existing changes
+  to `AGENTS.md`, `docs/README.md`, and a staged roadmap move; preserved them.
+- 2026-07-11: Removed the fake backend Dockerfile, normalized optional auth
+  bootstrap variables, added Jenkins layout checks, and corrected README/docs.
+
+## Known issues
+
+- `npm ci` reports 3 moderate dependency vulnerabilities; dependency upgrades are
+  outside this layout-only phase.
+- Next.js reports that the `middleware` convention is deprecated; changing it is
+  outside this layout-only phase.
+- Docker image preparation fell back to placeholders for unavailable UOB image
+  downloads as designed; the image build passed.
+- Historical archived plans may describe old paths as historical state; active
+  documentation must not rely on those paths.
+
+## Final Definition of Done
+
+All phases through Phase 12 are DONE; frontend and backend are real independent
+runtimes with tested boundaries, two production images, two Compose services,
+safe CI/deployment, migrated routes, current documentation, and no obsolete
+monolith or placeholder artifacts.

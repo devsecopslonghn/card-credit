@@ -84,6 +84,24 @@ pipeline {
       }
     }
 
+    stage('Validate Repository Layout') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          test -f frontend/package.json
+          test -f frontend/Dockerfile
+          test -f docker-compose.prod.yml
+          test ! -f Dockerfile
+          test ! -f backend/Dockerfile
+        '''
+      }
+    }
+
     stage('Install Dependencies') {
       agent {
         label 'eztechvn2'
@@ -306,10 +324,6 @@ pipeline {
           string(
             credentialsId: 'CARD-CREDIT-AUTH-SECRET',
             variable: 'AUTH_SECRET'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
-            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -321,39 +335,6 @@ pipeline {
               echo "AUTH_SECRET must contain at least 32 characters"
               exit 1
             fi
-
-            docker run --rm \
-              --env AUTH_USERS_JSON \
-              node:22-alpine \
-              node -e '
-                const users = JSON.parse(process.env.AUTH_USERS_JSON || "[]");
-
-                if (!Array.isArray(users) || users.length === 0) {
-                  throw new Error("AUTH_USERS_JSON must be a non-empty JSON array");
-                }
-
-                for (const user of users) {
-                  if (
-                    !user.id ||
-                    !user.email ||
-                    !user.password ||
-                    !user.role ||
-                    !user.workspaceId
-                  ) {
-                    throw new Error(
-                      "Each auth user must contain id, email, password, role and workspaceId"
-                    );
-                  }
-
-                  if (!["admin", "user"].includes(user.role)) {
-                    throw new Error(
-                      `Unsupported role for ${user.email}: ${user.role}`
-                    );
-                  }
-                }
-
-                console.log(`Authentication configuration contains ${users.length} user(s)`);
-              '
 
             echo "Validating Docker Compose configuration"
             echo "Docker image: ${FULL_IMAGE_NAME}"
@@ -388,10 +369,6 @@ pipeline {
           string(
             credentialsId: 'CARD-CREDIT-AUTH-SECRET',
             variable: 'AUTH_SECRET'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
-            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -427,10 +404,6 @@ pipeline {
           string(
             credentialsId: 'CARD-CREDIT-AUTH-SECRET',
             variable: 'AUTH_SECRET'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
-            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -497,10 +470,6 @@ pipeline {
           string(
             credentialsId: 'CARD-CREDIT-AUTH-SECRET',
             variable: 'AUTH_SECRET'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
-            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -524,7 +493,7 @@ pipeline {
                 -f docker-compose.prod.yml \
                 ps
 
-            echo "Checking authentication variables inside the running container"
+            echo "Checking required authentication variables inside the running container"
 
             docker exec card-credit sh -lc '
               test -n "$AUTH_SECRET" &&
@@ -534,12 +503,6 @@ pipeline {
                   exit 1
                 }
 
-              test -n "$AUTH_USERS_JSON" &&
-                echo "AUTH_USERS_JSON=set" ||
-                {
-                  echo "AUTH_USERS_JSON=missing"
-                  exit 1
-                }
             '
           '''
         }

@@ -78,7 +78,7 @@ Server chịu trách nhiệm lấy toàn bộ thông tin sản phẩm từ catal
 
 ### Definition of Done
 
-* Có tài liệu baseline trong `docs/current-behavior.md`.
+* Có tài liệu baseline trong `docs/plans/archive/2026-07-05-card-catalog-baseline.md`.
 * Có danh sách API và payload hiện tại.
 * Build hiện tại thành công hoặc các lỗi baseline đã được ghi lại rõ ràng.
 * Có dữ liệu mẫu dùng để regression test.
@@ -107,7 +107,7 @@ Không sử dụng `CardType` để vừa biểu diễn network, vừa biểu di
 
 ### Definition of Done
 
-* Có `docs/domain-model.md`.
+* Có `docs/architecture/domain-model.md`.
 * Các type mới trong mã nguồn sử dụng đúng thuật ngữ.
 * `CardType` hiện tại được ghi rõ là network masterdata.
 * Không còn code mới gọi Visa Platinum Cashback là một `CardType`.
@@ -189,7 +189,7 @@ Kiểm tra từng preset:
 
 ### Definition of Done
 
-* Có báo cáo audit tại `docs/card-catalog-audit.md`.
+* Có báo cáo audit tại `docs/audits/2026-07-05-card-catalog-audit.md`.
 * Mỗi preset được phân loại:
 
   * Valid.
@@ -1089,7 +1089,7 @@ Khuyến nghị:
 
 ### Definition of Done
 
-* Có `docs/catalog-snapshot-policy.md`.
+* Có `docs/architecture/catalog-snapshot-policy.md`.
 * API và UI thực hiện cùng một chính sách.
 * Preset inactive không làm mất card hiện có.
 * Annual fee thay đổi không âm thầm sửa dữ liệu lịch sử.

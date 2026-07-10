@@ -2,22 +2,22 @@
 
 ## Current architecture
 
-- `architecture/` — Current system architecture and runtime boundaries.
-- `runbooks/` — Operational and deployment instructions.
+- `architecture/domain-model.md`
+- `architecture/catalog-snapshot-policy.md`
+- `architecture/card-transaction-statement-model.md`
 
-## Engineering decisions
+## Active work
 
-- `decisions/` — Long-lived architecture decisions.
+- `plans/active/split-frontend-backend.md`
 
-## Task tracking
+## Historical plans
 
-- `plans/active/` — Work currently in progress.
-- `plans/archive/` — Completed or cancelled plan summaries.
+- `plans/archive/2026-07-05-card-catalog-baseline.md`
+- `plans/archive/2026-07-card-catalog-release-plan.md`
+- `plans/archive/2026-07-card-catalog-roadmap.md`
 
-## Domain references
+## Audits
 
-- `domain-model.md`
-- `current-behavior.md`
-- `catalog-snapshot-policy.md`
-- `release-plan.md`
-- `card-catalog-roadmap.md`
+- `audits/2026-07-05-card-catalog-audit.md`
+
+Create `decisions/` and `runbooks/` only when real ADRs or operational runbooks exist.
