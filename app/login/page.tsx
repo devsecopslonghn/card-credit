@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 export default function LoginPage() {
@@ -78,6 +79,14 @@ export default function LoginPage() {
         >
           {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
+        <div className="mt-5 flex items-center justify-between text-sm">
+          <Link href="/forgot-password" className="font-medium text-blue-700 hover:text-blue-800">
+            Quên mật khẩu?
+          </Link>
+          <Link href="/register" className="font-medium text-gray-700 hover:text-gray-900">
+            Tạo tài khoản
+          </Link>
+        </div>
       </form>
     </main>
   );

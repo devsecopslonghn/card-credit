@@ -10,6 +10,11 @@ import { hashPassword, verifyPassword } from "../lib/auth/passwordCore.mjs";
 import { canManageCatalog, canManageUsers, canReadWorkspace } from "../lib/auth/rbacCore.mjs";
 import { createAdminUsersRouteHandlers, createProfileRouteHandlers } from "../lib/api/userProfileRouteCore.mjs";
 import { createAuditLogsRouteHandler } from "../lib/api/auditLogsRouteCore.mjs";
+import {
+  createForgotPasswordRouteHandler,
+  createRegisterRouteHandler,
+  createResetPasswordRouteHandler,
+} from "../lib/api/authAccountRouteCore.mjs";
 import { createLoginRouteHandler, createLogoutRouteHandler } from "../lib/api/authRouteCore.mjs";
 import { ApiError } from "../lib/api/errorsCore.mjs";
 import { logAuthEvent, sanitizeAuditResource } from "../lib/audit/logAuthEventCore.mjs";
@@ -98,6 +103,43 @@ const createFakeAuditLogModel = (initialLogs = []) => {
           };
         },
       };
+    },
+  };
+};
+
+const createFakePasswordResetTokenModel = () => {
+  const state = {
+    tokens: [],
+  };
+
+  return {
+    state,
+    async create(record) {
+      const token = {
+        _id: `reset-${state.tokens.length + 1}`,
+        ...clone(record),
+        async save() {
+          const index = state.tokens.findIndex((item) => item._id === this._id);
+          state.tokens[index] = this;
+        },
+      };
+      state.tokens.push(token);
+      return token;
+    },
+    async findOne(query) {
+      return state.tokens.find(
+        (token) =>
+          token.tokenHash === query.tokenHash &&
+          token.usedAt === query.usedAt &&
+          token.expiresAt > query.expiresAt.$gt,
+      ) ?? null;
+    },
+    async updateMany(query, update) {
+      for (const token of state.tokens) {
+        if (token.userId === query.userId && token.usedAt === query.usedAt) {
+          token.usedAt = update.$set.usedAt;
+        }
+      }
     },
   };
 };
@@ -426,6 +468,133 @@ test("login route writes success and failure audit events without passwords", as
   assert.equal(AuditLogModel.state.logs[1].email, "alice@example.test");
   assert.equal(AuditLogModel.state.logs[1].resource.errorCode, "UNAUTHENTICATED");
   assert.equal(JSON.stringify(AuditLogModel.state.logs[1]).includes("wrong-pass"), false);
+});
+
+test("register route creates a hashed user and signs in the first account as admin", async () => {
+  const AuditLogModel = createFakeAuditLogModel();
+  const users = [];
+  const UserModel = {
+    async countDocuments() {
+      return users.length;
+    },
+    findOne(query) {
+      const user = users.find((item) => item.email === query.email) ?? null;
+      return {
+        select: async () => user,
+      };
+    },
+    async create(record) {
+      const user = {
+        _id: `user-${users.length + 1}`,
+        ...clone(record),
+        save: async function save() {
+          this.saved = true;
+        },
+      };
+      users.push(user);
+      return user;
+    },
+  };
+
+  const register = createRegisterRouteHandler({
+    connectToDatabase: async () => {},
+    UserModel,
+    authenticateCredentials,
+    createSessionCookieValue: () => "signed-register-session",
+    authCookieName: "test_session",
+    AuditLogModel,
+  });
+
+  const response = await readJson(
+    await register(
+      jsonRequest(
+        "https://test.local/api/auth/register",
+        { email: " Owner@Example.Test ", password: "valid-pass", displayName: "  Owner One  " },
+        "POST",
+      ),
+    ),
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.user.email, "owner@example.test");
+  assert.equal(response.body.user.role, "admin");
+  assert.equal(users[0].email, "owner@example.test");
+  assert.equal(users[0].displayName, "Owner One");
+  assert.match(users[0].passwordHash, /^scrypt\$/);
+  assert.equal(await verifyPassword("valid-pass", users[0].passwordHash), true);
+  assert.equal(AuditLogModel.state.logs[0].event, "LOGIN_SUCCESS");
+
+  const duplicate = await readJson(
+    await register(jsonRequest("https://test.local/api/auth/register", { email: "owner@example.test", password: "valid-pass" }, "POST")),
+  );
+  assert.equal(duplicate.status, 409);
+  assert.equal(duplicate.body.error.code, "EMAIL_ALREADY_REGISTERED");
+});
+
+test("forgot and reset password flow stores only token hash and blocks replay", async () => {
+  const AuditLogModel = createFakeAuditLogModel();
+  const PasswordResetTokenModel = createFakePasswordResetTokenModel();
+  const user = {
+    _id: "alice",
+    email: "alice@example.test",
+    passwordHash: await hashPassword("old-pass"),
+    role: "user",
+    workspaceId: "workspace-a",
+    active: true,
+    lockedAt: null,
+    async save() {
+      this.saved = true;
+    },
+  };
+  const UserModel = {
+    findOne(query) {
+      return {
+        select: async () => (query.email === user.email ? user : null),
+      };
+    },
+    async findById(id) {
+      return id === user._id ? user : null;
+    },
+  };
+
+  const forgot = createForgotPasswordRouteHandler({
+    connectToDatabase: async () => {},
+    UserModel,
+    PasswordResetTokenModel,
+    AuditLogModel,
+  });
+  const forgotResponse = await readJson(
+    await forgot(jsonRequest("https://test.local/api/auth/forgot-password", { email: "alice@example.test" }, "POST")),
+  );
+
+  assert.equal(forgotResponse.status, 200);
+  assert.match(forgotResponse.body.resetLink, /^https:\/\/test\.local\/forgot-password\?token=/);
+  const rawToken = new URL(forgotResponse.body.resetLink).searchParams.get("token");
+  assert.equal(JSON.stringify(PasswordResetTokenModel.state.tokens).includes(rawToken), false);
+  assert.equal(PasswordResetTokenModel.state.tokens.length, 1);
+
+  const reset = createResetPasswordRouteHandler({
+    connectToDatabase: async () => {},
+    UserModel,
+    PasswordResetTokenModel,
+    AuditLogModel,
+    authCookieName: "test_session",
+  });
+
+  const resetResponse = await readJson(
+    await reset(jsonRequest("https://test.local/api/auth/reset-password", { token: rawToken, password: "new-valid-pass" }, "POST")),
+  );
+  assert.equal(resetResponse.status, 200);
+  assert.equal(await verifyPassword("new-valid-pass", user.passwordHash), true);
+  assert.ok(user.passwordChangedAt instanceof Date);
+  assert.ok(PasswordResetTokenModel.state.tokens[0].usedAt instanceof Date);
+  assert.equal(AuditLogModel.state.logs.at(-1).event, "PASSWORD_RESET_COMPLETED");
+
+  const replay = await readJson(
+    await reset(jsonRequest("https://test.local/api/auth/reset-password", { token: rawToken, password: "another-pass" }, "POST")),
+  );
+  assert.equal(replay.status, 400);
+  assert.equal(replay.body.error.code, "INVALID_TOKEN");
 });
 
 test("logout route writes audit event when session is present", async () => {

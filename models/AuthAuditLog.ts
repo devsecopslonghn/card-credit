@@ -11,6 +11,7 @@ const AuthAuditLogSchema = new Schema(
         "LOGOUT",
         "PASSWORD_RESET_REQUESTED",
         "PASSWORD_RESET_COMPLETED",
+        "USER_BOOTSTRAPPED",
         "CATALOG_PRODUCT_CREATED",
         "CATALOG_PRODUCT_UPDATED",
         "CATALOG_PROVIDER_BULK_UPDATED",

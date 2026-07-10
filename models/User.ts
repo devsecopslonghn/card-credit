@@ -10,6 +10,7 @@ const UserSchema = new Schema(
     active: { type: Boolean, default: true, index: true },
     lockedAt: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
+    passwordChangedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
