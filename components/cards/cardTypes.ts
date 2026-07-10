@@ -3,6 +3,7 @@ import {
   CARD_IMAGE_PLACEHOLDER_URL,
   MAX_OWNER_LENGTH,
   buildCreateCardPayload,
+  buildCardSummary,
   buildOperationalUpdatePayload,
   calculateCardMetrics,
   calculateMonthNet,
@@ -62,6 +63,13 @@ export type CreditCardView = {
   monthlyData?: MonthlyData[];
 };
 
+export type CardSummaryView = {
+  statementDate: string;
+  paymentDueDate: string;
+  currentOutstandingBalance: number;
+  statementAmountDue: number;
+};
+
 export type ProviderGroup = {
   providerKey: string;
   providerName: string;
@@ -75,6 +83,7 @@ export {
   CARD_IMAGE_PLACEHOLDER_URL,
   MAX_OWNER_LENGTH,
   buildCreateCardPayload,
+  buildCardSummary,
   buildOperationalUpdatePayload,
   calculateCardMetrics,
   calculateMonthNet,

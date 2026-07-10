@@ -1,7 +1,7 @@
 "use client";
 
 import { ProviderSection } from "@/components/cards/ProviderSection";
-import type { CreditCardView, ProviderGroup } from "@/components/cards/cardTypes";
+import type { CardSummaryView, CreditCardView, ProviderGroup } from "@/components/cards/cardTypes";
 
 type CardListProps = {
   loading: boolean;
@@ -9,6 +9,7 @@ type CardListProps = {
   cardsCount: number;
   filteredCardsCount: number;
   providerGroups: ProviderGroup[];
+  cardSummaries: Record<string, CardSummaryView>;
   selectedOwner: string;
   busyCardId: string;
   onRetry: () => void;
@@ -21,6 +22,7 @@ export function CardList({
   cardsCount,
   filteredCardsCount,
   providerGroups,
+  cardSummaries,
   selectedOwner,
   busyCardId,
   onRetry,
@@ -69,6 +71,7 @@ export function CardList({
         <ProviderSection
           key={group.providerKey}
           group={group}
+          cardSummaries={cardSummaries}
           busyCardId={busyCardId}
           onDelete={onDelete}
         />

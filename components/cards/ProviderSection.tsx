@@ -1,15 +1,16 @@
 "use client";
 
 import { CardItem } from "@/components/cards/CardItem";
-import type { CreditCardView, ProviderGroup } from "@/components/cards/cardTypes";
+import type { CardSummaryView, CreditCardView, ProviderGroup } from "@/components/cards/cardTypes";
 
 type ProviderSectionProps = {
   group: ProviderGroup;
+  cardSummaries: Record<string, CardSummaryView>;
   busyCardId: string;
   onDelete: (card: CreditCardView) => void;
 };
 
-export function ProviderSection({ group, busyCardId, onDelete }: ProviderSectionProps) {
+export function ProviderSection({ group, cardSummaries, busyCardId, onDelete }: ProviderSectionProps) {
   return (
     <section aria-labelledby={`provider-${group.providerKey}`} className="mb-8 min-w-0">
       <div className="mb-3 flex min-w-0 items-center justify-between gap-3 border-b border-gray-200 pb-2">
@@ -25,6 +26,7 @@ export function ProviderSection({ group, busyCardId, onDelete }: ProviderSection
           <CardItem
             key={card._id}
             card={card}
+            summary={cardSummaries[card._id]}
             busy={busyCardId === card._id}
             onDelete={onDelete}
           />

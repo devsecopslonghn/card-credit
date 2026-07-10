@@ -3,21 +3,24 @@
 import Link from "next/link";
 import { CardImage } from "@/components/cards/CardImage";
 import {
-  formatAnnualFee,
+  formatDateDisplay,
+  formatVnd,
   getDisplayName,
   getNetwork,
   getProviderName,
   isLegacyCard,
+  type CardSummaryView,
   type CreditCardView,
 } from "@/components/cards/cardTypes";
 
 type CardItemProps = {
   card: CreditCardView;
+  summary: CardSummaryView;
   busy: boolean;
   onDelete: (card: CreditCardView) => void;
 };
 
-export function CardItem({ card, busy, onDelete }: CardItemProps) {
+export function CardItem({ card, summary, busy, onDelete }: CardItemProps) {
   const displayName = getDisplayName(card);
   const providerName = getProviderName(card);
   const network = getNetwork(card);
@@ -58,25 +61,27 @@ export function CardItem({ card, busy, onDelete }: CardItemProps) {
 
         <dl className="mt-4 grid grid-cols-1 gap-2 text-sm">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-            <dt className="min-w-0 font-medium cc-text-muted">Phí thường niên</dt>
-            <dd className="max-w-[11rem] text-right font-bold cc-text-primary">{formatAnnualFee(card.annualFee)}</dd>
-          </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
             <dt className="min-w-0 font-medium cc-text-muted">Ngày chốt sao kê</dt>
             <dd className="max-w-[11rem] text-right font-bold cc-text-primary">
-              Ngày {card.statementDay ?? 1}
+              {formatDateDisplay(summary.statementDate)}
             </dd>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
             <dt className="min-w-0 font-medium cc-text-muted">Hạn thanh toán</dt>
-            <dd className="max-w-[11rem] text-right font-bold cc-danger">
-              +{card.paymentDueDays ?? 15} ngày
+            <dd className="max-w-[11rem] text-right font-bold cc-text-primary">
+              {formatDateDisplay(summary.paymentDueDate)}
             </dd>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-            <dt className="min-w-0 font-medium cc-text-muted">Trạng thái thẻ</dt>
-            <dd className="max-w-[11rem] text-right font-bold cc-text-primary">
-              {card.active === false ? "Ngưng dùng" : "Đang dùng"}
+            <dt className="min-w-0 font-medium cc-text-muted">Tổng nợ thẻ</dt>
+            <dd className="max-w-[11rem] text-right font-bold cc-danger">
+              {formatVnd(summary.currentOutstandingBalance)}
+            </dd>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <dt className="min-w-0 font-medium cc-text-muted">Cần trả kỳ sao kê</dt>
+            <dd className="max-w-[11rem] text-right font-bold cc-danger">
+              {formatVnd(summary.statementAmountDue)}
             </dd>
           </div>
         </dl>

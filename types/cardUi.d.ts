@@ -8,6 +8,23 @@ declare module "@/lib/cards/uiCore.mjs" {
   export const formatAnnualFee: (value: unknown) => string;
   export const formatDateDisplay: (dateStr: unknown) => string;
   export const formatRateBps: (value: unknown) => string;
+  export const buildCardSummary: (
+    card: Record<string, unknown>,
+    statements?: Array<
+      Record<string, unknown> & {
+        statementDate?: string;
+        paymentStatus?: string;
+        effectivePaymentStatus?: string;
+        summary?: { totalAmountDue?: number };
+      }
+    >,
+    selectedPeriod?: { year?: number; month?: number },
+  ) => {
+    statementDate: string;
+    paymentDueDate: string;
+    currentOutstandingBalance: number;
+    statementAmountDue: number;
+  };
   export const getProviderName: (card: Record<string, unknown>) => string;
   export const getProviderKey: (card: Record<string, unknown>) => string;
   export const getDisplayName: (card: Record<string, unknown>) => string;

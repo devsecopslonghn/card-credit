@@ -111,25 +111,25 @@
   "uob-prvi-miles": {
     "status": "cached",
     "sourceUrl": "https://www.uob.com.vn/assets/web-resources/personal/image/cards/credit-card/mc-privimiles.png",
-    "localPath": "/card-images/generated/uob-prvi-miles.jpg",
+    "localPath": "/card-images/generated/uob-prvi-miles.png",
     "checkedAt": "2026-07-05T02:52:33.311Z"
   },
   "uob-one": {
     "status": "cached",
     "sourceUrl": "https://www.uob.com.vn/assets/web-resources/personal/image/cards/credit-card/visa-one.png",
-    "localPath": "/card-images/generated/uob-one.jpg",
+    "localPath": "/card-images/generated/uob-one.png",
     "checkedAt": "2026-07-05T02:52:33.311Z"
   },
   "uob-world": {
     "status": "cached",
     "sourceUrl": "https://www.uob.com.vn/assets/web-resources/personal/image/cards/credit-card/mc-world.png",
-    "localPath": "/card-images/generated/uob-world.jpg",
+    "localPath": "/card-images/generated/uob-world.png",
     "checkedAt": "2026-07-05T02:52:33.311Z"
   },
   "uob-lazada": {
     "status": "cached",
     "sourceUrl": "https://www.uob.com.vn/assets/web-resources/personal/image/cards/credit-card/mc-lazada.png",
-    "localPath": "/card-images/generated/uob-lazada.jpg",
+    "localPath": "/card-images/generated/uob-lazada.png",
     "checkedAt": "2026-07-05T02:52:33.311Z"
   },
   "vib-max-card": {
