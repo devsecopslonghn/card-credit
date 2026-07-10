@@ -28,13 +28,13 @@ export function CardItem({ card, busy, onEdit, onDelete, onTogglePaid }: CardIte
   const legacy = isLegacyCard(card);
 
   return (
-    <article className="flex min-w-0 flex-1 basis-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm sm:basis-[calc(50%-0.5rem)] lg:basis-[calc(33.333%-0.75rem)] xl:basis-[calc(25%-0.75rem)]">
+    <article className="flex min-w-0 h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
       <Link href={`/cards/${card._id}`} className="block outline-none focus:ring-2 focus:ring-blue-500">
-        <div className="relative aspect-[16/10] bg-gray-100">
+        <div className="relative flex aspect-[1.58/1] max-h-48 w-full items-center justify-center overflow-hidden bg-gray-50 p-3">
           <img
             src={card.imageUrl || CARD_IMAGE_PLACEHOLDER_URL}
             alt={`${providerName} ${displayName}`}
-            className="h-full w-full object-contain"
+            className="h-full max-h-full w-full max-w-full object-contain"
             onError={(event) => {
               event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL;
             }}
@@ -53,30 +53,41 @@ export function CardItem({ card, busy, onEdit, onDelete, onTogglePaid }: CardIte
       <div className="flex min-w-0 flex-1 flex-col p-4">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-gray-500">{providerName}</p>
-          <h3 className="break-words text-base font-bold leading-snug text-gray-900">{displayName}</h3>
-          <p className="mt-1 text-xs font-semibold text-blue-700">Thẻ của: {card.owner || "Tôi"}</p>
+          <h3
+            className="line-clamp-3 break-words text-base font-bold leading-snug text-gray-900"
+            title={displayName}
+          >
+            {displayName}
+          </h3>
+          <p className="mt-1 break-words text-xs font-semibold text-blue-700">Thẻ của: {card.owner || "Tôi"}</p>
         </div>
 
         <dl className="mt-4 grid grid-cols-1 gap-2 text-sm">
-          <div className="flex justify-between gap-3">
-            <dt className="text-gray-500">Phí thường niên</dt>
-            <dd className="text-right font-semibold text-gray-900">{formatAnnualFee(card.annualFee)}</dd>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <dt className="min-w-0 text-gray-500">Phí thường niên</dt>
+            <dd className="max-w-[11rem] text-right font-semibold text-gray-900">{formatAnnualFee(card.annualFee)}</dd>
           </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-gray-500">Ngày sao kê</dt>
-            <dd className="text-right font-semibold text-gray-900">{formatDateDisplay(card.statementDate)}</dd>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <dt className="min-w-0 text-gray-500">Ngày sao kê</dt>
+            <dd className="max-w-[11rem] text-right font-semibold text-gray-900">
+              {formatDateDisplay(card.statementDate)}
+            </dd>
           </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-gray-500">Hạn thanh toán</dt>
-            <dd className="text-right font-semibold text-red-600">{formatDateDisplay(card.paymentDueDate)}</dd>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <dt className="min-w-0 text-gray-500">Hạn thanh toán</dt>
+            <dd className="max-w-[11rem] text-right font-semibold text-red-600">
+              {formatDateDisplay(card.paymentDueDate)}
+            </dd>
           </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-gray-500">Cần thanh toán</dt>
-            <dd className="text-right font-semibold text-gray-900">{formatVnd(card.amountDueThisMonth)}</dd>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <dt className="min-w-0 text-gray-500">Cần thanh toán</dt>
+            <dd className="max-w-[11rem] text-right font-semibold text-gray-900">
+              {formatVnd(card.amountDueThisMonth)}
+            </dd>
           </div>
         </dl>
 
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-4">
+        <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-4">
           <label className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-700">
             <input
               type="checkbox"
@@ -86,7 +97,7 @@ export function CardItem({ card, busy, onEdit, onDelete, onTogglePaid }: CardIte
               disabled={busy}
               onChange={(event) => onTogglePaid(card, event.target.checked)}
             />
-            <span className={card.isPaidThisMonth ? "text-emerald-600 line-through" : ""}>
+            <span className={card.isPaidThisMonth ? "min-w-0 text-emerald-600 line-through" : "min-w-0"}>
               <span aria-hidden="true">{card.isPaidThisMonth ? "✓ " : "! "}</span>
               {card.isPaidThisMonth ? "Đã thanh toán" : "Chưa thanh toán"}
             </span>
