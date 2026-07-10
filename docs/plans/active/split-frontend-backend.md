@@ -51,7 +51,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 0 — Repository audit | DONE |
 | Phase 1 — Repository layout and consistency | DONE |
 | Phase 2 — Backend extraction design | DONE |
-| Phase 3 — Minimal backend runtime | TODO |
+| Phase 3 — Minimal backend runtime | DONE |
 | Phase 4 — Shared boundaries | TODO |
 | Phase 5 — API migration by route group | TODO |
 | Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
@@ -64,7 +64,7 @@ consistent repository layout while the UI and API continue to run together.
 
 ## Current phase
 
-Phase 2 — Backend extraction design.
+Phase 3 — Minimal backend runtime.
 
 ## Acceptance criteria
 
@@ -112,6 +112,14 @@ Phase 2 — Backend extraction design.
   Validation: route inventory count (32), stale-path review, `git diff --check`,
   and full diff review passed. No runtime code changed. Remaining risk: cookie
   forwarding and catalog-write persistence require implementation validation.
+- 2026-07-11: Phase 3 added a real Node 22/TypeScript/Fastify backend package,
+  validated environment configuration, redacted structured logging, standardized
+  errors, `/health`, database-aware `/ready`, asynchronous Mongoose lifecycle,
+  and bounded graceful shutdown. Files: `backend/package*.json`, TypeScript and
+  ESLint config, `backend/src/**`, `backend/tests/**`, README, and ignore rules.
+  `npm run validate` passed typecheck, lint, 3 unit tests, and build. No business
+  API or Dockerfile was added. Remaining risk: a real MongoDB lifecycle test is
+  deferred to the isolated test-database phase.
 
 ## Known issues
 

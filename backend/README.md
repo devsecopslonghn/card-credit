@@ -1,18 +1,16 @@
 # Backend
 
-The standalone backend runtime has not been implemented yet.
+Minimal standalone Fastify runtime for the API extraction. It currently exposes
+only `GET /health` and `GET /ready`; business APIs still run under
+`frontend/app/api/**` until their migration phase.
 
-The current API routes still run inside the Next.js application under:
+```bash
+npm ci
+MONGODB_URI="mongodb://127.0.0.1/card-credit-development" \
+AUTH_SECRET="use-at-least-32-random-characters" \
+npm run dev
+```
 
-`frontend/app/api/`
-
-This directory is reserved for the future backend extraction.
-
-Until the backend runtime is implemented:
-
-- There is no backend package or entrypoint.
-- There is no backend Docker image.
-- Docker Compose runs only the existing Next.js application.
-- API implementations must not be duplicated into this directory.
-- A real Dockerfile will be created together with the package, entrypoint,
-  build/start commands, and health endpoint for the standalone runtime.
+The server listens on port `3001` by default. Readiness becomes healthy after
+MongoDB connects. Do not point development or tests at production data. A
+production Dockerfile is intentionally deferred to Phase 7.
