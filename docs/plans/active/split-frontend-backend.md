@@ -134,9 +134,30 @@ Phase 5 — API migration by route group.
   clearing stale ignored `.next` route metadata. Files: backend catalog/config/
   routes/tests, `frontend/next.config.ts`, removed catalog route adapters, and
   this plan. Remaining Phase 5 groups: authentication, domain, and admin/reset.
+- 2026-07-11: Approved MongoDB as the mutable Card Catalog runtime authority.
+  Added a backend-owned CardProduct model, injected repository boundary,
+  MongoDB and in-memory repositories, public/admin Fastify routes, compatible
+  HMAC admin authorization and response aliases, and removed the filesystem
+  admin writers. Added an explicit baseline importer that is dry-run by default,
+  idempotent, validates before writes, and requires a high-friction production
+  override. Backend validation passed with 8 tests. No MongoDB connection was
+  made; isolated database integration remains deferred. Remaining Phase 5
+  groups: authentication, domain (including moving catalog-backed User Card
+  creation fully behind the repository), and remaining admin/reset routes.
+- 2026-07-11: Reviewed and completed the uncommitted catalog-authority work after
+  resumption. Restored the public response contract (no legacy aliases), added
+  persistent audit events to the existing `authauditlogs` collection without a
+  duplicate model, and brought the importer under lint/typecheck. Backend
+  validation passed (typecheck, lint, 8 tests, build); shared validation passed;
+  frontend catalog validation, typecheck, lint, 99 unit tests, 18 integration
+  tests, and build passed. No MongoDB connection/import was executed.
 
 ## Known issues
 
+- Phase 5 catalog storage blocker is resolved: MongoDB is the mutable runtime
+  authority and `frontend/data/card-presets.json` is a read-only explicit import
+  baseline. A safe isolated MongoDB instance is still required before claiming
+  model/index/import integration validation.
 - `npm ci` reports 3 moderate dependency vulnerabilities; dependency upgrades are
   outside this layout-only phase.
 - Next.js reports that the `middleware` convention is deprecated; changing it is

@@ -16,14 +16,14 @@ services to move incrementally.
 ## Route inventory
 
 Auth values are `public`, `session`, or `admin`. All database routes use
-`MONGODB_URI`; all session routes use `AUTH_SECRET`. Catalog routes also read or
-write the catalog JSON. Group order is Public, Auth, Domain, Admin.
+`MONGODB_URI`; all session routes use `AUTH_SECRET`. Catalog routes use the
+MongoDB Card Product repository. Group order is Public, Auth, Domain, Admin.
 
 | Route | Methods | Auth | Models / dependencies | Next.js coupling | Risk | Group |
 |---|---|---|---|---|---|---|
-| `/api/card-catalog/providers` | GET | public | catalog JSON | `NextResponse` | low | Public |
-| `/api/card-catalog/products` | GET | public | catalog JSON | URL, `NextResponse` | low | Public |
-| `/api/card-catalog/products/:presetId` | GET | public | catalog JSON | params, `NextResponse` | low | Public |
+| `/api/card-catalog/providers` | GET | public | MongoDB CardProduct | none | low | Public |
+| `/api/card-catalog/products` | GET | public | MongoDB CardProduct | none | low | Public |
+| `/api/card-catalog/products/:presetId` | GET | public | MongoDB CardProduct | none | low | Public |
 | `/api/auth/login` | POST | public | User, AuthAuditLog, password/session | cookies, `NextResponse` | high | Auth |
 | `/api/auth/logout` | POST | session | AuthAuditLog, session | cookies, `NextResponse` | high | Auth |
 | `/api/auth/me` | GET | session | session | `NextResponse` | high | Auth |
@@ -50,9 +50,9 @@ write the catalog JSON. Group order is Public, Auth, Domain, Admin.
 | `/api/admin/users` | GET | admin | User | `NextResponse` | high | Admin |
 | `/api/admin/users/:id` | PATCH | admin | User | params, `NextResponse` | high | Admin |
 | `/api/admin/audit-logs` | GET | admin | AuthAuditLog | URL, `NextResponse` | medium | Admin |
-| `/api/admin/card-catalog/products` | GET, POST | admin | catalog JSON, AuthAuditLog | `NextResponse` | high | Admin |
-| `/api/admin/card-catalog/products/:presetId` | PATCH | admin | catalog JSON, AuthAuditLog | params, `NextResponse` | high | Admin |
-| `/api/admin/card-catalog/providers/:providerCode` | PATCH | admin | catalog JSON, AuthAuditLog | params, `NextResponse` | high | Admin |
+| `/api/admin/card-catalog/products` | GET, POST | admin | MongoDB CardProduct | none | high | Admin |
+| `/api/admin/card-catalog/products/:presetId` | PATCH | admin | MongoDB CardProduct | none | high | Admin |
+| `/api/admin/card-catalog/providers/:providerCode` | PATCH | admin | MongoDB CardProduct | none | high | Admin |
 
 ## Dependency and boundary map
 
@@ -125,9 +125,9 @@ of image tags.
 
 - Cookie behavior through rewrites is high risk: validate Set-Cookie and logout
   end-to-end before removing Next.js auth routes.
-- Filesystem catalog writes require a single writable authority; initially the
-  backend image owns catalog data, with persistent storage addressed before
-  production admin writes.
+- MongoDB is the single mutable Card Catalog authority. Repository JSON is a
+  read-only baseline and is imported only through an explicit operator command.
 - Middleware currently checks only cookie presence; backend authorization remains
   authoritative and middleware becomes UI convenience only.
-- No database schema migration is required for runtime extraction.
+- Initial catalog population is an explicit, guarded, idempotent baseline import;
+  startup never performs an implicit migration.

@@ -20,7 +20,7 @@ Card Credit la ung dung Next.js de quan ly the tin dung ca nhan: danh sach the, 
 - `frontend/lib/services/`: domain service tao/cap nhat User Card.
 - `frontend/lib/cards/`: serializer, UI helpers va accessibility helpers.
 - `frontend/lib/auth/`: session cookie HMAC va role helpers.
-- `frontend/lib/catalog/`: store cho admin catalog JSON.
+- `backend/src/mongo-catalog-repository.ts`: durable runtime store cho Card Catalog.
 - `frontend/models/`: Mongoose models.
 - `frontend/data/`: Card Catalog JSON va image manifest.
 - `frontend/scripts/`: validate catalog, migrate, seed, cache images va smoke test.
@@ -133,9 +133,10 @@ GET  /api/auth/me
 
 ## Card Catalog
 
-Nguon catalog hien tai:
+Nguon catalog:
 
-- `frontend/data/card-presets.json`
+- MongoDB collection `cardproducts` la runtime source of truth cho public/admin API.
+- `frontend/data/card-presets.json` la baseline read-only de validate, bootstrap/import explicit va recovery.
 - `frontend/data/card-image-manifest.json`
 - `frontend/lib/cardCatalogCore.mjs`
 
@@ -198,7 +199,7 @@ PATCH /api/admin/card-catalog/products/:presetId
 PATCH /api/admin/card-catalog/providers/:providerCode
 ```
 
-Admin catalog update validate toan bo `frontend/data/card-presets.json` truoc khi ghi va response co audit:
+Admin catalog update validate catalog MongoDB va response co audit:
 
 ```json
 {
@@ -206,7 +207,7 @@ Admin catalog update validate toan bo `frontend/data/card-presets.json` truoc kh
     "updatedBy": "admin@example.test",
     "updatedByUserId": "admin-1",
     "updatedAt": "2026-07-05T00:00:00.000Z",
-    "storage": "frontend/data/card-presets.json"
+    "storage": "mongodb:cardproducts"
   }
 }
 ```
@@ -299,14 +300,14 @@ Khong chay seed vao production DB neu chua duoc phe duyet ro rang.
 
 ## Them Card Product
 
-1. Them entry vao `frontend/data/card-presets.json` bang canonical fields.
-2. Dong bo legacy aliases trong thoi gian UI con can compatibility.
-3. Dung `annualFee: null` neu chua xac minh duoc phi.
-4. Dung `active: false` cho san pham ngung mo moi.
-5. Ghi `sourceUrl` va `sourceCheckedAt`.
-6. Chay `cd frontend && npm run validate:catalog` va `cd frontend && npm test`.
+1. Cap nhat baseline `frontend/data/card-presets.json` bang canonical fields neu thay doi can duoc version-control.
+2. Dong bo legacy aliases trong baseline de validation/backward compatibility.
+3. Chay `cd frontend && npm run validate:catalog`.
+4. Dry-run `cd backend && MONGODB_URI="non-production URI" npm run import:catalog`.
+5. Sau khi review va backup, them `-- --apply`; production can explicit
+   `ALLOW_PRODUCTION_CATALOG_IMPORT=true`.
 
-Co the dung admin API neu dang chay server voi admin session; API se validate truoc khi ghi JSON.
+Admin API ghi MongoDB sau khi validate va khong bao gio ghi vao repository JSON.
 
 ## Validate Catalog
 

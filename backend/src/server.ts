@@ -1,11 +1,12 @@
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { DatabaseLifecycle } from "./database.js";
-import { CatalogRepository } from "./catalog.js";
+import { MongoCatalogRepository } from "./mongo-catalog-repository.js";
+import { writeCatalogAudit } from "./catalog-audit.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
-const app = buildApp(database, config.logLevel, new CatalogRepository(config.catalogDataDir));
+const app = buildApp(database, config.logLevel, new MongoCatalogRepository(), config.authSecret, writeCatalogAudit);
 let stopping = false;
 
 const shutdown = async (signal: string) => {

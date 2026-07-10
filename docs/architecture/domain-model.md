@@ -15,7 +15,7 @@ Target catalog field names:
 - `providerCode`
 - `providerName`
 
-Current canonical source fields:
+Baseline canonical fields:
 
 - `frontend/data/card-presets.json` field `providerCode`.
 - `frontend/data/card-presets.json` field `providerName`.
@@ -100,7 +100,9 @@ The centralized Card Product definitions.
 
 Current implementation:
 
-- `frontend/data/card-presets.json`
+- MongoDB `cardproducts` collection is the mutable runtime source of truth.
+- `frontend/data/card-presets.json` is a version-controlled, read-only baseline
+  used by validation, explicit import, development bootstrap, and recovery.
 - `frontend/lib/cardPresets.ts`
 - `frontend/lib/cardCatalogCore.mjs`
 
@@ -211,6 +213,6 @@ This batch does not:
 
 - Rename database fields.
 - Remove legacy API compatibility.
-- Add catalog database collections.
+- Automatically synchronize catalog snapshots into existing User Cards.
 - Migrate existing cards.
 - Complete full accessibility audit/focus trap work.

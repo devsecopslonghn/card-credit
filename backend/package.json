@@ -8,9 +8,10 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src tests",
+    "lint": "eslint src tests scripts",
     "test": "node --import tsx --test tests/*.test.ts",
-    "validate": "npm run typecheck && npm run lint && npm test && npm run build"
+    "validate": "npm run typecheck && npm run lint && npm test && npm run build",
+    "import:catalog": "tsx scripts/import-card-catalog.ts"
   },
   "dependencies": {
     "@card-credit/contracts": "file:../shared",

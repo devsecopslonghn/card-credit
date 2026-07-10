@@ -4,6 +4,10 @@ Last reviewed: 2026-07-05
 
 This document is the source of truth for how Card Product catalog data relates to existing User Cards.
 
+Mutable Card Product records are stored in MongoDB. The version-controlled JSON
+catalog is only an explicit baseline import/recovery source. This storage change
+does not change any User Card snapshot rule below.
+
 ## Core Rule
 
 A User Card stores a catalog snapshot at creation time. Later catalog edits must not silently rewrite existing User Card data.
