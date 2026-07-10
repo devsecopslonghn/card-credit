@@ -159,12 +159,12 @@ export function TransactionFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
       <div role="dialog" aria-modal="true" aria-labelledby="transaction-form-title" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+        <div className="flex items-start justify-between border-b cc-border px-5 py-4">
           <div>
             <h3 id="transaction-form-title" className="text-lg font-bold text-gray-900">
               {transaction ? "Sửa giao dịch" : "Thêm giao dịch"}
             </h3>
-            <p className="text-sm text-gray-500">{formatDateDisplay(transactionDate)}</p>
+            <p className="text-sm font-medium cc-text-muted">{formatDateDisplay(transactionDate)}</p>
           </div>
           <button type="button" onClick={onClose} disabled={submitting} aria-label="Đóng form giao dịch" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
             x
@@ -174,16 +174,16 @@ export function TransactionFormModal({
         <form onSubmit={submit} className="space-y-4 p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="transaction-date" className="mb-1 block text-sm font-semibold text-gray-900">
+              <label htmlFor="transaction-date" className="mb-1 block text-sm font-semibold cc-text-primary">
                 Ngày giao dịch
               </label>
-              <input id="transaction-date" type="date" value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="transaction-date" type="date" value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} className="cc-control w-full rounded-lg px-3 py-2.5 text-sm" />
             </div>
             <div>
-              <label htmlFor="transaction-card" className="mb-1 block text-sm font-semibold text-gray-900">
+              <label htmlFor="transaction-card" className="mb-1 block text-sm font-semibold cc-text-primary">
                 Thẻ sử dụng
               </label>
-              <select id="transaction-card" value={userCardId} onChange={(event) => setUserCardId(event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+              <select id="transaction-card" value={userCardId} onChange={(event) => setUserCardId(event.target.value)} className="cc-control w-full rounded-lg px-3 py-2.5 text-sm">
                 {cards.map((card) => (
                   <option key={card._id} value={card._id}>
                     {getProviderName(card)} · {getDisplayName(card)} · {card.owner || "Tôi"}
@@ -197,19 +197,19 @@ export function TransactionFormModal({
             <PercentField id="cashback-rate" label="Tỷ lệ cashback" value={cashbackRate} onChange={setCashbackRate} />
           </div>
 
-          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+          <label className="flex items-center gap-2 text-sm font-semibold cc-text-muted">
             <input type="checkbox" checked={eligibleForAnnualFeeWaiver} onChange={(event) => setEligibleForAnnualFeeWaiver(event.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
             Tính vào doanh số miễn phí thường niên
           </label>
 
           <div>
-            <label htmlFor="transaction-note" className="mb-1 block text-sm font-semibold text-gray-900">
+            <label htmlFor="transaction-note" className="mb-1 block text-sm font-semibold cc-text-primary">
               Ghi chú
             </label>
-            <textarea id="transaction-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+            <textarea id="transaction-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} className="cc-control w-full rounded-lg p-3 text-sm" />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm sm:grid-cols-2">
+          <div className="cc-panel grid grid-cols-1 gap-3 rounded-lg p-4 text-sm sm:grid-cols-2">
             <Preview label="Phí dịch vụ" value={formatVnd(serviceFee)} />
             <Preview label="Cashback theo tỷ lệ" value={formatVnd(expectedCashback)} />
             <Preview label={capLabel} value={cashbackRemaining === null ? "Không giới hạn" : formatVnd(cashbackRemaining)} />
@@ -223,8 +223,8 @@ export function TransactionFormModal({
 
           {(localError || error) && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{localError || error}</p>}
 
-          <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
-            <button type="button" onClick={onClose} disabled={submitting} className="rounded-lg px-5 py-2.5 font-medium text-gray-800 hover:bg-gray-100">
+          <div className="flex justify-end gap-3 border-t cc-border pt-4">
+            <button type="button" onClick={onClose} disabled={submitting} className="rounded-lg px-5 py-2.5 font-semibold cc-text-primary hover:bg-surface-elevated">
               Hủy
             </button>
             <button type="submit" disabled={submitting || cards.length === 0} className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white disabled:opacity-60">
@@ -240,10 +240,10 @@ export function TransactionFormModal({
 function MoneyField({ id, label, value, onChange }: { id: string; label: string; value: number | ""; onChange: (value: number | "") => void }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-semibold text-gray-900">
+      <label htmlFor={id} className="mb-1 block text-sm font-semibold cc-text-primary">
         {label}
       </label>
-      <input id={id} type="number" min="0" value={formatNumberInput(value)} onChange={(event) => onChange(event.target.value === "" ? "" : Number(event.target.value))} className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-right text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+      <input id={id} type="number" min="0" value={formatNumberInput(value)} onChange={(event) => onChange(event.target.value === "" ? "" : Number(event.target.value))} className="cc-control w-full rounded-lg px-3 py-2.5 text-right text-sm" />
     </div>
   );
 }
@@ -251,10 +251,10 @@ function MoneyField({ id, label, value, onChange }: { id: string; label: string;
 function PercentField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-semibold text-gray-900">
+      <label htmlFor={id} className="mb-1 block text-sm font-semibold cc-text-primary">
         {label}
       </label>
-      <input id={id} type="number" min="0" max="100" step="0.01" value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-right text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+      <input id={id} type="number" min="0" max="100" step="0.01" value={value} onChange={(event) => onChange(event.target.value)} className="cc-control w-full rounded-lg px-3 py-2.5 text-right text-sm" />
     </div>
   );
 }
@@ -262,8 +262,8 @@ function PercentField({ id, label, value, onChange }: { id: string; label: strin
 function Preview({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-medium text-gray-500">{label}</p>
-      <p className="font-bold text-gray-900">{value}</p>
+      <p className="text-xs font-semibold cc-text-muted">{label}</p>
+      <p className="font-bold cc-text-primary">{value}</p>
     </div>
   );
 }

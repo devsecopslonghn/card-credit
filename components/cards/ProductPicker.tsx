@@ -54,12 +54,12 @@ export function ProductPicker({
       </div>
 
       {!providerSelected && (
-        <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500" role="status">
+        <p className="cc-panel rounded-lg p-3 text-sm font-medium cc-text-muted" role="status">
           Chọn provider trước để xem sản phẩm thẻ.
         </p>
       )}
       {providerSelected && loading && (
-        <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500" role="status">
+        <p className="cc-panel rounded-lg p-3 text-sm font-medium cc-text-muted" role="status">
           Đang tải sản phẩm...
         </p>
       )}
@@ -69,7 +69,7 @@ export function ProductPicker({
         </p>
       )}
       {providerSelected && !loading && !error && products.length === 0 && (
-        <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500" role="status">
+        <p className="cc-panel rounded-lg p-3 text-sm font-medium cc-text-muted" role="status">
           Provider này chưa có sản phẩm active.
         </p>
       )}
@@ -103,7 +103,7 @@ export function ProductPicker({
                 />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-gray-900">{product.displayName}</span>
-                  <span className="block truncate text-xs text-gray-500">
+                  <span className="block truncate text-xs font-semibold cc-text-muted">
                     {product.providerName} · {product.network}
                   </span>
                   <span className="block text-xs font-semibold text-gray-700">Phí thường niên: {annualFee}</span>

@@ -91,11 +91,8 @@ export default function CardsPage() {
   const filteredCards = useMemo(() => filterCardsByOwner(cards, selectedOwner), [cards, selectedOwner]);
   const providerGroups = useMemo(() => groupCardsByProvider(filteredCards), [filteredCards]);
   const filteredCardIds = useMemo(() => new Set(filteredCards.map((card) => card._id)), [filteredCards]);
-  const upcomingStatements = useMemo(
-    () =>
-      statements
-        .filter((statement) => filteredCardIds.has(statement.userCardId) && statement.effectivePaymentStatus !== "PAID")
-        .sort((left, right) => left.paymentDueDate.localeCompare(right.paymentDueDate)),
+  const dashboardStatements = useMemo(
+    () => statements.filter((statement) => filteredCardIds.has(statement.userCardId)),
     [filteredCardIds, statements],
   );
 
@@ -153,7 +150,7 @@ export default function CardsPage() {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gray-50 px-4 py-10 md:px-8">
+    <div className="cc-page min-h-screen overflow-x-hidden px-4 py-10 md:px-8">
       {toast && (
         <div
           role={toast.type === "success" ? "status" : "alert"}
@@ -168,23 +165,23 @@ export default function CardsPage() {
       )}
 
       <div className="mx-auto max-w-6xl">
-        <header className="mb-8 flex flex-col items-start justify-between gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:flex-row md:items-center">
+        <header className="cc-section mb-8 flex flex-col items-start justify-between gap-4 rounded-xl p-5 md:flex-row md:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Thẻ Tín Dụng</h1>
-            <p className="mt-1 text-gray-500">
+            <h1 className="text-3xl font-bold cc-text-primary">Thẻ Tín Dụng</h1>
+            <p className="mt-1 font-medium cc-text-muted">
               Số lượng thẻ hiển thị: {filteredCards.length} / {cards.length}
             </p>
           </div>
           <div className="flex w-full flex-wrap items-center gap-3 md:w-auto">
             <div className="flex w-full items-center gap-2 sm:w-auto">
-              <label htmlFor="owner-filter" className="whitespace-nowrap text-sm font-semibold text-gray-700">
+              <label htmlFor="owner-filter" className="whitespace-nowrap text-sm font-semibold cc-text-muted">
                 Thẻ của:
               </label>
               <select
                 id="owner-filter"
                 value={selectedOwner}
                 onChange={(event) => setSelectedOwner(event.target.value)}
-                className="min-w-40 rounded-xl border border-gray-300 bg-gray-50 p-2.5 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+                className="cc-control min-w-40 rounded-lg p-2.5 text-sm font-semibold"
               >
                 <option value="">Tất cả thành viên</option>
                 {ownerOptions.map((owner) => (
@@ -198,7 +195,7 @@ export default function CardsPage() {
               href="/api/reports/summary"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex w-full justify-center rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 sm:w-auto"
+              className="cc-control flex w-full justify-center rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-surface-elevated sm:w-auto"
             >
               Xuất JSON
             </a>
@@ -206,7 +203,7 @@ export default function CardsPage() {
               ref={addButtonRef}
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="flex w-full justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm outline-none hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 sm:w-auto"
+              className="flex w-full justify-center rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm outline-none hover:bg-blue-800 focus:ring-2 focus:ring-focus-ring sm:w-auto"
             >
               Thêm thẻ mới
             </button>
@@ -219,7 +216,7 @@ export default function CardsPage() {
           onAdd={(date) => openTransactionForm(date)}
           onEdit={(transaction) => openTransactionForm(transaction.transactionDate, transaction)}
         />
-        <UpcomingPayments statements={upcomingStatements} cards={cards} selectedOwner={selectedOwner} />
+        <UpcomingPayments statements={dashboardStatements} cards={cards} selectedOwner={selectedOwner} />
         <DuplicateResolver
           refreshKey={duplicateRefreshKey}
           onMerged={refreshCardsAndDuplicates}
@@ -270,7 +267,7 @@ export default function CardsPage() {
               <h3 id="delete-card-title" className="mb-2 text-xl font-bold text-gray-900">
                 Xác nhận xóa thẻ?
               </h3>
-              <p className="mb-6 text-sm text-gray-500">
+              <p className="mb-6 text-sm font-medium cc-text-muted">
                 Bạn có chắc chắn muốn xóa thẻ <strong>{getDisplayName(cardToDelete)}</strong> không?
               </p>
               <div className="flex gap-3">

@@ -183,14 +183,14 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
         aria-labelledby="add-card-title"
         aria-describedby="add-card-description"
         tabIndex={-1}
-        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-surface shadow-2xl"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b cc-border bg-surface px-5 py-4">
           <div>
-            <h2 id="add-card-title" className="text-lg font-bold text-gray-900">
+            <h2 id="add-card-title" className="text-lg font-bold cc-text-primary">
               Thêm thẻ từ Card Catalog
             </h2>
-            <p id="add-card-description" className="text-sm text-gray-500">
+            <p id="add-card-description" className="text-sm font-medium cc-text-muted">
               Chọn provider, chọn Card Product, xem phí thường niên rồi nhập chủ thẻ.
             </p>
           </div>
@@ -200,7 +200,7 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
             onClick={handleClose}
             disabled={isSubmitting}
             aria-label="Đóng modal thêm thẻ"
-            className="rounded-lg p-2 text-gray-500 outline-none hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="rounded-lg p-2 cc-text-muted outline-none hover:bg-surface-elevated focus:ring-2 focus:ring-focus-ring disabled:opacity-50"
           >
             x
           </button>
@@ -230,8 +230,8 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
           />
 
           {selectedProduct && (
-            <section aria-labelledby="product-preview-title" className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <h3 id="product-preview-title" className="mb-3 text-sm font-bold text-gray-900">
+            <section aria-labelledby="product-preview-title" className="cc-panel rounded-lg p-4">
+              <h3 id="product-preview-title" className="mb-3 text-sm font-bold cc-text-primary">
                 3. Xem trước thông tin sản phẩm
               </h3>
               <div className="flex flex-col gap-4 sm:flex-row">
@@ -244,10 +244,10 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
                   }}
                 />
                 <div className="min-w-0 space-y-1 text-sm">
-                  <p className="font-semibold text-gray-600">{selectedProvider?.providerName ?? selectedProduct.providerName}</p>
-                  <p className="break-words text-lg font-bold text-gray-900">{selectedProduct.displayName}</p>
-                  <p className="text-gray-600">Network: {selectedProduct.network}</p>
-                  <p className="font-semibold text-gray-900">Phí thường niên: {formatAnnualFee(selectedProduct.annualFee)}</p>
+                  <p className="font-semibold cc-text-muted">{selectedProvider?.providerName ?? selectedProduct.providerName}</p>
+                  <p className="break-words text-lg font-bold cc-text-primary">{selectedProduct.displayName}</p>
+                  <p className="font-medium cc-text-muted">Network: {selectedProduct.network}</p>
+                  <p className="font-bold cc-text-primary">Phí thường niên: {formatAnnualFee(selectedProduct.annualFee)}</p>
                 </div>
               </div>
             </section>
@@ -276,12 +276,12 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
             </p>
           )}
 
-          <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-3 border-t cc-border pt-4 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="rounded-lg px-5 py-2.5 font-medium text-gray-800 outline-none hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              className="rounded-lg px-5 py-2.5 font-semibold cc-text-primary outline-none hover:bg-surface-elevated focus:ring-2 focus:ring-focus-ring disabled:opacity-50"
             >
               Hủy
             </button>

@@ -1,21 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f4f6;
+  --foreground: #111827;
+  --foreground-muted: #374151;
+  --foreground-subtle: #4b5563;
+  --surface: #ffffff;
+  --surface-elevated: #f9fafb;
+  --surface-accent: #fff7ed;
+  --border: #d1d5db;
+  --border-strong: #9ca3af;
+  --danger: #b91c1c;
+  --danger-strong: #991b1b;
+  --danger-foreground: #ffffff;
+  --warning: #92400e;
+  --warning-background: #fffbeb;
+  --success: #047857;
+  --badge-background: #dbeafe;
+  --badge-foreground: #1e3a8a;
+  --focus-ring: #2563eb;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-accent: var(--surface-accent);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-warning: var(--warning);
+  --color-warning-background: var(--warning-background);
+  --color-success: var(--success);
+  --color-badge-background: var(--badge-background);
+  --color-badge-foreground: var(--badge-foreground);
+  --color-focus-ring: var(--focus-ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f3f4f6;
+    --foreground: #111827;
   }
 }
 
@@ -23,4 +55,73 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+input,
+select,
+textarea {
+  color: var(--foreground);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--foreground-subtle);
+  opacity: 1;
+}
+
+.cc-page {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.cc-section {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(17 24 39 / 0.08);
+}
+
+.cc-panel {
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+}
+
+.cc-text-primary {
+  color: var(--foreground);
+}
+
+.cc-text-muted {
+  color: var(--foreground-muted);
+}
+
+.cc-text-subtle {
+  color: var(--foreground-subtle);
+}
+
+.cc-border {
+  border-color: var(--border);
+}
+
+.cc-control {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.cc-control:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.cc-badge {
+  border: 1px solid color-mix(in srgb, var(--badge-foreground) 18%, transparent);
+  background: var(--badge-background);
+  color: var(--badge-foreground);
+}
+
+.cc-danger {
+  color: var(--danger);
+}
+
+.cc-tabular {
+  font-variant-numeric: tabular-nums;
 }
