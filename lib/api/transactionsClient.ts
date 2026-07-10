@@ -38,13 +38,27 @@ export type StatementSummary = {
   totalOutcome: number;
   totalIncome: number;
   totalServiceFee: number;
+  cashbackByRate: number;
   expectedCashback: number;
+  eligibleCashback: number;
   actualCashback: number;
+  exceededCashback: number;
+  remainingCashback: number | null;
   expectedNetProfit: number;
   actualNetProfit: number;
   annualEligibleSpend: number;
   transactionCount: number;
   totalAmountDue: number;
+  cashbackCap: {
+    capAmount: number | null;
+    unlimited: boolean;
+    cashbackByRate: number;
+    eligibleCashback: number;
+    actualCashback: number;
+    exceededCashback: number;
+    remainingCashback: number | null;
+    capUsedPercent: number | null;
+  };
 };
 
 export type CardStatementView = {
@@ -61,6 +75,8 @@ export type CardStatementView = {
   paidAt: string | null;
   paidAmount: number | null;
   summary: StatementSummary;
+  cashbackCapAmount?: number | null;
+  cashbackCapPeriod?: "STATEMENT" | "CALENDAR_MONTH";
   transactions?: CardTransactionView[];
 };
 

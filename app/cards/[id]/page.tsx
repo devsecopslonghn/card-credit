@@ -53,6 +53,8 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
     statementDay: 1,
     paymentDueDays: 15,
     annualFeeWaiverTarget: 0,
+    cashbackCapAmount: null as number | null,
+    cashbackCapPeriod: "STATEMENT" as "STATEMENT" | "CALENDAR_MONTH",
     active: true,
   });
 
@@ -74,6 +76,8 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
         statementDay: loadedCard.statementDay ?? 1,
         paymentDueDays: loadedCard.paymentDueDays ?? 15,
         annualFeeWaiverTarget: loadedCard.annualFeeWaiverTarget ?? loadedCard.targetSpendForWaiver ?? 0,
+        cashbackCapAmount: loadedCard.cashbackCapAmount ?? null,
+        cashbackCapPeriod: loadedCard.cashbackCapPeriod ?? "STATEMENT",
         active: loadedCard.active !== false,
       });
       setStatements(loadedStatements);
@@ -205,6 +209,10 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
       showToast("Số ngày đến hạn thanh toán phải lớn hơn 0.", "error");
       return;
     }
+    if (configForm.cashbackCapAmount !== null && configForm.cashbackCapAmount < 0) {
+      showToast("Cashback Cap phải lớn hơn hoặc bằng 0, hoặc để trống nếu không giới hạn.", "error");
+      return;
+    }
     setBusy(true);
     try {
       const updated = await updateCardOperational(resolvedParams.id, configForm);
@@ -264,16 +272,25 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
               <StatBox label="Hạn thanh toán" value={`+${card.paymentDueDays ?? 15} ngày`} />
               <StatBox label="Trạng thái thẻ" value={card.active === false ? "Ngưng dùng" : "Đang dùng"} />
               <StatBox label="Doanh số miễn PTN" value={formatVnd(card.annualFeeWaiverTarget ?? card.targetSpendForWaiver ?? 0)} />
+              <StatBox label="Cashback Cap" value={card.cashbackCapAmount == null ? "Không giới hạn" : formatVnd(card.cashbackCapAmount)} />
             </div>
           </div>
         </section>
 
         <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" aria-labelledby="card-config-title">
           <h2 id="card-config-title" className="mb-4 text-xl font-bold text-gray-900">Cấu hình thẻ</h2>
-          <form onSubmit={handleSaveConfig} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <form onSubmit={handleSaveConfig} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
             <NumberField label="Ngày chốt sao kê" value={configForm.statementDay} min={1} max={31} onChange={(value) => setConfigForm((current) => ({ ...current, statementDay: value }))} />
             <NumberField label="Số ngày đến hạn" value={configForm.paymentDueDays} min={1} onChange={(value) => setConfigForm((current) => ({ ...current, paymentDueDays: value }))} />
             <NumberField label="Mục tiêu miễn PTN" value={configForm.annualFeeWaiverTarget} min={0} onChange={(value) => setConfigForm((current) => ({ ...current, annualFeeWaiverTarget: value }))} />
+            <NullableNumberField label="Cashback Cap" value={configForm.cashbackCapAmount} onChange={(value) => setConfigForm((current) => ({ ...current, cashbackCapAmount: value }))} />
+            <label className="block text-sm font-semibold text-gray-700">
+              <span className="mb-1 block">Chu kỳ Cashback Cap</span>
+              <select value={configForm.cashbackCapPeriod} onChange={(event) => setConfigForm((current) => ({ ...current, cashbackCapPeriod: event.target.value as "STATEMENT" | "CALENDAR_MONTH" }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="STATEMENT">Kỳ sao kê</option>
+                <option value="CALENDAR_MONTH" disabled>Tháng dương lịch</option>
+              </select>
+            </label>
             <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700">
               <input type="checkbox" checked={configForm.active} onChange={(event) => setConfigForm((current) => ({ ...current, active: event.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
               Đang sử dụng
@@ -310,8 +327,13 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
                 <StatBox label="Tổng phải trả ngân hàng" value={formatVnd(summary.totalAmountDue)} color="text-red-600" />
                 <StatBox label="Tổng đối tác hoàn" value={formatVnd(summary.totalIncome)} color="text-emerald-600" />
                 <StatBox label="Phí dịch vụ" value={formatVnd(summary.totalServiceFee)} color="text-orange-600" />
-                <StatBox label="Cashback dự kiến" value={formatVnd(summary.expectedCashback)} color="text-emerald-600" />
+                <StatBox label="Cashback Cap" value={summary.cashbackCap.unlimited ? "Không giới hạn" : formatVnd(summary.cashbackCap.capAmount)} />
+                <StatBox label="Cashback theo tỷ lệ" value={formatVnd(summary.cashbackByRate)} color="text-emerald-600" />
+                <StatBox label="Cashback được hưởng/đã dùng" value={formatVnd(summary.eligibleCashback)} color="text-emerald-600" />
                 <StatBox label="Cashback thực nhận" value={formatVnd(summary.actualCashback)} color="text-emerald-600" />
+                <StatBox label="Cashback vượt giới hạn" value={formatVnd(summary.exceededCashback)} color="text-red-600" />
+                <StatBox label="Cashback còn lại" value={summary.remainingCashback === null ? "Không giới hạn" : formatVnd(summary.remainingCashback)} />
+                <StatBox label="% đã dùng Cashback Cap" value={summary.cashbackCap.capUsedPercent === null ? "Không giới hạn" : `${summary.cashbackCap.capUsedPercent}%`} />
                 <StatBox label="Lợi nhuận dự kiến" value={formatVnd(summary.expectedNetProfit)} color={summary.expectedNetProfit >= 0 ? "text-emerald-600" : "text-red-600"} />
                 <StatBox label="Lợi nhuận thực nhận" value={formatVnd(summary.actualNetProfit)} color={summary.actualNetProfit >= 0 ? "text-emerald-600" : "text-red-600"} />
                 <StatBox label="Doanh số miễn PTN" value={formatVnd(summary.annualEligibleSpend)} />
@@ -344,7 +366,7 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
                       <th className="p-3">Giao dịch</th>
                       <th className="p-3 text-right">Outcome</th>
                       <th className="p-3 text-right">Income</th>
-                      <th className="p-3 text-right">Cashback</th>
+                      <th className="p-3 text-right">Cashback theo tỷ lệ</th>
                       <th className="p-3 text-right">Lợi nhuận</th>
                       <th className="p-3">Trạng thái</th>
                       <th className="p-3 text-right">Thao tác</th>
@@ -430,6 +452,30 @@ function NumberField({
         max={max}
         value={value}
         onChange={(event) => onChange(Number(event.target.value) || min)}
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </label>
+  );
+}
+
+function NullableNumberField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <label className="block text-sm font-semibold text-gray-700">
+      <span className="mb-1 block">{label}</span>
+      <input
+        type="number"
+        min={0}
+        value={value ?? ""}
+        placeholder="Không giới hạn"
+        onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value) || 0)}
         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right outline-none focus:ring-2 focus:ring-blue-500"
       />
     </label>

@@ -52,6 +52,8 @@ export type CreditCardView = {
   annualFeeWaiverTarget?: number | null;
   statementDay?: number;
   paymentDueDays?: number;
+  cashbackCapAmount?: number | null;
+  cashbackCapPeriod?: "STATEMENT" | "CALENDAR_MONTH";
   active?: boolean;
   statementDate?: string;
   paymentDueDate?: string;

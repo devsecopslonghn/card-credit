@@ -72,11 +72,19 @@ export function TransactionFormModal({
   const cashbackRateBps = toBps(cashbackRate);
   const expectedCashback = Math.round((numericOutcome * cashbackRateBps) / 10000);
   const serviceFee = numericOutcome - numericIncome;
-  const expectedNetProfit = expectedCashback - serviceFee;
   const matchingStatement = useMemo(
     () => findMatchingStatement(statements, userCardId, transactionDate),
     [statements, transactionDate, userCardId],
   );
+  const selectedCard = cards.find((card) => card._id === userCardId);
+  const capAmount = selectedCard?.cashbackCapAmount ?? null;
+  const capPeriod = selectedCard?.cashbackCapPeriod ?? "STATEMENT";
+  const statementRemaining = matchingStatement?.summary.cashbackCap.remainingCashback;
+  const cashbackRemaining = capAmount === null ? null : statementRemaining ?? capAmount;
+  const eligibleCashback = cashbackRemaining === null ? expectedCashback : Math.min(expectedCashback, cashbackRemaining);
+  const exceededCashback = Math.max(expectedCashback - eligibleCashback, 0);
+  const expectedNetProfit = eligibleCashback - serviceFee;
+  const capLabel = capPeriod === "CALENDAR_MONTH" ? "Cashback còn lại tháng" : "Cashback còn lại kỳ";
 
   if (!open) return null;
 
@@ -203,7 +211,10 @@ export function TransactionFormModal({
 
           <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm sm:grid-cols-2">
             <Preview label="Phí dịch vụ" value={formatVnd(serviceFee)} />
-            <Preview label="Cashback dự kiến" value={formatVnd(expectedCashback)} />
+            <Preview label="Cashback theo tỷ lệ" value={formatVnd(expectedCashback)} />
+            <Preview label={capLabel} value={cashbackRemaining === null ? "Không giới hạn" : formatVnd(cashbackRemaining)} />
+            <Preview label="Cashback được hưởng" value={formatVnd(eligibleCashback)} />
+            <Preview label="Cashback vượt giới hạn" value={formatVnd(exceededCashback)} />
             <Preview label="Lợi nhuận dự kiến" value={formatVnd(expectedNetProfit)} />
             <Preview label="Tỷ lệ hoàn" value={formatRateBps(partnerReturnRateBps)} />
             <Preview label="Kỳ sao kê" value={matchingStatement ? formatDateDisplay(matchingStatement.statementDate) : "Sẽ tạo kỳ mới"} />

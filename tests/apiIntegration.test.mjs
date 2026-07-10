@@ -351,7 +351,14 @@ test("Card detail route updates card configuration fields, blocks product identi
     await detail.PUT(
       jsonRequest(
         `https://test.local/api/cards/${ids.catalog}`,
-        { owner: " Updated  Owner ", statementDay: 10, paymentDueDays: 20, annualFeeWaiverTarget: 250000 },
+        {
+          owner: " Updated  Owner ",
+          statementDay: 10,
+          paymentDueDays: 20,
+          annualFeeWaiverTarget: 250000,
+          cashbackCapAmount: 500000,
+          cashbackCapPeriod: "STATEMENT",
+        },
         "PUT",
       ),
       { params: Promise.resolve({ id: ids.catalog }) },
@@ -362,6 +369,8 @@ test("Card detail route updates card configuration fields, blocks product identi
   assert.equal(update.body.statementDay, 10);
   assert.equal(update.body.paymentDueDays, 20);
   assert.equal(update.body.annualFeeWaiverTarget, 250000);
+  assert.equal(update.body.cashbackCapAmount, 500000);
+  assert.equal(update.body.cashbackCapPeriod, "STATEMENT");
   assert.equal(update.body.providerName, "Sacombank");
 
   const blocked = await readJson(

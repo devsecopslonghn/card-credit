@@ -13,7 +13,14 @@ Operational configuration now lives on the User Card:
 - `statementDay`: fixed monthly statement day, from 1 to 31.
 - `paymentDueDays`: number of days from statement date to payment due date.
 - `annualFeeWaiverTarget`: target eligible spend for annual-fee waiver.
+- `cashbackCapAmount`: maximum eligible cashback for the configured cap period. `null` means unlimited.
+- `cashbackCapPeriod`: enum for the cap period.
 - `active`: soft active/inactive state.
+
+Current cashback cap periods:
+
+- `STATEMENT`: implemented.
+- `CALENDAR_MONTH`: reserved for future implementation.
 
 The previous manually entered totals remain in the database for compatibility but are no longer part of the normal UI update flow:
 
@@ -109,14 +116,53 @@ Reopen action:
 
 ```text
 serviceFee = outcomeAmount - incomeAmount
-expectedCashbackAmount = outcomeAmount * cashbackRateBps
-expectedNetProfit = expectedCashbackAmount - serviceFee
+cashbackByRate = outcomeAmount * cashbackRateBps
+eligibleCashback = min(cashbackByRate, remaining cashback cap)
+exceededCashback = max(cashbackByRate - eligibleCashback, 0)
+expectedNetProfit = eligibleCashback - serviceFee
 totalAmountDue = SUM(outcomeAmount)
 annualEligibleSpend = SUM(outcomeAmount where eligibleForAnnualFeeWaiver = true)
 ```
+
+Cashback cap is always calculated from eligible cashback, not actual cashback.
+
+Example:
+
+```text
+cashbackByRate = 600000
+cashbackCapAmount = 500000
+actualCashback = 480000
+
+eligibleCashback = 500000
+exceededCashback = 100000
+remainingCashback = 0
+```
+
+Actual cashback does not roll back or release cashback cap. It is used only for actual profit reporting.
 
 Cashback status is tracked per transaction:
 
 - `PENDING`
 - `RECEIVED`
 - `REJECTED`
+
+## Cashback Cap Strategy
+
+Cashback cap logic is isolated in `lib/cards/cashbackCapCore.mjs`.
+
+The current public helper is:
+
+```ts
+calculateEligibleCashback(transactions, cashbackCap, cashbackCapPeriod, context)
+```
+
+The service layer calls summary logic with card-level cashback cap config. Future cap types should add a strategy without changing transaction CRUD, statement payment rules or UI data contracts.
+
+Planned future strategy periods or dimensions:
+
+- Calendar month.
+- Quarter.
+- Year.
+- Category.
+- Merchant.
+- Promotion.
