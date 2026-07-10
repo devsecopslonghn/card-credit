@@ -163,6 +163,10 @@ Phase 5 — API migration by route group.
 - 2026-07-11: Phase 5 domain migration began with `/api/notes`. Added injected
   Mongo/in-memory repositories, workspace-scoped Fastify routes and contract
   tests, added the same-origin rewrite, and removed the Next route adapter.
+- 2026-07-11: Phase 5 master-data group moved banks and card types to Fastify,
+  preserving authenticated reads, admin-only writes, duplicate checks and legacy
+  response messages. Added injected repositories/tests and removed four Next
+  route adapters.
 
 ## Known issues
 

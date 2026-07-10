@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
       { source: "/api/admin/card-catalog/:path*", destination: `${backend}/api/admin/card-catalog/:path*` },
       { source: "/api/auth/:path*", destination: `${backend}/api/auth/:path*` },
       { source: "/api/notes", destination: `${backend}/api/notes` },
+      { source: "/api/banks/:path*", destination: `${backend}/api/banks/:path*` },
+      { source: "/api/cardtypes/:path*", destination: `${backend}/api/cardtypes/:path*` },
     ];
   },
   allowedDevOrigins: ["127.0.0.1"],
