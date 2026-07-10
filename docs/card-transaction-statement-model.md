@@ -125,6 +125,7 @@ annualEligibleSpend = SUM(outcomeAmount where eligibleForAnnualFeeWaiver = true)
 ```
 
 Cashback cap is always calculated from eligible cashback, not actual cashback.
+For `STATEMENT`, cashback cap resets for each `CardStatement`. Statement summary APIs pass only the transactions in the selected statement period to the cap strategy, so a cap used in one statement does not reduce the next statement's remaining cap.
 
 Example:
 
@@ -157,6 +158,24 @@ calculateEligibleCashback(transactions, cashbackCap, cashbackCapPeriod, context)
 ```
 
 The service layer calls summary logic with card-level cashback cap config. Future cap types should add a strategy without changing transaction CRUD, statement payment rules or UI data contracts.
+
+## Card Debt Summary
+
+Card detail debt figures are derived only from `CardStatement.summary.totalAmountDue`.
+
+Included statements:
+
+- `paymentStatus != PAID`
+- `summary.totalAmountDue > 0`
+- `statementDate <= today`
+
+Displayed values:
+
+- Current bank debt: sum of all included statement amounts.
+- Debt due this month: included statements whose `paymentDueDate` is in the current calendar month.
+- Debt due next month: included statements whose `paymentDueDate` is in the next calendar month.
+
+Legacy card fields such as `amountDueThisMonth` and `monthlyData` are not used for these debt figures.
 
 Planned future strategy periods or dimensions:
 

@@ -103,3 +103,28 @@ declare module "@/lib/cards/dueStatementsCore.mjs" {
     today?: string;
   }) => DueStatementRow[];
 }
+
+declare module "@/lib/cards/cardDebtCore.mjs" {
+  export const isOutstandingDebtStatement: (statement: Record<string, unknown>, today?: string) => boolean;
+  export const summarizeCardDebt: (
+    statements?: Array<
+      Record<string, unknown> & {
+        statementDate?: string;
+        paymentDueDate?: string;
+        paymentStatus?: string;
+        effectivePaymentStatus?: string;
+        summary?: { totalAmountDue?: number };
+      }
+    >,
+    today?: string,
+  ) => {
+    totalOutstanding: number;
+    outstandingCount: number;
+    currentMonthDue: number;
+    currentMonthDueCount: number;
+    nextMonthDue: number;
+    nextMonthDueCount: number;
+    currentMonthKey: string;
+    nextMonthKey: string;
+  };
+}

@@ -27,6 +27,7 @@ import {
   type CashbackStatus,
   type TransactionPayload,
 } from "@/lib/api/transactionsClient";
+import { summarizeCardDebt } from "@/lib/cards/cardDebtCore.mjs";
 
 type Toast = { message: string; type: "success" | "error" };
 
@@ -112,6 +113,7 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
     () => statements.find((statement) => statement._id === selectedStatementId) ?? null,
     [selectedStatementId, statements],
   );
+  const debtSummary = useMemo(() => summarizeCardDebt(statements), [statements]);
 
   const refreshAfterMutation = async () => {
     const loadedStatements = await fetchCardStatements(resolvedParams.id);
@@ -225,11 +227,11 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  if (loading) return <div className="min-h-screen p-10 text-center text-gray-500">Đang tải dữ liệu thẻ...</div>;
+  if (loading) return <div className="cc-page p-10 text-center cc-text-muted">Đang tải dữ liệu thẻ...</div>;
 
   if (loadError || !card) {
     return (
-      <div className="min-h-screen bg-gray-50 px-4 py-10">
+      <div className="cc-page px-4 py-10">
         <div className="mx-auto max-w-3xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
           <p className="font-semibold text-red-700">{loadError || "Không tìm thấy thẻ."}</p>
           <button type="button" onClick={loadCard} className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">
@@ -246,7 +248,7 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
   const summary = statementDetail?.summary;
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10 md:px-8">
+    <div className="cc-page px-4 py-10 md:px-8">
       {toast && (
         <div role={toast.type === "success" ? "status" : "alert"} className={`fixed bottom-6 right-6 z-[100] max-w-[calc(100vw-2rem)] rounded-xl px-5 py-3.5 font-medium text-white shadow-2xl ${toast.type === "success" ? "bg-emerald-600" : "bg-red-600"}`}>
           {toast.message}
@@ -258,15 +260,18 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
           &larr; Quay lại danh sách thẻ
         </Link>
 
-        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" aria-labelledby="card-detail-title">
+        <section className="cc-section mb-8 p-6" aria-labelledby="card-detail-title">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[18rem_minmax(0,1fr)]">
-            <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <div className="cc-panel flex flex-col items-center justify-center p-4">
               <img src={card.imageUrl || CARD_IMAGE_PLACEHOLDER_URL} alt={`${providerName} ${displayName}`} className="mb-3 h-32 w-full object-contain" onError={(event) => { event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL; }} />
-              <p className="text-sm font-semibold text-gray-500">{providerName}</p>
-              <h1 id="card-detail-title" className="text-center text-xl font-bold text-gray-900">{displayName}</h1>
+              <p className="text-sm font-semibold cc-text-muted">{providerName}</p>
+              <h1 id="card-detail-title" className="text-center text-xl font-bold cc-text">{displayName}</h1>
               <p className="mt-1 text-sm text-blue-700">{network} · {card.owner || "Tôi"}</p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <StatBox label="Đang nợ ngân hàng" value={formatVnd(debtSummary.totalOutstanding)} color="cc-danger" />
+              <StatBox label="Cần thanh toán tháng này" value={formatVnd(debtSummary.currentMonthDue)} hint={`${debtSummary.currentMonthDueCount} kỳ`} color="cc-danger" />
+              <StatBox label="Cần thanh toán tháng kế tiếp" value={formatVnd(debtSummary.nextMonthDue)} hint={`${debtSummary.nextMonthDueCount} kỳ`} />
               <StatBox label="Phí thường niên snapshot" value={formatAnnualFee(card.annualFee)} />
               <StatBox label="Ngày chốt sao kê" value={`Ngày ${card.statementDay ?? 1}`} />
               <StatBox label="Hạn thanh toán" value={`+${card.paymentDueDays ?? 15} ngày`} />
@@ -277,21 +282,21 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" aria-labelledby="card-config-title">
-          <h2 id="card-config-title" className="mb-4 text-xl font-bold text-gray-900">Cấu hình thẻ</h2>
+        <section className="cc-section mb-8 p-6" aria-labelledby="card-config-title">
+          <h2 id="card-config-title" className="mb-4 text-xl font-bold cc-text">Cấu hình thẻ</h2>
           <form onSubmit={handleSaveConfig} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
             <NumberField label="Ngày chốt sao kê" value={configForm.statementDay} min={1} max={31} onChange={(value) => setConfigForm((current) => ({ ...current, statementDay: value }))} />
             <NumberField label="Số ngày đến hạn" value={configForm.paymentDueDays} min={1} onChange={(value) => setConfigForm((current) => ({ ...current, paymentDueDays: value }))} />
             <NumberField label="Mục tiêu miễn PTN" value={configForm.annualFeeWaiverTarget} min={0} onChange={(value) => setConfigForm((current) => ({ ...current, annualFeeWaiverTarget: value }))} />
             <NullableNumberField label="Cashback Cap" value={configForm.cashbackCapAmount} onChange={(value) => setConfigForm((current) => ({ ...current, cashbackCapAmount: value }))} />
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-semibold cc-text-muted">
               <span className="mb-1 block">Chu kỳ Cashback Cap</span>
-              <select value={configForm.cashbackCapPeriod} onChange={(event) => setConfigForm((current) => ({ ...current, cashbackCapPeriod: event.target.value as "STATEMENT" | "CALENDAR_MONTH" }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+              <select value={configForm.cashbackCapPeriod} onChange={(event) => setConfigForm((current) => ({ ...current, cashbackCapPeriod: event.target.value as "STATEMENT" | "CALENDAR_MONTH" }))} className="cc-control w-full rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="STATEMENT">Kỳ sao kê</option>
                 <option value="CALENDAR_MONTH" disabled>Tháng dương lịch</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700">
+            <label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold cc-text-muted" style={{ borderColor: "var(--border)" }}>
               <input type="checkbox" checked={configForm.active} onChange={(event) => setConfigForm((current) => ({ ...current, active: event.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
               Đang sử dụng
             </label>
@@ -301,11 +306,11 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
           </form>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" aria-labelledby="statement-list-title">
+        <section className="cc-section mb-8 p-6" aria-labelledby="statement-list-title">
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-            <h2 id="statement-list-title" className="text-xl font-bold text-gray-900">Kỳ sao kê</h2>
+            <h2 id="statement-list-title" className="text-xl font-bold cc-text">Kỳ sao kê</h2>
             {statements.length > 0 && (
-              <select value={selectedStatementId} onChange={(event) => { setSelectedStatementId(event.target.value); void loadStatementDetail(event.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-blue-500">
+              <select value={selectedStatementId} onChange={(event) => { setSelectedStatementId(event.target.value); void loadStatementDetail(event.target.value); }} className="cc-control rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500">
                 {statements.map((statement) => (
                   <option key={statement._id} value={statement._id}>
                     {formatDateDisplay(statement.statementDate)} · {statusLabel[statement.effectivePaymentStatus]}
@@ -316,7 +321,7 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {!statementDetail || !selectedStatement || !summary ? (
-            <p className="rounded-lg border border-dashed border-gray-200 p-6 text-center text-gray-500">Chưa có kỳ sao kê. Hãy tạo giao dịch từ lịch chi tiêu.</p>
+            <p className="rounded-lg border border-dashed p-6 text-center cc-text-muted" style={{ borderColor: "var(--border)" }}>Chưa có kỳ sao kê. Hãy tạo giao dịch từ lịch chi tiêu.</p>
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -327,13 +332,13 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
                 <StatBox label="Tổng phải trả ngân hàng" value={formatVnd(summary.totalAmountDue)} color="text-red-600" />
                 <StatBox label="Tổng đối tác hoàn" value={formatVnd(summary.totalIncome)} color="text-emerald-600" />
                 <StatBox label="Phí dịch vụ" value={formatVnd(summary.totalServiceFee)} color="text-orange-600" />
-                <StatBox label="Cashback Cap" value={summary.cashbackCap.unlimited ? "Không giới hạn" : formatVnd(summary.cashbackCap.capAmount)} />
+                <StatBox label="Cashback Cap kỳ này" value={summary.cashbackCap.unlimited ? "Không giới hạn" : formatVnd(summary.cashbackCap.capAmount)} />
                 <StatBox label="Cashback theo tỷ lệ" value={formatVnd(summary.cashbackByRate)} color="text-emerald-600" />
-                <StatBox label="Cashback được hưởng/đã dùng" value={formatVnd(summary.eligibleCashback)} color="text-emerald-600" />
+                <StatBox label="Cashback được hưởng/đã dùng kỳ này" value={formatVnd(summary.eligibleCashback)} color="text-emerald-600" />
                 <StatBox label="Cashback thực nhận" value={formatVnd(summary.actualCashback)} color="text-emerald-600" />
                 <StatBox label="Cashback vượt giới hạn" value={formatVnd(summary.exceededCashback)} color="text-red-600" />
-                <StatBox label="Cashback còn lại" value={summary.remainingCashback === null ? "Không giới hạn" : formatVnd(summary.remainingCashback)} />
-                <StatBox label="% đã dùng Cashback Cap" value={summary.cashbackCap.capUsedPercent === null ? "Không giới hạn" : `${summary.cashbackCap.capUsedPercent}%`} />
+                <StatBox label="Cashback còn lại kỳ này" value={summary.remainingCashback === null ? "Không giới hạn" : formatVnd(summary.remainingCashback)} />
+                <StatBox label="% đã dùng Cashback Cap kỳ này" value={summary.cashbackCap.capUsedPercent === null ? "Không giới hạn" : `${summary.cashbackCap.capUsedPercent}%`} />
                 <StatBox label="Lợi nhuận dự kiến" value={formatVnd(summary.expectedNetProfit)} color={summary.expectedNetProfit >= 0 ? "text-emerald-600" : "text-red-600"} />
                 <StatBox label="Lợi nhuận thực nhận" value={formatVnd(summary.actualNetProfit)} color={summary.actualNetProfit >= 0 ? "text-emerald-600" : "text-red-600"} />
                 <StatBox label="Doanh số miễn PTN" value={formatVnd(summary.annualEligibleSpend)} />
@@ -421,11 +426,12 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
   );
 }
 
-function StatBox({ label, value, color = "text-gray-900" }: { label: string; value: string; color?: string }) {
+function StatBox({ label, value, color = "cc-text", hint }: { label: string; value: string; color?: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-      <p className="mb-1 text-xs font-medium text-gray-500">{label}</p>
-      <p className={`break-words text-lg font-bold ${color}`}>{value}</p>
+    <div className="cc-panel p-4">
+      <p className="mb-1 text-xs font-semibold cc-text-muted">{label}</p>
+      <p className={`break-words text-lg font-bold cc-tabular ${color}`}>{value}</p>
+      {hint && <p className="mt-1 text-xs font-medium cc-text-subtle">{hint}</p>}
     </div>
   );
 }
@@ -444,7 +450,7 @@ function NumberField({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="block text-sm font-semibold text-gray-700">
+    <label className="block text-sm font-semibold cc-text-muted">
       <span className="mb-1 block">{label}</span>
       <input
         type="number"
@@ -452,7 +458,7 @@ function NumberField({
         max={max}
         value={value}
         onChange={(event) => onChange(Number(event.target.value) || min)}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right outline-none focus:ring-2 focus:ring-blue-500"
+        className="cc-control w-full rounded-lg px-3 py-2 text-right outline-none focus:ring-2 focus:ring-blue-500"
       />
     </label>
   );
@@ -468,7 +474,7 @@ function NullableNumberField({
   onChange: (value: number | null) => void;
 }) {
   return (
-    <label className="block text-sm font-semibold text-gray-700">
+    <label className="block text-sm font-semibold cc-text-muted">
       <span className="mb-1 block">{label}</span>
       <input
         type="number"
@@ -476,7 +482,7 @@ function NullableNumberField({
         value={value ?? ""}
         placeholder="Không giới hạn"
         onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value) || 0)}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right outline-none focus:ring-2 focus:ring-blue-500"
+        className="cc-control w-full rounded-lg px-3 py-2 text-right outline-none focus:ring-2 focus:ring-blue-500"
       />
     </label>
   );
