@@ -402,7 +402,11 @@ pipeline {
         sh '''
           set -eu
 
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+
           docker run --rm \
+            -u "${HOST_UID}:${HOST_GID}" \
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
@@ -632,7 +636,13 @@ pipeline {
                 rm -rf \
                   frontend/node_modules \
                   frontend/.next \
-                  frontend/public/card-images/generated
+                  frontend/public/card-images/generated \
+                  frontend/tsconfig.tsbuildinfo \
+                  backend/node_modules \
+                  backend/dist \
+                  backend/coverage \
+                  shared/node_modules \
+                  shared/coverage
               '
 
             if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
@@ -652,7 +662,13 @@ pipeline {
             rm -rf \
               frontend/node_modules \
               frontend/.next \
-              frontend/public/card-images/generated
+              frontend/public/card-images/generated \
+              frontend/tsconfig.tsbuildinfo \
+              backend/node_modules \
+              backend/dist \
+              backend/coverage \
+              shared/node_modules \
+              shared/coverage
 
             if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
               git -C "$WORKSPACE" checkout -- frontend/data/card-image-manifest.json 2>/dev/null || true

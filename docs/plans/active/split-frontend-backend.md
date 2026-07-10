@@ -184,6 +184,11 @@ Phase 5 — API migration by route group.
   backend health dependency, required secrets via environment, and no published
   backend port. Static config validation is required before commit; safe startup
   remains deferred to the isolated MongoDB phase.
+- 2026-07-11: Fixed Jenkins clean-checkout ownership failure. Backend validation
+  now runs with the Jenkins host UID/GID instead of root, preventing root-owned
+  `backend/node_modules` and `backend/dist`. Post cleanup now removes frontend,
+  backend, and shared generated/dependency directories. Existing poisoned
+  workspace must be deleted once; subsequent builds are ownership-safe.
 
 ## Known issues
 
