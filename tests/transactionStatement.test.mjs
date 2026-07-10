@@ -60,7 +60,7 @@ test("statement summary keeps bank amount due separate from profit", () => {
   assert.equal(summary.annualEligibleSpend, 1_000_000);
 });
 
-test("statement cashback cap limits eligible cashback but not actual cashback", () => {
+test("statement cashback cap limits eligible and actual cashback", () => {
   const summary = summarizeTransactions(
     [
       { outcomeAmount: 3_000_000, incomeAmount: 2_900_000, cashbackRateBps: 1000 },
@@ -77,6 +77,28 @@ test("statement cashback cap limits eligible cashback but not actual cashback", 
   assert.equal(summary.remainingCashback, 0);
   assert.equal(summary.cashbackCap.capUsedPercent, 100);
   assert.equal(summary.expectedNetProfit, 300_000);
+});
+
+test("statement actual net profit uses capped actual cashback", () => {
+  const summary = summarizeTransactions(
+    [
+      {
+        outcomeAmount: 17_390_000,
+        incomeAmount: 17_300_000,
+        cashbackRateBps: 500,
+        cashbackStatus: "RECEIVED",
+        actualCashbackAmount: 869_500,
+      },
+    ],
+    { cashbackCapAmount: 600_000, cashbackCapPeriod: "STATEMENT" },
+  );
+
+  assert.equal(summary.totalServiceFee, 90_000);
+  assert.equal(summary.cashbackByRate, 869_500);
+  assert.equal(summary.eligibleCashback, 600_000);
+  assert.equal(summary.actualCashback, 600_000);
+  assert.equal(summary.expectedNetProfit, 510_000);
+  assert.equal(summary.actualNetProfit, 510_000);
 });
 
 test("cashback cap strategy reports remaining cashback for statement period", () => {
