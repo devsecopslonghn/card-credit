@@ -12,9 +12,7 @@ type CardListProps = {
   selectedOwner: string;
   busyCardId: string;
   onRetry: () => void;
-  onEdit: (card: CreditCardView) => void;
   onDelete: (card: CreditCardView) => void;
-  onTogglePaid: (card: CreditCardView, checked: boolean) => void;
 };
 
 export function CardList({
@@ -26,9 +24,7 @@ export function CardList({
   selectedOwner,
   busyCardId,
   onRetry,
-  onEdit,
   onDelete,
-  onTogglePaid,
 }: CardListProps) {
   if (loading) {
     return (
@@ -74,9 +70,7 @@ export function CardList({
           key={group.providerKey}
           group={group}
           busyCardId={busyCardId}
-          onEdit={onEdit}
           onDelete={onDelete}
-          onTogglePaid={onTogglePaid}
         />
       ))}
     </div>

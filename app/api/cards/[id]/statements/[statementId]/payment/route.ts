@@ -1,18 +1,14 @@
-import { createReportSummaryRouteHandler } from "@/lib/api/reportSummaryRouteCore.mjs";
+import { createStatementPaymentRouteHandler } from "@/lib/api/transactionsRouteCore.mjs";
 import { requireAuth } from "@/lib/auth/sessionCore.mjs";
 import { connectToDatabase } from "@/lib/mongodb";
 import CreditCard from "@/models/CreditCard";
-import CalendarNote from "@/models/CalendarNote";
 import CardStatement from "@/models/CardStatement";
 import CardTransaction from "@/models/CardTransaction";
 
-export const dynamic = "force-dynamic";
-
-export const GET = createReportSummaryRouteHandler({
+export const PATCH = createStatementPaymentRouteHandler({
   connectToDatabase,
-  CardModel: CreditCard,
-  CalendarNoteModel: CalendarNote,
   TransactionModel: CardTransaction,
+  CardModel: CreditCard,
   CardStatementModel: CardStatement,
   requireAuth,
 });

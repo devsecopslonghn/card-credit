@@ -2,21 +2,29 @@
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { AddCardModal } from "@/components/cards/AddCardModal";
-import { CalendarNotes } from "@/components/cards/CalendarNotes";
+import { CalendarTransactions } from "@/components/cards/CalendarTransactions";
 import { CardList } from "@/components/cards/CardList";
 import { DuplicateResolver } from "@/components/cards/DuplicateResolver";
-import { EditCardModal } from "@/components/cards/EditCardModal";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
 import { UpcomingPayments } from "@/components/cards/UpcomingPayments";
 import {
   filterCardsByOwner,
   getDisplayName,
   getUniqueOwners,
-  getUpcomingPayments,
   groupCardsByProvider,
   type CreditCardView,
 } from "@/components/cards/cardTypes";
-import { deleteCard, fetchCards, updateCardOperational } from "@/lib/api/cardsClient";
+import { deleteCard, fetchCards } from "@/lib/api/cardsClient";
+import {
+  createTransaction,
+  fetchCardStatements,
+  fetchTransactions,
+  updateTransaction,
+  type CardStatementView,
+  type CardTransactionView,
+  type TransactionPayload,
+} from "@/lib/api/transactionsClient";
 
 type Toast = { message: string; type: "success" | "error" };
 
@@ -25,12 +33,14 @@ export default function CardsPage() {
   const [cards, setCards] = useState<CreditCardView[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
   const [cardsError, setCardsError] = useState("");
-  const [calendarNotes, setCalendarNotes] = useState<Record<string, string>>({});
-  const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [transactions, setTransactions] = useState<CardTransactionView[]>([]);
+  const [statements, setStatements] = useState<CardStatementView[]>([]);
+  const [transactionSubmitting, setTransactionSubmitting] = useState(false);
+  const [transactionError, setTransactionError] = useState("");
+  const [transactionFormDate, setTransactionFormDate] = useState("");
+  const [editingTransaction, setEditingTransaction] = useState<CardTransactionView | null>(null);
   const [selectedOwner, setSelectedOwner] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingCard, setEditingCard] = useState<CreditCardView | null>(null);
-  const [editError, setEditError] = useState("");
   const [cardToDelete, setCardToDelete] = useState<CreditCardView | null>(null);
   const [busyCardId, setBusyCardId] = useState("");
   const [toast, setToast] = useState<Toast | null>(null);
@@ -45,7 +55,10 @@ export default function CardsPage() {
     setCardsLoading(true);
     setCardsError("");
     try {
-      setCards(await fetchCards());
+      const loadedCards = await fetchCards();
+      setCards(loadedCards);
+      const loadedStatements = (await Promise.all(loadedCards.map((card) => fetchCardStatements(card._id)))).flat();
+      setStatements(loadedStatements);
     } catch (error) {
       setCardsError(error instanceof Error ? error.message : "Không thể tải danh sách thẻ.");
     } finally {
@@ -58,96 +71,68 @@ export default function CardsPage() {
     void loadCards();
   }, [loadCards]);
 
-  const loadCalendarNotes = useCallback(async () => {
+  const loadCardTransactions = useCallback(async () => {
     try {
-      const response = await fetch(`/api/notes?timestamp=${Date.now()}`, { cache: "no-store" });
-      const data = (await response.json()) as Array<{ date: string; content: string }>;
-      setCalendarNotes(Object.fromEntries(data.map((note) => [note.date, note.content])));
+      setTransactions(await fetchTransactions());
     } catch (error) {
-      console.error("Lỗi tải ghi chú lịch", error);
+      console.error("Lỗi tải giao dịch", error);
     }
   }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void loadCards();
-      void loadCalendarNotes();
+      void loadCardTransactions();
     }, 0);
     return () => window.clearTimeout(timeoutId);
-  }, [loadCalendarNotes, loadCards]);
+  }, [loadCardTransactions, loadCards]);
 
   const ownerOptions = useMemo(() => getUniqueOwners(cards), [cards]);
   const filteredCards = useMemo(() => filterCardsByOwner(cards, selectedOwner), [cards, selectedOwner]);
   const providerGroups = useMemo(() => groupCardsByProvider(filteredCards), [filteredCards]);
-  const upcomingPayments = useMemo(() => getUpcomingPayments(filteredCards), [filteredCards]);
+  const filteredCardIds = useMemo(() => new Set(filteredCards.map((card) => card._id)), [filteredCards]);
+  const upcomingStatements = useMemo(
+    () =>
+      statements
+        .filter((statement) => filteredCardIds.has(statement.userCardId) && statement.effectivePaymentStatus !== "PAID")
+        .sort((left, right) => left.paymentDueDate.localeCompare(right.paymentDueDate)),
+    [filteredCardIds, statements],
+  );
 
   const closeAddModal = useCallback(() => {
     setIsAddModalOpen(false);
     requestAnimationFrame(() => addButtonRef.current?.focus());
   }, []);
 
-  const handleSaveNote = async (date: string, content: string) => {
-    setNoteSubmitting(true);
-    try {
-      const response = await fetch("/api/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, content }),
-      });
+  const reloadTransactionData = useCallback(async () => {
+    await Promise.all([loadCards(), loadCardTransactions()]);
+  }, [loadCardTransactions, loadCards]);
 
-      if (!response.ok) throw new Error("Lỗi không thể lưu ghi chú.");
-
-      setCalendarNotes((current) => ({ ...current, [date]: content }));
-      showToast("Đã lưu ghi chú lịch thành công.");
-      return true;
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Lỗi không thể lưu ghi chú.", "error");
-      return false;
-    } finally {
-      setNoteSubmitting(false);
-    }
+  const openTransactionForm = (date: string, transaction: CardTransactionView | null = null) => {
+    setTransactionFormDate(date);
+    setEditingTransaction(transaction);
+    setTransactionError("");
   };
 
-  const handleTogglePaid = async (card: CreditCardView, isPaidThisMonth: boolean) => {
-    const originalCards = cards;
-    setBusyCardId(card._id);
-    setCards((current) =>
-      current.map((item) => (item._id === card._id ? { ...item, isPaidThisMonth } : item)),
-    );
-
+  const handleTransactionSubmit = async (payload: TransactionPayload, warning: string) => {
+    if (warning && !window.confirm(warning)) return;
+    setTransactionSubmitting(true);
+    setTransactionError("");
     try {
-      const updatedCard = await updateCardOperational(card._id, { isPaidThisMonth });
-      setCards((current) => current.map((item) => (item._id === card._id ? updatedCard : item)));
-      showToast(isPaidThisMonth ? "Đã đánh dấu thanh toán xong." : "Đã hủy đánh dấu thanh toán.");
+      if (editingTransaction) {
+        await updateTransaction(editingTransaction._id, payload);
+        showToast("Đã cập nhật giao dịch.");
+      } else {
+        await createTransaction(payload);
+        showToast("Đã tạo giao dịch.");
+      }
+      setTransactionFormDate("");
+      setEditingTransaction(null);
+      await reloadTransactionData();
     } catch (error) {
-      setCards(originalCards);
-      showToast(error instanceof Error ? error.message : "Lỗi khi cập nhật trạng thái.", "error");
+      setTransactionError(error instanceof Error ? error.message : "Không thể lưu giao dịch.");
     } finally {
-      setBusyCardId("");
-    }
-  };
-
-  const handleEditSubmit = async (payload: {
-    owner: string;
-    targetSpendForWaiver: number;
-    statementDate: string;
-    paymentDueDate: string;
-    amountDueThisMonth: number;
-  }) => {
-    if (!editingCard) return;
-    setBusyCardId(editingCard._id);
-    setEditError("");
-
-    try {
-      const updatedCard = await updateCardOperational(editingCard._id, payload);
-      setCards((current) => current.map((card) => (card._id === editingCard._id ? updatedCard : card)));
-      setDuplicateRefreshKey((current) => current + 1);
-      setEditingCard(null);
-      showToast("Đã cập nhật thông tin thẻ.");
-    } catch (error) {
-      setEditError(error instanceof Error ? error.message : "Không thể cập nhật thẻ.");
-    } finally {
-      setBusyCardId("");
+      setTransactionSubmitting(false);
     }
   };
 
@@ -229,8 +214,12 @@ export default function CardsPage() {
           </div>
         </header>
 
-        <CalendarNotes notes={calendarNotes} submitting={noteSubmitting} onSave={handleSaveNote} />
-        <UpcomingPayments cards={upcomingPayments} selectedOwner={selectedOwner} />
+        <CalendarTransactions
+          transactions={transactions}
+          onAdd={(date) => openTransactionForm(date)}
+          onEdit={(transaction) => openTransactionForm(transaction.transactionDate, transaction)}
+        />
+        <UpcomingPayments statements={upcomingStatements} cards={cards} selectedOwner={selectedOwner} />
         <DuplicateResolver
           refreshKey={duplicateRefreshKey}
           onMerged={refreshCardsAndDuplicates}
@@ -245,12 +234,7 @@ export default function CardsPage() {
           selectedOwner={selectedOwner}
           busyCardId={busyCardId}
           onRetry={loadCards}
-          onEdit={(card) => {
-            setEditError("");
-            setEditingCard(card);
-          }}
           onDelete={setCardToDelete}
-          onTogglePaid={handleTogglePaid}
         />
 
         <AddCardModal
@@ -261,14 +245,20 @@ export default function CardsPage() {
           onSuccess={(message) => showToast(message)}
         />
 
-        <EditCardModal
-          key={editingCard?._id ?? "edit-card-modal"}
-          card={editingCard}
-          ownerOptions={ownerOptions}
-          submitting={Boolean(busyCardId && editingCard?._id === busyCardId)}
-          error={editError}
-          onClose={() => setEditingCard(null)}
-          onSubmit={handleEditSubmit}
+        <TransactionFormModal
+          key={editingTransaction?._id ?? transactionFormDate}
+          open={Boolean(transactionFormDate)}
+          date={transactionFormDate}
+          cards={cards.filter((card) => card.active !== false)}
+          statements={statements}
+          transaction={editingTransaction}
+          submitting={transactionSubmitting}
+          error={transactionError}
+          onClose={() => {
+            setTransactionFormDate("");
+            setEditingTransaction(null);
+          }}
+          onSubmit={handleTransactionSubmit}
         />
 
         {cardToDelete && (

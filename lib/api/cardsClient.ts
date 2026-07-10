@@ -49,6 +49,12 @@ export const fetchCards = async (): Promise<CreditCardView[]> => {
   return (await response.json()) as CreditCardView[];
 };
 
+export const fetchCard = async (cardId: string): Promise<CreditCardView> => {
+  const response = await fetch(`/api/cards/${cardId}?timestamp=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(await parseApiError(response, "Không thể tải thông tin thẻ."));
+  return (await response.json()) as CreditCardView;
+};
+
 export const createCard = async (payload: { presetId: string; owner: string }): Promise<CreditCardView> => {
   const response = await fetch("/api/cards", {
     method: "POST",
@@ -67,11 +73,10 @@ export const updateCardOperational = async (
       CreditCardView,
       | "owner"
       | "targetSpendForWaiver"
-      | "statementDate"
-      | "paymentDueDate"
-      | "amountDueThisMonth"
-      | "isPaidThisMonth"
-      | "monthlyData"
+      | "annualFeeWaiverTarget"
+      | "statementDay"
+      | "paymentDueDays"
+      | "active"
     >
   >,
 ): Promise<CreditCardView> => {
