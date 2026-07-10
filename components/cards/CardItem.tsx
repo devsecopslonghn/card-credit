@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { CardImage } from "@/components/cards/CardImage";
 import {
-  CARD_IMAGE_PLACEHOLDER_URL,
   formatAnnualFee,
   getDisplayName,
   getNetwork,
@@ -27,13 +27,11 @@ export function CardItem({ card, busy, onDelete }: CardItemProps) {
     <article className="cc-section flex min-w-0 h-full flex-col overflow-hidden rounded-lg">
       <Link href={`/cards/${card._id}`} className="block outline-none focus:ring-2 focus:ring-blue-500">
         <div className="relative flex aspect-[1.58/1] max-h-48 w-full items-center justify-center overflow-hidden bg-surface-elevated p-3">
-          <img
-            src={card.imageUrl || CARD_IMAGE_PLACEHOLDER_URL}
+          <CardImage
+            src={card.imageUrl}
             alt={`${providerName} ${displayName}`}
+            sizes="(max-width: 640px) 100vw, 320px"
             className="h-full max-h-full w-full max-w-full object-contain"
-            onError={(event) => {
-              event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL;
-            }}
           />
           <div className="cc-badge absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm">
             {network}

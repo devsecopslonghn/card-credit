@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchCatalogProducts, fetchCatalogProviders } from "@/lib/api/cardCatalogClient";
 import { createCard } from "@/lib/api/cardsClient";
+import { CardImage } from "@/components/cards/CardImage";
 import { OwnerField } from "@/components/cards/OwnerField";
 import { ProductPicker } from "@/components/cards/ProductPicker";
 import { ProviderPicker } from "@/components/cards/ProviderPicker";
 import { getFocusableElements } from "@/lib/cards/accessibility.mjs";
 import {
-  CARD_IMAGE_PLACEHOLDER_URL,
   buildCreateCardPayload,
   formatAnnualFee,
   normalizeOwnerInput,
@@ -235,13 +235,11 @@ export function AddCardModal({ open, ownerOptions, onClose, onCreated, onSuccess
                 3. Xem trước thông tin sản phẩm
               </h3>
               <div className="flex flex-col gap-4 sm:flex-row">
-                <img
-                  src={selectedProduct.imageUrl || CARD_IMAGE_PLACEHOLDER_URL}
+                <CardImage
+                  src={selectedProduct.imageUrl}
                   alt={`${selectedProduct.providerName} ${selectedProduct.displayName}`}
+                  sizes="(max-width: 640px) 100vw, 192px"
                   className="aspect-[16/10] w-full rounded-lg bg-white object-contain sm:w-48"
-                  onError={(event) => {
-                    event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL;
-                  }}
                 />
                 <div className="min-w-0 space-y-1 text-sm">
                   <p className="font-semibold cc-text-muted">{selectedProvider?.providerName ?? selectedProduct.providerName}</p>

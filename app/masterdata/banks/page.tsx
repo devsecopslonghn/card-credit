@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { MasterdataLogoImage } from "@/components/MasterdataLogoImage";
 
 type Bank = {
   _id: string;
@@ -166,7 +167,7 @@ export default function BankMasterdataPage() {
                     <tr key={bank._id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="p-4">
                         <div className="w-16 h-10 bg-white border border-gray-200 rounded flex items-center justify-center p-1 overflow-hidden mx-auto">
-                          <img src={bank.logo} alt={bank.shortname} className="max-w-full max-h-full object-contain" />
+                          <MasterdataLogoImage src={bank.logo} alt={bank.shortname} fallbackLabel={bank.shortname} />
                         </div>
                       </td>
                       <td className="p-4 font-bold text-gray-900">{bank.shortname}</td>
@@ -234,7 +235,7 @@ export default function BankMasterdataPage() {
                       className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer" />
                     {formData.logo && (
                       <div className="shrink-0 w-16 h-10 border border-gray-200 rounded flex items-center justify-center p-1 bg-white">
-                        <img src={formData.logo} alt="Preview" className="max-w-full max-h-full object-contain" />
+                        <MasterdataLogoImage src={formData.logo} alt="Preview" fallbackLabel={formData.shortname} />
                       </div>
                     )}
                   </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import type { CatalogProductOption } from "@/components/cards/cardTypes";
-import { CARD_IMAGE_PLACEHOLDER_URL, formatAnnualFee } from "@/components/cards/cardTypes";
+import { CardImage } from "@/components/cards/CardImage";
+import { formatAnnualFee } from "@/components/cards/cardTypes";
 import { getKeyboardNavigationIndex } from "@/lib/cards/accessibility.mjs";
 
 type ProductPickerProps = {
@@ -93,13 +94,11 @@ export function ProductPicker({
                   selected ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white hover:border-blue-300"
                 }`}
               >
-                <img
-                  src={product.imageUrl || CARD_IMAGE_PLACEHOLDER_URL}
+                <CardImage
+                  src={product.imageUrl}
                   alt={`${product.providerName} ${product.displayName}`}
+                  sizes="96px"
                   className="h-14 w-24 shrink-0 rounded-md bg-gray-50 object-contain"
-                  onError={(event) => {
-                    event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL;
-                  }}
                 />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-gray-900">{product.displayName}</span>
