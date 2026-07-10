@@ -12,6 +12,10 @@ test("detail update payload only includes operational fields", () => {
   const payload = buildOperationalUpdatePayload({
     owner: " Long  Ho ",
     targetSpendForWaiver: 10,
+    annualFeeWaiverTarget: 10,
+    statementDay: 7,
+    paymentDueDays: 15,
+    active: true,
     statementDate: "2026-07-01",
     paymentDueDate: "2026-07-20",
     amountDueThisMonth: 100,
@@ -30,20 +34,21 @@ test("detail update payload only includes operational fields", () => {
   assert.deepEqual(payload, {
     owner: "Long Ho",
     targetSpendForWaiver: 10,
-    statementDate: "2026-07-01",
-    paymentDueDate: "2026-07-20",
-    amountDueThisMonth: 100,
-    isPaidThisMonth: true,
+    annualFeeWaiverTarget: 10,
+    statementDay: 7,
+    paymentDueDays: 15,
+    active: true,
   });
 });
 
-test("detail update payload preserves monthly data and excludes identity fields", () => {
+test("detail update payload excludes calculated monthly data and identity fields", () => {
   const monthlyData = [{ month: 1, spend: 1, cashback: 0, fee: 0, otherInterest: 0 }];
   const payload = buildOperationalUpdatePayload({ monthlyData, annualFee: 1000, imageUrl: "blocked" });
 
-  assert.deepEqual(payload, { monthlyData });
+  assert.deepEqual(payload, {});
   assert.equal("annualFee" in payload, false);
   assert.equal("imageUrl" in payload, false);
+  assert.equal("monthlyData" in payload, false);
 });
 
 test("card calculations handle annual fee number zero null empty monthly data and negative net profit", () => {

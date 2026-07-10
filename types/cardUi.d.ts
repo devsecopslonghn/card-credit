@@ -7,6 +7,7 @@ declare module "@/lib/cards/uiCore.mjs" {
   export const formatVnd: (value: unknown) => string;
   export const formatAnnualFee: (value: unknown) => string;
   export const formatDateDisplay: (dateStr: unknown) => string;
+  export const formatRateBps: (value: unknown) => string;
   export const getProviderName: (card: Record<string, unknown>) => string;
   export const getProviderKey: (card: Record<string, unknown>) => string;
   export const getDisplayName: (card: Record<string, unknown>) => string;
@@ -51,6 +52,12 @@ declare module "@/lib/reports/summaryCore.mjs" {
   export const buildReportSummary: (input: {
     cards?: Array<Record<string, unknown>>;
     notes?: Array<Record<string, unknown>>;
+    filters?: Record<string, unknown>;
+  }) => Record<string, unknown>;
+  export const buildTransactionReportSummary: (input: {
+    cards?: Array<Record<string, unknown>>;
+    statements?: Array<Record<string, unknown>>;
+    transactions?: Array<Record<string, unknown>>;
     filters?: Record<string, unknown>;
   }) => Record<string, unknown>;
 }

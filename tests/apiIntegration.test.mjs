@@ -344,18 +344,24 @@ test("Card detail route gets valid cards and returns structured invalid id and n
   assert.equal(notFound.body.error.code, "CARD_NOT_FOUND");
 });
 
-test("Card detail route updates operational fields, blocks product identity updates and deletes cards", async () => {
+test("Card detail route updates card configuration fields, blocks product identity updates and deletes cards", async () => {
   const { CardModel, detail } = createHandlers([catalogCard]);
 
   const update = await readJson(
     await detail.PUT(
-      jsonRequest(`https://test.local/api/cards/${ids.catalog}`, { owner: " Updated  Owner ", amountDueThisMonth: 250000 }, "PUT"),
+      jsonRequest(
+        `https://test.local/api/cards/${ids.catalog}`,
+        { owner: " Updated  Owner ", statementDay: 10, paymentDueDays: 20, annualFeeWaiverTarget: 250000 },
+        "PUT",
+      ),
       { params: Promise.resolve({ id: ids.catalog }) },
     ),
   );
   assert.equal(update.status, 200);
   assert.equal(update.body.owner, "Updated Owner");
-  assert.equal(update.body.amountDueThisMonth, 250000);
+  assert.equal(update.body.statementDay, 10);
+  assert.equal(update.body.paymentDueDays, 20);
+  assert.equal(update.body.annualFeeWaiverTarget, 250000);
   assert.equal(update.body.providerName, "Sacombank");
 
   const blocked = await readJson(

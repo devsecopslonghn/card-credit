@@ -167,16 +167,17 @@ test("buildAllowedUpdate accepts operational fields", () => {
   const result = buildAllowedUpdate({
     owner: "  Long   Ho ",
     targetSpendForWaiver: 5000000,
-    statementDate: "2026-07-01",
-    paymentDueDate: "2026-07-20",
-    amountDueThisMonth: 100000,
-    isPaidThisMonth: true,
-    monthlyData: [{ month: 1, spend: 1, cashback: 2, fee: 3, otherInterest: 4 }],
+    annualFeeWaiverTarget: 5000000,
+    statementDay: 7,
+    paymentDueDays: 15,
+    active: false,
   });
 
   assert.equal(result.update.owner, "Long Ho");
-  assert.equal(result.update.isPaidThisMonth, true);
-  assert.equal(result.update.monthlyData.length, 1);
+  assert.equal(result.update.annualFeeWaiverTarget, 5000000);
+  assert.equal(result.update.statementDay, 7);
+  assert.equal(result.update.paymentDueDays, 15);
+  assert.equal(result.update.active, false);
 });
 
 test("buildAllowedUpdate blocks annualFee-only update", () => {
@@ -219,7 +220,7 @@ test("updateCardById returns not found for missing card", async () => {
   );
 });
 
-test("updateCardById updates payment fields", async () => {
+test("updateCardById updates card configuration fields", async () => {
   const CardModel = {
     async findByIdAndUpdate(id, update, options) {
       return { _id: id, ...update, options };
@@ -228,12 +229,13 @@ test("updateCardById updates payment fields", async () => {
 
   const card = await updateCardById(
     "507f1f77bcf86cd799439011",
-    { owner: "Long", amountDueThisMonth: 100000, isPaidThisMonth: true },
+    { owner: "Long", statementDay: 10, paymentDueDays: 20, annualFeeWaiverTarget: 1000000 },
     { CardModel },
   );
 
   assert.equal(card.owner, "Long");
-  assert.equal(card.amountDueThisMonth, 100000);
-  assert.equal(card.isPaidThisMonth, true);
+  assert.equal(card.statementDay, 10);
+  assert.equal(card.paymentDueDays, 20);
+  assert.equal(card.annualFeeWaiverTarget, 1000000);
   assert.equal(card.options.returnDocument, "after");
 });

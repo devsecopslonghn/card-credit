@@ -4,8 +4,6 @@ import Link from "next/link";
 import {
   CARD_IMAGE_PLACEHOLDER_URL,
   formatAnnualFee,
-  formatDateDisplay,
-  formatVnd,
   getDisplayName,
   getNetwork,
   getProviderName,
@@ -16,12 +14,10 @@ import {
 type CardItemProps = {
   card: CreditCardView;
   busy: boolean;
-  onEdit: (card: CreditCardView) => void;
   onDelete: (card: CreditCardView) => void;
-  onTogglePaid: (card: CreditCardView, checked: boolean) => void;
 };
 
-export function CardItem({ card, busy, onEdit, onDelete, onTogglePaid }: CardItemProps) {
+export function CardItem({ card, busy, onDelete }: CardItemProps) {
   const displayName = getDisplayName(card);
   const providerName = getProviderName(card);
   const network = getNetwork(card);
@@ -68,40 +64,27 @@ export function CardItem({ card, busy, onEdit, onDelete, onTogglePaid }: CardIte
             <dd className="max-w-[11rem] text-right font-semibold text-gray-900">{formatAnnualFee(card.annualFee)}</dd>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-            <dt className="min-w-0 text-gray-500">Ngày sao kê</dt>
+            <dt className="min-w-0 text-gray-500">Ngày chốt sao kê</dt>
             <dd className="max-w-[11rem] text-right font-semibold text-gray-900">
-              {formatDateDisplay(card.statementDate)}
+              Ngày {card.statementDay ?? 1}
             </dd>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
             <dt className="min-w-0 text-gray-500">Hạn thanh toán</dt>
             <dd className="max-w-[11rem] text-right font-semibold text-red-600">
-              {formatDateDisplay(card.paymentDueDate)}
+              +{card.paymentDueDays ?? 15} ngày
             </dd>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-            <dt className="min-w-0 text-gray-500">Cần thanh toán</dt>
+            <dt className="min-w-0 text-gray-500">Trạng thái thẻ</dt>
             <dd className="max-w-[11rem] text-right font-semibold text-gray-900">
-              {formatVnd(card.amountDueThisMonth)}
+              {card.active === false ? "Ngưng dùng" : "Đang dùng"}
             </dd>
           </div>
         </dl>
 
         <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-4">
-          <label className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-700">
-            <input
-              type="checkbox"
-              aria-label={`${card.isPaidThisMonth ? "Bỏ đánh dấu đã thanh toán" : "Đánh dấu đã thanh toán"} ${displayName}`}
-              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-              checked={Boolean(card.isPaidThisMonth)}
-              disabled={busy}
-              onChange={(event) => onTogglePaid(card, event.target.checked)}
-            />
-            <span className={card.isPaidThisMonth ? "min-w-0 text-emerald-600 line-through" : "min-w-0"}>
-              <span aria-hidden="true">{card.isPaidThisMonth ? "✓ " : "! "}</span>
-              {card.isPaidThisMonth ? "Đã thanh toán" : "Chưa thanh toán"}
-            </span>
-          </label>
+          <span className="text-sm font-semibold text-gray-600">Thanh toán theo từng kỳ sao kê</span>
 
           <div className="flex shrink-0 items-center gap-1">
             <Link
@@ -111,15 +94,6 @@ export function CardItem({ card, busy, onEdit, onDelete, onTogglePaid }: CardIte
             >
               Chi tiết
             </Link>
-            <button
-              type="button"
-              aria-label={`Sửa ${displayName}`}
-              disabled={busy}
-              onClick={() => onEdit(card)}
-              className="rounded-md p-2 text-gray-500 outline-none hover:bg-blue-50 hover:text-blue-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              ✎
-            </button>
             <button
               type="button"
               aria-label={`Xóa ${displayName}`}

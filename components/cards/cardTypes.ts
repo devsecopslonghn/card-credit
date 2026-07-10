@@ -10,6 +10,7 @@ import {
   filterCardsByOwner,
   formatAnnualFee,
   formatDateDisplay,
+  formatRateBps,
   formatVnd,
   getMonthlyData,
   getDisplayName,
@@ -48,6 +49,10 @@ export type CreditCardView = {
   imageUrl?: string;
   annualFee?: number | null;
   targetSpendForWaiver?: number;
+  annualFeeWaiverTarget?: number | null;
+  statementDay?: number;
+  paymentDueDays?: number;
+  active?: boolean;
   statementDate?: string;
   paymentDueDate?: string;
   amountDueThisMonth?: number;
@@ -75,6 +80,7 @@ export {
   filterCardsByOwner,
   formatAnnualFee,
   formatDateDisplay,
+  formatRateBps,
   formatVnd,
   getDisplayName,
   getMonthlyData,

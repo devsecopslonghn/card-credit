@@ -28,6 +28,10 @@ const CreditCardSchema = new Schema(
     imageUrl: { type: String, required: true },
     annualFee: { type: Number, default: null },
     targetSpendForWaiver: { type: Number, default: 0 },
+    annualFeeWaiverTarget: { type: Number, default: null },
+    statementDay: { type: Number, default: 1, min: 1, max: 31 },
+    paymentDueDays: { type: Number, default: 15, min: 1 },
+    active: { type: Boolean, default: true },
 
     // 3 Trường mới thêm vào (Lưu chuỗi date dạng YYYY-MM-DD từ HTML5 input)
     statementDate: { type: String, default: "" }, // Ngày sao kê
@@ -54,6 +58,7 @@ CreditCardSchema.index({ presetId: 1 });
 CreditCardSchema.index({ providerCode: 1 });
 CreditCardSchema.index({ workspaceId: 1, createdAt: -1 });
 CreditCardSchema.index({ workspaceId: 1, owner: 1 });
+CreditCardSchema.index({ workspaceId: 1, active: 1 });
 
 const CreditCard = models.CreditCard || model("CreditCard", CreditCardSchema);
 export default CreditCard;

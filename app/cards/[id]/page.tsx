@@ -2,177 +2,229 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { OwnerField } from "@/components/cards/OwnerField";
+import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
 import {
   CARD_IMAGE_PLACEHOLDER_URL,
-  buildOperationalUpdatePayload,
-  calculateCardMetrics,
-  calculateMonthNet,
   formatAnnualFee,
   formatDateDisplay,
+  formatRateBps,
   formatVnd,
   getDisplayName,
-  getMonthlyData,
   getNetwork,
   getProviderName,
-  isLegacyCard,
   type CreditCardView,
-  type MonthlyData,
-  validateOwnerInput,
 } from "@/components/cards/cardTypes";
-import { fetchCards, updateCardOperational } from "@/lib/api/cardsClient";
-
-type GeneralForm = {
-  owner: string;
-  targetSpendForWaiver: number | "";
-  statementDate: string;
-  paymentDueDate: string;
-  amountDueThisMonth: number | "";
-  isPaidThisMonth: boolean;
-};
+import { fetchCard, updateCardOperational } from "@/lib/api/cardsClient";
+import {
+  deleteTransaction,
+  fetchCardStatements,
+  fetchStatementDetail,
+  updateStatementPayment,
+  updateTransaction,
+  updateTransactionCashback,
+  type CardStatementView,
+  type CardTransactionView,
+  type CashbackStatus,
+  type TransactionPayload,
+} from "@/lib/api/transactionsClient";
 
 type Toast = { message: string; type: "success" | "error" };
 
-const monthLabel = (month: number) => `Tháng ${month}`;
+const statusLabel: Record<string, string> = {
+  OPEN: "Đang mở",
+  STATEMENT_CLOSED: "Đã chốt sao kê",
+  PAID: "Đã thanh toán",
+  OVERDUE: "Quá hạn",
+};
 
 export default function CardDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const [card, setCard] = useState<CreditCardView | null>(null);
+  const [statements, setStatements] = useState<CardStatementView[]>([]);
+  const [selectedStatementId, setSelectedStatementId] = useState("");
+  const [statementDetail, setStatementDetail] = useState<CardStatementView | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
-  const [isGeneralModalOpen, setIsGeneralModalOpen] = useState(false);
-  const [generalError, setGeneralError] = useState("");
-  const [ownerError, setOwnerError] = useState("");
-  const [generalData, setGeneralData] = useState<GeneralForm>({
-    owner: "Tôi",
-    targetSpendForWaiver: 0,
-    statementDate: "",
-    paymentDueDate: "",
-    amountDueThisMonth: 0,
-    isPaidThisMonth: false,
+  const [editingTransaction, setEditingTransaction] = useState<CardTransactionView | null>(null);
+  const [transactionError, setTransactionError] = useState("");
+  const [configForm, setConfigForm] = useState({
+    statementDay: 1,
+    paymentDueDays: 15,
+    annualFeeWaiverTarget: 0,
+    active: true,
   });
-  const [editingMonth, setEditingMonth] = useState<MonthlyData | null>(null);
-  const [monthError, setMonthError] = useState("");
-
-  const loadCardDetails = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-    try {
-      const cards = await fetchCards();
-      const currentCard = cards.find((item) => item._id === resolvedParams.id) ?? null;
-      if (!currentCard) setLoadError("Không tìm thấy thẻ.");
-      setCard(currentCard);
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Không thể tải dữ liệu thẻ.");
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedParams.id]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => void loadCardDetails(), 0);
-    return () => window.clearTimeout(timeoutId);
-  }, [loadCardDetails]);
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
     window.setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const metrics = useMemo(() => (card ? calculateCardMetrics(card) : null), [card]);
-  const monthlyData = useMemo<MonthlyData[]>(() => (card ? (getMonthlyData(card) as MonthlyData[]) : []), [card]);
-
-  const openGeneralEdit = () => {
-    if (!card) return;
-    setGeneralData({
-      owner: card.owner || "Tôi",
-      targetSpendForWaiver: card.targetSpendForWaiver ?? 0,
-      statementDate: card.statementDate || "",
-      paymentDueDate: card.paymentDueDate || "",
-      amountDueThisMonth: card.amountDueThisMonth ?? 0,
-      isPaidThisMonth: Boolean(card.isPaidThisMonth),
-    });
-    setOwnerError("");
-    setGeneralError("");
-    setIsGeneralModalOpen(true);
-  };
-
-  const handleSaveGeneral = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!card) return;
-
-    const ownerValidation = validateOwnerInput(generalData.owner);
-    setGeneralData((current) => ({ ...current, owner: ownerValidation.owner }));
-    setOwnerError(ownerValidation.message);
-    if (!ownerValidation.valid) return;
-
-    setIsSubmitting(true);
-    setGeneralError("");
+  const loadCard = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
     try {
-      const payload = buildOperationalUpdatePayload({
-        owner: ownerValidation.owner,
-        targetSpendForWaiver: generalData.targetSpendForWaiver,
-        statementDate: generalData.statementDate,
-        paymentDueDate: generalData.paymentDueDate,
-        amountDueThisMonth: generalData.amountDueThisMonth,
-        isPaidThisMonth: generalData.isPaidThisMonth,
+      const [loadedCard, loadedStatements] = await Promise.all([
+        fetchCard(resolvedParams.id),
+        fetchCardStatements(resolvedParams.id),
+      ]);
+      setCard(loadedCard);
+      setConfigForm({
+        statementDay: loadedCard.statementDay ?? 1,
+        paymentDueDays: loadedCard.paymentDueDays ?? 15,
+        annualFeeWaiverTarget: loadedCard.annualFeeWaiverTarget ?? loadedCard.targetSpendForWaiver ?? 0,
+        active: loadedCard.active !== false,
       });
-      const updatedCard = await updateCardOperational(card._id, payload);
-      setCard(updatedCard);
-      setIsGeneralModalOpen(false);
-      showToast("Cập nhật thông tin vận hành thành công.");
+      setStatements(loadedStatements);
+      const nextSelected = selectedStatementId || loadedStatements[0]?._id || "";
+      setSelectedStatementId(nextSelected);
+      if (nextSelected) setStatementDetail(await fetchStatementDetail(resolvedParams.id, nextSelected));
+      else setStatementDetail(null);
     } catch (error) {
-      setGeneralError(error instanceof Error ? error.message : "Không thể lưu thông tin vận hành.");
+      setLoadError(error instanceof Error ? error.message : "Không thể tải dữ liệu thẻ.");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
+  }, [resolvedParams.id, selectedStatementId]);
+
+  const loadStatementDetail = useCallback(
+    async (statementId: string) => {
+      if (!statementId) {
+        setStatementDetail(null);
+        return;
+      }
+      setStatementDetail(await fetchStatementDetail(resolvedParams.id, statementId));
+    },
+    [resolvedParams.id],
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void loadCard(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadCard]);
+
+  const selectedStatement = useMemo(
+    () => statements.find((statement) => statement._id === selectedStatementId) ?? null,
+    [selectedStatementId, statements],
+  );
+
+  const refreshAfterMutation = async () => {
+    const loadedStatements = await fetchCardStatements(resolvedParams.id);
+    setStatements(loadedStatements);
+    if (selectedStatementId) setStatementDetail(await fetchStatementDetail(resolvedParams.id, selectedStatementId));
   };
 
-  const openMonthEditModal = (monthData: MonthlyData) => {
-    setEditingMonth({ ...monthData });
-    setMonthError("");
-  };
-
-  const handleSaveMonth = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!card || !editingMonth) return;
-
-    const payloadMonth = {
-      month: editingMonth.month,
-      spend: Number(editingMonth.spend) || 0,
-      cashback: Number(editingMonth.cashback) || 0,
-      fee: Number(editingMonth.fee) || 0,
-      otherInterest: Number(editingMonth.otherInterest) || 0,
-    };
-
-    const updatedMonthlyData = monthlyData.map((month) => (month.month === payloadMonth.month ? payloadMonth : month));
-
-    setIsSubmitting(true);
-    setMonthError("");
+  const handlePaymentAction = async (statement: CardStatementView, action: "PAID" | "REOPEN" | "CLOSED") => {
+    const message =
+      action === "REOPEN"
+        ? "Mở lại kỳ sao kê sẽ xóa trạng thái thanh toán, paidAt và paidAmount. Bạn muốn tiếp tục?"
+        : action === "CLOSED"
+          ? "Chốt kỳ sao kê này? Sau khi chốt, sửa/xóa giao dịch vẫn được phép nhưng sẽ có cảnh báo tính lại số liệu."
+          : "Đánh dấu kỳ sao kê này đã thanh toán?";
+    if (!window.confirm(message)) return;
+    setBusy(true);
     try {
-      const updatedCard = await updateCardOperational(card._id, buildOperationalUpdatePayload({ monthlyData: updatedMonthlyData }));
-      setCard(updatedCard);
-      setEditingMonth(null);
-      showToast(`Cập nhật dữ liệu ${monthLabel(payloadMonth.month)} thành công.`);
+      const updated = await updateStatementPayment(resolvedParams.id, statement._id, action);
+      setStatements((current) => current.map((item) => (item._id === updated._id ? updated : item)));
+      await loadStatementDetail(statement._id);
+      showToast(action === "REOPEN" ? "Đã mở lại kỳ sao kê." : action === "CLOSED" ? "Đã chốt kỳ sao kê." : "Đã đánh dấu thanh toán.");
     } catch (error) {
-      setMonthError(error instanceof Error ? error.message : "Không thể lưu dữ liệu tháng.");
+      showToast(error instanceof Error ? error.message : "Không thể cập nhật kỳ sao kê.", "error");
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
-  if (loading) {
-    return <div className="min-h-screen p-10 text-center text-gray-500">Đang tải dữ liệu thẻ...</div>;
-  }
+  const handleTransactionSubmit = async (payload: TransactionPayload, warning: string) => {
+    if (!editingTransaction) return;
+    if (warning && !window.confirm(warning)) return;
+    setBusy(true);
+    setTransactionError("");
+    try {
+      await updateTransaction(editingTransaction._id, payload);
+      setEditingTransaction(null);
+      await refreshAfterMutation();
+      showToast("Đã cập nhật giao dịch.");
+    } catch (error) {
+      setTransactionError(error instanceof Error ? error.message : "Không thể cập nhật giao dịch.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  if (loadError || !card || !metrics) {
+  const handleDeleteTransaction = async (transaction: CardTransactionView) => {
+    if (statementDetail?.paymentStatus === "PAID") {
+      showToast("Kỳ sao kê đã thanh toán. Hãy mở lại kỳ sao kê trước khi xóa giao dịch.", "error");
+      return;
+    }
+    const warning =
+      statementDetail?.paymentStatus === "STATEMENT_CLOSED"
+        ? "Kỳ sao kê đã đóng. Xóa giao dịch sẽ tính lại tổng sao kê, hạn thanh toán và lợi nhuận. Bạn muốn tiếp tục?"
+        : "Xóa giao dịch này?";
+    if (!window.confirm(warning)) return;
+    setBusy(true);
+    try {
+      await deleteTransaction(transaction._id);
+      await refreshAfterMutation();
+      showToast("Đã xóa giao dịch.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Không thể xóa giao dịch.", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCashbackChange = async (transaction: CardTransactionView, cashbackStatus: CashbackStatus, amount: number) => {
+    if (statementDetail?.paymentStatus === "PAID") {
+      showToast("Kỳ sao kê đã thanh toán. Hãy mở lại kỳ sao kê trước khi cập nhật cashback.", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      await updateTransactionCashback(transaction._id, {
+        cashbackStatus,
+        actualCashbackAmount: cashbackStatus === "RECEIVED" ? amount : undefined,
+      });
+      await refreshAfterMutation();
+      showToast("Đã cập nhật cashback.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Không thể cập nhật cashback.", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveConfig = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (configForm.statementDay < 1 || configForm.statementDay > 31) {
+      showToast("Ngày chốt sao kê phải từ 1 đến 31.", "error");
+      return;
+    }
+    if (configForm.paymentDueDays < 1) {
+      showToast("Số ngày đến hạn thanh toán phải lớn hơn 0.", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const updated = await updateCardOperational(resolvedParams.id, configForm);
+      setCard(updated);
+      showToast("Đã cập nhật cấu hình thẻ.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Không thể cập nhật cấu hình thẻ.", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) return <div className="min-h-screen p-10 text-center text-gray-500">Đang tải dữ liệu thẻ...</div>;
+
+  if (loadError || !card) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-10">
         <div className="mx-auto max-w-3xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
           <p className="font-semibold text-red-700">{loadError || "Không tìm thấy thẻ."}</p>
-          <button type="button" onClick={loadCardDetails} className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">
+          <button type="button" onClick={loadCard} className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">
             Tải lại
           </button>
         </div>
@@ -183,19 +235,13 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
   const providerName = getProviderName(card);
   const displayName = getDisplayName(card);
   const network = getNetwork(card);
-  const legacy = isLegacyCard(card);
+  const summary = statementDetail?.summary;
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10 md:px-8">
       {toast && (
-        <div
-          role="status"
-          className={`fixed bottom-6 right-6 z-[100] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl px-5 py-3.5 font-medium text-white shadow-2xl ${
-            toast.type === "success" ? "bg-emerald-600" : "bg-red-600"
-          }`}
-        >
-          <span aria-hidden="true">{toast.type === "success" ? "✓" : "!"}</span>
-          <span className="break-words">{toast.message}</span>
+        <div role={toast.type === "success" ? "status" : "alert"} className={`fixed bottom-6 right-6 z-[100] max-w-[calc(100vw-2rem)] rounded-xl px-5 py-3.5 font-medium text-white shadow-2xl ${toast.type === "success" ? "bg-emerald-600" : "bg-red-600"}`}>
+          {toast.message}
         </div>
       )}
 
@@ -205,250 +251,155 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
         </Link>
 
         <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" aria-labelledby="card-detail-title">
-          <div className="mb-6 flex flex-col justify-between gap-4 border-b border-gray-100 pb-4 md:flex-row md:items-center">
-            <div>
-              <h1 id="card-detail-title" className="text-2xl font-bold text-gray-900">
-                {displayName}
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                {providerName} · {network} · Thẻ của {card.owner || "Tôi"}
-              </p>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[18rem_minmax(0,1fr)]">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <img src={card.imageUrl || CARD_IMAGE_PLACEHOLDER_URL} alt={`${providerName} ${displayName}`} className="mb-3 h-32 w-full object-contain" onError={(event) => { event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL; }} />
+              <p className="text-sm font-semibold text-gray-500">{providerName}</p>
+              <h1 id="card-detail-title" className="text-center text-xl font-bold text-gray-900">{displayName}</h1>
+              <p className="mt-1 text-sm text-blue-700">{network} · {card.owner || "Tôi"}</p>
             </div>
-            <button
-              type="button"
-              onClick={openGeneralEdit}
-              className="rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 outline-none hover:bg-blue-100 focus:ring-2 focus:ring-blue-500"
-            >
-              Sửa thông tin vận hành
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <StatBox label="Phí thường niên snapshot" value={formatAnnualFee(card.annualFee)} />
+              <StatBox label="Ngày chốt sao kê" value={`Ngày ${card.statementDay ?? 1}`} />
+              <StatBox label="Hạn thanh toán" value={`+${card.paymentDueDays ?? 15} ngày`} />
+              <StatBox label="Trạng thái thẻ" value={card.active === false ? "Ngưng dùng" : "Đang dùng"} />
+              <StatBox label="Doanh số miễn PTN" value={formatVnd(card.annualFeeWaiverTarget ?? card.targetSpendForWaiver ?? 0)} />
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" aria-labelledby="card-config-title">
+          <h2 id="card-config-title" className="mb-4 text-xl font-bold text-gray-900">Cấu hình thẻ</h2>
+          <form onSubmit={handleSaveConfig} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <NumberField label="Ngày chốt sao kê" value={configForm.statementDay} min={1} max={31} onChange={(value) => setConfigForm((current) => ({ ...current, statementDay: value }))} />
+            <NumberField label="Số ngày đến hạn" value={configForm.paymentDueDays} min={1} onChange={(value) => setConfigForm((current) => ({ ...current, paymentDueDays: value }))} />
+            <NumberField label="Mục tiêu miễn PTN" value={configForm.annualFeeWaiverTarget} min={0} onChange={(value) => setConfigForm((current) => ({ ...current, annualFeeWaiverTarget: value }))} />
+            <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700">
+              <input type="checkbox" checked={configForm.active} onChange={(event) => setConfigForm((current) => ({ ...current, active: event.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              Đang sử dụng
+            </label>
+            <button type="submit" disabled={busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+              Lưu cấu hình
             </button>
+          </form>
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" aria-labelledby="statement-list-title">
+          <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <h2 id="statement-list-title" className="text-xl font-bold text-gray-900">Kỳ sao kê</h2>
+            {statements.length > 0 && (
+              <select value={selectedStatementId} onChange={(event) => { setSelectedStatementId(event.target.value); void loadStatementDetail(event.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-blue-500">
+                {statements.map((statement) => (
+                  <option key={statement._id} value={statement._id}>
+                    {formatDateDisplay(statement.statementDate)} · {statusLabel[statement.effectivePaymentStatus]}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-            <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <img
-                src={card.imageUrl || CARD_IMAGE_PLACEHOLDER_URL}
-                alt={`${providerName} ${displayName}`}
-                className="mb-3 h-28 w-full object-contain"
-                onError={(event) => {
-                  event.currentTarget.src = CARD_IMAGE_PLACEHOLDER_URL;
-                }}
-              />
-              <p className="text-sm font-semibold text-gray-500">{providerName}</p>
-              <h2 className="text-center text-lg font-bold text-gray-900">{displayName}</h2>
-              <div className="mt-2 flex flex-wrap justify-center gap-2">
-                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">{network}</span>
-                {legacy && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">Legacy</span>}
+          {!statementDetail || !selectedStatement || !summary ? (
+            <p className="rounded-lg border border-dashed border-gray-200 p-6 text-center text-gray-500">Chưa có kỳ sao kê. Hãy tạo giao dịch từ lịch chi tiêu.</p>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatBox label="Bắt đầu kỳ" value={formatDateDisplay(statementDetail.periodStartDate)} />
+                <StatBox label="Chốt sao kê" value={formatDateDisplay(statementDetail.statementDate)} />
+                <StatBox label="Hạn thanh toán" value={formatDateDisplay(statementDetail.paymentDueDate)} />
+                <StatBox label="Trạng thái" value={statusLabel[statementDetail.effectivePaymentStatus]} />
+                <StatBox label="Tổng phải trả ngân hàng" value={formatVnd(summary.totalAmountDue)} color="text-red-600" />
+                <StatBox label="Tổng đối tác hoàn" value={formatVnd(summary.totalIncome)} color="text-emerald-600" />
+                <StatBox label="Phí dịch vụ" value={formatVnd(summary.totalServiceFee)} color="text-orange-600" />
+                <StatBox label="Cashback dự kiến" value={formatVnd(summary.expectedCashback)} color="text-emerald-600" />
+                <StatBox label="Cashback thực nhận" value={formatVnd(summary.actualCashback)} color="text-emerald-600" />
+                <StatBox label="Lợi nhuận dự kiến" value={formatVnd(summary.expectedNetProfit)} color={summary.expectedNetProfit >= 0 ? "text-emerald-600" : "text-red-600"} />
+                <StatBox label="Lợi nhuận thực nhận" value={formatVnd(summary.actualNetProfit)} color={summary.actualNetProfit >= 0 ? "text-emerald-600" : "text-red-600"} />
+                <StatBox label="Doanh số miễn PTN" value={formatVnd(summary.annualEligibleSpend)} />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:col-span-3 lg:grid-cols-3">
-              <StatBox label="Provider" value={providerName} />
-              <StatBox label="Card Product" value={displayName} />
-              <StatBox label="Network" value={network} />
-              <StatBox label="Chủ thẻ" value={card.owner || "Tôi"} />
-              <StatBox label="Phí thường niên snapshot" value={formatAnnualFee(card.annualFee)} />
-              <StatBox label="Doanh số miễn PTN" value={formatVnd(metrics.targetSpendForWaiver)} />
-              <StatBox label="Cần chi tiêu thêm" value={formatVnd(metrics.remainingSpend)} color="text-orange-500" />
-              <StatBox label="Ngày sao kê" value={formatDateDisplay(card.statementDate)} />
-              <StatBox label="Hạn thanh toán" value={formatDateDisplay(card.paymentDueDate)} color="text-red-600" />
-              <StatBox label="Tiền thanh toán tháng này" value={formatVnd(card.amountDueThisMonth)} color="text-red-600" />
-              <StatBox label="Trạng thái thanh toán" value={card.isPaidThisMonth ? "Đã thanh toán" : "Chưa thanh toán"} />
-              <StatBox label="Tổng chi tiêu lũy kế" value={formatVnd(metrics.totalSpend)} color="text-blue-600" />
-              <StatBox label="Tổng tiền hoàn" value={formatVnd(metrics.totalCashback)} color="text-emerald-600" />
-              <StatBox label="Tổng phụ phí quẹt thẻ" value={formatVnd(metrics.totalFee)} color="text-red-500" />
-              <StatBox label="Tổng lãi gửi ngắn hạn" value={formatVnd(metrics.totalOtherInterest)} color="text-emerald-600" />
-              <div className="rounded-xl border border-gray-200 bg-gray-900 p-4 text-white sm:col-span-2 lg:col-span-3">
-                <p className="mb-1 text-sm font-medium text-gray-300">Tổng kết thúc (Lãi/Lỗ ròng)</p>
-                <p className={`text-2xl font-bold ${metrics.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {metrics.netProfit > 0 ? "+" : ""}
-                  {formatVnd(metrics.netProfit)}
-                </p>
-                {!metrics.annualFeeKnown && (
-                  <p className="mt-2 text-xs text-gray-300">Phí thường niên chưa xác định được tính là 0 chỉ cho phép tính tổng.</p>
+              <div className="flex flex-wrap justify-end gap-3">
+                {statementDetail.paymentStatus === "PAID" ? (
+                  <button type="button" disabled={busy} onClick={() => handlePaymentAction(statementDetail, "REOPEN")} className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 disabled:opacity-60">
+                    Mở lại kỳ sao kê
+                  </button>
+                ) : (
+                  <>
+                    {statementDetail.paymentStatus === "OPEN" && (
+                      <button type="button" disabled={busy} onClick={() => handlePaymentAction(statementDetail, "CLOSED")} className="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-60">
+                        Chốt sao kê
+                      </button>
+                    )}
+                    <button type="button" disabled={busy} onClick={() => handlePaymentAction(statementDetail, "PAID")} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                      Đánh dấu đã thanh toán
+                    </button>
+                  </>
                 )}
               </div>
-            </div>
-          </div>
-        </section>
 
-        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" aria-labelledby="monthly-detail-title">
-          <div className="border-b border-gray-100 p-6">
-            <h2 id="monthly-detail-title" className="text-xl font-bold text-gray-900">
-              Chi tiết 12 tháng
-            </h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-right">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 text-sm font-semibold text-gray-500">
-                  <th className="w-32 p-4 text-center">Tháng</th>
-                  <th className="p-4">Chi tiêu</th>
-                  <th className="p-4">Tiền hoàn</th>
-                  <th className="p-4">Phụ phí</th>
-                  <th className="p-4">Lãi khác</th>
-                  <th className="p-4">Tổng số kết thúc</th>
-                  <th className="w-24 p-4 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {monthlyData.map((month) => {
-                  const monthEnd = calculateMonthNet(month);
-                  return (
-                    <tr key={month.month} className="border-b border-gray-50 hover:bg-gray-50/50">
-                      <td className="min-w-28 p-4 text-center font-bold text-gray-900">{monthLabel(month.month)}</td>
-                      <td className="p-4 font-medium text-gray-700">{formatVnd(month.spend)}</td>
-                      <td className="p-4 font-medium text-emerald-600">{formatVnd(month.cashback)}</td>
-                      <td className="p-4 font-medium text-red-500">{formatVnd(month.fee)}</td>
-                      <td className="p-4 font-medium text-emerald-600">{formatVnd(month.otherInterest)}</td>
-                      <td className={`p-4 font-bold ${monthEnd >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                        {monthEnd > 0 ? "+" : ""}
-                        {formatVnd(monthEnd)}
-                      </td>
-                      <td className="p-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => openMonthEditModal(month)}
-                          className="rounded-md px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-100"
-                        >
-                          Sửa
-                        </button>
-                      </td>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50 text-left font-semibold text-gray-500">
+                      <th className="p-3">Ngày</th>
+                      <th className="p-3">Giao dịch</th>
+                      <th className="p-3 text-right">Outcome</th>
+                      <th className="p-3 text-right">Income</th>
+                      <th className="p-3 text-right">Cashback</th>
+                      <th className="p-3 text-right">Lợi nhuận</th>
+                      <th className="p-3">Trạng thái</th>
+                      <th className="p-3 text-right">Thao tác</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {(statementDetail.transactions ?? []).map((transaction) => (
+                      <tr key={transaction._id} className="border-b border-gray-100">
+                        <td className="p-3 font-medium text-gray-900">{formatDateDisplay(transaction.transactionDate)}</td>
+                        <td className="max-w-xs p-3 text-gray-700">
+                          <p className="break-words">{transaction.note || "Không có ghi chú"}</p>
+                          <p className="text-xs text-gray-500">{formatRateBps(transaction.partnerReturnRateBps)} đối tác · {formatRateBps(transaction.cashbackRateBps)} cashback</p>
+                        </td>
+                        <td className="p-3 text-right font-semibold">{formatVnd(transaction.outcomeAmount)}</td>
+                        <td className="p-3 text-right">{formatVnd(transaction.incomeAmount)}</td>
+                        <td className="p-3 text-right">{formatVnd(transaction.derived.expectedCashbackAmount)}</td>
+                        <td className={`p-3 text-right font-semibold ${transaction.derived.expectedNetProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatVnd(transaction.derived.expectedNetProfit)}</td>
+                        <td className="p-3">
+                          <select disabled={busy || statementDetail.paymentStatus === "PAID"} value={transaction.cashbackStatus} onChange={(event) => handleCashbackChange(transaction, event.target.value as CashbackStatus, transaction.actualCashbackAmount ?? transaction.derived.expectedCashbackAmount)} className="rounded border border-gray-300 px-2 py-1 text-xs font-semibold">
+                            <option value="PENDING">Pending</option>
+                            <option value="RECEIVED">Received</option>
+                            <option value="REJECTED">Rejected</option>
+                          </select>
+                        </td>
+                        <td className="p-3 text-right">
+                          <button type="button" disabled={busy || statementDetail.paymentStatus === "PAID"} onClick={() => setEditingTransaction(transaction)} className="mr-2 rounded px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50">Sửa</button>
+                          <button type="button" disabled={busy || statementDetail.paymentStatus === "PAID"} onClick={() => handleDeleteTransaction(transaction)} className="rounded px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50">Xóa</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </section>
 
-        {isGeneralModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
-            <div role="dialog" aria-modal="true" aria-labelledby="general-edit-title" className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-              <div className="sticky top-0 z-10 flex items-start justify-between border-b border-gray-100 bg-white px-6 py-4">
-                <div>
-                  <h3 id="general-edit-title" className="text-lg font-bold text-gray-900">
-                    Sửa thông tin vận hành
-                  </h3>
-                  <p className="text-sm text-gray-500">Product identity là read-only: {providerName} · {displayName} · {network}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsGeneralModalOpen(false)}
-                  aria-label="Đóng modal sửa thông tin vận hành"
-                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-                >
-                  x
-                </button>
-              </div>
-              <form onSubmit={handleSaveGeneral} className="space-y-4 p-6">
-                <OwnerField
-                  value={generalData.owner}
-                  error={ownerError}
-                  disabled={isSubmitting}
-                  onChange={(value) => {
-                    setGeneralData((current) => ({ ...current, owner: value }));
-                    if (ownerError) setOwnerError(validateOwnerInput(value).message);
-                  }}
-                />
-                <InputNumberField
-                  label="Doanh số miễn phí thường niên (VNĐ)"
-                  value={generalData.targetSpendForWaiver}
-                  onChange={(value) => setGeneralData((current) => ({ ...current, targetSpendForWaiver: value }))}
-                  disabled={isSubmitting}
-                />
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <DateField
-                    id="statement-date"
-                    label="Ngày sao kê"
-                    value={generalData.statementDate}
-                    disabled={isSubmitting}
-                    onChange={(value) => setGeneralData((current) => ({ ...current, statementDate: value }))}
-                  />
-                  <DateField
-                    id="payment-due-date"
-                    label="Hạn thanh toán"
-                    value={generalData.paymentDueDate}
-                    disabled={isSubmitting}
-                    onChange={(value) => setGeneralData((current) => ({ ...current, paymentDueDate: value }))}
-                  />
-                </div>
-                <InputNumberField
-                  label="Tiền thanh toán tháng này (VNĐ)"
-                  value={generalData.amountDueThisMonth}
-                  onChange={(value) => setGeneralData((current) => ({ ...current, amountDueThisMonth: value }))}
-                  disabled={isSubmitting}
-                />
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={generalData.isPaidThisMonth}
-                    disabled={isSubmitting}
-                    onChange={(event) => setGeneralData((current) => ({ ...current, isPaidThisMonth: event.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Đã thanh toán tháng này
-                </label>
-                {generalError && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{generalError}</p>}
-                <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
-                  <button type="button" onClick={() => setIsGeneralModalOpen(false)} className="rounded-lg px-5 py-2.5 font-medium text-gray-900 hover:bg-gray-100">
-                    Hủy
-                  </button>
-                  <button type="submit" disabled={isSubmitting} className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60">
-                    {isSubmitting ? "Đang lưu..." : "Cập nhật"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {editingMonth && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <div role="dialog" aria-modal="true" aria-labelledby="month-edit-title" className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                <h3 id="month-edit-title" className="text-lg font-bold text-gray-900">
-                  Cập nhật dữ liệu {monthLabel(editingMonth.month)}
-                </h3>
-                <button type="button" onClick={() => setEditingMonth(null)} aria-label="Đóng modal sửa tháng" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
-                  x
-                </button>
-              </div>
-              <form onSubmit={handleSaveMonth} className="space-y-4 p-6">
-                <InputNumberField label="Chi tiêu (VNĐ)" value={editingMonth.spend ?? 0} disabled={isSubmitting} onChange={(value) => setEditingMonth({ ...editingMonth, spend: Number(value) || 0 })} />
-                <InputNumberField label="Tiền hoàn (VNĐ)" value={editingMonth.cashback ?? 0} disabled={isSubmitting} onChange={(value) => setEditingMonth({ ...editingMonth, cashback: Number(value) || 0 })} />
-                <InputNumberField label="Phụ phí" value={editingMonth.fee ?? 0} disabled={isSubmitting} onChange={(value) => setEditingMonth({ ...editingMonth, fee: Number(value) || 0 })} />
-                <InputNumberField label="Các lãi khác" value={editingMonth.otherInterest ?? 0} disabled={isSubmitting} onChange={(value) => setEditingMonth({ ...editingMonth, otherInterest: Number(value) || 0 })} />
-                <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-                  <span className="font-semibold text-gray-700">Tổng kết thúc tháng</span>
-                  <span className={`text-lg font-bold ${calculateMonthNet(editingMonth) >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                    {formatVnd(calculateMonthNet(editingMonth))}
-                  </span>
-                </div>
-                {monthError && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{monthError}</p>}
-                <div className="flex justify-end gap-3">
-                  <button type="button" onClick={() => setEditingMonth(null)} className="rounded-lg px-5 py-2.5 font-medium text-gray-900 hover:bg-gray-100">
-                    Hủy
-                  </button>
-                  <button type="submit" disabled={isSubmitting} className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60">
-                    {isSubmitting ? "Đang lưu..." : "Lưu tháng"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        <TransactionFormModal
+          key={editingTransaction?._id ?? "transaction-form"}
+          open={Boolean(editingTransaction)}
+          date={editingTransaction?.transactionDate ?? ""}
+          cards={[card]}
+          statements={statements}
+          transaction={editingTransaction}
+          submitting={busy}
+          error={transactionError}
+          onClose={() => setEditingTransaction(null)}
+          onSubmit={handleTransactionSubmit}
+        />
       </div>
     </div>
   );
 }
 
-type StatBoxProps = {
-  label: string;
-  value: string;
-  color?: string;
-};
-
-function StatBox({ label, value, color = "text-gray-900" }: StatBoxProps) {
+function StatBox({ label, value, color = "text-gray-900" }: { label: string; value: string; color?: string }) {
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
       <p className="mb-1 text-xs font-medium text-gray-500">{label}</p>
@@ -457,60 +408,30 @@ function StatBox({ label, value, color = "text-gray-900" }: StatBoxProps) {
   );
 }
 
-type DateFieldProps = {
-  id: string;
+function NumberField({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
   label: string;
-  value: string;
-  disabled: boolean;
-  onChange: (value: string) => void;
-};
-
-function DateField({ id, label, value, disabled, onChange }: DateFieldProps) {
+  value: number;
+  min: number;
+  max?: number;
+  onChange: (value: number) => void;
+}) {
   return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-900">
-        {label}
-      </label>
+    <label className="block text-sm font-semibold text-gray-700">
+      <span className="mb-1 block">{label}</span>
       <input
-        id={id}
-        type="date"
+        type="number"
+        min={min}
+        max={max}
         value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-lg border border-gray-300 bg-white p-2.5 font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+        onChange={(event) => onChange(Number(event.target.value) || min)}
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right outline-none focus:ring-2 focus:ring-blue-500"
       />
-    </div>
-  );
-}
-
-type InputNumberFieldProps = {
-  label: string;
-  value: number | "";
-  disabled?: boolean;
-  onChange: (value: number | "") => void;
-};
-
-function InputNumberField({ label, value, disabled = false, onChange }: InputNumberFieldProps) {
-  const displayValue = value === "" ? "" : Number(value || 0).toLocaleString("vi-VN");
-
-  return (
-    <div>
-      <label className="mb-1 block text-sm font-medium text-gray-900">{label}</label>
-      <input
-        required
-        type="text"
-        value={displayValue}
-        disabled={disabled}
-        onChange={(event) => {
-          const rawValue = event.target.value.replace(/\D/g, "");
-          onChange(rawValue === "" ? "" : Number(rawValue));
-        }}
-        onBlur={() => {
-          if (value === "") onChange(0);
-        }}
-        placeholder="0"
-        className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-right font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-      />
-    </div>
+    </label>
   );
 }
