@@ -5,11 +5,14 @@ import { MongoCatalogRepository } from "./mongo-catalog-repository.js";
 import { writeAuthAudit, writeCatalogAudit } from "./catalog-audit.js";
 import { MongoAuthRepository } from "./auth-repository.js";
 import { registerAuthRoutes } from "./auth-routes.js";
+import { MongoNotesRepository } from "./notes.js";
+import { registerNotesRoutes } from "./notes-routes.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
 const app = buildApp(database, config.logLevel, new MongoCatalogRepository(), config.authSecret, writeCatalogAudit);
 registerAuthRoutes(app, { repository: new MongoAuthRepository(), secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
+registerNotesRoutes(app, new MongoNotesRepository(), config.authSecret);
 let stopping = false;
 
 const shutdown = async (signal: string) => {

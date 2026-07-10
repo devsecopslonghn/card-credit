@@ -160,6 +160,9 @@ Phase 5 — API migration by route group.
   tests; frontend typecheck, lint, 99 unit tests, 18 integration tests, and build
   passed. Old transport cores remain temporarily because remaining Next domain/
   admin tests import the shared session helpers; remove after those route groups.
+- 2026-07-11: Phase 5 domain migration began with `/api/notes`. Added injected
+  Mongo/in-memory repositories, workspace-scoped Fastify routes and contract
+  tests, added the same-origin rewrite, and removed the Next route adapter.
 
 ## Known issues
 
