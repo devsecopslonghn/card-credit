@@ -55,7 +55,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 4 — Shared boundaries | DONE |
 | Phase 5 — API migration by route group | IN_PROGRESS |
 | Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
-| Phase 7 — Two real production Dockerfiles | TODO |
+| Phase 7 — Two real production Dockerfiles | DONE |
 | Phase 8 — Two-service Docker Compose | TODO |
 | Phase 9 — Frontend/backend Jenkins pipeline | TODO |
 | Phase 10 — Safe test database and E2E | TODO |
@@ -167,6 +167,18 @@ Phase 5 — API migration by route group.
   preserving authenticated reads, admin-only writes, duplicate checks and legacy
   response messages. Added injected repositories/tests and removed four Next
   route adapters.
+- 2026-07-11: Per explicit CI priority, introduced the real backend production
+  Dockerfile early, fixed the compiled backend start path, made both Dockerfiles
+  install the shared package, and extended Jenkins layout validation, backend
+  validation, and backend image build. Compose remains single-service until its
+  scheduled phase; this is not a placeholder runtime or fake image.
+- 2026-07-11: Docker/pipeline prerequisite validation completed. Fixed shared
+  package availability in every Docker build stage, built
+  `card-credit-frontend:pipeline-check` and `card-credit-backend:pipeline-check`
+  successfully from repository root, and confirmed both images run non-root
+  production artifacts. Jenkins now validates backend independently and builds
+  both images. Phase 7 is DONE early by explicit user priority; two-service
+  deployment and coordinated cleanup remain Phase 8/9 work.
 
 ## Known issues
 

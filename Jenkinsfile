@@ -95,9 +95,11 @@ pipeline {
 
           test -f frontend/package.json
           test -f frontend/Dockerfile
+          test -f backend/package.json
+          test -f backend/Dockerfile
+          test -f shared/package.json
           test -f docker-compose.prod.yml
           test ! -f Dockerfile
-          test ! -f backend/Dockerfile
         '''
       }
     }
@@ -386,6 +388,46 @@ pipeline {
             docker image inspect "${FULL_IMAGE_NAME}" >/dev/null
           '''
         }
+      }
+    }
+
+    stage('Validate Backend') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          docker run --rm \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace/backend \
+            node:22-alpine \
+            sh -lc 'set -eu; npm ci --no-audit --no-fund; npm run validate'
+        '''
+      }
+    }
+
+    stage('Build Backend Production Image') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          BACKEND_IMAGE="${DOCKER_IMAGE_NAME}-backend:${DOCKER_TAG}"
+          echo "Building backend image: ${BACKEND_IMAGE}"
+          docker build \
+            -f backend/Dockerfile \
+            -t "${BACKEND_IMAGE}" \
+            .
+          docker image inspect "${BACKEND_IMAGE}" >/dev/null
+        '''
       }
     }
 

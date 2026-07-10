@@ -5,6 +5,7 @@ WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+COPY shared /shared
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
@@ -13,6 +14,7 @@ WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+COPY shared /shared
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
 RUN npm run validate:catalog
@@ -32,6 +34,7 @@ ENV PORT=3000
 
 RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 
+COPY shared /shared
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
