@@ -75,11 +75,13 @@ pipeline {
 
           env.DOCKER_TAG = "${env.SAFE_BRANCH_NAME}-${env.BUILD_NUMBER}"
           env.FULL_IMAGE_NAME = "${env.DOCKER_IMAGE_NAME}:${env.DOCKER_TAG}"
+          env.FULL_BACKEND_IMAGE_NAME = "${env.DOCKER_IMAGE_NAME}-backend:${env.DOCKER_TAG}"
 
           echo "Branch name: ${branchName}"
           echo "Safe branch name: ${env.SAFE_BRANCH_NAME}"
           echo "Application port: ${env.APP_PORT_VALUE}"
           echo "Docker image: ${env.FULL_IMAGE_NAME}"
+          echo "Backend Docker image: ${env.FULL_BACKEND_IMAGE_NAME}"
         }
       }
     }
@@ -426,7 +428,7 @@ pipeline {
         sh '''
           set -eu
 
-          BACKEND_IMAGE="${DOCKER_IMAGE_NAME}-backend:${DOCKER_TAG}"
+          BACKEND_IMAGE="${FULL_BACKEND_IMAGE_NAME}"
           echo "Building backend image: ${BACKEND_IMAGE}"
           docker build \
             -f backend/Dockerfile \
@@ -554,6 +556,34 @@ pipeline {
                 }
 
             '
+
+            echo "Checking frontend and backend health"
+
+            for attempt in $(seq 1 30); do
+              if docker exec card-credit node -e '
+                fetch("http://127.0.0.1:3000/login")
+                  .then((response) => process.exit(response.ok ? 0 : 1))
+                  .catch(() => process.exit(1))
+              ' && docker exec card-credit-backend node -e '
+                Promise.all([
+                  fetch("http://127.0.0.1:3001/health"),
+                  fetch("http://127.0.0.1:3001/ready")
+                ])
+                  .then((responses) => process.exit(responses.every((response) => response.ok) ? 0 : 1))
+                  .catch(() => process.exit(1))
+              '; then
+                echo "Frontend and backend health checks passed"
+                break
+              fi
+
+              if [ "$attempt" -eq 30 ]; then
+                echo "Frontend or backend health check failed"
+                exit 1
+              fi
+
+              echo "Waiting for frontend and backend health (${attempt}/30)"
+              sleep 2
+            done
           '''
         }
       }
@@ -611,6 +641,10 @@ pipeline {
 
               docker image rm \
                 "${FULL_IMAGE_NAME}" \
+                2>/dev/null || true
+
+              docker image rm \
+                "${FULL_BACKEND_IMAGE_NAME}" \
                 2>/dev/null || true
             '''
           } else if (

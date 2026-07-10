@@ -57,7 +57,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
 | Phase 7 — Two real production Dockerfiles | DONE |
 | Phase 8 — Two-service Docker Compose | IN_PROGRESS |
-| Phase 9 — Frontend/backend Jenkins pipeline | TODO |
+| Phase 9 — Frontend/backend Jenkins pipeline | DONE |
 | Phase 10 — Safe test database and E2E | TODO |
 | Phase 11 — Documentation and cleanup | TODO |
 | Phase 12 — Final review | TODO |
@@ -189,6 +189,11 @@ Phase 5 — API migration by route group.
   `backend/node_modules` and `backend/dist`. Post cleanup now removes frontend,
   backend, and shared generated/dependency directories. Existing poisoned
   workspace must be deleted once; subsequent builds are ownership-safe.
+- 2026-07-11: Completed Phase 9 pipeline coordination. Jenkins now tracks both
+  fully-qualified image names, validates/builds both runtimes, deploys the
+  two-service Compose stack only on master, checks frontend HTTP plus backend
+  liveness/readiness without logging secrets, and removes both temporary branch
+  images. Workspace ownership and post-cleanup cover all three packages.
 
 ## Known issues
 
