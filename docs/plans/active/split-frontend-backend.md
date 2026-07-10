@@ -56,7 +56,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 5 — API migration by route group | IN_PROGRESS |
 | Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
 | Phase 7 — Two real production Dockerfiles | DONE |
-| Phase 8 — Two-service Docker Compose | TODO |
+| Phase 8 — Two-service Docker Compose | IN_PROGRESS |
 | Phase 9 — Frontend/backend Jenkins pipeline | TODO |
 | Phase 10 — Safe test database and E2E | TODO |
 | Phase 11 — Documentation and cleanup | TODO |
@@ -179,6 +179,11 @@ Phase 5 — API migration by route group.
   production artifacts. Jenkins now validates backend independently and builds
   both images. Phase 7 is DONE early by explicit user priority; two-service
   deployment and coordinated cleanup remain Phase 8/9 work.
+- 2026-07-11: Phase 8 started early for pipeline readiness. Compose now defines
+  public frontend and internal backend services, coordinated image tags,
+  backend health dependency, required secrets via environment, and no published
+  backend port. Static config validation is required before commit; safe startup
+  remains deferred to the isolated MongoDB phase.
 
 ## Known issues
 

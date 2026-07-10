@@ -346,6 +346,7 @@ pipeline {
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
             DOCKER_TAG="${DOCKER_TAG}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -380,6 +381,7 @@ pipeline {
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
             DOCKER_TAG="${DOCKER_TAG}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -521,6 +523,7 @@ pipeline {
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
             DOCKER_TAG="${DOCKER_TAG}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -530,6 +533,7 @@ pipeline {
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
             DOCKER_TAG="${DOCKER_TAG}" \
               docker compose \
                 -f docker-compose.prod.yml \
