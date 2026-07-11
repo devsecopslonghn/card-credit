@@ -58,13 +58,13 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 7 — Two real production Dockerfiles | DONE |
 | Phase 8 — Two-service Docker Compose | DONE |
 | Phase 9 — Frontend/backend Jenkins pipeline | DONE |
-| Phase 10 — Safe test database and E2E | TODO |
+| Phase 10 — Safe test database and E2E | DONE |
 | Phase 11 — Documentation and cleanup | TODO |
 | Phase 12 — Final review | TODO |
 
 ## Current phase
 
-Phase 10 — Safe test database and E2E.
+Phase 11 — Documentation and cleanup.
 
 ## Acceptance criteria
 
@@ -217,6 +217,13 @@ Phase 10 — Safe test database and E2E.
   The rebuilt stack passed frontend `/login`, backend `/health` and `/ready`,
   same-origin proxy authentication reached the backend (401 credentials response),
   cross-origin mutation was blocked (403), and teardown removed the test stack.
+- 2026-07-11: Phase 10 added a real split-runtime Playwright scenario configurable
+  for an externally managed Compose server. It registers through the frontend,
+  verifies the secure session and exercises cards, transactions and reports on
+  the backend using only the tmpfs Mongo test database. The real scenario passed
+  1/1; the refreshed UI suite passed 5 applicable tests with 7 intentional
+  project/fixture skips. The isolated database was dropped, the stack removed,
+  and both `phase10-check` production images built successfully.
 
 ## Known issues
 

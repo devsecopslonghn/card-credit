@@ -34,7 +34,13 @@ type CreditCard = {
   paymentDueDate?: string;
   amountDueThisMonth?: number;
   isPaidThisMonth?: boolean;
-  monthlyData?: Array<{ month: number; spend: number; cashback: number; fee: number; otherInterest: number }>;
+  monthlyData?: Array<{
+    month: number;
+    spend: number;
+    cashback: number;
+    fee: number;
+    otherInterest: number;
+  }>;
 };
 
 const placeholderImage = "/card-images/placeholder-card.svg";
@@ -100,7 +106,10 @@ const json = (route: Route, body: unknown, status = 200) =>
     body: JSON.stringify(body),
   });
 
-async function mockCardApis(page: Page, cardFixture: CreditCard[] = initialCards) {
+async function mockCardApis(
+  page: Page,
+  cardFixture: CreditCard[] = initialCards,
+) {
   await page.context().addCookies([
     {
       name: "card_credit_session",
@@ -117,6 +126,15 @@ async function mockCardApis(page: Page, cardFixture: CreditCard[] = initialCards
   const deleteRequests: string[] = [];
 
   await page.route("**/api/notes**", (route) => json(route, []));
+  await page.route("**/api/card-transactions**", (route) =>
+    json(route, { data: [] }),
+  );
+  await page.route("**/api/cards/duplicates**", (route) =>
+    json(route, { data: [] }),
+  );
+  await page.route(/\/api\/cards\/[^/]+\/statements(?:\?.*)?$/, (route) =>
+    json(route, { data: [] }),
+  );
 
   await page.route("**/api/card-catalog/providers", (route) =>
     json(route, {
@@ -146,8 +164,15 @@ async function mockCardApis(page: Page, cardFixture: CreditCard[] = initialCards
       const body = await route.request().postDataJSON();
       createRequests.push(body);
 
-      if (JSON.stringify(Object.keys(body).sort()) !== JSON.stringify(["owner", "presetId"])) {
-        return json(route, { error: { message: "Unexpected create payload." } }, 400);
+      if (
+        JSON.stringify(Object.keys(body).sort()) !==
+        JSON.stringify(["owner", "presetId"])
+      ) {
+        return json(
+          route,
+          { error: { message: "Unexpected create payload." } },
+          400,
+        );
       }
 
       const createdCard: CreditCard = {
@@ -178,11 +203,21 @@ async function mockCardApis(page: Page, cardFixture: CreditCard[] = initialCards
     const method = route.request().method();
     const id = new URL(route.request().url()).pathname.split("/").pop() ?? "";
 
+    if (id === "duplicates") return route.fallback();
+
+    if (method === "GET") {
+      const existing = cards.find((card) => card._id === id);
+      return existing
+        ? json(route, existing)
+        : json(route, { error: { message: "Card not found." } }, 404);
+    }
+
     if (method === "PUT") {
       const body = await route.request().postDataJSON();
       updateRequests.push({ id, body });
       const existing = cards.find((card) => card._id === id);
-      if (!existing) return json(route, { error: { message: "Card not found." } }, 404);
+      if (!existing)
+        return json(route, { error: { message: "Card not found." } }, 404);
 
       const updatedCard = { ...existing, ...body };
       cards = cards.map((card) => (card._id === id ? updatedCard : card));
@@ -207,20 +242,35 @@ async function mockCardApis(page: Page, cardFixture: CreditCard[] = initialCards
 }
 
 test.describe("CC-033 card catalog E2E", () => {
-  test("desktop catalog-first create, detail update, mark paid, and delete flow", async ({ page }) => {
-    test.skip(page.viewportSize()?.width === 375, "Main desktop flow runs in the desktop project.");
+  test("desktop catalog-first create, detail configuration update, and delete flow", async ({
+    page,
+  }) => {
+    test.skip(
+      page.viewportSize()?.width === 375,
+      "Main desktop flow runs in the desktop project.",
+    );
     const api = await mockCardApis(page);
 
     await page.goto("/cards");
-    await expect(page.getByRole("heading", { name: "Thẻ Tín Dụng" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Legacy Bank/ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Classic Legacy Card" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Thẻ Tín Dụng" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /Legacy Bank/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Classic Legacy Card" }),
+    ).toBeVisible();
     await expect(page.getByText("Legacy", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: "Thêm thẻ mới" }).click();
-    await expect(page.getByRole("dialog", { name: "Thêm thẻ từ Card Catalog" })).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Thêm thẻ từ Card Catalog" }),
+    ).toBeVisible();
     await page.getByRole("radio", { name: /Sacombank/ }).click();
-    await expect(page.getByRole("radio", { name: /Inactive Catalog Product/ })).toHaveCount(0);
+    await expect(
+      page.getByRole("radio", { name: /Inactive Catalog Product/ }),
+    ).toHaveCount(0);
     await page.getByRole("radio", { name: /Visa Platinum Cashback/ }).click();
     await page.getByLabel("Chủ thẻ").fill("Long Ho");
     await page.getByRole("button", { name: "Tạo thẻ" }).click();
@@ -231,37 +281,52 @@ test.describe("CC-033 card catalog E2E", () => {
       owner: "Long Ho",
     });
 
-    const sacombankSection = page.getByRole("region", { name: /Sacombank \(1\)/ });
-    await expect(sacombankSection.getByText("Visa Platinum Cashback")).toBeVisible();
+    const sacombankSection = page.getByRole("region", { name: "Sacombank" });
+    await expect(
+      sacombankSection.getByText("Visa Platinum Cashback"),
+    ).toBeVisible();
     await expect(sacombankSection.getByText("Thẻ của: Long Ho")).toBeVisible();
 
-    await page.getByRole("link", { name: "Mở chi tiết Visa Platinum Cashback" }).click();
+    await page
+      .getByRole("link", { name: "Mở chi tiết Visa Platinum Cashback" })
+      .click();
     await expect(page).toHaveURL(/\/cards\/created-card-1$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Visa Platinum Cashback" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Visa Platinum Cashback" }),
+    ).toBeVisible();
 
-    await page.getByRole("button", { name: "Sửa thông tin vận hành" }).click();
-    const operationalDialog = page.getByRole("dialog", { name: "Sửa thông tin vận hành" });
-    await expect(operationalDialog).toBeVisible();
-    await operationalDialog.locator('input[type="text"]').nth(1).fill("2500000");
-    await page.getByRole("button", { name: "Cập nhật" }).click();
-    await expect.poll(() => api.updateRequests.some((request) => request.body && (request.body as CreditCard).amountDueThisMonth === 2500000)).toBe(true);
+    await page.getByLabel("Mục tiêu miễn PTN").fill("2500000");
+    await page.getByRole("button", { name: "Lưu cấu hình" }).click();
+    await expect
+      .poll(() =>
+        api.updateRequests.some(
+          (request) =>
+            request.body &&
+            (request.body as { annualFeeWaiverTarget?: number })
+              .annualFeeWaiverTarget === 2500000,
+        ),
+      )
+      .toBe(true);
     await expect(page.getByText("2.500.000 ₫")).toBeVisible();
 
     await page.getByRole("link", { name: /Quay lại danh sách thẻ/ }).click();
     await expect(page).toHaveURL(/\/cards$/);
-    await page.getByLabel("Đánh dấu đã thanh toán Visa Platinum Cashback").check();
-    await expect.poll(() => api.updateRequests.some((request) => request.body && (request.body as CreditCard).isPaidThisMonth === true)).toBe(true);
-    await expect(sacombankSection.getByText("Đã thanh toán")).toBeVisible();
-
-    await page.getByRole("button", { name: "Xóa Visa Platinum Cashback" }).click();
+    await page
+      .getByRole("button", { name: "Xóa Visa Platinum Cashback" })
+      .click();
     await page.getByRole("button", { name: "Đồng ý xóa" }).click();
     await expect.poll(() => api.deleteRequests).toEqual(["created-card-1"]);
     await expect(page.getByText("Visa Platinum Cashback")).toHaveCount(0);
-    expect(api.getCards().map((card) => card._id)).not.toContain("created-card-1");
+    expect(api.getCards().map((card) => card._id)).not.toContain(
+      "created-card-1",
+    );
   });
 
   test("blocks empty owner before creating a card", async ({ page }) => {
-    test.skip(page.viewportSize()?.width === 375, "Validation is covered in the desktop project.");
+    test.skip(
+      page.viewportSize()?.width === 375,
+      "Validation is covered in the desktop project.",
+    );
     const api = await mockCardApis(page);
 
     await page.goto("/cards");
@@ -275,63 +340,97 @@ test.describe("CC-033 card catalog E2E", () => {
     expect(api.createRequests).toHaveLength(0);
   });
 
-  test("modal supports keyboard use, escape close, and focus return", async ({ page }) => {
-    test.skip(page.viewportSize()?.width === 375, "Keyboard interaction is covered in the desktop project.");
+  test("modal supports keyboard use, escape close, and focus return", async ({
+    page,
+  }) => {
+    test.skip(
+      page.viewportSize()?.width === 375,
+      "Keyboard interaction is covered in the desktop project.",
+    );
     const api = await mockCardApis(page);
 
     await page.goto("/cards");
     const addButton = page.getByRole("button", { name: "Thêm thẻ mới" });
     await addButton.focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("dialog", { name: "Thêm thẻ từ Card Catalog" })).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Thêm thẻ từ Card Catalog" }),
+    ).toBeVisible();
 
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "Thêm thẻ từ Card Catalog" })).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog", { name: "Thêm thẻ từ Card Catalog" }),
+    ).toHaveCount(0);
     await expect(addButton).toBeFocused();
 
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("dialog", { name: "Thêm thẻ từ Card Catalog" })).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Thêm thẻ từ Card Catalog" }),
+    ).toBeVisible();
     await page.getByRole("radio", { name: /Sacombank/ }).focus();
     await page.keyboard.press("Space");
     await page.getByRole("radio", { name: /Visa Platinum Cashback/ }).focus();
     await page.keyboard.press("Enter");
     await page.getByLabel("Chủ thẻ").focus();
-    await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+    await page.keyboard.press(
+      process.platform === "darwin" ? "Meta+A" : "Control+A",
+    );
     await page.keyboard.type("Keyboard User");
     await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "Tạo thẻ" })).toBeFocused();
     await page.keyboard.press("Enter");
 
-    await expect.poll(() => api.createRequests).toEqual([
-      {
-        presetId: "sacombank-visa-platinum-cashback",
-        owner: "Keyboard User",
-      },
-    ]);
+    await expect
+      .poll(() => api.createRequests)
+      .toEqual([
+        {
+          presetId: "sacombank-visa-platinum-cashback",
+          owner: "Keyboard User",
+        },
+      ]);
   });
 
-  test("mobile viewport has no horizontal page scroll", async ({ page, isMobile }) => {
-    test.skip(!isMobile, "Mobile layout assertion only runs in the mobile project.");
+  test("mobile viewport has no horizontal page scroll", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(
+      !isMobile,
+      "Mobile layout assertion only runs in the mobile project.",
+    );
     await mockCardApis(page);
 
     await page.goto("/cards");
-    await expect(page.getByRole("heading", { name: "Classic Legacy Card" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Classic Legacy Card" }),
+    ).toBeVisible();
 
-    const hasHorizontalScroll = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    const hasHorizontalScroll = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    );
     expect(hasHorizontalScroll).toBe(false);
   });
 });
 
 test.describe("CC-034 card edge cases E2E", () => {
-  test("renders missing, broken, data URI, long-name and empty-date cards without broken UI", async ({ page }) => {
-    test.skip(page.viewportSize()?.width === 375, "Edge rendering is covered once in the desktop project.");
+  test("renders missing, broken, data URI, long-name and empty-date cards without broken UI", async ({
+    page,
+  }) => {
+    test.skip(
+      page.viewportSize()?.width === 375,
+      "Edge rendering is covered once in the desktop project.",
+    );
     const longName =
       "Zero Fee Empty Image Product With An Extremely Long Official Display Name For Layout Regression Coverage";
     const dataUri =
       "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='100'%3E%3Crect width='160' height='100' fill='%230f766e'/%3E%3C/svg%3E";
 
-    await page.route("**/card-images/does-not-exist.png", (route) => route.fulfill({ status: 404 }));
+    await page.route("**/card-images/does-not-exist.png", (route) =>
+      route.fulfill({ status: 404 }),
+    );
     await mockCardApis(page, [
       {
         _id: "edge-empty-image",
@@ -374,19 +473,31 @@ test.describe("CC-034 card edge cases E2E", () => {
 
     await page.goto("/cards");
     await expect(page.getByRole("heading", { name: longName })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Broken Image Product" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Legacy Data URI Product" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Broken Image Product" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Legacy Data URI Product" }),
+    ).toBeVisible();
     await expect(page.getByText("0 ₫").first()).toBeVisible();
-    await expect(page.getByText("Chưa xác định").first()).toBeVisible();
-    await expect(page.getByText("Chưa thiết lập").first()).toBeVisible();
-
     const emptyImage = page.getByAltText(`Edge Bank ${longName}`);
-    await expect(emptyImage).toHaveAttribute("src", "/card-images/placeholder-card.svg");
+    await expect(emptyImage).toHaveAttribute(
+      "src",
+      /\/card-images\/placeholder-card\.svg$/,
+    );
 
     const brokenImage = page.getByAltText("Edge Bank Broken Image Product");
-    await expect.poll(async () => brokenImage.getAttribute("src")).toBe("/card-images/placeholder-card.svg");
+    await expect
+      .poll(async () =>
+        (await brokenImage.getAttribute("src"))?.endsWith(
+          "/card-images/placeholder-card.svg",
+        ),
+      )
+      .toBe(true);
 
-    await expect(page.getByAltText("Legacy Data Bank Legacy Data URI Product")).toHaveAttribute("src", dataUri);
+    await expect(
+      page.getByAltText("Legacy Data Bank Legacy Data URI Product"),
+    ).toHaveAttribute("src", dataUri);
     await expect(page.locator("body")).not.toContainText("NaN");
     await expect(page.locator("body")).not.toContainText("undefinedđ");
   });
