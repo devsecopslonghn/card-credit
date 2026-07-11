@@ -56,7 +56,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 5 — API migration by route group | DONE |
 | Phase 6 — Authentication, cookie, CORS, and CSRF | DONE |
 | Phase 7 — Two real production Dockerfiles | DONE |
-| Phase 8 — Two-service Docker Compose | IN_PROGRESS |
+| Phase 8 — Two-service Docker Compose | DONE |
 | Phase 9 — Frontend/backend Jenkins pipeline | DONE |
 | Phase 10 — Safe test database and E2E | TODO |
 | Phase 11 — Documentation and cleanup | TODO |
@@ -64,7 +64,7 @@ consistent repository layout while the UI and API continue to run together.
 
 ## Current phase
 
-Phase 8 — Two-service Docker Compose startup validation.
+Phase 10 — Safe test database and E2E.
 
 ## Acceptance criteria
 
@@ -211,6 +211,12 @@ Phase 8 — Two-service Docker Compose startup validation.
   frontend topology. Secure HttpOnly SameSite=Lax host-only cookies remain owned
   by the backend. Backend validation passed with 16 tests and both production
   images built through Compose with `phase6-check`.
+- 2026-07-11: Phase 8 completed real Compose startup against an isolated MongoDB
+  8 container backed by tmpfs. The first run exposed build-time rewrites targeting
+  frontend localhost; production now defaults to Compose DNS `backend:3001`.
+  The rebuilt stack passed frontend `/login`, backend `/health` and `/ready`,
+  same-origin proxy authentication reached the backend (401 credentials response),
+  cross-origin mutation was blocked (403), and teardown removed the test stack.
 
 ## Known issues
 
