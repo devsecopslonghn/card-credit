@@ -55,11 +55,12 @@ frontend and backend runtimes with same-origin browser APIs and safe CI/deploy.
 | Phase 9 — Frontend/backend Jenkins pipeline | DONE |
 | Phase 10 — Safe test database and E2E | DONE |
 | Phase 11 — Documentation and cleanup | DONE |
-| Phase 12 — Final review | TODO |
+| Phase 12 — Final review | DONE |
 
 ## Current phase
 
-Phase 12 — Final review (not started).
+Complete. The plan was archived after the final code, pipeline, security,
+artifact, container, and validation review passed.
 
 ## Acceptance criteria
 
@@ -78,19 +79,23 @@ Phase 12 — Final review (not started).
 
 | Validation | Result |
 |---|---|
-| Preflight branch/status/log/diffs/file inventory | PASS — expected branch; preserved existing documentation changes |
-| Stale documentation path search | PASS — no matches in current files |
+| Preflight branch/status/upstream/log/diffs/file inventory | PASS — expected branch and commit; clean tree; upstream synchronized before review |
+| Full phase/code ownership audit | PASS — no frontend API routes, Mongoose/database access, or obsolete server auth/domain cores; backend owns API/auth/MongoDB/domain behavior |
+| Jenkins pipeline audit | PASS — strong clean checkout, Jenkins UID/GID backend validation, root artifact cleanup, both validations/images with one tag, Compose build, master-only deploy, three health checks, both temporary-image cleanups, no secret values logged |
+| Secret/artifact/generated-file and stale-path scans | PASS — no credential patterns or tracked generated artifacts; local validation artifacts removed; links updated for archive move |
 | `git diff --check` | PASS |
-| `npm ci` | PASS — 385 packages installed; npm reported 3 moderate vulnerabilities |
-| `npm run validate:catalog` | PASS — 27 products |
-| `npm run typecheck` | PASS |
-| `npm run lint` | PASS |
-| `npm run test:unit` | PASS — frontend 37/37; backend covered by `npm run validate` |
-| `npm run test:integration` | PASS — frontend catalog 6/6; split runtime E2E 1/1 |
-| `npm run build` | PASS — existing Next.js middleware deprecation warning |
-| Production Docker image build | PASS — coordinated frontend/backend images through Phase 10 |
-| Compose startup | PASS — isolated MongoDB tmpfs, frontend/backend healthy |
-| Playwright E2E | PASS — UI suite 5 applicable tests; real split-runtime 1/1 |
+| Shared `npm test` | PASS — 1/1 |
+| Backend `npm run validate` | PASS — typecheck, lint, 16/16 tests, build |
+| Frontend `npm run validate:catalog` | PASS — 27 products |
+| Frontend `npm run typecheck` and `npm run lint` | PASS |
+| Frontend unit and integration tests | PASS — 37/37 unit; 6/6 integration |
+| Frontend `npm run build` | PASS — existing Next.js middleware deprecation warning only |
+| Full Playwright UI suite | PASS — 5 applicable tests; 7 intentional fixture/project skips |
+| Real split-runtime E2E | PASS — 1/1 against isolated MongoDB 8 tmpfs through frontend proxy |
+| `docker compose config --quiet` | PASS |
+| Production Docker image build | PASS — `card-credit:final-review` and `card-credit-backend:final-review` |
+| Isolated Compose startup and probes | PASS — frontend `/login`, backend `/health` and `/ready`, unauthenticated API proxy 401 |
+| Isolated Compose teardown | PASS — containers, tmpfs-backed MongoDB, and network removed |
 
 ## Progress log
 
@@ -225,6 +230,13 @@ Phase 12 — Final review (not started).
   split topology. Shared tests passed 1/1, backend validation passed 16/16,
   frontend passed 37 unit + 6 integration + 5 applicable Playwright tests,
   production build passed, and both `phase11-check` images built via Compose.
+- 2026-07-11: Phase 12 audited every phase against current code and corrected two
+  final boundary gaps: Jenkins now deletes the workspace before checkout, and
+  production Compose no longer injects database/auth secrets into the frontend.
+  Jenkins checks auth configuration in the backend container. All final package,
+  Playwright, split-runtime, Compose, image, health, proxy, security/artifact and
+  Git validations passed using only MongoDB 8 on tmpfs. The isolated stack was
+  removed and this completed plan was archived.
 
 ## Known issues
 
@@ -243,7 +255,7 @@ Phase 12 — Final review (not started).
 
 ## Final Definition of Done
 
-All phases through Phase 12 are DONE; frontend and backend are real independent
-runtimes with tested boundaries, two production images, two Compose services,
-safe CI/deployment, migrated routes, current documentation, and no obsolete
-monolith or placeholder artifacts.
+DONE — all phases through Phase 12 passed review. Frontend and backend are real
+independent runtimes with tested boundaries, coordinated production images,
+two-service Compose, safe CI/deployment, migrated routes, current documentation,
+no frontend server secrets, and no obsolete monolith or placeholder artifacts.

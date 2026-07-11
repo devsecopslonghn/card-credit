@@ -62,6 +62,6 @@ ambiguous, ask before editing.
 - Report the branch, phase status, file changes, decisions, actual validation
   results, skipped checks, blockers/risks, diff summary, and next planned phase.
 
-Current task details belong in
-`docs/plans/active/split-frontend-backend.md`; archived Card Catalog plans are
+The completed frontend/backend split history is archived at
+`docs/plans/archive/2026-07-11-split-frontend-backend.md`; archived plans are
 historical references, not active instructions.

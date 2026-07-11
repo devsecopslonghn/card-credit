@@ -8,11 +8,6 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      MONGODB_URI: ${MONGODB_URI:?MONGODB_URI is required}
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
-      AUTH_USERS_JSON: ${AUTH_USERS_JSON:-}
-      AUTH_BOOTSTRAP_TOKEN: ${AUTH_BOOTSTRAP_TOKEN:-}
-      PASSWORD_RESET_RETURN_TOKEN: ${PASSWORD_RESET_RETURN_TOKEN:-false}
       BACKEND_INTERNAL_URL: http://backend:3001
 
     ports:

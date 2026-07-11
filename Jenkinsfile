@@ -47,6 +47,7 @@ pipeline {
           echo "Build number: ${BUILD_NUMBER}"
         '''
 
+        deleteDir()
         checkout scm
       }
     }
@@ -545,9 +546,9 @@ pipeline {
                 -f docker-compose.prod.yml \
                 ps
 
-            echo "Checking required authentication variables inside the running container"
+            echo "Checking required authentication variables inside the backend container"
 
-            docker exec card-credit sh -lc '
+            docker exec card-credit-backend sh -lc '
               test -n "$AUTH_SECRET" &&
                 echo "AUTH_SECRET=set" ||
                 {

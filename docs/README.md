@@ -13,13 +13,14 @@
 
 ## Active work
 
-- `plans/active/split-frontend-backend.md`
+No active implementation plan.
 
 ## Historical plans
 
 - `plans/archive/2026-07-05-card-catalog-baseline.md`
 - `plans/archive/2026-07-card-catalog-release-plan.md`
 - `plans/archive/2026-07-card-catalog-roadmap.md`
+- `plans/archive/2026-07-11-split-frontend-backend.md`
 
 ## Audits
 
