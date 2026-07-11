@@ -9,7 +9,6 @@ import {
   resolveStatementDate,
   summarizeTransactions,
 } from "../lib/cards/statementCore.mjs";
-import { createTransaction } from "../lib/services/transactionService.mjs";
 
 test("statement boundary uses previous exclusive and current inclusive", () => {
   assert.equal(resolveStatementDate("2026-07-07", 7), "2026-07-07");
@@ -111,50 +110,4 @@ test("cashback cap strategy reports remaining cashback for statement period", ()
   assert.equal(cap.remainingCashback, 80_000);
   assert.equal(cap.exceededCashback, 0);
   assert.equal(cap.capUsedPercent, 84);
-});
-
-test("paid statements block transaction creation in service layer", async () => {
-  const card = {
-    _id: "507f1f77bcf86cd799439011",
-    workspaceId: "workspace-a",
-    statementDay: 7,
-    paymentDueDays: 15,
-  };
-  const paidStatement = {
-    _id: "507f1f77bcf86cd799439012",
-    workspaceId: "workspace-a",
-    userCardId: card._id,
-    statementDate: "2026-08-07",
-    paymentStatus: "PAID",
-  };
-  const CardModel = { async findById() { return card; } };
-  const CardStatementModel = {
-    async findOneAndUpdate() {
-      return paidStatement;
-    },
-  };
-  const TransactionModel = {
-    async create() {
-      throw new Error("create should not be called");
-    },
-  };
-
-  await assert.rejects(
-    () =>
-      createTransaction(
-        {
-          userCardId: card._id,
-          transactionDate: "2026-07-08",
-          outcomeAmount: 1_000_000,
-          incomeAmount: 950_000,
-          incomeInputMode: "AMOUNT",
-          cashbackRateBps: 1000,
-          eligibleForAnnualFeeWaiver: true,
-          note: "blocked",
-        },
-        { TransactionModel, CardModel, CardStatementModel },
-        { userId: "user-a", workspaceId: "workspace-a" },
-      ),
-    /Kỳ sao kê đã thanh toán/,
-  );
 });

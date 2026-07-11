@@ -2,47 +2,42 @@
 
 ## Goal
 
-Move from the current Next.js monolith toward separate `frontend/` and
-`backend/` runtimes through reviewable phases. Phase 1 only establishes a
-consistent repository layout while the UI and API continue to run together.
+Complete the migration from the former Next.js monolith to independently built
+frontend and backend runtimes with same-origin browser APIs and safe CI/deploy.
 
 ## Non-goals
 
-- Implementing or scaffolding a standalone backend runtime.
-- Moving API routes out of `frontend/app/api/**`.
-- Changing business behavior, routes, API contracts, or database schemas.
-- Adding a backend image, Compose service, or pipeline.
+- Publishing the backend port to browsers.
+- Enabling production CORS or a credentialed wildcard.
+- Using production data for tests, imports, migrations or E2E.
+- Replacing the existing public `/api/**` URLs.
 
 ## Current state
 
-- The Next.js application is under `frontend/` and includes both UI and API routes.
-- `frontend/Dockerfile` is the single production Dockerfile and uses the repository
-  root as its build context.
-- `backend/` contains documentation only; no package, entrypoint, or image exists.
-- Compose and Jenkins operate one Next.js application runtime.
+- `frontend/` is a UI-only Next.js runtime with same-origin backend rewrites.
+- `backend/` is the Fastify API runtime and sole owner of MongoDB/auth/domain code.
+- Both production Dockerfiles use the repository root build context.
+- Compose runs frontend plus internal backend; production supplies external MongoDB.
+- Jenkins validates and builds both images, deploys master and checks both services.
 
 ## Constraints
 
-- Preserve behavior and public URLs.
-- Never duplicate API implementations into `backend/`.
+- Preserve public URLs and compatibility response fields.
+- Keep frontend free of server secrets, MongoDB models and API implementations.
 - Never use a production database for validation.
-- Do not commit, push, or proceed to another phase without permission.
+- Complete, validate, commit and push one phase at a time.
 
 ## Decisions
 
-- Keep `frontend/Dockerfile`; the obsolete root Dockerfile is already absent.
-- Delete the nonfunctional `backend/Dockerfile` and create a real one only with a
-  real backend runtime.
-- Keep a single Compose service with required `MONGODB_URI` and `AUTH_SECRET`.
-- Treat auth bootstrap/reset variables as optional, explicit operational inputs.
-- Keep the container smoke-test stage disabled until a safe isolated database or
-  fully mocked runtime path is verified.
+- Use Fastify on Node.js 22 behind Next same-origin rewrites.
+- Keep MongoDB as mutable runtime authority and baseline catalog import explicit.
+- Build and deploy coordinated frontend/backend tags.
+- Use the test Compose overlay with MongoDB tmpfs for startup and E2E validation.
 
 ## Open questions
 
-- Backend framework, package boundaries, and ownership of shared contracts.
-- API base URL, proxy topology, authentication/cookie boundary, CORS, and CSRF.
-- Safe isolated database strategy for container smoke tests and E2E.
+- No architecture questions remain for the split. Final review and operational
+  pipeline observation remain before archiving this plan.
 
 ## Phase status table
 
@@ -59,22 +54,21 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 8 — Two-service Docker Compose | DONE |
 | Phase 9 — Frontend/backend Jenkins pipeline | DONE |
 | Phase 10 — Safe test database and E2E | DONE |
-| Phase 11 — Documentation and cleanup | TODO |
+| Phase 11 — Documentation and cleanup | DONE |
 | Phase 12 — Final review | TODO |
 
 ## Current phase
 
-Phase 11 — Documentation and cleanup.
+Phase 12 — Final review (not started).
 
 ## Acceptance criteria
 
 - [x] The application lives under `frontend/`.
-- [x] API routes remain under `frontend/app/api/**`.
-- [x] No API implementation is duplicated under `backend/`.
-- [x] `backend/` does not pretend to be a working runtime.
-- [x] The current production Dockerfile is `frontend/Dockerfile`.
-- [x] Compose references `frontend/Dockerfile` and runs one service.
-- [x] Jenkins uses `/workspace/frontend` and validates the Phase 1 layout.
+- [x] `frontend/app/api/**` contains no API implementation.
+- [x] Backend owns all API, auth, MongoDB and domain behavior.
+- [x] Both runtimes have real non-root production Dockerfiles.
+- [x] Compose runs frontend and internal backend with coordinated tags.
+- [x] Jenkins validates/builds/deploys and cleans both runtimes.
 - [x] Root README Docker commands match the layout and runtime boundaries.
 - [x] Documentation paths are valid.
 - [x] Environment-variable documentation matches runtime and CI behavior.
@@ -91,12 +85,12 @@ Phase 11 — Documentation and cleanup.
 | `npm run validate:catalog` | PASS — 27 products |
 | `npm run typecheck` | PASS |
 | `npm run lint` | PASS |
-| `npm run test:unit` | PASS — 103/103 |
-| `npm run test:integration` | PASS — 18/18 |
+| `npm run test:unit` | PASS — frontend 37/37; backend covered by `npm run validate` |
+| `npm run test:integration` | PASS — frontend catalog 6/6; split runtime E2E 1/1 |
 | `npm run build` | PASS — existing Next.js middleware deprecation warning |
-| Production Docker image build | PASS — `card-credit:phase1-layout-test` |
-| Compose config without `AUTH_USERS_JSON` | PASS |
-| Playwright E2E | SKIPPED — safety must be confirmed before execution |
+| Production Docker image build | PASS — coordinated frontend/backend images through Phase 10 |
+| Compose startup | PASS — isolated MongoDB tmpfs, frontend/backend healthy |
+| Playwright E2E | PASS — UI suite 5 applicable tests; real split-runtime 1/1 |
 
 ## Progress log
 
@@ -224,6 +218,13 @@ Phase 11 — Documentation and cleanup.
   1/1; the refreshed UI suite passed 5 applicable tests with 7 intentional
   project/fixture skips. The isolated database was dropped, the stack removed,
   and both `phase10-check` production images built successfully.
+- 2026-07-11: Phase 11 removed obsolete frontend API route cores, Mongoose models,
+  auth/database services, database scripts and their superseded monolith tests.
+  Frontend no longer depends on Mongoose and retains only UI/browser/catalog
+  helpers. Root/backend/architecture documentation now describes the implemented
+  split topology. Shared tests passed 1/1, backend validation passed 16/16,
+  frontend passed 37 unit + 6 integration + 5 applicable Playwright tests,
+  production build passed, and both `phase11-check` images built via Compose.
 
 ## Known issues
 

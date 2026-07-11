@@ -1,8 +1,8 @@
 # Backend
 
-Standalone Fastify runtime for the API extraction. It exposes health/readiness
-and the public/admin Card Catalog APIs. MongoDB is the runtime source of truth
-for mutable catalog data; the repository JSON is never written by runtime APIs.
+Standalone Fastify runtime that owns all application APIs, authentication,
+authorization, MongoDB models and domain behavior. It exposes process liveness
+at `/health` and database readiness at `/ready`.
 
 ```bash
 npm ci
@@ -12,8 +12,12 @@ npm run dev
 ```
 
 The server listens on port `3001` by default. Readiness becomes healthy after
-MongoDB connects. Do not point development or tests at production data. A
-production Dockerfile is intentionally deferred to Phase 7.
+MongoDB connects. Do not point development or tests at production data.
+`backend/Dockerfile` builds and runs the production runtime as a non-root user.
+
+Browser traffic remains same-origin through the Next.js frontend rewrite. CORS
+is disabled; state-changing cross-origin browser requests are rejected. The
+backend owns the secure signed session cookie and workspace/role enforcement.
 
 An empty catalog is valid operationally: provider/product lists are empty and
 detail lookups return `PRESET_NOT_FOUND`. Readiness only confirms the database

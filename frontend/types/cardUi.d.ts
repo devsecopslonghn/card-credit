@@ -65,20 +65,6 @@ declare module "@/lib/cards/uiCore.mjs" {
   export const buildOperationalUpdatePayload: (input: Record<string, unknown>) => Record<string, unknown>;
 }
 
-declare module "@/lib/reports/summaryCore.mjs" {
-  export const buildReportSummary: (input: {
-    cards?: Array<Record<string, unknown>>;
-    notes?: Array<Record<string, unknown>>;
-    filters?: Record<string, unknown>;
-  }) => Record<string, unknown>;
-  export const buildTransactionReportSummary: (input: {
-    cards?: Array<Record<string, unknown>>;
-    statements?: Array<Record<string, unknown>>;
-    transactions?: Array<Record<string, unknown>>;
-    filters?: Record<string, unknown>;
-  }) => Record<string, unknown>;
-}
-
 declare module "@/lib/cards/dueStatementsCore.mjs" {
   export type DueStatementStatus = "UPCOMING" | "DUE_TODAY" | "OVERDUE" | "PAID";
   export type DueStatementRow = {

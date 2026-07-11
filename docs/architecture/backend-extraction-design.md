@@ -18,6 +18,8 @@ services to move incrementally.
 Auth values are `public`, `session`, or `admin`. All database routes use
 `MONGODB_URI`; all session routes use `AUTH_SECRET`. Catalog routes use the
 MongoDB Card Product repository. Group order is Public, Auth, Domain, Admin.
+The `Next.js coupling` column records the former monolith dependency that the
+completed extraction removed; every listed route now runs in Fastify.
 
 | Route | Methods | Auth | Models / dependencies | Next.js coupling | Risk | Group |
 |---|---|---|---|---|---|---|
@@ -56,10 +58,10 @@ MongoDB Card Product repository. Group order is Public, Auth, Domain, Admin.
 
 ## Dependency and boundary map
 
-`route adapter -> request/session validation -> API core -> domain service ->
-Mongoose model -> MongoDB`. Catalog APIs additionally depend on catalog storage;
-audit-producing APIs depend on AuthAuditLog. Next.js response and cookie APIs are
-currently mixed into API cores and must be replaced by transport-neutral results.
+`Fastify route -> request/session validation -> domain logic -> Mongoose model ->
+MongoDB`. Catalog APIs additionally depend on catalog storage; audit-producing
+APIs depend on the audit collection. Next.js owns no response, cookie, model or
+database implementation.
 
 - Frontend-only: React components, App Router pages, middleware UI redirects,
   browser API clients, image/UI helpers.
@@ -68,8 +70,8 @@ currently mixed into API cores and must be replaced by transport-neutral results
 - Client-safe shared: DTOs, error envelope, catalog/card enums, request/response
   contracts, pure formatting/validation without environment or database imports.
 
-The shared boundary will be a small workspace package only after imports prove a
-real consumer on both sides. Database documents are never shared DTOs.
+The `@card-credit/contracts` workspace package contains the framework-free error
+contract consumed by both runtimes. Database documents are never shared DTOs.
 
 ## Runtime contract
 

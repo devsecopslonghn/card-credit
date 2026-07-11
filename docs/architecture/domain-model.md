@@ -1,6 +1,6 @@
 # Domain Model
 
-Last reviewed: 2026-07-05
+Last reviewed: 2026-07-11
 
 This document defines the business terms for the Card Catalog transition and records how they map to the current code.
 
@@ -24,7 +24,8 @@ Temporary compatibility aliases:
 
 - `bank` mirrors `providerCode`.
 - `bankName` mirrors `providerName`.
-- `frontend/models/Bank.ts` currently stores bank masterdata and should be treated as provider masterdata in documentation, although its existing collection and route names remain unchanged for compatibility.
+- `backend/src/masterdata.ts` owns bank/provider masterdata; legacy collection
+  and route names remain for compatibility.
 
 ### Card Product
 
@@ -65,7 +66,7 @@ The payment network only: Visa, Mastercard, JCB, American Express and similar ne
 
 Current source mapping:
 
-- `frontend/models/CardType.ts` is current network masterdata despite the legacy name `CardType`.
+- `backend/src/masterdata.ts` owns network masterdata despite the legacy API name `cardtypes`.
 - `frontend/app/masterdata/cardtypes/page.tsx` labels this as "Loại thẻ", but the examples and schema show it is a payment network list.
 - New catalog code must not call a full card product such as `Visa Platinum Cashback` a `CardType`.
 
@@ -75,7 +76,7 @@ A specific card owned by an application user.
 
 Current model:
 
-- `frontend/models/CreditCard.ts`
+- `backend/src/models/credit-card.ts`
 
 Current user-card fields combine product metadata and operational/cardholder data:
 
