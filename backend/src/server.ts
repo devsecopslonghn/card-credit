@@ -14,6 +14,8 @@ import { registerCardRoutes } from "./card-routes.js";
 import { registerTransactionRoutes } from "./transaction-routes.js";
 import { registerReportRoutes } from "./report-routes.js";
 import { SmtpMailService } from "./mail-service.js";
+import { ReminderScheduler } from "./reminder-scheduler.js";
+import { registerWorkspaceRoutes } from "./workspace-routes.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
@@ -21,8 +23,11 @@ const app = buildApp(database, config.logLevel, new MongoCatalogRepository(), co
 const authRepository = new MongoAuthRepository();
 registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
 registerUserRoutes(app, authRepository, config.authSecret);
+registerWorkspaceRoutes(app, authRepository, config.authSecret);
 registerCardRoutes(app, config.authSecret);
-registerTransactionRoutes(app, config.authSecret, { users: authRepository, mail: new SmtpMailService() });
+const mailService = new SmtpMailService();
+registerTransactionRoutes(app, config.authSecret, { users: authRepository, mail: mailService });
+const reminderScheduler = new ReminderScheduler(authRepository, mailService, config.reminderScanIntervalMs, app.log);
 registerReportRoutes(app, config.authSecret);
 registerNotesRoutes(app, new MongoNotesRepository(), config.authSecret);
 registerMasterdataRoutes(app, new MongoMasterdataRepository(), config.authSecret);
@@ -34,6 +39,7 @@ const shutdown = async (signal: string) => {
   app.log.info({ event: "SHUTDOWN_STARTED", signal });
   const timeout = setTimeout(() => process.exit(1), config.shutdownTimeoutMs).unref();
   try {
+    reminderScheduler.stop();
     await app.close();
     await database.disconnect();
     clearTimeout(timeout);
@@ -54,6 +60,7 @@ try {
   void database.connect(config.mongodbUri).catch((error) => {
     app.log.error({ err: error, event: "DATABASE_CONNECTION_FAILED" });
   });
+  reminderScheduler.start();
 } catch (error) {
   app.log.fatal({ err: error, event: "STARTUP_FAILED" });
   await database.disconnect();

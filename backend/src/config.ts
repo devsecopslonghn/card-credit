@@ -8,6 +8,7 @@ export type BackendConfig = {
   bootstrapToken?: string;
   configuredUsers: Array<Record<string, unknown>>;
   returnResetToken: boolean;
+  reminderScanIntervalMs: number;
 };
 
 const required = (env: NodeJS.ProcessEnv, name: string) => {
@@ -44,5 +45,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     bootstrapToken: env.AUTH_BOOTSTRAP_TOKEN?.trim() || undefined,
     configuredUsers,
     returnResetToken: env.PASSWORD_RESET_RETURN_TOKEN === "true",
+    reminderScanIntervalMs: env.NODE_ENV === "test" ? 0 : integer(env.REMINDER_SCAN_INTERVAL_MS, 60000, "REMINDER_SCAN_INTERVAL_MS"),
   };
 };

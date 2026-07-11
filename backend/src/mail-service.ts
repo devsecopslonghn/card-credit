@@ -1,8 +1,10 @@
 import nodemailer from "nodemailer";
 import type { ComposedEmail } from "./statement-calendar-email.js";
+import type { ReminderEmail } from "./payment-reminder.js";
 
 export interface MailService {
   sendStatementCalendarEmail(email: ComposedEmail): Promise<void>;
+  sendPaymentReminder?(email: ReminderEmail): Promise<void>;
 }
 
 export class MailUnavailableError extends Error {}
@@ -82,6 +84,13 @@ export class SmtpMailService implements MailService {
     } finally {
       transport.close();
     }
+  }
+  async sendPaymentReminder(email: ReminderEmail) {
+    const config = parseSmtpConfig(this.env);
+    const transport = nodemailer.createTransport({ host: config.host, port: config.port, secure: config.secure, auth: { user: config.user, pass: config.password }, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 });
+    try { await transport.sendMail({ from: config.from, to: email.to, subject: email.subject, text: email.text, html: email.html }); }
+    catch { throw new MailDeliveryError("SMTP submission failed"); }
+    finally { transport.close(); }
   }
 }
 

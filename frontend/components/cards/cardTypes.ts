@@ -56,6 +56,10 @@ export type CreditCardView = {
   cashbackCapAmount?: number | null;
   cashbackCapPeriod?: "STATEMENT" | "CALENDAR_MONTH";
   active?: boolean;
+  reminderEnabled?: boolean;
+  reminderDaysBefore?: number[];
+  reminderTimezone?: string;
+  reminderTime?: string;
   statementDate?: string;
   paymentDueDate?: string;
   amountDueThisMonth?: number;

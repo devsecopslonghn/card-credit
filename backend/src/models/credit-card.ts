@@ -19,6 +19,10 @@ const CreditCardSchema = new Schema({
   cashbackCapAmount: { type: Number, default: null, min: 0 },
   cashbackCapPeriod: { type: String, enum: ["STATEMENT", "CALENDAR_MONTH"], default: "STATEMENT" },
   active: { type: Boolean, default: true }, statementDate: { type: String, default: "" },
+  reminderEnabled: { type: Boolean, default: false },
+  reminderDaysBefore: { type: [Number], default: [7, 3, 1] },
+  reminderTimezone: { type: String, default: "Asia/Ho_Chi_Minh" },
+  reminderTime: { type: String, default: "08:00" },
   paymentDueDate: { type: String, default: "" }, amountDueThisMonth: { type: Number, default: 0 },
   isPaidThisMonth: { type: Boolean, default: false }, monthlyData: { type: [MonthDataSchema], default: [] },
 }, { timestamps: true });

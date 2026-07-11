@@ -61,6 +61,10 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
     cashbackCapAmount: null as number | null,
     cashbackCapPeriod: "STATEMENT" as "STATEMENT" | "CALENDAR_MONTH",
     active: true,
+    reminderEnabled: false,
+    reminderDaysBefore: [7, 3, 1] as number[],
+    reminderTimezone: "Asia/Ho_Chi_Minh",
+    reminderTime: "08:00",
   });
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
@@ -84,6 +88,10 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
         cashbackCapAmount: loadedCard.cashbackCapAmount ?? null,
         cashbackCapPeriod: loadedCard.cashbackCapPeriod ?? "STATEMENT",
         active: loadedCard.active !== false,
+        reminderEnabled: loadedCard.reminderEnabled ?? false,
+        reminderDaysBefore: loadedCard.reminderDaysBefore ?? [7, 3, 1],
+        reminderTimezone: loadedCard.reminderTimezone ?? "Asia/Ho_Chi_Minh",
+        reminderTime: loadedCard.reminderTime ?? "08:00",
       });
       setStatements(loadedStatements);
       const nextSelected = selectedStatementId || loadedStatements[0]?._id || "";
@@ -234,6 +242,7 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
       showToast("Cashback Cap phải lớn hơn hoặc bằng 0, hoặc để trống nếu không giới hạn.", "error");
       return;
     }
+    if (!configForm.reminderDaysBefore.length || configForm.reminderDaysBefore.some((day) => !Number.isInteger(day) || day < 0 || day > 60)) { showToast("Mốc nhắc phải là số nguyên từ 0 đến 60.", "error"); return; }
     setBusy(true);
     try {
       const updated = await updateCardOperational(resolvedParams.id, configForm);
@@ -334,6 +343,13 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
               <input type="checkbox" checked={configForm.active} onChange={(event) => setConfigForm((current) => ({ ...current, active: event.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
               Đang sử dụng
             </label>
+            <fieldset className="contents">
+              <legend className="sr-only">Cấu hình email nhắc thanh toán</legend>
+              <label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold cc-text-muted" style={{ borderColor: "var(--border)" }}><input type="checkbox" checked={configForm.reminderEnabled} onChange={(e) => setConfigForm((c) => ({ ...c, reminderEnabled: e.target.checked }))} /> Nhắc thanh toán qua email</label>
+              <label className="block text-sm font-semibold cc-text-muted"><span className="mb-1 block">Mốc trước hạn (ngày)</span><input aria-describedby="reminder-days-help" value={configForm.reminderDaysBefore.join(", ")} onChange={(e) => setConfigForm((c) => ({ ...c, reminderDaysBefore: e.target.value.split(",").map((v) => Number(v.trim())).filter((v) => Number.isFinite(v)) }))} className="cc-control w-full rounded-lg px-3 py-2" /><span id="reminder-days-help" className="mt-1 block text-xs">Ví dụ: 7, 3, 1</span></label>
+              <label className="block text-sm font-semibold cc-text-muted"><span className="mb-1 block">Timezone</span><input value={configForm.reminderTimezone} onChange={(e) => setConfigForm((c) => ({ ...c, reminderTimezone: e.target.value }))} className="cc-control w-full rounded-lg px-3 py-2" /></label>
+              <label className="block text-sm font-semibold cc-text-muted"><span className="mb-1 block">Giờ gửi</span><input type="time" value={configForm.reminderTime} onChange={(e) => setConfigForm((c) => ({ ...c, reminderTime: e.target.value }))} className="cc-control w-full rounded-lg px-3 py-2" /></label>
+            </fieldset>
             <button type="submit" disabled={busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
               Lưu cấu hình
             </button>
