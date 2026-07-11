@@ -246,6 +246,16 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
   const displayName = getDisplayName(card);
   const network = getNetwork(card);
   const summary = statementDetail?.summary;
+  const cashbackCap = summary?.cashbackCap ?? {
+    capAmount: statementDetail?.cashbackCapAmount ?? null,
+    unlimited: statementDetail?.cashbackCapAmount == null,
+    capUsedPercent:
+      statementDetail?.cashbackCapAmount == null
+        ? null
+        : statementDetail.cashbackCapAmount > 0
+          ? Math.round((summary?.eligibleCashback ?? 0) * 10000 / statementDetail.cashbackCapAmount) / 100
+          : 100,
+  };
 
   return (
     <div className="cc-page px-4 py-10 md:px-8">
@@ -337,13 +347,13 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
                 <StatBox label="Tổng phải trả ngân hàng" value={formatVnd(summary.totalAmountDue)} color="text-red-600" />
                 <StatBox label="Tổng đối tác hoàn" value={formatVnd(summary.totalIncome)} color="text-emerald-600" />
                 <StatBox label="Phí dịch vụ" value={formatVnd(summary.totalServiceFee)} color="text-orange-600" />
-                <StatBox label="Cashback Cap kỳ này" value={summary.cashbackCap.unlimited ? "Không giới hạn" : formatVnd(summary.cashbackCap.capAmount)} />
+                <StatBox label="Cashback Cap kỳ này" value={cashbackCap.unlimited ? "Không giới hạn" : formatVnd(cashbackCap.capAmount)} />
                 <StatBox label="Cashback theo tỷ lệ" value={formatVnd(summary.cashbackByRate)} color="text-emerald-600" />
                 <StatBox label="Cashback được hưởng/đã dùng kỳ này" value={formatVnd(summary.eligibleCashback)} color="text-emerald-600" />
                 <StatBox label="Cashback thực nhận" value={formatVnd(summary.actualCashback)} color="text-emerald-600" />
                 <StatBox label="Cashback vượt giới hạn" value={formatVnd(summary.exceededCashback)} color="text-red-600" />
                 <StatBox label="Cashback còn lại kỳ này" value={summary.remainingCashback === null ? "Không giới hạn" : formatVnd(summary.remainingCashback)} />
-                <StatBox label="% đã dùng Cashback Cap kỳ này" value={summary.cashbackCap.capUsedPercent === null ? "Không giới hạn" : `${summary.cashbackCap.capUsedPercent}%`} />
+                <StatBox label="% đã dùng Cashback Cap kỳ này" value={cashbackCap.capUsedPercent === null ? "Không giới hạn" : `${cashbackCap.capUsedPercent}%`} />
                 <StatBox label="Lợi nhuận dự kiến" value={formatVnd(summary.expectedNetProfit)} color={summary.expectedNetProfit >= 0 ? "text-emerald-600" : "text-red-600"} />
                 <StatBox label="Lợi nhuận thực nhận" value={formatVnd(summary.actualNetProfit)} color={summary.actualNetProfit >= 0 ? "text-emerald-600" : "text-red-600"} />
                 <StatBox label="Doanh số miễn PTN" value={formatVnd(summary.annualEligibleSpend)} />

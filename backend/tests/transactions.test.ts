@@ -16,7 +16,21 @@ test("statement boundaries clamp short months and transaction totals preserve VN
   const input = transactionInput({ transactionDate: "2026-07-11", outcomeAmount: 100_000, incomeInputMode: "RATE", partnerReturnRateBps: 200, cashbackRateBps: 100 });
   assert.equal(input.incomeAmount, 2_000);
   assert.equal(derived({ ...input, cashbackStatus: "PENDING" }).expectedNetProfit, -97_000);
-  assert.equal(summarize([{ ...input, cashbackStatus: "RECEIVED", actualCashbackAmount: 1_000 }]).totalAmountDue, 100_000);
+  const summary = summarize([
+    { ...input, cashbackStatus: "RECEIVED", actualCashbackAmount: 1_000 },
+  ]);
+  assert.equal(summary.totalAmountDue, 100_000);
+  assert.deepEqual(summary.cashbackCap, {
+    capAmount: null,
+    unlimited: true,
+    cashbackByRate: 1_000,
+    eligibleCashback: 1_000,
+    actualCashback: 1_000,
+    exceededCashback: 0,
+    remainingCashback: null,
+    capUsedPercent: null,
+  });
+  assert.equal(summarize([{ ...input }], 5_000).cashbackCap.capUsedPercent, 20);
 });
 
 test("transaction, statement and report routes enforce sessions before database access", async () => {

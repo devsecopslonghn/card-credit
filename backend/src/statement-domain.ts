@@ -213,17 +213,35 @@ export const summarize = (transactions: Data[], capValue: unknown = null) => {
     cap === null ? base.cashbackByRate : Math.min(base.cashbackByRate, cap);
   const actualCashback =
     cap === null ? base.actualCashback : Math.min(base.actualCashback, cap);
+  const exceededCashback = Math.max(
+    base.cashbackByRate - (cap ?? base.cashbackByRate),
+    0,
+  );
+  const remainingCashback =
+    cap === null ? null : Math.max(cap - eligibleCashback, 0);
+  const capUsedPercent =
+    cap === null
+      ? null
+      : cap > 0
+        ? Math.round((eligibleCashback * 10000) / cap) / 100
+        : 100;
   return {
     ...base,
     actualCashback,
     expectedCashback: eligibleCashback,
     eligibleCashback,
-    exceededCashback: Math.max(
-      base.cashbackByRate - (cap ?? base.cashbackByRate),
-      0,
-    ),
-    remainingCashback:
-      cap === null ? null : Math.max(cap - eligibleCashback, 0),
+    exceededCashback,
+    remainingCashback,
+    cashbackCap: {
+      capAmount: cap,
+      unlimited: cap === null,
+      cashbackByRate: base.cashbackByRate,
+      eligibleCashback,
+      actualCashback,
+      exceededCashback,
+      remainingCashback,
+      capUsedPercent,
+    },
     expectedNetProfit: eligibleCashback - base.totalServiceFee,
     actualNetProfit: actualCashback - base.totalServiceFee,
     totalAmountDue: base.totalOutcome,

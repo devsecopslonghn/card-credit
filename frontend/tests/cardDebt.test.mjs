@@ -73,6 +73,7 @@ test("card detail displays debt from statements without legacy card amount field
   assert.match(source, /Cần thanh toán tháng này/);
   assert.match(source, /Cần thanh toán tháng kế tiếp/);
   assert.match(source, /Cashback được hưởng\/đã dùng kỳ này/);
+  assert.match(source, /summary\?\.cashbackCap \?\?/);
   assert.equal(source.includes("amountDueThisMonth"), false);
   assert.equal(source.includes("monthlyData"), false);
 });
