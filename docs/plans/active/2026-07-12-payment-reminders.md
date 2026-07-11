@@ -116,3 +116,10 @@ idempotency, exactly-once success, paid/ownership/account skip cases, max retry,
 scheduler isolation, workspace routes, and frontend interaction behavior remain
 required. A claimed row also has no expired-lease recovery after a process crash;
 this must be resolved and tested before enabling reminders in production.
+
+## Manual calendar scope adjustment
+
+On 2026-07-12 the manual Phase 1 attachment was narrowed by product decision:
+each `.ics` now contains exactly one all-day payment-due event. It no longer
+creates a statement-close event. The endpoint, authoritative recipient rules,
+SMTP transport, one-time import behavior, and reminder scheduler are unchanged.

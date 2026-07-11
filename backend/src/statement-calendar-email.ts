@@ -27,17 +27,17 @@ export const composeStatementCalendarEmail = (input: StatementCalendarEmailInput
     `Ngày chốt sao kê: ${input.statementDate}`,
     `Hạn thanh toán: ${input.paymentDueDate}`,
     `Tổng phải trả: ${amount}`,
-    "File .ics đính kèm có thể được nhập vào Google Calendar, Apple Calendar, Outlook hoặc ứng dụng lịch tương thích.",
+    "File .ics đính kèm chỉ chứa lịch hạn thanh toán và có thể được nhập vào Apple Calendar, Google Calendar, Outlook hoặc ứng dụng lịch tương thích.",
     "Đây là lần nhập một lần, không phải đồng bộ liên tục.",
     "Vui lòng kiểm tra số tiền và trạng thái thanh toán hiện tại trong ứng dụng Card Credit.",
   ];
   return {
     to: input.recipient,
-    subject: `Lịch sao kê và thanh toán – ${name}`,
+    subject: `Lịch hạn thanh toán – ${name}`,
     text: paragraphs.join("\n\n"),
     html: paragraphs.map((item) => `<p>${html(item)}</p>`).join(""),
     attachment: {
-      filename: `lich-sao-ke-${slug(name)}-${input.statementDate.slice(0, 7)}.ics`,
+      filename: `lich-han-thanh-toan-${slug(name)}-${input.paymentDueDate.slice(0, 7)}.ics`,
       content: input.calendarContent,
       contentType: "text/calendar; charset=utf-8; method=PUBLISH",
     },
