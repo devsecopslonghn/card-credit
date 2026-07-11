@@ -1,5 +1,5 @@
 export const canEmailStatementCalendar = (statement) =>
-  Boolean(statement?._id && statement?.statementDate && statement?.paymentDueDate);
+  Boolean(statement?._id && statement?.paymentDueDate);
 
 export const sendStatementCalendarEmailRequest = async (fetcher, cardId, statementId) => {
   const response = await fetcher(`/api/cards/${encodeURIComponent(cardId)}/statements/${encodeURIComponent(statementId)}/calendar-email`, {

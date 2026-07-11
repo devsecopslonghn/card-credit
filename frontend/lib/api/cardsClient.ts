@@ -79,6 +79,10 @@ export const updateCardOperational = async (
       | "cashbackCapAmount"
       | "cashbackCapPeriod"
       | "active"
+      | "reminderEnabled"
+      | "reminderDaysBefore"
+      | "reminderTimezone"
+      | "reminderTime"
     >
   >,
 ): Promise<CreditCardView> => {

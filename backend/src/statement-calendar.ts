@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 export type StatementCalendarEvent = {
   key: string;
-  type: "statement" | "payment-due";
+  type: "payment-due";
   date: string;
   title: string;
   description: string;
@@ -41,10 +41,7 @@ export const projectStatementCalendar = (input: StatementCalendarInput): Stateme
   ].join("\n");
   const key = (type: StatementCalendarEvent["type"]) =>
     crypto.createHash("sha256").update(`${input.identity}:${type}`).digest("hex");
-  return [
-    { key: key("statement"), type: "statement", date: input.statementDate, title: `Chốt sao kê – ${input.displayName}`, description: common },
-    { key: key("payment-due"), type: "payment-due", date: input.paymentDueDate, title: `Hạn thanh toán – ${input.displayName}`, description: common },
-  ];
+  return [{ key: key("payment-due"), type: "payment-due", date: input.paymentDueDate, title: `Hạn thanh toán – ${input.displayName}`, description: common }];
 };
 
 const escapeText = (value: string) => value

@@ -4,6 +4,7 @@ import { ApiError } from "./errors.js";
 import { sessionFromRequest } from "./auth.js";
 import { CardProductModel } from "./models/card-product.js";
 import { CreditCardModel } from "./models/credit-card.js";
+import { normalizeReminderPreferences } from "./reminder-preferences.js";
 
 type Data = Record<string, unknown>;
 const Cards = CreditCardModel as unknown as mongoose.Model<Data>;
@@ -47,6 +48,7 @@ export const registerCardRoutes = (app: FastifyInstance, secret: string) => {
     if ("cashbackCapAmount" in body) update.cashbackCapAmount = body.cashbackCapAmount === null ? null : optionalNumber(body.cashbackCapAmount, "cashbackCapAmount");
     if ("cashbackCapPeriod" in body) { if (body.cashbackCapPeriod !== "STATEMENT" && body.cashbackCapPeriod !== "CALENDAR_MONTH") throw new ApiError(400, "INVALID_REQUEST", "Request body không hợp lệ."); update.cashbackCapPeriod = body.cashbackCapPeriod; }
     if ("active" in body) { if (typeof body.active !== "boolean") throw new ApiError(400, "INVALID_REQUEST", "Request body không hợp lệ."); update.active = body.active; }
+    Object.assign(update, normalizeReminderPreferences(body));
     if (!Object.keys(update).length) throw new ApiError(400, "FORBIDDEN_UPDATE_FIELD", "Không có field hợp lệ để cập nhật.");
     return serialize(await CreditCardModel.findOneAndUpdate({ _id: request.params.id, workspaceId: session.workspaceId }, { $set: update }, { returnDocument: "after" }));
   });
