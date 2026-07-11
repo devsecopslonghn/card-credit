@@ -4,14 +4,40 @@ services:
     image: ${DOCKER_IMAGE:-card-credit}:${DOCKER_TAG:-latest}
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: frontend/Dockerfile
     environment:
       NODE_ENV: production
       PORT: 3000
-      MONGODB_URI: ${MONGODB_URI:?MONGODB_URI is required}
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
-      AUTH_USERS_JSON: ${AUTH_USERS_JSON:?AUTH_USERS_JSON is required}
+      BACKEND_INTERNAL_URL: http://backend:3001
 
     ports:
       - "0.0.0.0:${APP_PORT:-8080}:3000"
     restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    container_name: card-credit-backend
+    image: ${BACKEND_DOCKER_IMAGE:-card-credit-backend}:${DOCKER_TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      NODE_ENV: production
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 3001
+      MONGODB_URI: ${MONGODB_URI:?MONGODB_URI is required}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      AUTH_USERS_JSON: ${AUTH_USERS_JSON:-}
+      AUTH_BOOTSTRAP_TOKEN: ${AUTH_BOOTSTRAP_TOKEN:-}
+      PASSWORD_RESET_RETURN_TOKEN: ${PASSWORD_RESET_RETURN_TOKEN:-false}
+    expose:
+      - "3001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s

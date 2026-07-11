@@ -1,0 +1,22 @@
+services:
+  mongo-test:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_DATABASE: card-credit-compose-test
+    expose:
+      - "27017"
+    tmpfs:
+      - /data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  backend:
+    environment:
+      MONGODB_URI: mongodb://mongo-test:27017/card-credit-compose-test
+    depends_on:
+      mongo-test:
+        condition: service_healthy

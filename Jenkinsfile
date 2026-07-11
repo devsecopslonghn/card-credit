@@ -47,6 +47,7 @@ pipeline {
           echo "Build number: ${BUILD_NUMBER}"
         '''
 
+        deleteDir()
         checkout scm
       }
     }
@@ -75,12 +76,34 @@ pipeline {
 
           env.DOCKER_TAG = "${env.SAFE_BRANCH_NAME}-${env.BUILD_NUMBER}"
           env.FULL_IMAGE_NAME = "${env.DOCKER_IMAGE_NAME}:${env.DOCKER_TAG}"
+          env.FULL_BACKEND_IMAGE_NAME = "${env.DOCKER_IMAGE_NAME}-backend:${env.DOCKER_TAG}"
 
           echo "Branch name: ${branchName}"
           echo "Safe branch name: ${env.SAFE_BRANCH_NAME}"
           echo "Application port: ${env.APP_PORT_VALUE}"
           echo "Docker image: ${env.FULL_IMAGE_NAME}"
+          echo "Backend Docker image: ${env.FULL_BACKEND_IMAGE_NAME}"
         }
+      }
+    }
+
+    stage('Validate Repository Layout') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          test -f frontend/package.json
+          test -f frontend/Dockerfile
+          test -f backend/package.json
+          test -f backend/Dockerfile
+          test -f shared/package.json
+          test -f docker-compose.prod.yml
+          test ! -f Dockerfile
+        '''
       }
     }
 
@@ -103,7 +126,7 @@ pipeline {
             -e HOST_UID="$HOST_UID" \
             -e HOST_GID="$HOST_GID" \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc '
               set -eu
@@ -136,7 +159,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run validate:catalog'
         '''
@@ -156,7 +179,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run typecheck'
         '''
@@ -176,7 +199,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run lint'
         '''
@@ -196,7 +219,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run test:unit'
         '''
@@ -216,7 +239,7 @@ pipeline {
             -e HOME=/tmp \
             -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc 'set -eu; npm run test:integration'
         '''
@@ -242,7 +265,7 @@ pipeline {
             -e HOST_UID="$HOST_UID" \
             -e HOST_GID="$HOST_GID" \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc '
               set -eu
@@ -277,7 +300,7 @@ pipeline {
             -e HOST_UID="$HOST_UID" \
             -e HOST_GID="$HOST_GID" \
             -v "$WORKSPACE:/workspace" \
-            -w /workspace \
+            -w /workspace/frontend \
             node:22-alpine \
             sh -lc '
               set -eu
@@ -306,10 +329,6 @@ pipeline {
           string(
             credentialsId: 'CARD-CREDIT-AUTH-SECRET',
             variable: 'AUTH_SECRET'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
-            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -322,39 +341,6 @@ pipeline {
               exit 1
             fi
 
-            docker run --rm \
-              --env AUTH_USERS_JSON \
-              node:22-alpine \
-              node -e '
-                const users = JSON.parse(process.env.AUTH_USERS_JSON || "[]");
-
-                if (!Array.isArray(users) || users.length === 0) {
-                  throw new Error("AUTH_USERS_JSON must be a non-empty JSON array");
-                }
-
-                for (const user of users) {
-                  if (
-                    !user.id ||
-                    !user.email ||
-                    !user.password ||
-                    !user.role ||
-                    !user.workspaceId
-                  ) {
-                    throw new Error(
-                      "Each auth user must contain id, email, password, role and workspaceId"
-                    );
-                  }
-
-                  if (!["admin", "user"].includes(user.role)) {
-                    throw new Error(
-                      `Unsupported role for ${user.email}: ${user.role}`
-                    );
-                  }
-                }
-
-                console.log(`Authentication configuration contains ${users.length} user(s)`);
-              '
-
             echo "Validating Docker Compose configuration"
             echo "Docker image: ${FULL_IMAGE_NAME}"
             echo "Application port: ${APP_PORT_VALUE}"
@@ -363,6 +349,7 @@ pipeline {
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
             DOCKER_TAG="${DOCKER_TAG}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -388,10 +375,6 @@ pipeline {
           string(
             credentialsId: 'CARD-CREDIT-AUTH-SECRET',
             variable: 'AUTH_SECRET'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
-            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -401,6 +384,7 @@ pipeline {
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
             DOCKER_TAG="${DOCKER_TAG}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -409,6 +393,50 @@ pipeline {
             docker image inspect "${FULL_IMAGE_NAME}" >/dev/null
           '''
         }
+      }
+    }
+
+    stage('Validate Backend') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+
+          docker run --rm \
+            -u "${HOST_UID}:${HOST_GID}" \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace/backend \
+            node:22-alpine \
+            sh -lc 'set -eu; npm ci --no-audit --no-fund; npm run validate'
+        '''
+      }
+    }
+
+    stage('Build Backend Production Image') {
+      agent {
+        label 'eztechvn2'
+      }
+
+      steps {
+        sh '''
+          set -eu
+
+          BACKEND_IMAGE="${FULL_BACKEND_IMAGE_NAME}"
+          echo "Building backend image: ${BACKEND_IMAGE}"
+          docker build \
+            -f backend/Dockerfile \
+            -t "${BACKEND_IMAGE}" \
+            .
+          docker image inspect "${BACKEND_IMAGE}" >/dev/null
+        '''
       }
     }
 
@@ -427,10 +455,6 @@ pipeline {
           string(
             credentialsId: 'CARD-CREDIT-AUTH-SECRET',
             variable: 'AUTH_SECRET'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
-            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -497,10 +521,6 @@ pipeline {
           string(
             credentialsId: 'CARD-CREDIT-AUTH-SECRET',
             variable: 'AUTH_SECRET'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-USERS-JSON',
-            variable: 'AUTH_USERS_JSON'
           )
         ]) {
           sh '''
@@ -510,6 +530,7 @@ pipeline {
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
             DOCKER_TAG="${DOCKER_TAG}" \
               docker compose \
                 -f docker-compose.prod.yml \
@@ -519,14 +540,15 @@ pipeline {
 
             APP_PORT="${APP_PORT_VALUE}" \
             DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
+            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
             DOCKER_TAG="${DOCKER_TAG}" \
               docker compose \
                 -f docker-compose.prod.yml \
                 ps
 
-            echo "Checking authentication variables inside the running container"
+            echo "Checking required authentication variables inside the backend container"
 
-            docker exec card-credit sh -lc '
+            docker exec card-credit-backend sh -lc '
               test -n "$AUTH_SECRET" &&
                 echo "AUTH_SECRET=set" ||
                 {
@@ -534,13 +556,35 @@ pipeline {
                   exit 1
                 }
 
-              test -n "$AUTH_USERS_JSON" &&
-                echo "AUTH_USERS_JSON=set" ||
-                {
-                  echo "AUTH_USERS_JSON=missing"
-                  exit 1
-                }
             '
+
+            echo "Checking frontend and backend health"
+
+            for attempt in $(seq 1 30); do
+              if docker exec card-credit node -e '
+                fetch("http://127.0.0.1:3000/login")
+                  .then((response) => process.exit(response.ok ? 0 : 1))
+                  .catch(() => process.exit(1))
+              ' && docker exec card-credit-backend node -e '
+                Promise.all([
+                  fetch("http://127.0.0.1:3001/health"),
+                  fetch("http://127.0.0.1:3001/ready")
+                ])
+                  .then((responses) => process.exit(responses.every((response) => response.ok) ? 0 : 1))
+                  .catch(() => process.exit(1))
+              '; then
+                echo "Frontend and backend health checks passed"
+                break
+              fi
+
+              if [ "$attempt" -eq 30 ]; then
+                echo "Frontend or backend health check failed"
+                exit 1
+              fi
+
+              echo "Waiting for frontend and backend health (${attempt}/30)"
+              sleep 2
+            done
           '''
         }
       }
@@ -599,6 +643,10 @@ pipeline {
               docker image rm \
                 "${FULL_IMAGE_NAME}" \
                 2>/dev/null || true
+
+              docker image rm \
+                "${FULL_BACKEND_IMAGE_NAME}" \
+                2>/dev/null || true
             '''
           } else if (
             env.BRANCH_NAME == 'master' &&
@@ -621,16 +669,22 @@ pipeline {
               node:22-alpine \
               sh -lc '
                 rm -rf \
-                  node_modules \
-                  .next \
-                  public/card-images/generated
+                  frontend/node_modules \
+                  frontend/.next \
+                  frontend/public/card-images/generated \
+                  frontend/tsconfig.tsbuildinfo \
+                  backend/node_modules \
+                  backend/dist \
+                  backend/coverage \
+                  shared/node_modules \
+                  shared/coverage
               '
 
             if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
-              git -C "$WORKSPACE" checkout -- data/card-image-manifest.json 2>/dev/null || true
+              git -C "$WORKSPACE" checkout -- frontend/data/card-image-manifest.json 2>/dev/null || true
             else
-              mkdir -p "$WORKSPACE/data"
-              printf "{}\\n" > "$WORKSPACE/data/card-image-manifest.json"
+              mkdir -p "$WORKSPACE/frontend/data"
+              printf "{}\\n" > "$WORKSPACE/frontend/data/card-image-manifest.json"
             fi
 
             echo "Cleaning Docker build cache older than 24 hours"
@@ -641,15 +695,21 @@ pipeline {
               >/dev/null 2>&1 || true
           else
             rm -rf \
-              node_modules \
-              .next \
-              public/card-images/generated
+              frontend/node_modules \
+              frontend/.next \
+              frontend/public/card-images/generated \
+              frontend/tsconfig.tsbuildinfo \
+              backend/node_modules \
+              backend/dist \
+              backend/coverage \
+              shared/node_modules \
+              shared/coverage
 
             if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
-              git -C "$WORKSPACE" checkout -- data/card-image-manifest.json 2>/dev/null || true
+              git -C "$WORKSPACE" checkout -- frontend/data/card-image-manifest.json 2>/dev/null || true
             else
-              mkdir -p data
-              printf "{}\\n" > data/card-image-manifest.json
+              mkdir -p frontend/data
+              printf "{}\\n" > frontend/data/card-image-manifest.json
             fi
           fi
         '''
