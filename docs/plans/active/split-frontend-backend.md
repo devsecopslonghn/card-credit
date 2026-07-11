@@ -197,6 +197,9 @@ Phase 5 — API migration by route group.
 - 2026-07-11: Phase 5 user/admin group moved profile, admin user management and
   audit-log queries to Fastify, extended the injected auth repository, added
   same-origin rewrites and removed four Next route adapters.
+- 2026-07-11: Jenkins success was confirmed by the operator. Phase 5 cards group
+  moved card collection/detail and exact-duplicate merge routes to Fastify with
+  backend-owned Mongo models, workspace authorization and compatibility output.
 
 ## Known issues
 
