@@ -34,6 +34,7 @@ type CardImageProps = {
 export function CardImage({ src, alt, className, sizes }: CardImageProps) {
   const [failed, setFailed] = useState(false);
   const safeSrc = failed ? CARD_IMAGE_PLACEHOLDER_URL : getSafeCardImageSrc(src);
+  const remote = !isLocalImage(safeSrc) && !isDataImage(safeSrc);
   const wrapperClassName = `relative block overflow-hidden ${className ?? ""}`;
   const imageClassName = "h-full w-full object-contain";
 
@@ -60,6 +61,7 @@ export function CardImage({ src, alt, className, sizes }: CardImageProps) {
         alt={alt}
         fill
         sizes={sizes}
+        unoptimized={remote}
         className={imageClassName}
         onError={() => {
           setFailed(true);

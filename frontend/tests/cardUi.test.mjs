@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   buildCardSummary,
@@ -137,4 +138,12 @@ test("create card payload only contains presetId and owner", () => {
   assert.equal("annualFee" in payload, false);
   assert.equal("imageUrl" in payload, false);
   assert.equal("network" in payload, false);
+});
+
+test("remote card images bypass the server optimizer and retain client fallback", () => {
+  const source = readFileSync(new URL("../components/cards/CardImage.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /unoptimized=\{remote\}/);
+  assert.match(source, /setFailed\(true\)/);
+  assert.match(source, /CATALOG_IMAGE_HOSTS/);
 });
