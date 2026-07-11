@@ -7,6 +7,7 @@ import { CardTransactionModel } from "./models/card-transaction.js";
 import { CardStatementModel } from "./models/card-statement.js";
 import {
   derived,
+  effectivePaymentStatus,
   idOf,
   integer,
   plain,
@@ -16,6 +17,10 @@ import {
   validDate,
   type Data,
 } from "./statement-domain.js";
+import type { AuthRepository } from "./auth-repository.js";
+import { MailDeliveryError, MailUnavailableError, maskEmail, type MailService } from "./mail-service.js";
+import { composeStatementCalendarEmail } from "./statement-calendar-email.js";
+import { projectStatementCalendar, serializeStatementCalendar } from "./statement-calendar.js";
 
 const Cards = CreditCardModel as mongoose.Model<Data>;
 const Transactions = CardTransactionModel;
@@ -96,17 +101,11 @@ const statementJson = (
 ) => {
   const value = plain(statement);
   const summary = summarize(transactions, card.cashbackCapAmount);
-  const today = new Date().toISOString().slice(0, 10);
   return {
     ...value,
     _id: idOf(value._id),
     userCardId: idOf(value.userCardId),
-    effectivePaymentStatus:
-      value.paymentStatus !== "PAID" &&
-      typeof value.paymentDueDate === "string" &&
-      value.paymentDueDate < today
-        ? "OVERDUE"
-        : value.paymentStatus,
+    effectivePaymentStatus: effectivePaymentStatus(value),
     summary,
     cashbackCapAmount: card.cashbackCapAmount ?? null,
     cashbackCapPeriod: card.cashbackCapPeriod ?? "STATEMENT",
@@ -155,6 +154,7 @@ const transactionFor = async (id: string, session: Session) => {
 export const registerTransactionRoutes = (
   app: FastifyInstance,
   secret: string,
+  calendarEmail?: { users: AuthRepository; mail: MailService },
 ) => {
   app.get<{
     Querystring: {
@@ -449,4 +449,52 @@ export const registerTransactionRoutes = (
       return { data: statementJson(result, transactions.map(plain), card) };
     },
   );
+  if (calendarEmail) app.post<{
+    Params: { id: string; statementId: string };
+    Body: Record<string, unknown>;
+    Querystring: Record<string, string>;
+  }>("/api/cards/:id/statements/:statementId/calendar-email", async (request) => {
+    const session = sessionFromRequest(request, secret);
+    const user = await calendarEmail.users.findUserById(session.userId);
+    const recipient = user?.email.trim().toLowerCase() ?? "";
+    const usableEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient);
+    if (!user || !user.active || user.lockedAt || user.workspaceId !== session.workspaceId || !usableEmail)
+      throw new ApiError(400, "ACCOUNT_EMAIL_UNAVAILABLE", "Email tài khoản không khả dụng.");
+
+    const card = plain(await cardFor(request.params.id, session));
+    const statement = plain(await statementFor(request.params.id, request.params.statementId, session));
+    const transactions = (await Transactions.find({
+      statementId: request.params.statementId,
+      workspaceId: session.workspaceId,
+    })).map(plain);
+    const summary = summarize(transactions, card.cashbackCapAmount);
+    const displayName = String(card.displayName ?? card.name ?? "Thẻ tín dụng");
+    const projection = {
+      identity: `${session.workspaceId}:${request.params.id}:${request.params.statementId}`,
+      displayName,
+      providerName: String(card.providerName ?? card.bank ?? ""),
+      owner: String(card.owner ?? "Tôi"),
+      periodStartDate: String(statement.periodStartDate),
+      periodEndDate: String(statement.periodEndDate),
+      statementDate: String(statement.statementDate),
+      paymentDueDate: String(statement.paymentDueDate),
+      totalAmountDue: summary.totalAmountDue,
+      effectivePaymentStatus: effectivePaymentStatus(statement),
+    };
+    const maskedRecipient = maskEmail(recipient);
+    request.log.info({ event: "STATEMENT_CALENDAR_EMAIL_STARTED", recipient: maskedRecipient });
+    try {
+      const calendarContent = serializeStatementCalendar(projectStatementCalendar(projection));
+      await calendarEmail.mail.sendStatementCalendarEmail(composeStatementCalendarEmail({ ...projection, recipient, calendarContent }));
+      request.log.info({ event: "STATEMENT_CALENDAR_EMAIL_SUCCEEDED", recipient: maskedRecipient });
+      return { data: { sent: true as const, recipient: maskedRecipient } };
+    } catch (error) {
+      request.log.warn({ event: "STATEMENT_CALENDAR_EMAIL_FAILED", recipient: maskedRecipient });
+      if (error instanceof MailUnavailableError)
+        throw new ApiError(503, "MAIL_UNAVAILABLE", "Tính năng gửi lịch hiện chưa khả dụng.");
+      if (error instanceof MailDeliveryError)
+        throw new ApiError(502, "MAIL_DELIVERY_FAILED", "Không thể gửi file lịch. Vui lòng thử lại sau.");
+      throw error;
+    }
+  });
 };

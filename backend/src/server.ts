@@ -13,6 +13,7 @@ import { registerUserRoutes } from "./user-routes.js";
 import { registerCardRoutes } from "./card-routes.js";
 import { registerTransactionRoutes } from "./transaction-routes.js";
 import { registerReportRoutes } from "./report-routes.js";
+import { SmtpMailService } from "./mail-service.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
@@ -21,7 +22,7 @@ const authRepository = new MongoAuthRepository();
 registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
 registerUserRoutes(app, authRepository, config.authSecret);
 registerCardRoutes(app, config.authSecret);
-registerTransactionRoutes(app, config.authSecret);
+registerTransactionRoutes(app, config.authSecret, { users: authRepository, mail: new SmtpMailService() });
 registerReportRoutes(app, config.authSecret);
 registerNotesRoutes(app, new MongoNotesRepository(), config.authSecret);
 registerMasterdataRoutes(app, new MongoMasterdataRepository(), config.authSecret);

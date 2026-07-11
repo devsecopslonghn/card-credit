@@ -13,7 +13,7 @@
 
 ## Active work
 
-No active implementation plan.
+- `plans/active/2026-07-11-email-statement-calendar.md`
 
 ## Historical plans
 

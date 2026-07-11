@@ -48,6 +48,26 @@ BACKEND_INTERNAL_URL='http://127.0.0.1:3001' npm run dev
 Mở `http://127.0.0.1:3000/register`. User đầu tiên của database được tạo với
 role admin.
 
+## Gửi lịch sao kê qua email
+
+Tại chi tiết một kỳ sao kê đã lưu, người dùng có thể chọn
+`Gửi lịch qua email`. Backend gửi một file `.ics` có ngày chốt sao kê và hạn
+thanh toán tới email đăng nhập hiện tại của tài khoản. Recipient luôn được đọc
+lại từ tài khoản phía server; request không nhận email người nhận. File chỉ dùng
+để nhập một lần vào ứng dụng lịch, không phải subscription hay đồng bộ liên tục.
+
+Endpoint: `POST /api/cards/:cardId/statements/:statementId/calendar-email`.
+
+Backend cần `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` và
+có thể nhận `SMTP_PORT`, `SMTP_SECURE`. `SMTP_HOST=host:port` được hỗ trợ tạm
+thời; port riêng có ưu tiên và mặc định là 587. Các biến này chỉ được inject vào
+backend lúc chạy, không dùng `NEXT_PUBLIC_` hoặc Docker build arguments.
+
+Jenkins hiện kế thừa SMTP environment trực tiếp từ agent và Compose chuyển tiếp
+vào backend. Không in các giá trị này trong log. Smoke test SMTP thủ công chỉ
+nên gửi một thư tới tài khoản test đã được phê duyệt. Phase sau nên chuyển
+secrets sang Jenkins Credentials mà không đổi contract environment của backend.
+
 ## Docker Compose production
 
 Build và chạy hai image từ repository root:

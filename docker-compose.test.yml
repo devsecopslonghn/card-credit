@@ -17,6 +17,10 @@ services:
   backend:
     environment:
       MONGODB_URI: mongodb://mongo-test:27017/card-credit-compose-test
+      SMTP_HOST: smtp.invalid:587
+      SMTP_USER: test-user
+      SMTP_PASSWORD: test-password
+      SMTP_FROM_ADDRESS: Card Credit Test <noreply@example.test>
     depends_on:
       mongo-test:
         condition: service_healthy
