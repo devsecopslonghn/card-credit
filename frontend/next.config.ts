@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
       { source: "/api/admin/users/:path*", destination: `${backend}/api/admin/users/:path*` },
       { source: "/api/admin/audit-logs", destination: `${backend}/api/admin/audit-logs` },
       { source: "/api/cards/:path*", destination: `${backend}/api/cards/:path*` },
+      { source: "/api/card-transactions/:path*", destination: `${backend}/api/card-transactions/:path*` },
+      { source: "/api/reports/:path*", destination: `${backend}/api/reports/:path*` },
     ];
   },
   allowedDevOrigins: ["127.0.0.1"],

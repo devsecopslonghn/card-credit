@@ -53,7 +53,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 2 — Backend extraction design | DONE |
 | Phase 3 — Minimal backend runtime | DONE |
 | Phase 4 — Shared boundaries | DONE |
-| Phase 5 — API migration by route group | IN_PROGRESS |
+| Phase 5 — API migration by route group | DONE |
 | Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
 | Phase 7 — Two real production Dockerfiles | DONE |
 | Phase 8 — Two-service Docker Compose | IN_PROGRESS |
@@ -64,7 +64,7 @@ consistent repository layout while the UI and API continue to run together.
 
 ## Current phase
 
-Phase 5 — API migration by route group.
+Phase 6 — Authentication, cookie, CORS, and CSRF.
 
 ## Acceptance criteria
 
@@ -200,6 +200,11 @@ Phase 5 — API migration by route group.
 - 2026-07-11: Jenkins success was confirmed by the operator. Phase 5 cards group
   moved card collection/detail and exact-duplicate merge routes to Fastify with
   backend-owned Mongo models, workspace authorization and compatibility output.
+- 2026-07-11: Phase 5 completed by moving transactions, cashback, statements,
+  payment lifecycle and report summary to Fastify. Backend now owns all Mongo
+  domain models and `frontend/app/api` contains no route implementations. Public
+  URLs remain same-origin through Next rewrites. Backend validation passed with
+  15 tests; frontend and two-image Compose validation are recorded below.
 
 ## Known issues
 

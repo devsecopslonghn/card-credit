@@ -11,6 +11,8 @@ import { MongoMasterdataRepository } from "./masterdata.js";
 import { registerMasterdataRoutes } from "./masterdata-routes.js";
 import { registerUserRoutes } from "./user-routes.js";
 import { registerCardRoutes } from "./card-routes.js";
+import { registerTransactionRoutes } from "./transaction-routes.js";
+import { registerReportRoutes } from "./report-routes.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
@@ -19,6 +21,8 @@ const authRepository = new MongoAuthRepository();
 registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
 registerUserRoutes(app, authRepository, config.authSecret);
 registerCardRoutes(app, config.authSecret);
+registerTransactionRoutes(app, config.authSecret);
+registerReportRoutes(app, config.authSecret);
 registerNotesRoutes(app, new MongoNotesRepository(), config.authSecret);
 registerMasterdataRoutes(app, new MongoMasterdataRepository(), config.authSecret);
 let stopping = false;
