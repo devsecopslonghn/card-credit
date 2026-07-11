@@ -11,7 +11,7 @@ import { composePaymentReminder, reminderIsDue, retryAt } from "./payment-remind
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 export class ReminderScheduler {
   private timer?: NodeJS.Timeout; private running = false;
-  constructor(private users: AuthRepository, private mail: MailService & { sendPaymentReminder: NonNullable<MailService["sendPaymentReminder"]> }, private intervalMs: number, private log: { error(v: unknown): void; info(v: unknown): void }, private now = () => new Date()) {}
+  constructor(private users: AuthRepository, private mail: MailService & { sendPaymentReminder: NonNullable<MailService["sendPaymentReminder"]> }, private intervalMs: number, private claimTimeoutMs: number, private log: { error(v: unknown): void; info(v: unknown): void }, private now = () => new Date()) {}
   start() { if (this.timer || this.intervalMs <= 0) return; this.timer = setInterval(() => void this.safeScan(), this.intervalMs).unref(); void this.safeScan(); }
   stop() { if (this.timer) clearInterval(this.timer); this.timer = undefined; }
   async safeScan() { if (this.running) return; this.running = true; try { await this.scan(); } catch { this.log.error({ event: "REMINDER_SCAN_FAILED" }); } finally { this.running = false; } }
@@ -25,8 +25,9 @@ export class ReminderScheduler {
     }
   }
   private async deliver(x: { now: Date; workspaceId: string; cardId: string; card: Record<string, unknown>; statement: Record<string, unknown>; days: number }) {
-    let delivery;
-    try { delivery = await ReminderDeliveryModel.findOneAndUpdate({ workspaceId: x.workspaceId, statementId: x.statement._id, daysBefore: x.days, status: { $nin: ["SENT", "SKIPPED", "CLAIMED"] }, $or: [{ nextAttemptAt: null }, { nextAttemptAt: { $lte: x.now } }] }, { $setOnInsert: { cardId: x.card._id }, $set: { status: "CLAIMED", claimedAt: x.now }, $inc: { attemptCount: 1 } }, { upsert: true, returnDocument: "after" }); } catch (e) { if ((e as { code?: number }).code === 11000) return; throw e; }
+    let delivery; const expiredBefore = new Date(x.now.getTime() - this.claimTimeoutMs);
+    const claimable = { workspaceId: x.workspaceId, statementId: x.statement._id, daysBefore: x.days, $and: [{ $or: [{ attemptCount: { $exists: false } }, { attemptCount: { $lt: 3 } }] }, { $or: [{ status: { $in: ["PENDING", "FAILED"] }, nextAttemptAt: null }, { status: "FAILED", nextAttemptAt: { $lte: x.now } }, { status: "CLAIMED", claimedAt: { $lte: expiredBefore } }, { status: { $exists: false } }] }] };
+    try { delivery = await ReminderDeliveryModel.findOneAndUpdate(claimable, { $setOnInsert: { cardId: x.card._id }, $set: { status: "CLAIMED", claimedAt: x.now, nextAttemptAt: null, failureCode: null }, $inc: { attemptCount: 1 } }, { upsert: true, returnDocument: "after" }); } catch (e) { if ((e as { code?: number }).code === 11000) return; throw e; }
     if (!delivery) return; const attempts = Number(delivery.get("attemptCount"));
     const ownerId = typeof x.card.userId === "string" && x.card.userId ? x.card.userId : String((await WorkspaceModel.findOne({ workspaceId: x.workspaceId }))?.get("ownerUserId") ?? "");
     const user = ownerId && mongoose.isValidObjectId(ownerId) ? await this.users.findUserById(ownerId) : null;

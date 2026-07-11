@@ -27,7 +27,7 @@ registerWorkspaceRoutes(app, authRepository, config.authSecret);
 registerCardRoutes(app, config.authSecret);
 const mailService = new SmtpMailService();
 registerTransactionRoutes(app, config.authSecret, { users: authRepository, mail: mailService });
-const reminderScheduler = new ReminderScheduler(authRepository, mailService, config.reminderScanIntervalMs, app.log);
+const reminderScheduler = new ReminderScheduler(authRepository, mailService, config.reminderScanIntervalMs, config.reminderClaimTimeoutMs, app.log);
 registerReportRoutes(app, config.authSecret);
 registerNotesRoutes(app, new MongoNotesRepository(), config.authSecret);
 registerMasterdataRoutes(app, new MongoMasterdataRepository(), config.authSecret);

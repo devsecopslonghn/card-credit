@@ -108,14 +108,21 @@ database-backed test. Real SMTP and production MongoDB are intentionally
 forbidden; the repository currently has no isolated Mongo integration harness
 for delivery concurrency.
 
-Remaining risks and implementation status: core implementation and builds are
-complete, but Phase 2 is **not release-complete**. Unit coverage exists for
+Remaining risks and implementation status: runtime implementation is complete.
+Unit coverage exists for
 preferences, timezone/offset, bounded backoff, composition, and all existing
 Phase 1 behavior. Database-backed tests for atomic concurrent claim, unique
 idempotency, exactly-once success, paid/ownership/account skip cases, max retry,
 scheduler isolation, workspace routes, and frontend interaction behavior remain
-required. A claimed row also has no expired-lease recovery after a process crash;
-this must be resolved and tested before enabling reminders in production.
+deferred by product direction for later hardening. Claims now use a configurable
+five-minute lease and expired claims can be reclaimed while terminal deliveries
+remain closed. Because SMTP and MongoDB cannot share a transaction, a crash after
+SMTP acceptance but before marking `SENT` can still cause a later duplicate;
+this residual delivery risk must remain documented and monitored.
+
+Latest completion validation: `cd backend && npm run validate` passed with 32
+tests, and production Compose `config --quiet` passed with non-production
+Mongo/Auth/SMTP placeholders. Frontend was unchanged in this completion batch.
 
 ## Manual calendar scope adjustment
 

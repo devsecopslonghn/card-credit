@@ -63,6 +63,10 @@ có thể nhận `SMTP_PORT`, `SMTP_SECURE`. `SMTP_HOST=host:port` được hỗ
 thời; port riêng có ưu tiên và mặc định là 587. Các biến này chỉ được inject vào
 backend lúc chạy, không dùng `NEXT_PUBLIC_` hoặc Docker build arguments.
 
+Scheduler reminder dùng `REMINDER_SCAN_INTERVAL_MS` (mặc định 60000 ms) và
+`REMINDER_CLAIM_TIMEOUT_MS` (mặc định 300000 ms). Claim quá timeout có thể được
+worker khác phục hồi; delivery thành công hoặc skip an toàn không được reclaim.
+
 Jenkins hiện kế thừa SMTP environment trực tiếp từ agent và Compose chuyển tiếp
 vào backend. Không in các giá trị này trong log. Smoke test SMTP thủ công chỉ
 nên gửi một thư tới tài khoản test đã được phê duyệt. Phase sau nên chuyển

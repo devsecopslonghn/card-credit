@@ -9,6 +9,7 @@ export type BackendConfig = {
   configuredUsers: Array<Record<string, unknown>>;
   returnResetToken: boolean;
   reminderScanIntervalMs: number;
+  reminderClaimTimeoutMs: number;
 };
 
 const required = (env: NodeJS.ProcessEnv, name: string) => {
@@ -21,6 +22,14 @@ const integer = (value: string | undefined, fallback: number, name: string) => {
   const parsed = Number(value ?? fallback);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
     throw new Error(`${name} must be a positive integer no greater than 65535`);
+  }
+  return parsed;
+};
+
+const duration = (value: string | undefined, fallback: number, name: string) => {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isInteger(parsed) || parsed < 1000 || parsed > 86_400_000) {
+    throw new Error(`${name} must be an integer between 1000 and 86400000 milliseconds`);
   }
   return parsed;
 };
@@ -46,5 +55,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     configuredUsers,
     returnResetToken: env.PASSWORD_RESET_RETURN_TOKEN === "true",
     reminderScanIntervalMs: env.NODE_ENV === "test" ? 0 : integer(env.REMINDER_SCAN_INTERVAL_MS, 60000, "REMINDER_SCAN_INTERVAL_MS"),
+    reminderClaimTimeoutMs: duration(env.REMINDER_CLAIM_TIMEOUT_MS, 300000, "REMINDER_CLAIM_TIMEOUT_MS"),
   };
 };
