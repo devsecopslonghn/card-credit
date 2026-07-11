@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   transpilePackages: ["@card-credit/contracts"],
   turbopack: { root: path.resolve(process.cwd(), "..") },
   async rewrites() {

@@ -1,21 +1,21 @@
 # syntax=docker/dockerfile:1
 
 FROM node:22-alpine AS deps
-WORKDIR /app
+WORKDIR /workspace/frontend
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY shared /shared
+COPY shared /workspace/shared
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 FROM node:22-alpine AS builder
-WORKDIR /app
+WORKDIR /workspace/frontend
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY shared /shared
-COPY --from=deps /app/node_modules ./node_modules
+COPY shared /workspace/shared
+COPY --from=deps /workspace/frontend/node_modules ./node_modules
 COPY frontend/ .
 RUN npm run validate:catalog
 RUN npm run typecheck
@@ -31,20 +31,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 
-COPY shared /shared
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
-COPY --chown=nextjs:nextjs --from=builder /app/.next ./.next
-COPY --chown=nextjs:nextjs --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/scripts/smoke-test.mjs ./scripts/smoke-test.mjs
+COPY --chown=nextjs:nextjs --from=builder /workspace/frontend/.next/standalone ./
+COPY --chown=nextjs:nextjs --from=builder /workspace/frontend/.next/static ./frontend/.next/static
+COPY --chown=nextjs:nextjs --from=builder /workspace/frontend/public ./frontend/public
 
 USER nextjs
+WORKDIR /app/frontend
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

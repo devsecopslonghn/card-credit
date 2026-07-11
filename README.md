@@ -11,6 +11,8 @@ master data và Card Catalog theo workspace.
 - `shared/`: contract API framework-free dùng chung giữa hai runtime.
 - Browser chỉ gọi relative `/api/**`. Next rewrites sang `BACKEND_INTERNAL_URL`;
   production mặc định dùng `http://backend:3001` trong Compose.
+- Frontend production image dùng Next.js standalone output, chỉ đóng gói traced
+  runtime dependencies thay vì cài lại toàn bộ production dependency ở runner.
 - MongoDB là runtime source of truth. `frontend/data/card-presets.json` chỉ là
   baseline được validate/import rõ ràng, không phải mutable runtime storage.
 
