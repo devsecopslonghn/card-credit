@@ -38,8 +38,8 @@ COPY shared /shared
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+COPY --chown=nextjs:nextjs --from=builder /app/.next ./.next
+COPY --chown=nextjs:nextjs --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/scripts/smoke-test.mjs ./scripts/smoke-test.mjs
 
