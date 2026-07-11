@@ -247,3 +247,10 @@ export const summarize = (transactions: Data[], capValue: unknown = null) => {
     totalAmountDue: base.totalOutcome,
   };
 };
+
+export const effectivePaymentStatus = (statement: Data, today = new Date().toISOString().slice(0, 10)) =>
+  statement.paymentStatus !== "PAID" &&
+  typeof statement.paymentDueDate === "string" &&
+  statement.paymentDueDate < today
+    ? "OVERDUE"
+    : String(statement.paymentStatus ?? "OPEN");

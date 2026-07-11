@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CardImage } from "@/components/cards/CardImage";
 import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
@@ -19,6 +19,7 @@ import {
   deleteTransaction,
   fetchCardStatements,
   fetchStatementDetail,
+  sendStatementCalendarEmail,
   updateStatementPayment,
   updateTransaction,
   updateTransactionCashback,
@@ -27,6 +28,7 @@ import {
   type CashbackStatus,
   type TransactionPayload,
 } from "@/lib/api/transactionsClient";
+import { canEmailStatementCalendar } from "@/lib/api/statementCalendarEmailCore.mjs";
 import { summarizeCardDebt } from "@/lib/cards/cardDebtCore.mjs";
 
 type Toast = { message: string; type: "success" | "error" };
@@ -47,6 +49,8 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [emailingStatementId, setEmailingStatementId] = useState("");
+  const emailRequestPending = useRef(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<CardTransactionView | null>(null);
   const [transactionError, setTransactionError] = useState("");
@@ -139,6 +143,21 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
       showToast(error instanceof Error ? error.message : "Không thể cập nhật kỳ sao kê.", "error");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleCalendarEmail = async (statement: CardStatementView) => {
+    if (emailRequestPending.current) return;
+    emailRequestPending.current = true;
+    setEmailingStatementId(statement._id);
+    try {
+      const result = await sendStatementCalendarEmail(resolvedParams.id, statement._id);
+      showToast(`Đã gửi file lịch tới ${result.data.recipient}`);
+    } catch {
+      showToast("Không thể gửi file lịch. Vui lòng thử lại sau.", "error");
+    } finally {
+      emailRequestPending.current = false;
+      setEmailingStatementId("");
     }
   };
 
@@ -360,6 +379,14 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
               </div>
 
               <div className="flex flex-wrap justify-end gap-3">
+                {canEmailStatementCalendar(statementDetail) && (
+                  <div className="mr-auto max-w-md">
+                    <button type="button" disabled={emailingStatementId === statementDetail._id} onClick={() => void handleCalendarEmail(statementDetail)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                      {emailingStatementId === statementDetail._id ? "Đang gửi..." : "Gửi lịch qua email"}
+                    </button>
+                    <p className="mt-2 text-xs cc-text-muted">File .ics sẽ được gửi tới email tài khoản của bạn để nhập một lần vào ứng dụng lịch.</p>
+                  </div>
+                )}
                 {statementDetail.paymentStatus === "PAID" ? (
                   <button type="button" disabled={busy} onClick={() => handlePaymentAction(statementDetail, "REOPEN")} className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 disabled:opacity-60">
                     Mở lại kỳ sao kê

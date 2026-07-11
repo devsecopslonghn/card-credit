@@ -42,6 +42,7 @@ completed extraction removed; every listed route now runs in Fastify.
 | `/api/cards/:id/statements` | GET | session | CreditCard, CardStatement, CardTransaction | params/URL, `NextResponse` | high | Domain |
 | `/api/cards/:id/statements/:statementId` | GET | session | CreditCard, CardStatement, CardTransaction | params, `NextResponse` | high | Domain |
 | `/api/cards/:id/statements/:statementId/payment` | PATCH | session | CreditCard, CardStatement, CardTransaction | params, `NextResponse` | high | Domain |
+| `/api/cards/:id/statements/:statementId/calendar-email` | POST | session | User, CreditCard, CardStatement, CardTransaction, SMTP | none | high | Domain |
 | `/api/notes` | GET, POST | session | CalendarNote | inline `NextResponse` | medium | Domain |
 | `/api/reports/summary` | GET | session | CreditCard, CalendarNote, statements/transactions | URL, `NextResponse` | medium | Domain |
 | `/api/profile` | GET, PATCH | session | User | `NextResponse` | medium | Domain |
@@ -86,6 +87,10 @@ contract consumed by both runtimes. Database documents are never shared DTOs.
   envelope and avoid stack traces in production responses.
 - One cached Mongoose connection is opened during startup. SIGTERM/SIGINT stop
   accepting traffic, close HTTP, then disconnect MongoDB with a bounded timeout.
+- Statement calendar email resolves its recipient from the authoritative user
+  record and lazily initializes a backend-only SMTP transport from runtime
+  environment variables. The attachment is a one-time import, not a calendar
+  subscription.
 
 ## URL and deployment topology
 

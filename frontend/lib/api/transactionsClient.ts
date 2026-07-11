@@ -188,3 +188,10 @@ export const updateStatementPayment = async (cardId: string, statementId: string
   const body = (await response.json()) as DataResponse<CardStatementView>;
   return body.data;
 };
+
+export type StatementCalendarEmailResponse = { data: { sent: true; recipient: string } };
+
+export const sendStatementCalendarEmail = async (cardId: string, statementId: string) => {
+  const { sendStatementCalendarEmailRequest } = await import("./statementCalendarEmailCore.mjs");
+  return sendStatementCalendarEmailRequest(fetch, cardId, statementId) as Promise<StatementCalendarEmailResponse>;
+};
