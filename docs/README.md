@@ -13,7 +13,7 @@
 
 ## Active work
 
-- `plans/active/2026-07-11-email-statement-calendar.md`
+- `plans/active/2026-07-12-payment-reminders.md`
 
 ## Historical plans
 
@@ -21,6 +21,7 @@
 - `plans/archive/2026-07-card-catalog-release-plan.md`
 - `plans/archive/2026-07-card-catalog-roadmap.md`
 - `plans/archive/2026-07-11-split-frontend-backend.md`
+- `plans/archive/2026-07-11-email-statement-calendar.md`
 
 ## Audits
 
