@@ -4,6 +4,7 @@ import { installErrorHandler, ApiError } from "./errors.js";
 import { InMemoryCatalogRepository, invalidCatalogError, normalizeCatalogProduct, validateCatalogProducts, withLegacyAliases, type CatalogProduct, type CatalogRepository } from "./catalog.js";
 import { requireAdmin, type Session } from "./auth.js";
 import type { CatalogAuditWriter } from "./catalog-audit.js";
+import { installBrowserSecurity } from "./browser-security.js";
 
 const updateFields = new Set(["providerCode", "providerName", "displayName", "network", "segment", "annualFee", "targetSpendForWaiver", "imageUrl", "benefits", "sourceUrl", "sourceCheckedAt", "active", "sortOrder", "theme"]);
 const auditFor = (session: Session) => ({ updatedBy: session.email, updatedByUserId: session.userId, updatedAt: new Date().toISOString(), storage: "mongodb:cardproducts" });
@@ -17,6 +18,7 @@ const validateWholeCatalog = async (catalog: CatalogRepository, candidate: Catal
 export const buildApp = (database: Pick<DatabaseLifecycle, "isReady">, logLevel = "info", catalog: CatalogRepository = new InMemoryCatalogRepository(), authSecret = "test-secret-at-least-thirty-two-characters", writeAudit: CatalogAuditWriter = async () => {}) => {
   const app = Fastify({ logger: { level: logLevel, redact: ["req.headers.authorization", "req.headers.cookie", "password", "token", "mongodbUri"] }, requestIdHeader: "x-request-id" });
   installErrorHandler(app);
+  installBrowserSecurity(app);
   app.get("/health", async () => ({ status: "ok" }));
   app.get("/ready", async (_request, reply) => database.isReady() ? { status: "ready" } : reply.status(503).send({ status: "not_ready" }));
   app.get("/api/card-catalog/providers", async () => ({ data: await catalog.listActiveProviders() }));

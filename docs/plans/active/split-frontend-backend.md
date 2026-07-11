@@ -54,7 +54,7 @@ consistent repository layout while the UI and API continue to run together.
 | Phase 3 — Minimal backend runtime | DONE |
 | Phase 4 — Shared boundaries | DONE |
 | Phase 5 — API migration by route group | DONE |
-| Phase 6 — Authentication, cookie, CORS, and CSRF | TODO |
+| Phase 6 — Authentication, cookie, CORS, and CSRF | DONE |
 | Phase 7 — Two real production Dockerfiles | DONE |
 | Phase 8 — Two-service Docker Compose | IN_PROGRESS |
 | Phase 9 — Frontend/backend Jenkins pipeline | DONE |
@@ -64,7 +64,7 @@ consistent repository layout while the UI and API continue to run together.
 
 ## Current phase
 
-Phase 6 — Authentication, cookie, CORS, and CSRF.
+Phase 8 — Two-service Docker Compose startup validation.
 
 ## Acceptance criteria
 
@@ -205,6 +205,12 @@ Phase 6 — Authentication, cookie, CORS, and CSRF.
   domain models and `frontend/app/api` contains no route implementations. Public
   URLs remain same-origin through Next rewrites. Backend validation passed with
   15 tests; frontend and two-image Compose validation are recorded below.
+- 2026-07-11: Phase 6 completed the browser security boundary. Production keeps
+  CORS disabled, mutation requests reject mismatched Origin and cross-site Fetch
+  Metadata, and proxy-aware host/protocol validation preserves the same-origin
+  frontend topology. Secure HttpOnly SameSite=Lax host-only cookies remain owned
+  by the backend. Backend validation passed with 16 tests and both production
+  images built through Compose with `phase6-check`.
 
 ## Known issues
 
