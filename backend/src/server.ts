@@ -9,11 +9,14 @@ import { MongoNotesRepository } from "./notes.js";
 import { registerNotesRoutes } from "./notes-routes.js";
 import { MongoMasterdataRepository } from "./masterdata.js";
 import { registerMasterdataRoutes } from "./masterdata-routes.js";
+import { registerUserRoutes } from "./user-routes.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
 const app = buildApp(database, config.logLevel, new MongoCatalogRepository(), config.authSecret, writeCatalogAudit);
-registerAuthRoutes(app, { repository: new MongoAuthRepository(), secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
+const authRepository = new MongoAuthRepository();
+registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
+registerUserRoutes(app, authRepository, config.authSecret);
 registerNotesRoutes(app, new MongoNotesRepository(), config.authSecret);
 registerMasterdataRoutes(app, new MongoMasterdataRepository(), config.authSecret);
 let stopping = false;

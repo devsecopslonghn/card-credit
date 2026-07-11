@@ -13,6 +13,8 @@ class MemoryAuth implements AuthRepository {
   async upsertUser(user: Omit<AuthUser, "id">) { const current = await this.findUserByEmail(user.email); if (current) { Object.assign(current, structuredClone(user)); return current; } return this.createUser(user); }
   async updatePassword(id: string, hash: string) { (await this.findUserById(id))!.passwordHash = hash; }
   async touchLogin() {}
+  async listUsers() { return structuredClone(this.users).sort((a, b) => a.email.localeCompare(b.email)); }
+  async updateUser(id: string, update: Partial<Pick<AuthUser, "displayName" | "role" | "workspaceId">>) { const user = await this.findUserById(id); if (!user) return null; Object.assign(user, update); return structuredClone(user); }
   async createResetToken(token: ResetToken) { this.tokens.push(structuredClone(token)); }
   async findResetToken(hash: string, now: Date) { return this.tokens.find((t) => t.tokenHash === hash && !t.usedAt && t.expiresAt > now) ?? null; }
   async consumeResetTokens(userId: string, now: Date) { this.tokens.filter((t) => t.userId === userId && !t.usedAt).forEach((t) => { t.usedAt = now; }); }

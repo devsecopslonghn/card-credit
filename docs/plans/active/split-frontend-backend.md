@@ -194,6 +194,9 @@ Phase 5 — API migration by route group.
   two-service Compose stack only on master, checks frontend HTTP plus backend
   liveness/readiness without logging secrets, and removes both temporary branch
   images. Workspace ownership and post-cleanup cover all three packages.
+- 2026-07-11: Phase 5 user/admin group moved profile, admin user management and
+  audit-log queries to Fastify, extended the injected auth repository, added
+  same-origin rewrites and removed four Next route adapters.
 
 ## Known issues
 

@@ -13,6 +13,8 @@ export interface AuthRepository {
   upsertUser(user: Omit<AuthUser, "id">): Promise<AuthUser>;
   updatePassword(id: string, passwordHash: string): Promise<void>;
   touchLogin(id: string): Promise<void>;
+  listUsers(): Promise<AuthUser[]>;
+  updateUser(id: string, update: Partial<Pick<AuthUser, "displayName" | "role" | "workspaceId">>): Promise<AuthUser | null>;
   createResetToken(token: ResetToken): Promise<void>;
   findResetToken(hash: string, now: Date): Promise<ResetToken | null>;
   consumeResetTokens(userId: string, now: Date): Promise<void>;
@@ -35,6 +37,8 @@ export class MongoAuthRepository implements AuthRepository {
   async upsertUser(user: Omit<AuthUser, "id">) { await this.users().updateOne({ email: user.email }, { $set: { ...user, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date(), lastLoginAt: null } }, { upsert: true }); return (await this.findUserByEmail(user.email))!; }
   async updatePassword(id: string, passwordHash: string) { await this.users().updateOne({ _id: new mongoose.Types.ObjectId(id) }, { $set: { passwordHash, passwordChangedAt: new Date(), lastLoginAt: null, updatedAt: new Date() } }); }
   async touchLogin(id: string) { await this.users().updateOne({ _id: new mongoose.Types.ObjectId(id) }, { $set: { lastLoginAt: new Date(), updatedAt: new Date() } }); }
+  async listUsers() { return (await this.users().find().sort({ email: 1 }).toArray()).map(toUser).filter((user): user is AuthUser => user !== null); }
+  async updateUser(id: string, update: Partial<Pick<AuthUser, "displayName" | "role" | "workspaceId">>) { return toUser(await this.users().findOneAndUpdate({ _id: new mongoose.Types.ObjectId(id) }, { $set: { ...update, updatedAt: new Date() } }, { returnDocument: "after" })); }
   async createResetToken(token: ResetToken) { await this.tokens().insertOne({ ...token, createdAt: new Date(), updatedAt: new Date() }); }
   async findResetToken(tokenHash: string, now: Date) { return await this.tokens().findOne({ tokenHash, usedAt: null, expiresAt: { $gt: now } }) as ResetToken | null; }
   async consumeResetTokens(userId: string, now: Date) { await this.tokens().updateMany({ userId, usedAt: null }, { $set: { usedAt: now, updatedAt: now } }); }
