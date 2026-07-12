@@ -127,6 +127,8 @@ Mongo/Auth/SMTP placeholders. Frontend was unchanged in this completion batch.
 ## Manual calendar scope adjustment
 
 On 2026-07-12 the manual Phase 1 attachment was narrowed by product decision:
-each `.ics` now contains exactly one all-day payment-due event. It no longer
-creates a statement-close event. The endpoint, authoritative recipient rules,
+each `.ics` now contains exactly one payment-due window from three days before
+the due date through 17:00 on the due date, with display alarms at the start,
+09:00, and 15:00 on the due date. It no longer creates a statement-close event.
+The endpoint, authoritative recipient rules,
 SMTP transport, one-time import behavior, and reminder scheduler are unchanged.

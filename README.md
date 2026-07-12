@@ -67,6 +67,11 @@ các kỳ sao kê persisted chưa thanh toán thuộc các thẻ gắn trực ti
 trong workspace hiện tại. Backend chỉ lưu hash của token; URL đầy đủ không thể
 được xem lại sau khi rời màn hình tạo.
 
+Mỗi event bắt đầu lúc 00:00 trước hạn ba ngày và kết thúc lúc 17:00 ngày đến
+hạn theo timezone của thẻ. Feed kèm display alarm khi event bắt đầu, lúc 09:00
+và 15:00 ngày đến hạn; ứng dụng lịch quyết định có chấp nhận alarm từ
+subscription hay không.
+
 Backend cần `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` và
 có thể nhận `SMTP_PORT`, `SMTP_SECURE`. `SMTP_HOST=host:port` được hỗ trợ tạm
 thời; port riêng có ưu tiên và mặc định là 587. Các biến này chỉ được inject vào

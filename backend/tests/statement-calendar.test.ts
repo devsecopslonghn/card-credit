@@ -28,13 +28,17 @@ test("projection creates one deterministic payment-due event without raw identit
   assert.match(events[0]!.description, /Quá hạn/);
 });
 
-test("serializer emits one payment-due all-day event with CRLF, folding, escaping and safe stable UID", () => {
+test("serializer emits a three-day payment window with three display alarms", () => {
   const calendar = serializeStatementCalendar(projectStatementCalendar(input), new Date("2026-07-11T12:34:56.000Z"));
   assert.match(calendar, /^BEGIN:VCALENDAR\r\nVERSION:2.0\r\n/);
   assert.match(calendar, /CALSCALE:GREGORIAN\r\nMETHOD:PUBLISH/);
   assert.equal(calendar.match(/BEGIN:VEVENT/g)?.length, 1);
   assert.match(calendar, /DTSTAMP:20260711T123456Z/);
-  assert.match(calendar, /DTSTART;VALUE=DATE:20281231\r\nDTEND;VALUE=DATE:20290101/);
+  assert.match(calendar, /DTSTART;TZID=Asia\/Ho_Chi_Minh:20281228T000000\r\nDTEND;TZID=Asia\/Ho_Chi_Minh:20281231T170000/);
+  assert.equal(calendar.match(/BEGIN:VALARM/g)?.length, 3);
+  assert.match(calendar, /TRIGGER;RELATED=START:PT0S/);
+  assert.match(calendar, /TRIGGER;RELATED=END:-PT8H/);
+  assert.match(calendar, /TRIGGER;RELATED=END:-PT2H/);
   assert.match(calendar, /SUMMARY:Hạn thanh toán – Thẻ Việt\\, Platinum\\; Plus/);
   assert.match(calendar, /\r\n /);
   assert.equal(calendar.replaceAll("\r\n", "").includes("\n"), false);
@@ -44,7 +48,7 @@ test("serializer emits one payment-due all-day event with CRLF, folding, escapin
 test("serializer handles non-leap month boundaries and all text escape classes", () => {
   const events = projectStatementCalendar({ ...input, paymentDueDate: "2027-02-28", displayName: "Thẻ \\ A, B; C\nD" });
   const calendar = serializeStatementCalendar(events, new Date("2026-01-01T00:00:00Z"));
-  assert.match(calendar, /DTSTART;VALUE=DATE:20270228\r\nDTEND;VALUE=DATE:20270301/);
+  assert.match(calendar, /DTSTART;TZID=Asia\/Ho_Chi_Minh:20270225T000000\r\nDTEND;TZID=Asia\/Ho_Chi_Minh:20270228T170000/);
   assert.match(calendar, /Thẻ \\\\ A\\, B\\; C\\nD/);
 });
 

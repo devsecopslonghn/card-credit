@@ -20,11 +20,13 @@ test("device labels are optional, normalized and bounded", () => {
   assert.throws(() => normalizeDeviceLabel("iPhone\nInjected"), /INVALID_DEVICE_LABEL/);
 });
 
-test("subscription feed contains payment due events only", () => {
+test("subscription feed contains the three-day payment window and alarms only", () => {
   const calendar = serializePaymentDueFeed([{ identity: "workspace/user/statement", displayName: "Visa", providerName: "Ngân hàng", owner: "Tôi", periodStartDate: "2026-07-01", periodEndDate: "2026-07-31", statementDate: "2026-07-31", paymentDueDate: "2026-08-15", totalAmountDue: 500000, effectivePaymentStatus: "OPEN" }], new Date("2026-07-12T00:00:00Z"));
   assert.equal(calendar.match(/BEGIN:VEVENT/g)?.length, 1);
-  assert.match(calendar, /DTSTART;VALUE=DATE:20260815/);
-  assert.doesNotMatch(calendar, /DTSTART;VALUE=DATE:20260731/);
+  assert.match(calendar, /DTSTART;TZID=Asia\/Ho_Chi_Minh:20260812T000000/);
+  assert.match(calendar, /DTEND;TZID=Asia\/Ho_Chi_Minh:20260815T170000/);
+  assert.equal(calendar.match(/BEGIN:VALARM/g)?.length, 3);
+  assert.doesNotMatch(calendar, /DTSTART[^\r\n]*20260731/);
   assert.equal(calendar.includes("workspace/user/statement"), false);
 });
 

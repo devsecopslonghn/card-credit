@@ -4,6 +4,7 @@ export type StatementCalendarEvent = {
   key: string;
   type: "payment-due";
   date: string;
+  timezone: string;
   title: string;
   description: string;
 };
@@ -19,6 +20,7 @@ export type StatementCalendarInput = {
   paymentDueDate: string;
   totalAmountDue: number;
   effectivePaymentStatus: string;
+  timezone?: string;
 };
 
 const statusLabel: Record<string, string> = {
@@ -41,7 +43,9 @@ export const projectStatementCalendar = (input: StatementCalendarInput): Stateme
   ].join("\n");
   const key = (type: StatementCalendarEvent["type"]) =>
     crypto.createHash("sha256").update(`${input.identity}:${type}`).digest("hex");
-  return [{ key: key("payment-due"), type: "payment-due", date: input.paymentDueDate, title: `Hạn thanh toán – ${input.displayName}`, description: common }];
+  let timezone = "Asia/Ho_Chi_Minh";
+  if (input.timezone) try { new Intl.DateTimeFormat("en", { timeZone: input.timezone }).format(); timezone = input.timezone; } catch { timezone = "Asia/Ho_Chi_Minh"; }
+  return [{ key: key("payment-due"), type: "payment-due", date: input.paymentDueDate, timezone, title: `Hạn thanh toán – ${input.displayName}`, description: common }];
 };
 
 const escapeText = (value: string) => value
@@ -69,9 +73,9 @@ const foldLine = (line: string) => {
 };
 
 const compactDate = (value: string) => value.replaceAll("-", "");
-const nextDate = (value: string) => {
+const offsetDate = (value: string, days: number) => {
   const [year, month, day] = value.split("-").map(Number);
-  const next = new Date(Date.UTC(year!, month! - 1, day! + 1));
+  const next = new Date(Date.UTC(year!, month! - 1, day! + days));
   return `${next.getUTCFullYear()}${String(next.getUTCMonth() + 1).padStart(2, "0")}${String(next.getUTCDate()).padStart(2, "0")}`;
 };
 const stamp = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
@@ -82,10 +86,25 @@ export const serializeStatementCalendar = (events: StatementCalendarEvent[], gen
     "BEGIN:VEVENT",
     `UID:${event.key}@card-credit`,
     `DTSTAMP:${stamp(generatedAt)}`,
-    `DTSTART;VALUE=DATE:${compactDate(event.date)}`,
-    `DTEND;VALUE=DATE:${nextDate(event.date)}`,
+    `DTSTART;TZID=${event.timezone}:${offsetDate(event.date, -3)}T000000`,
+    `DTEND;TZID=${event.timezone}:${compactDate(event.date)}T170000`,
     `SUMMARY:${escapeText(event.title)}`,
     `DESCRIPTION:${escapeText(event.description)}`,
+    "BEGIN:VALARM",
+    "ACTION:DISPLAY",
+    "TRIGGER;RELATED=START:PT0S",
+    `DESCRIPTION:${escapeText(`Còn 3 ngày đến hạn – ${event.title}`)}`,
+    "END:VALARM",
+    "BEGIN:VALARM",
+    "ACTION:DISPLAY",
+    "TRIGGER;RELATED=END:-PT8H",
+    `DESCRIPTION:${escapeText(`Hạn thanh toán lúc 17:00 hôm nay – ${event.title}`)}`,
+    "END:VALARM",
+    "BEGIN:VALARM",
+    "ACTION:DISPLAY",
+    "TRIGGER;RELATED=END:-PT2H",
+    `DESCRIPTION:${escapeText(`Còn 2 giờ đến hạn – ${event.title}`)}`,
+    "END:VALARM",
     "END:VEVENT",
   );
   lines.push("END:VCALENDAR");
