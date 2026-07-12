@@ -92,8 +92,9 @@ contract consumed by both runtimes. Database documents are never shared DTOs.
   accepting traffic, close HTTP, then disconnect MongoDB with a bounded timeout.
 - Statement calendar email resolves its recipient from the authoritative user
   record and lazily initializes a backend-only SMTP transport from runtime
-  environment variables. The attachment contains one all-day payment-due event
-  for one-time import, not a calendar subscription.
+  environment variables. The attachment contains one payment window from three
+  days before the due date through 17:00 on the due date, with display alarms,
+  for one-time import rather than calendar subscription.
 - Calendar subscription management is session- and workspace-scoped. A public
   read-only feed authenticates with a random token whose one-way hash is stored;
   it returns only persisted unpaid payment-due events for cards directly owned

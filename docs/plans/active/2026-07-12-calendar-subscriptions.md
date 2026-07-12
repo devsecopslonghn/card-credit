@@ -14,8 +14,11 @@ due dates.
   browser session, query recipient, card owner label, or email.
 - The feed includes unpaid persisted `CardStatement` records only when their
   `CreditCard.userId` matches the subscription user in the same workspace.
-- Each event is an all-day payment-due event. No statement-close events,
-  arbitrary appointments, email addresses, or credentials are exposed.
+- Each payment event runs from 00:00 three days before its due date through
+  17:00 on the due date in the card timezone (default `Asia/Ho_Chi_Minh`). It
+  includes display alarms at the start, 09:00, and 15:00 on the due date. No
+  statement-close events, arbitrary appointments, email addresses, or
+  credentials are exposed.
 - Users may label, list, create, and revoke only their own subscriptions.
 - Frontend constructs the absolute URL from the trusted current browser origin;
   backend returns only a relative path.
@@ -76,4 +79,14 @@ Risks: the subscription URL is a bearer credential and any holder can read its
 financial calendar content until revocation. Application logging is disabled on
 the backend feed route, but operators must also avoid URL logging at external
 reverse proxies. Calendar refresh frequency is controlled by the client. The
-implementation is complete; no commit or push is part of this task.
+implementation is complete. The confirmed alarm follow-up is committed and
+pushed by explicit user request after validation.
+
+Follow-up completed: payment events now span the confirmed three-day safety
+window and include three RFC 5545 display alarms. Calendar clients control
+whether subscription-provided alarms are honored, so users must also allow
+Calendar notifications on their device.
+
+Follow-up validation: shared validation passed; backend typecheck, lint, 36
+tests, and build passed; frontend typecheck, lint, 47 tests, and production build
+passed. Compose config and final Git checks are recorded before push.
