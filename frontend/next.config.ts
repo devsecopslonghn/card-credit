@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       { source: "/api/admin/users/:path*", destination: `${backend}/api/admin/users/:path*` },
       { source: "/api/admin/audit-logs", destination: `${backend}/api/admin/audit-logs` },
       { source: "/api/cards/:path*", destination: `${backend}/api/cards/:path*` },
+      { source: "/api/calendar-subscriptions/:path*", destination: `${backend}/api/calendar-subscriptions/:path*` },
       { source: "/api/card-transactions/:path*", destination: `${backend}/api/card-transactions/:path*` },
       { source: "/api/reports/:path*", destination: `${backend}/api/reports/:path*` },
     ];

@@ -43,6 +43,9 @@ completed extraction removed; every listed route now runs in Fastify.
 | `/api/cards/:id/statements/:statementId` | GET | session | CreditCard, CardStatement, CardTransaction | params, `NextResponse` | high | Domain |
 | `/api/cards/:id/statements/:statementId/payment` | PATCH | session | CreditCard, CardStatement, CardTransaction | params, `NextResponse` | high | Domain |
 | `/api/cards/:id/statements/:statementId/calendar-email` | POST | session | User, CreditCard, CardStatement, CardTransaction, SMTP | none | high | Domain |
+| `/api/calendar-subscriptions` | GET, POST | session | User, CalendarSubscription | none | high | Domain |
+| `/api/calendar-subscriptions/:id` | DELETE | session | CalendarSubscription | none | high | Domain |
+| `/api/calendar-subscriptions/feed/:token.ics` | GET | private token | User, CalendarSubscription, CreditCard, CardStatement, CardTransaction | none | high | Domain |
 | `/api/notes` | GET, POST | session | CalendarNote | inline `NextResponse` | medium | Domain |
 | `/api/reports/summary` | GET | session | CreditCard, CalendarNote, statements/transactions | URL, `NextResponse` | medium | Domain |
 | `/api/profile` | GET, PATCH | session | User | `NextResponse` | medium | Domain |
@@ -91,6 +94,11 @@ contract consumed by both runtimes. Database documents are never shared DTOs.
   record and lazily initializes a backend-only SMTP transport from runtime
   environment variables. The attachment contains one all-day payment-due event
   for one-time import, not a calendar subscription.
+- Calendar subscription management is session- and workspace-scoped. A public
+  read-only feed authenticates with a random token whose one-way hash is stored;
+  it returns only persisted unpaid payment-due events for cards directly owned
+  by the bound user. Tokens are returned once, revocable, excluded from request
+  logging, and never included in subscription list responses.
 
 ## URL and deployment topology
 

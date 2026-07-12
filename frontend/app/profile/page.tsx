@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { canManageUsers } from "@/lib/auth/rbac";
+import { CalendarSubscriptionSettings } from "@/components/CalendarSubscriptionSettings";
 
 type ProfileUser = {
   id: string;
@@ -141,6 +142,7 @@ export default function ProfilePage() {
           {status ? <p role="status" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">{status}</p> : null}
           {error ? <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{error}</p> : null}
         </section>
+        {!loading && user ? <CalendarSubscriptionSettings /> : null}
       </div>
     </main>
   );
