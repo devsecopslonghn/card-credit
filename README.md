@@ -58,6 +58,15 @@ lại từ tài khoản phía server; request không nhận email người nhậ
 
 Endpoint: `POST /api/cards/:cardId/statements/:statementId/calendar-email`.
 
+## Lịch hạn thanh toán tự cập nhật
+
+Trong trang Hồ sơ, người dùng có thể tạo URL lịch riêng tư với nhãn thiết bị,
+sao chép URL một lần để đăng ký trên Apple Calendar hoặc ứng dụng tương thích,
+và thu hồi URL khi không còn sử dụng. Feed read-only chỉ chứa hạn thanh toán của
+các kỳ sao kê persisted chưa thanh toán thuộc các thẻ gắn trực tiếp với tài khoản
+trong workspace hiện tại. Backend chỉ lưu hash của token; URL đầy đủ không thể
+được xem lại sau khi rời màn hình tạo.
+
 Backend cần `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` và
 có thể nhận `SMTP_PORT`, `SMTP_SECURE`. `SMTP_HOST=host:port` được hỗ trợ tạm
 thời; port riêng có ưu tiên và mặc định là 587. Các biến này chỉ được inject vào

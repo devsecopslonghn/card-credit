@@ -14,6 +14,7 @@
 ## Active work
 
 - `plans/active/2026-07-12-payment-reminders.md`
+- `plans/active/2026-07-12-calendar-subscriptions.md`
 
 ## Historical plans
 

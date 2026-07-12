@@ -16,6 +16,7 @@ import { registerReportRoutes } from "./report-routes.js";
 import { SmtpMailService } from "./mail-service.js";
 import { ReminderScheduler } from "./reminder-scheduler.js";
 import { registerWorkspaceRoutes } from "./workspace-routes.js";
+import { registerCalendarSubscriptionRoutes } from "./calendar-subscription-routes.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
@@ -24,6 +25,7 @@ const authRepository = new MongoAuthRepository();
 registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
 registerUserRoutes(app, authRepository, config.authSecret);
 registerWorkspaceRoutes(app, authRepository, config.authSecret);
+registerCalendarSubscriptionRoutes(app, authRepository, config.authSecret);
 registerCardRoutes(app, config.authSecret);
 const mailService = new SmtpMailService();
 registerTransactionRoutes(app, config.authSecret, { users: authRepository, mail: mailService });
