@@ -50,6 +50,7 @@ export const formatRateBps = (value) => {
 
 export const formatDateDisplay = (dateStr) => {
   if (!dateStr || typeof dateStr !== "string") return "Chưa thiết lập";
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
   const [year, month, day] = dateStr.split("-");
   if (!year || !month || !day) return "Chưa thiết lập";
   return `${day}/${month}/${year}`;
@@ -78,7 +79,13 @@ const addDaysToDateOnly = (dateOnly, days) => {
 const isPaidStatement = (statement) =>
   statement?.paymentStatus === "PAID" || statement?.effectivePaymentStatus === "PAID";
 
-const getStatementAmountDue = (statement) => Number(statement?.summary?.totalAmountDue ?? 0);
+const getStatementAmountDue = (statement) => {
+  if (isPaidStatement(statement)) return 0;
+  const total = Number(statement?.summary?.totalAmountDue ?? 0);
+  const paid = Number(statement?.paidAmount ?? 0);
+  if (!Number.isFinite(total)) return 0;
+  return Math.max(0, total - (Number.isFinite(paid) ? paid : 0));
+};
 
 export const buildCardSummary = (card, statements = [], selectedPeriod = {}) => {
   const year = Number(selectedPeriod.year);
@@ -99,17 +106,18 @@ export const buildCardSummary = (card, statements = [], selectedPeriod = {}) => 
     return sum + amountDue;
   }, 0);
   const configuredOutstandingBalance = Number(card?.currentOutstandingBalance);
-  const configuredStatementAmountDue = Number(card?.statementAmountDue);
+  const configuredStatementAmountDue = Number(card?.statementAmountDue ?? card?.amountDueThisMonth);
+  const useLegacyPaymentPeriod = !selectedStatement && Number.isFinite(configuredStatementAmountDue) && configuredStatementAmountDue > 0 && !card?.isPaidThisMonth;
 
   return {
-    statementDate,
-    paymentDueDate,
+    statementDate: useLegacyPaymentPeriod && card?.statementDate ? card.statementDate : statementDate,
+    paymentDueDate: useLegacyPaymentPeriod && card?.paymentDueDate ? card.paymentDueDate : paymentDueDate,
     currentOutstandingBalance: Number.isFinite(configuredOutstandingBalance)
       ? configuredOutstandingBalance
       : derivedOutstandingBalance,
-    statementAmountDue: Number.isFinite(configuredStatementAmountDue)
-      ? configuredStatementAmountDue
-      : getStatementAmountDue(selectedStatement),
+    statementAmountDue: selectedStatement
+      ? getStatementAmountDue(selectedStatement)
+      : useLegacyPaymentPeriod ? configuredStatementAmountDue : 0,
   };
 };
 

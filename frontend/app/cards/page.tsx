@@ -185,7 +185,7 @@ export default function CardsPage() {
     }
   };
 
-  const handlePaymentAction = async (statement: DueStatementRow["statement"], action: "CLOSED" | "PAID") => {
+  const handlePaymentAction = async (statement: NonNullable<DueStatementRow["statement"]>, action: "CLOSED" | "PAID") => {
     const key = paymentActionKey(statement._id, action);
     if (pendingPaymentActionsRef.current.has(key)) return;
     if (action === "CLOSED" && !window.confirm("Chốt kỳ sao kê này? Sau khi chốt, sửa/xóa giao dịch vẫn được phép nhưng sẽ có cảnh báo tính lại số liệu.")) return;
@@ -283,7 +283,7 @@ export default function CardsPage() {
             </button>
           </div>
         )}
-        <UpcomingPayments statements={dashboardStatements} cards={cards} selectedOwner={selectedOwner} pendingActions={pendingPaymentActions} onPaymentAction={handlePaymentAction} />
+        <UpcomingPayments statements={dashboardStatements} cards={filteredCards} cardSummaries={cardSummaries} selectedOwner={selectedOwner} pendingActions={pendingPaymentActions} onPaymentAction={handlePaymentAction} />
         <DuplicateResolver
           refreshKey={duplicateRefreshKey}
           onMerged={refreshCardsAndDuplicates}
