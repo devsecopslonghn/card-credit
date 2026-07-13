@@ -6,6 +6,7 @@ import {
   getDisplayName,
   getProviderName,
   type CreditCardView,
+  type CardSummaryView,
 } from "@/components/cards/cardTypes";
 import {
   buildDueStatementGroups,
@@ -17,9 +18,10 @@ import type { CardStatementView } from "@/lib/api/transactionsClient";
 type UpcomingPaymentsProps = {
   statements: CardStatementView[];
   cards: CreditCardView[];
+  cardSummaries: Record<string, CardSummaryView>;
   selectedOwner: string;
   pendingActions: ReadonlySet<string>;
-  onPaymentAction: (statement: DueStatementRow["statement"], action: "CLOSED" | "PAID") => void;
+  onPaymentAction: (statement: NonNullable<DueStatementRow["statement"]>, action: "CLOSED" | "PAID") => void;
 };
 
 export const paymentActionKey = (statementId: string, action: "CLOSED" | "PAID") => `${statementId}:${action}`;
@@ -38,9 +40,9 @@ const statusClass = {
   PAID: "border-emerald-300 bg-emerald-50 text-success",
 } as const;
 
-export function UpcomingPayments({ statements, cards, selectedOwner, pendingActions, onPaymentAction }: UpcomingPaymentsProps) {
-  const groups = buildDueStatementGroups({ statements, cards });
-  const overdueRows = buildOverdueStatementRows({ statements, cards });
+export function UpcomingPayments({ statements, cards, cardSummaries, selectedOwner, pendingActions, onPaymentAction }: UpcomingPaymentsProps) {
+  const groups = buildDueStatementGroups({ statements, cards, cardSummaries });
+  const overdueRows = buildOverdueStatementRows({ statements, cards, cardSummaries });
 
   if (groups.length === 0 && overdueRows.length === 0) {
     return (
@@ -134,8 +136,8 @@ function PaymentRows({
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ statement, card, amountDue, status }) => (
-              <tr key={statement._id} className="border-b cc-border align-middle text-sm font-medium leading-5 last:border-b-0 hover:bg-surface-elevated">
+            {rows.map(({ key, statement, statementDate, dueDate, card, amountDue, status }) => (
+              <tr key={key} className="border-b cc-border align-middle text-sm font-medium leading-5 last:border-b-0 hover:bg-surface-elevated">
                 <td className="px-3 py-2.5 align-middle font-semibold cc-text-primary">
                   <span className="line-clamp-2" title={getDisplayName(card)}>{getDisplayName(card)}</span>
                 </td>
@@ -147,8 +149,8 @@ function PaymentRows({
                     <span className="truncate whitespace-nowrap">{card.owner || "Tôi"}</span>
                   </span>
                 </td>
-                {!compact && <td className="whitespace-nowrap px-2 py-2.5 text-center align-middle cc-text-muted">{formatDateDisplay(statement.statementDate)}</td>}
-                <td className="whitespace-nowrap px-2 py-2.5 text-center align-middle font-semibold cc-danger">{formatDateDisplay(statement.paymentDueDate)}</td>
+                {!compact && <td className="whitespace-nowrap px-2 py-2.5 text-center align-middle cc-text-muted">{formatDateDisplay(statementDate ?? "")}</td>}
+                <td className="whitespace-nowrap px-2 py-2.5 text-center align-middle font-semibold cc-danger">{formatDateDisplay(dueDate)}</td>
                 <td className="cc-tabular whitespace-nowrap px-2 py-2.5 text-right align-middle font-semibold cc-text-primary">{formatVnd(amountDue)}</td>
                 <td className="px-2 py-2.5 text-center align-middle">
                   <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold leading-4 ${statusClass[status]}`}>
@@ -156,7 +158,7 @@ function PaymentRows({
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-center align-middle">
-                  <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} desktop />
+                  {statement ? <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} desktop /> : <span className="text-xs font-semibold cc-text-muted">Mở chi tiết thẻ để cập nhật</span>}
                 </td>
               </tr>
             ))}
@@ -165,8 +167,8 @@ function PaymentRows({
       </div>
 
       <div className="space-y-3 xl:hidden">
-        {rows.map(({ statement, card, amountDue, status }) => (
-          <article key={statement._id} className="cc-panel rounded-lg p-4">
+        {rows.map(({ key, statement, statementDate, dueDate, card, amountDue, status }) => (
+          <article key={key} className="cc-panel rounded-lg p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h4 className="break-words text-base font-bold cc-text-primary">{getDisplayName(card)}</h4>
@@ -182,11 +184,11 @@ function PaymentRows({
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="font-semibold cc-text-muted">Kỳ sao kê</dt>
-                <dd className="mt-1 font-bold cc-text-primary">{formatDateDisplay(statement.statementDate)}</dd>
+                <dd className="mt-1 font-bold cc-text-primary">{formatDateDisplay(statementDate ?? "")}</dd>
               </div>
               <div className="text-right">
                 <dt className="font-semibold cc-text-muted">Hạn thanh toán</dt>
-                <dd className="mt-1 font-bold cc-danger">{formatDateDisplay(statement.paymentDueDate)}</dd>
+                <dd className="mt-1 font-bold cc-danger">{formatDateDisplay(dueDate)}</dd>
               </div>
               <div className="col-span-2 text-right">
                 <dt className="font-semibold cc-text-muted">Số tiền phải trả</dt>
@@ -195,7 +197,7 @@ function PaymentRows({
             </dl>
             <div className="mt-4 border-t cc-border pt-3">
               <p className="mb-2 text-xs font-bold uppercase tracking-wide cc-text-muted">Thao tác</p>
-              <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} />
+              {statement ? <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} /> : <p className="text-center text-xs font-semibold cc-text-muted">Mở chi tiết thẻ để cập nhật kỳ thanh toán.</p>}
             </div>
           </article>
         ))}
@@ -205,7 +207,7 @@ function PaymentRows({
 }
 
 function PaymentActions({ statement, pendingActions, onPaymentAction, desktop = false }: {
-  statement: DueStatementRow["statement"];
+  statement: NonNullable<DueStatementRow["statement"]>;
   pendingActions: ReadonlySet<string>;
   onPaymentAction: UpcomingPaymentsProps["onPaymentAction"];
   desktop?: boolean;

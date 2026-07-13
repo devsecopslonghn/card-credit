@@ -68,7 +68,8 @@ declare module "@/lib/cards/uiCore.mjs" {
 declare module "@/lib/cards/dueStatementsCore.mjs" {
   export type DueStatementStatus = "UPCOMING" | "DUE_TODAY" | "OVERDUE" | "PAID";
   export type DueStatementRow = {
-    statement: Record<string, unknown> & {
+    key: string;
+    statement: (Record<string, unknown> & {
       _id: string;
       userCardId: string;
       statementDate: string;
@@ -76,7 +77,8 @@ declare module "@/lib/cards/dueStatementsCore.mjs" {
       paymentStatus?: string;
       effectivePaymentStatus?: string;
       summary?: { totalAmountDue?: number };
-    };
+      paidAmount?: number | null;
+    }) | null;
     card: Record<string, unknown> & {
       _id: string;
       providerName?: string;
@@ -86,12 +88,16 @@ declare module "@/lib/cards/dueStatementsCore.mjs" {
       owner?: string;
     };
     amountDue: number;
+    remainingAmountDue: number;
+    statementDate: string | null;
+    dueDate: string;
     status: DueStatementStatus;
   };
   export const getStatementDueStatus: (statement: Record<string, unknown>, today?: string) => DueStatementStatus;
   export const buildDueStatementGroups: (input: {
     statements?: Array<Record<string, unknown>>;
     cards?: Array<Record<string, unknown>>;
+    cardSummaries?: Record<string, Record<string, unknown>>;
     today?: string;
   }) => Array<{
     monthKey: string;
@@ -103,6 +109,7 @@ declare module "@/lib/cards/dueStatementsCore.mjs" {
   export const buildOverdueStatementRows: (input: {
     statements?: Array<Record<string, unknown>>;
     cards?: Array<Record<string, unknown>>;
+    cardSummaries?: Record<string, Record<string, unknown>>;
     today?: string;
   }) => DueStatementRow[];
 }

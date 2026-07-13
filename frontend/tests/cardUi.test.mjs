@@ -6,6 +6,7 @@ import {
   buildCreateCardPayload,
   filterCardsByOwner,
   formatAnnualFee,
+  formatDateDisplay,
   getDisplayName,
   getNetwork,
   getProviderName,
@@ -59,6 +60,10 @@ test("annual fee formatter handles number zero null and undefined", () => {
   assert.equal(formatAnnualFee(undefined), "Chưa xác định");
 });
 
+test("date formatter preserves supported Vietnamese dates", () => {
+  assert.equal(formatDateDisplay("14/08/2026"), "14/08/2026");
+});
+
 test("card summary uses selected statement month and real payment due date", () => {
   const summary = buildCardSummary(
     { statementDay: 25, paymentDueDays: 10 },
@@ -101,6 +106,30 @@ test("card summary clamps statement day to the last day of selected month", () =
   assert.equal(summary.statementDate, "2028-02-29");
   assert.equal(summary.paymentDueDate, "2028-03-01");
   assert.equal(summary.statementAmountDue, 900_000);
+});
+
+test("card summary exposes only the remaining statement amount and supports persisted card fallback", () => {
+  const partial = buildCardSummary(
+    { statementDay: 1, paymentDueDays: 15 },
+    [{ statementDate: "2026-08-01", paymentStatus: "OPEN", paidAmount: 250_000, summary: { totalAmountDue: 1_000_000 } }],
+    { year: 2026, month: 8 },
+  );
+  const fallback = buildCardSummary(
+    { statementDate: "31/07/2026", paymentDueDate: "14/08/2026", amountDueThisMonth: 7_397_840, isPaidThisMonth: false },
+    [],
+    { year: 2026, month: 8 },
+  );
+  const paidFallback = buildCardSummary(
+    { paymentDueDate: "14/08/2026", amountDueThisMonth: 7_397_840, isPaidThisMonth: true },
+    [],
+    { year: 2026, month: 8 },
+  );
+
+  assert.equal(partial.statementAmountDue, 750_000);
+  assert.equal(fallback.statementDate, "31/07/2026");
+  assert.equal(fallback.paymentDueDate, "14/08/2026");
+  assert.equal(fallback.statementAmountDue, 7_397_840);
+  assert.equal(paidFallback.statementAmountDue, 0);
 });
 
 test("owner validation trims collapses whitespace and rejects invalid values", () => {
