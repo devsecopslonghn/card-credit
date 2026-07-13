@@ -9,6 +9,7 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
 import { UpcomingPayments, paymentActionKey } from "@/components/cards/UpcomingPayments";
 import type { DueStatementRow } from "@/lib/cards/dueStatementsCore.mjs";
+import { loadDashboardResources } from "@/lib/cards/dashboardLoadCore.mjs";
 import {
   buildCardSummary,
   filterCardsByOwner,
@@ -36,6 +37,7 @@ export default function CardsPage() {
   const [cards, setCards] = useState<CreditCardView[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
   const [cardsError, setCardsError] = useState("");
+  const [statementsError, setStatementsError] = useState("");
   const [transactions, setTransactions] = useState<CardTransactionView[]>([]);
   const [statements, setStatements] = useState<CardStatementView[]>([]);
   const [transactionSubmitting, setTransactionSubmitting] = useState(false);
@@ -63,12 +65,16 @@ export default function CardsPage() {
   const loadCards = useCallback(async () => {
     setCardsLoading(true);
     setCardsError("");
+    setStatementsError("");
     try {
-      const loadedCards = await fetchCards();
-      setCards(loadedCards);
-      setStatements(await fetchAllCardStatements());
-    } catch (error) {
-      setCardsError(error instanceof Error ? error.message : "Không thể tải danh sách thẻ.");
+      const result = await loadDashboardResources({
+        loadCards: fetchCards,
+        loadStatements: fetchAllCardStatements,
+      });
+      setCards(result.cards);
+      setStatements(result.statements);
+      setCardsError(result.cardsError);
+      setStatementsError(result.statementsError);
     } finally {
       setCardsLoading(false);
     }
@@ -268,6 +274,15 @@ export default function CardsPage() {
           onAdd={(date) => openTransactionForm(date)}
           onEdit={(transaction) => openTransactionForm(transaction.transactionDate, transaction)}
         />
+        {statementsError && (
+          <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert">
+            <p className="font-semibold text-amber-900">{statementsError}</p>
+            <p className="mt-1 text-sm text-amber-800">Danh sách thẻ vẫn khả dụng, nhưng số dư và kỳ thanh toán tạm thời chưa đầy đủ.</p>
+            <button type="button" onClick={() => void loadCards()} className="mt-3 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white">
+              Tải lại dữ liệu thẻ
+            </button>
+          </div>
+        )}
         <UpcomingPayments statements={dashboardStatements} cards={cards} selectedOwner={selectedOwner} pendingActions={pendingPaymentActions} onPaymentAction={handlePaymentAction} />
         <DuplicateResolver
           refreshKey={duplicateRefreshKey}

@@ -53,7 +53,7 @@ database schema change is required.
 5. Add frontend partial-failure handling.
 6. Refactor a shared due-row builder.
 
-Phases 1 through 4 are complete. Phase 5 is the next planned iteration and was
+Phases 1 through 5 are complete. Phase 6 is the next planned iteration and was
 not started.
 
 ## Validation
@@ -82,7 +82,7 @@ written after the fix remains compatible with the previous schema.
 
 ## Status
 
-Phases 1 through 4 complete on `ai-task/upcoming-payment-quick-actions`.
+Phases 1 through 5 complete on `ai-task/upcoming-payment-quick-actions`.
 Follow-up phases remain planned and were not started.
 
 ## Phase 1 implementation record
@@ -335,5 +335,64 @@ Remaining risks:
 - The documented SMTP-accepted/database-not-marked-sent duplicate risk is
   unchanged.
 
-Follow-up phases, not implemented: Phase 5 frontend partial-failure handling;
-Phase 6 shared due-row builder refactor.
+Follow-up phases at the end of Phase 4: Phase 5 frontend partial-failure
+handling; Phase 6 shared due-row builder refactor.
+
+## Phase 5 implementation record
+
+Changed files:
+
+- `frontend/lib/cards/dashboardLoadCore.mjs` and `.d.mts`: add a pure typed
+  resource loader using `Promise.allSettled`, stable error normalization, and
+  explicit empty results for failed resources.
+- `frontend/app/cards/page.tsx`: load cards and statements concurrently, replace
+  both state slices on every attempt, keep successful cards visible when
+  statements fail, and render an accessible warning/retry action.
+- `frontend/tests/dashboardLoad.test.mjs`: cover both-success, each independent
+  failure, both-failure, custom messages, and stable fallback messages.
+- `frontend/tests/dueStatements.test.mjs`: update dashboard source wiring
+  regressions for the partial loader and independent statement error state.
+- `frontend/package.json`: include the new focused test in the unit suite.
+- This plan: record Phase 5 decisions, validation, and remaining risks.
+
+Implementation decisions:
+
+- Cards and statements start concurrently and settle independently. A failed
+  resource becomes `[]` rather than retaining stale data from a previous load.
+- A card failure continues to use the existing blocking card-list error panel.
+  A statement failure leaves successfully loaded cards available and displays a
+  separate `role="alert"` warning that due/payment data is incomplete.
+- Upcoming payments and statement-backed transaction form data become empty on
+  statement failure, preventing actions against stale statement IDs.
+- Retry reloads both resources to restore a coherent current snapshot. Phase 5
+  does not add background retries, caching, or backend changes.
+
+Validation results:
+
+- Focused dashboard-loader and due-statement tests passed after updating one
+  Phase 2 source assertion from a direct function call to the new loader wiring.
+- `cd frontend && npm run typecheck && npm run lint && npm test`: passed; all
+  nine unit test files and one integration test file passed.
+- The sandboxed production build failed only because Google Fonts were
+  unreachable. The approved `cd frontend && npm run build` networked rerun
+  passed compile, TypeScript, and all route generation. The pre-existing
+  middleware deprecation warning remains.
+
+Skipped checks:
+
+- Backend and shared validation were skipped because those runtimes and
+  contracts were unchanged.
+- Playwright/browser interaction and live API failure injection were skipped;
+  the repository has no component DOM harness for this page. Pure resource
+  behavior and source wiring are covered without network or database access.
+
+Blockers: none.
+
+Remaining risks:
+
+- When statements fail, card shells remain useful but their statement-derived
+  summaries use empty statement data; the visible warning explicitly marks
+  balances and payment periods as incomplete.
+- Browser-level focus behavior for the warning retry button remains unverified.
+
+Follow-up phase, not implemented: Phase 6 shared due-row builder refactor.
