@@ -53,7 +53,7 @@ database schema change is required.
 5. Add frontend partial-failure handling.
 6. Refactor a shared due-row builder.
 
-Phase 1 and Phase 2 are complete. Phase 3 is the next planned iteration and was
+Phases 1 through 3 are complete. Phase 4 is the next planned iteration and was
 not started.
 
 ## Validation
@@ -82,7 +82,7 @@ written after the fix remains compatible with the previous schema.
 
 ## Status
 
-Phase 1 and Phase 2 complete on `ai-task/upcoming-payment-quick-actions`.
+Phases 1 through 3 complete on `ai-task/upcoming-payment-quick-actions`.
 Follow-up phases remain planned and were not started.
 
 ## Phase 1 implementation record
@@ -214,6 +214,59 @@ Remaining risks:
 - Query-count and grouping behavior are covered with model stubs rather than a
   live isolated Mongo integration harness.
 
-Follow-up phases, not implemented: Phase 3 calendar-feed aggregation; Phase 4
-reminder due-window batching; Phase 5 frontend partial-failure handling; Phase 6
-shared due-row builder refactor.
+Follow-up phases at the end of Phase 2: Phase 3 calendar-feed aggregation;
+Phase 4 reminder due-window batching; Phase 5 frontend partial-failure handling;
+Phase 6 shared due-row builder refactor.
+
+## Phase 3 implementation record
+
+Changed files:
+
+- `backend/src/calendar-subscription-routes.ts`: replace one amount aggregation
+  per statement with one batch aggregation and map grouped totals back to the
+  existing ordered calendar inputs.
+- `backend/tests/calendar-subscription.test.ts`: add a valid-feed route regression
+  covering multiple statement amounts, one aggregate call, exact pipeline
+  shape, and workspace scoping.
+- This plan: record Phase 3 decisions, validation, and remaining risks.
+
+Implementation decisions:
+
+- The batch pipeline matches both `workspaceId` and all eligible statement IDs,
+  then groups by `statementId`. This is stricter than the previous statement-ID-
+  only lookup while preserving the already-authorized feed set.
+- Statement ordering remains the existing ascending `paymentDueDate` order; only
+  amount lookup changed.
+- Statements without a matching aggregate total continue to use `0`.
+- An empty statement list skips aggregation entirely.
+- Token lookup, opaque 404 behavior, account/card ownership checks, feed headers,
+  alarm projection, and best-effort `lastAccessedAt` update are unchanged.
+
+Validation results:
+
+- `cd backend && node --import tsx tests/calendar-subscription.test.ts`: passed
+  all five focused tests. The first focused run exposed an overly strict test
+  assertion for the locale-specific currency spacing; the assertion was made
+  stable without changing production behavior.
+- `cd backend && npm run validate`: passed; typecheck, lint, all 15 backend test
+  files, and build passed.
+
+Skipped checks:
+
+- Shared and frontend validation were skipped because neither runtime contract
+  nor frontend code changed.
+- Live calendar polling, Playwright/E2E, and database-backed smoke tests were
+  skipped. Route coverage uses isolated model stubs and no production database
+  was accessed.
+
+Blockers: none.
+
+Remaining risks:
+
+- Pipeline behavior and query count are verified with model stubs rather than an
+  isolated Mongo integration test.
+- Very large subscription histories still produce an unpaginated statement-ID
+  array and feed; Phase 3 removes N+1 aggregation but does not bound feed size.
+
+Follow-up phases, not implemented: Phase 4 reminder due-window batching; Phase 5
+frontend partial-failure handling; Phase 6 shared due-row builder refactor.
