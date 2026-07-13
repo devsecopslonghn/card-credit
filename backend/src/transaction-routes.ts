@@ -184,26 +184,36 @@ export const registerTransactionRoutes = (
       transactionDate: -1,
       createdAt: -1,
     });
+    const values = items.map(plain);
+    const cardIds = [...new Set(values.map((item) => idOf(item.userCardId)).filter(Boolean))];
+    const statementIds = [
+      ...new Set(values.map((item) => idOf(item.statementId)).filter(Boolean)),
+    ];
+    const [cards, statements] = await Promise.all([
+      cardIds.length
+        ? Cards.find({
+            _id: { $in: cardIds },
+            workspaceId: session.workspaceId,
+          })
+        : [],
+      statementIds.length
+        ? Statements.find({
+            _id: { $in: statementIds },
+            workspaceId: session.workspaceId,
+          })
+        : [],
+    ]);
+    const cardById = new Map(cards.map((card) => [idOf(card._id), plain(card)]));
+    const statementById = new Map(
+      statements.map((statement) => [idOf(statement._id), statement]),
+    );
     return {
-      data: await Promise.all(
-        items.map(async (item) => {
-          const value = plain(item);
-          const [card, statement] = await Promise.all([
-            Cards.findOne({
-              _id: value.userCardId,
-              workspaceId: session.workspaceId,
-            }),
-            Statements.findOne({
-              _id: value.statementId,
-              workspaceId: session.workspaceId,
-            }),
-          ]);
-          return transactionJson(
-            item,
-            statement,
-            card ? plain(card) : undefined,
-          );
-        }),
+      data: items.map((item, index) =>
+        transactionJson(
+          item,
+          statementById.get(idOf(values[index]?.statementId)),
+          cardById.get(idOf(values[index]?.userCardId)),
+        ),
       ),
     };
   });
