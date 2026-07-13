@@ -109,38 +109,54 @@ function PaymentRows({
 }) {
   return (
     <>
-      <div className="hidden overflow-hidden rounded-lg border cc-border md:block">
-        <table className="w-full border-collapse bg-surface text-sm">
+      <div className="hidden overflow-hidden rounded-lg border cc-border xl:block">
+        <table className="w-full table-fixed border-collapse bg-surface text-sm leading-5">
+          <colgroup>
+            <col className={compact ? "w-[20%]" : "w-[17%]"} />
+            <col className={compact ? "w-[11%]" : "w-[8%]"} />
+            <col className={compact ? "w-[9%]" : "w-[11%]"} />
+            {!compact && <col className="w-[9%]" />}
+            <col className={compact ? "w-[12%]" : "w-[10%]"} />
+            <col className={compact ? "w-[13%]" : "w-[12%]"} />
+            <col className={compact ? "w-[12%]" : "w-[10%]"} />
+            <col className="w-[23%]" />
+          </colgroup>
           <thead className="sticky top-0 bg-surface-elevated">
-            <tr className="border-b cc-border text-left text-xs font-bold uppercase tracking-wide cc-text-muted">
-              <th className="p-3">Thẻ</th>
-              <th className="p-3">Ngân hàng</th>
-              <th className="p-3">Chủ thẻ</th>
-              {!compact && <th className="p-3 text-center">Kỳ sao kê</th>}
-              <th className="p-3 text-center">Hạn thanh toán</th>
-              <th className="p-3 text-right">Số tiền phải trả</th>
-              <th className="p-3 text-center">Trạng thái</th>
-              <th className="p-3 text-center">Thao tác</th>
+            <tr className="border-b cc-border text-xs font-bold uppercase leading-4 tracking-wide cc-text-muted">
+              <th className="px-3 py-2.5 text-left">Thẻ</th>
+              <th className="px-3 py-2.5 text-left">Ngân hàng</th>
+              <th className="whitespace-nowrap px-2 py-2.5 text-center">Chủ thẻ</th>
+              {!compact && <th className="whitespace-nowrap px-2 py-2.5 text-center">Kỳ sao kê</th>}
+              <th className="px-2 py-2.5 text-center">Hạn thanh toán</th>
+              <th className="px-2 py-2.5 text-right">Số tiền phải trả</th>
+              <th className="whitespace-nowrap px-2 py-2.5 text-center">Trạng thái</th>
+              <th className="whitespace-nowrap px-3 py-2.5 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(({ statement, card, amountDue, status }) => (
-              <tr key={statement._id} className="border-b cc-border last:border-b-0 hover:bg-surface-elevated">
-                <td className="p-3 text-sm font-bold cc-text-primary">{getDisplayName(card)}</td>
-                <td className="p-3 text-[13px] font-semibold cc-text-muted">{getProviderName(card)}</td>
-                <td className="p-3">
-                  <span className="cc-badge rounded-md px-2 py-1 text-xs font-bold">Thẻ: {card.owner || "Tôi"}</span>
+              <tr key={statement._id} className="border-b cc-border align-middle text-sm font-medium leading-5 last:border-b-0 hover:bg-surface-elevated">
+                <td className="px-3 py-2.5 align-middle font-semibold cc-text-primary">
+                  <span className="line-clamp-2" title={getDisplayName(card)}>{getDisplayName(card)}</span>
                 </td>
-                {!compact && <td className="p-3 text-center font-semibold cc-text-muted">{formatDateDisplay(statement.statementDate)}</td>}
-                <td className="p-3 text-center font-bold cc-danger">{formatDateDisplay(statement.paymentDueDate)}</td>
-                <td className="cc-tabular p-3 text-right text-sm font-bold cc-text-primary">{formatVnd(amountDue)}</td>
-                <td className="p-3 text-center">
-                  <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-bold ${statusClass[status]}`}>
+                <td className="px-3 py-2.5 align-middle cc-text-muted">
+                  <span className="block truncate" title={getProviderName(card)}>{getProviderName(card)}</span>
+                </td>
+                <td className="px-2 py-2.5 text-center align-middle">
+                  <span className="cc-badge inline-flex max-w-full items-center justify-center rounded-md px-1.5 py-1 text-xs font-semibold" title={card.owner || "Tôi"}>
+                    <span className="truncate whitespace-nowrap">{card.owner || "Tôi"}</span>
+                  </span>
+                </td>
+                {!compact && <td className="whitespace-nowrap px-2 py-2.5 text-center align-middle cc-text-muted">{formatDateDisplay(statement.statementDate)}</td>}
+                <td className="whitespace-nowrap px-2 py-2.5 text-center align-middle font-semibold cc-danger">{formatDateDisplay(statement.paymentDueDate)}</td>
+                <td className="cc-tabular whitespace-nowrap px-2 py-2.5 text-right align-middle font-semibold cc-text-primary">{formatVnd(amountDue)}</td>
+                <td className="px-2 py-2.5 text-center align-middle">
+                  <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold leading-4 ${statusClass[status]}`}>
                     {statusLabel[status]}
                   </span>
                 </td>
-                <td className="p-3">
-                  <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} />
+                <td className="px-3 py-2.5 text-center align-middle">
+                  <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} desktop />
                 </td>
               </tr>
             ))}
@@ -148,7 +164,7 @@ function PaymentRows({
         </table>
       </div>
 
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3 xl:hidden">
         {rows.map(({ statement, card, amountDue, status }) => (
           <article key={statement._id} className="cc-panel rounded-lg p-4">
             <div className="flex items-start justify-between gap-3">
@@ -188,10 +204,11 @@ function PaymentRows({
   );
 }
 
-function PaymentActions({ statement, pendingActions, onPaymentAction }: {
+function PaymentActions({ statement, pendingActions, onPaymentAction, desktop = false }: {
   statement: DueStatementRow["statement"];
   pendingActions: ReadonlySet<string>;
   onPaymentAction: UpcomingPaymentsProps["onPaymentAction"];
+  desktop?: boolean;
 }) {
   const closePending = pendingActions.has(paymentActionKey(statement._id, "CLOSED"));
   const paidPending = pendingActions.has(paymentActionKey(statement._id, "PAID"));
@@ -201,11 +218,11 @@ function PaymentActions({ statement, pendingActions, onPaymentAction }: {
   const hasAmountDue = Number(statement.summary?.totalAmountDue ?? 0) > 0;
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
-      <button type="button" disabled={rowPending || closed || paid} onClick={() => onPaymentAction(statement, "CLOSED")} className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60">
+    <div className={desktop ? "grid grid-cols-1 gap-2" : "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center"}>
+      <button type="button" disabled={rowPending || closed || paid} onClick={() => onPaymentAction(statement, "CLOSED")} className={`${desktop ? "h-9 w-full whitespace-nowrap" : ""} inline-flex items-center justify-center rounded-lg border border-blue-300 px-3 py-2 text-center text-xs font-bold leading-4 text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60`}>
         {closePending ? "Đang chốt..." : closed ? "Đã chốt" : "Chốt sao kê"}
       </button>
-      <button type="button" disabled={rowPending || paid || !hasAmountDue} onClick={() => onPaymentAction(statement, "PAID")} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="button" disabled={rowPending || paid || !hasAmountDue} onClick={() => onPaymentAction(statement, "PAID")} className={`${desktop ? "h-9 w-full whitespace-nowrap" : ""} inline-flex items-center justify-center rounded-lg bg-emerald-700 px-3 py-2 text-center text-xs font-bold leading-4 text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60`}>
         {paidPending ? "Đang cập nhật..." : paid ? "Đã thanh toán" : "Đánh dấu đã thanh toán"}
       </button>
     </div>
