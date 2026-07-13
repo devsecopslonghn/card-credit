@@ -83,5 +83,20 @@ test("dashboard upcoming component uses semantic tokens and no legacy monthly da
   assert.match(source, /cc-badge/);
   assert.match(source, /md:hidden/);
   assert.match(source, /hidden .*md:block|hidden overflow-hidden/);
+  assert.match(source, />Thao tác</);
+  assert.match(source, /Chốt sao kê/);
+  assert.match(source, /Đánh dấu đã thanh toán/);
+  assert.match(source, /paymentActionKey\(statement\._id, "CLOSED"\)/);
+  assert.match(source, /paymentActionKey\(statement\._id, "PAID"\)/);
+  assert.match(source, /disabled=\{rowPending \|\| closed \|\| paid\}/);
+  assert.match(source, /disabled=\{rowPending \|\| paid \|\| !hasAmountDue\}/);
   assert.equal(/text-gray-[34]00|text-gray-500|opacity-50|bg-white\/|border-white\//.test(source), false);
+});
+
+test("cards page sends persisted card and statement ids and replaces successful statement state", () => {
+  const source = readFileSync(new URL("../app/cards/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /updateStatementPayment\(statement\.userCardId, statement\._id, action\)/);
+  assert.match(source, /item\._id === updated\._id \? updated : item/);
+  assert.match(source, /pendingPaymentActionsRef\.current\.has\(key\)/);
+  assert.match(source, /showToast\(error instanceof Error \? error\.message/);
 });
