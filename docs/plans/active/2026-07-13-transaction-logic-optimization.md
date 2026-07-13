@@ -53,7 +53,7 @@ database schema change is required.
 5. Add frontend partial-failure handling.
 6. Refactor a shared due-row builder.
 
-Phases 1 through 3 are complete. Phase 4 is the next planned iteration and was
+Phases 1 through 4 are complete. Phase 5 is the next planned iteration and was
 not started.
 
 ## Validation
@@ -82,7 +82,7 @@ written after the fix remains compatible with the previous schema.
 
 ## Status
 
-Phases 1 through 3 complete on `ai-task/upcoming-payment-quick-actions`.
+Phases 1 through 4 complete on `ai-task/upcoming-payment-quick-actions`.
 Follow-up phases remain planned and were not started.
 
 ## Phase 1 implementation record
@@ -268,5 +268,72 @@ Remaining risks:
 - Very large subscription histories still produce an unpaginated statement-ID
   array and feed; Phase 3 removes N+1 aggregation but does not bound feed size.
 
-Follow-up phases, not implemented: Phase 4 reminder due-window batching; Phase 5
-frontend partial-failure handling; Phase 6 shared due-row builder refactor.
+Follow-up phases at the end of Phase 3: Phase 4 reminder due-window batching;
+Phase 5 frontend partial-failure handling; Phase 6 shared due-row builder
+refactor.
+
+## Phase 4 implementation record
+
+Changed files:
+
+- `backend/src/payment-reminder.ts`: add a timezone-aware helper that derives the
+  exact candidate due date for a local scan date and reminder offset.
+- `backend/src/reminder-scheduler.ts`: query statements once for enabled card
+  IDs, workspaces, and exact candidate due dates; batch workspace-owner fallback
+  and statement totals; deduplicate account reads within the scan.
+- `backend/tests/payment-reminder.test.ts`: cover timezone due-date derivation,
+  exact statement query filters, one statement query, one totals aggregation,
+  batch workspace fallback, deduplicated user reads, claims, updates, and
+  per-statement email amounts.
+- This plan: record Phase 4 decisions, validation, and remaining risks.
+
+Implementation decisions:
+
+- The scheduler still begins from enabled active cards because reminder offsets,
+  timezone, and local send time are card-owned configuration. It derives the
+  finite set of possible due dates before querying statements instead of loading
+  every unpaid statement per card.
+- One statement query is constrained by workspace IDs, card IDs, unpaid status,
+  and exact due-date values. The existing `reminderIsDue` check remains the final
+  authority for card timezone/send-time eligibility.
+- Workspace fallback owners are loaded in one `$in` query. Direct and fallback
+  owner accounts are memoized by user ID within the scan, so multiple eligible
+  deliveries for one owner perform one repository read.
+- Eligible statement totals use one workspace-scoped aggregation grouped by
+  statement ID. Missing totals remain `0`.
+- Atomic delivery claim, uniqueness, lease recovery, retry count/backoff,
+  terminal status behavior, recipient validation, safe logging, and SMTP error
+  handling are unchanged.
+
+Validation results:
+
+- `cd backend && node --import tsx tests/payment-reminder.test.ts`: passed all
+  four focused tests after adding batch fallback coverage.
+- The first full validation attempt reached lint and found two unused mock
+  parameters; the test callback was simplified without production changes.
+- `cd backend && npm run validate`: passed after that correction; typecheck,
+  lint, all 15 backend test files, and build passed.
+
+Skipped checks:
+
+- Shared and frontend validation were skipped because contracts and frontend
+  code were unchanged.
+- Real SMTP, deployed scheduler, timer-driven soak tests, and database-backed
+  concurrency tests were skipped. Tests use an injected clock and isolated model
+  stubs; no production database was accessed.
+
+Blockers: none.
+
+Remaining risks:
+
+- Claims remain per delivery to preserve atomic uniqueness; this phase batches
+  candidate discovery and related reads, not the claim/write operations.
+- Account lookup is deduplicated per unique owner but the current auth repository
+  has no multi-ID method, so distinct owners still require distinct reads.
+- Totals are aggregated before individual claims, so a scan with only already-
+  terminal delivery records may perform one unnecessary aggregate query.
+- The documented SMTP-accepted/database-not-marked-sent duplicate risk is
+  unchanged.
+
+Follow-up phases, not implemented: Phase 5 frontend partial-failure handling;
+Phase 6 shared due-row builder refactor.

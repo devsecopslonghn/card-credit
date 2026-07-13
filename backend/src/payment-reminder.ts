@@ -1,6 +1,11 @@
 export type ReminderEmail = { to: string; subject: string; text: string; html: string };
 export const localParts = (date: Date, timeZone: string) => Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(date).filter((p) => p.type !== "literal").map((p) => [p.type, p.value]));
 const epochDay = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
+const dateFromEpochDay = (value: number) => new Date(value * 86_400_000).toISOString().slice(0, 10);
+export const reminderDueDate = (now: Date, daysBefore: number, timezone: string) => {
+  const p = localParts(now, timezone);
+  return dateFromEpochDay(epochDay(`${p.year}-${p.month}-${p.day}`) + daysBefore);
+};
 export const reminderIsDue = (now: Date, dueDate: string, daysBefore: number, timezone: string, sendTime: string) => {
   const p = localParts(now, timezone); const localDate = `${p.year}-${p.month}-${p.day}`;
   return epochDay(dueDate) - epochDay(localDate) === daysBefore && `${p.hour}:${p.minute}` >= sendTime;
