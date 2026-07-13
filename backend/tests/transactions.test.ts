@@ -213,10 +213,108 @@ test("transaction list batch-loads unique workspace-scoped references without ch
   await app.close();
 });
 
+test("card statement dashboard batch-loads cards, statements, and transactions", async (t) => {
+  const cardA = "507f1f77bcf86cd799439011";
+  const cardB = "507f1f77bcf86cd799439012";
+  const statementA = "507f1f77bcf86cd799439021";
+  const statementB = "507f1f77bcf86cd799439022";
+  const cardFind = t.mock.method(CreditCardModel, "find", () => ({
+    sort: async () => [
+      { _id: cardA, workspaceId: "workspace-a", cashbackCapAmount: 500 },
+      { _id: cardB, workspaceId: "workspace-a", cashbackCapAmount: null },
+    ],
+  }) as never);
+  const statementFind = t.mock.method(CardStatementModel, "find", () => ({
+    sort: async () => [
+      { _id: statementB, workspaceId: "workspace-a", userCardId: cardB, statementDate: "2026-07-12", paymentDueDate: "2026-07-27", paymentStatus: "OPEN" },
+      { _id: statementA, workspaceId: "workspace-a", userCardId: cardA, statementDate: "2026-07-11", paymentDueDate: "2026-07-26", paymentStatus: "OPEN" },
+    ],
+  }) as never);
+  const transactionFind = t.mock.method(CardTransactionModel, "find", async () => [
+    { statementId: statementA, outcomeAmount: 300, incomeAmount: 0, cashbackRateBps: 1000 },
+    { statementId: statementA, outcomeAmount: 200, incomeAmount: 0, cashbackRateBps: 1000 },
+    { statementId: statementB, outcomeAmount: 100, incomeAmount: 0, cashbackRateBps: 0 },
+  ] as never);
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerTransactionRoutes(app, secret);
+
+  const response = await app.inject({
+    url: "/api/card-statements",
+    headers: { cookie },
+  });
+  const body = response.json();
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.map((item: { _id: string }) => item._id), [
+    statementA,
+    statementB,
+  ]);
+  assert.equal(body.data[0].summary.totalAmountDue, 500);
+  assert.equal(body.data[1].summary.totalAmountDue, 100);
+  assert.equal(cardFind.mock.callCount(), 1);
+  assert.equal(statementFind.mock.callCount(), 1);
+  assert.equal(transactionFind.mock.callCount(), 1);
+  assert.deepEqual(cardFind.mock.calls[0]?.arguments[0], {
+    workspaceId: "workspace-a",
+  });
+  assert.deepEqual(statementFind.mock.calls[0]?.arguments[0], {
+    userCardId: { $in: [cardA, cardB] },
+    workspaceId: "workspace-a",
+  });
+  assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], {
+    statementId: { $in: [statementB, statementA] },
+    workspaceId: "workspace-a",
+  });
+  await app.close();
+});
+
+test("per-card statement list loads all statement transactions in one query", async (t) => {
+  const cardId = "507f1f77bcf86cd799439011";
+  const statementA = "507f1f77bcf86cd799439021";
+  const statementB = "507f1f77bcf86cd799439022";
+  t.mock.method(CreditCardModel, "findOne", async () => ({
+    _id: cardId,
+    workspaceId: "workspace-a",
+    cashbackCapAmount: null,
+  }) as never);
+  t.mock.method(CardStatementModel, "find", () => ({
+    sort: async () => [
+      { _id: statementB, workspaceId: "workspace-a", userCardId: cardId, statementDate: "2026-07-12", paymentDueDate: "2026-07-27", paymentStatus: "OPEN" },
+      { _id: statementA, workspaceId: "workspace-a", userCardId: cardId, statementDate: "2026-07-11", paymentDueDate: "2026-07-26", paymentStatus: "OPEN" },
+    ],
+  }) as never);
+  const transactionFind = t.mock.method(CardTransactionModel, "find", async () => [
+    { statementId: statementA, outcomeAmount: 300, incomeAmount: 0, cashbackRateBps: 0 },
+    { statementId: statementB, outcomeAmount: 200, incomeAmount: 0, cashbackRateBps: 0 },
+  ] as never);
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerTransactionRoutes(app, secret);
+
+  const response = await app.inject({
+    url: `/api/cards/${cardId}/statements`,
+    headers: { cookie },
+  });
+  const body = response.json();
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.map((item: { _id: string }) => item._id), [
+    statementB,
+    statementA,
+  ]);
+  assert.equal(body.data[0].summary.totalAmountDue, 200);
+  assert.equal(body.data[1].summary.totalAmountDue, 300);
+  assert.equal(transactionFind.mock.callCount(), 1);
+  assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], {
+    statementId: { $in: [statementB, statementA] },
+    workspaceId: "workspace-a",
+  });
+  await app.close();
+});
+
 test("transaction, statement and report routes enforce sessions before database access", async () => {
   const app = buildApp({ isReady: () => true }, "silent");
   registerTransactionRoutes(app, secret); registerReportRoutes(app, secret);
-  for (const url of ["/api/card-transactions", "/api/cards/507f1f77bcf86cd799439011/statements", "/api/reports/summary"]) assert.equal((await app.inject({ url })).statusCode, 401);
+  for (const url of ["/api/card-transactions", "/api/card-statements", "/api/cards/507f1f77bcf86cd799439011/statements", "/api/reports/summary"]) assert.equal((await app.inject({ url })).statusCode, 401);
   const invalid = await app.inject({ method: "PATCH", url: "/api/card-transactions/not-an-id", headers: { cookie }, payload: {} });
   assert.equal(invalid.statusCode, 400);
   assert.equal(invalid.json().error.code, "INVALID_ID");

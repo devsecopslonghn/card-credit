@@ -53,7 +53,8 @@ database schema change is required.
 5. Add frontend partial-failure handling.
 6. Refactor a shared due-row builder.
 
-Only Phase 1 is authorized in the current iteration.
+Phase 1 and Phase 2 are complete. Phase 3 is the next planned iteration and was
+not started.
 
 ## Validation
 
@@ -81,8 +82,8 @@ written after the fix remains compatible with the previous schema.
 
 ## Status
 
-Phase 1 complete on `ai-task/upcoming-payment-quick-actions`. Follow-up phases
-remain planned and were not started.
+Phase 1 and Phase 2 complete on `ai-task/upcoming-payment-quick-actions`.
+Follow-up phases remain planned and were not started.
 
 ## Phase 1 implementation record
 
@@ -146,6 +147,73 @@ Remaining risks:
 - The endpoint remains unpaginated; batching removes linear query count but does
   not cap response size.
 
-Follow-up phases, not implemented: Phase 2 batch statement loading for `/cards`;
-Phase 3 calendar-feed aggregation; Phase 4 reminder due-window batching; Phase 5
-frontend partial-failure handling; Phase 6 shared due-row builder refactor.
+Follow-up phases at the end of Phase 1: Phase 2 batch statement loading for
+`/cards`; Phase 3 calendar-feed aggregation; Phase 4 reminder due-window
+batching; Phase 5 frontend partial-failure handling; Phase 6 shared due-row
+builder refactor.
+
+## Phase 2 implementation record
+
+Changed files:
+
+- `backend/src/transaction-routes.ts`: add authenticated workspace batch endpoint
+  `GET /api/card-statements`, group transactions by statement in memory, and
+  replace per-statement transaction queries in the existing per-card endpoint
+  with one workspace-scoped `$in` query.
+- `backend/tests/transactions.test.ts`: cover authentication, workspace-scoped
+  batch query inputs, fixed query count, card/statement ordering, transaction
+  grouping, and preserved summary values for both batch and per-card routes.
+- `frontend/lib/api/transactionsClient.ts`: add the batch statement client.
+- `frontend/app/cards/page.tsx`: replace one statement request per card with one
+  dashboard batch request.
+- `frontend/tests/dueStatements.test.mjs`: lock the dashboard to the batch client
+  and prevent regression to the per-card request loop.
+
+Implementation decisions:
+
+- The new endpoint derives visible card IDs from a workspace-scoped card query;
+  it does not trust client-provided IDs and excludes orphan statements, matching
+  the previous dashboard behavior.
+- Cards retain `/api/cards` ordering and each card's statements retain descending
+  `statementDate` ordering, matching the previous flattened request result.
+- Empty card or statement sets skip downstream queries. Non-empty dashboard
+  loads use three fixed backend queries: cards, statements, and transactions.
+- `GET /api/cards/:id/statements` remains available for card detail and preserves
+  its response contract while reducing transaction queries from one per
+  statement to at most one total.
+- Phase 5 partial-failure semantics were intentionally not introduced; the
+  existing all-or-error dashboard behavior remains.
+
+Validation results:
+
+- Focused backend transaction route test file: passed.
+- Focused frontend due-statement test file: passed.
+- `cd backend && npm run validate`: passed after the final test update;
+  typecheck, lint, all 15 backend test files, and build passed.
+- `cd frontend && npm run typecheck && npm run lint && npm test`: passed; eight
+  unit test files and one integration test file passed.
+- The first sandboxed frontend build reached Next.js but failed because Google
+  Fonts network access was unavailable. The approved `cd frontend && npm run
+  build` rerun with network access passed, including compile, TypeScript, and all
+  static route generation. The pre-existing middleware deprecation warning
+  remains.
+
+Skipped checks:
+
+- Shared validation was skipped because shared contracts were unchanged.
+- Playwright/E2E, live API/database smoke tests, and production database checks
+  were skipped; focused route tests use isolated model stubs and no database was
+  needed or accessed.
+
+Blockers: none.
+
+Remaining risks:
+
+- The dashboard batch endpoint is not paginated; query count is fixed but result
+  size still grows with workspace history.
+- Query-count and grouping behavior are covered with model stubs rather than a
+  live isolated Mongo integration harness.
+
+Follow-up phases, not implemented: Phase 3 calendar-feed aggregation; Phase 4
+reminder due-window batching; Phase 5 frontend partial-failure handling; Phase 6
+shared due-row builder refactor.

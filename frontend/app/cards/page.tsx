@@ -20,7 +20,7 @@ import {
 import { deleteCard, fetchCards } from "@/lib/api/cardsClient";
 import {
   createTransaction,
-  fetchCardStatements,
+  fetchAllCardStatements,
   fetchTransactions,
   updateTransaction,
   updateStatementPayment,
@@ -66,8 +66,7 @@ export default function CardsPage() {
     try {
       const loadedCards = await fetchCards();
       setCards(loadedCards);
-      const loadedStatements = (await Promise.all(loadedCards.map((card) => fetchCardStatements(card._id)))).flat();
-      setStatements(loadedStatements);
+      setStatements(await fetchAllCardStatements());
     } catch (error) {
       setCardsError(error instanceof Error ? error.message : "Không thể tải danh sách thẻ.");
     } finally {
