@@ -97,8 +97,14 @@ test("dashboard upcoming component uses semantic tokens and no legacy monthly da
   assert.equal(source.includes("amountDueThisMonth"), false);
   assert.match(source, /cc-section/);
   assert.match(source, /cc-badge/);
-  assert.match(source, /md:hidden/);
-  assert.match(source, /hidden .*md:block|hidden overflow-hidden/);
+  assert.match(source, /xl:hidden/);
+  assert.match(source, /hidden .*xl:block|hidden overflow-hidden/);
+  assert.match(source, /table-fixed/);
+  assert.match(source, /align-middle text-sm font-medium leading-5/);
+  assert.match(source, /whitespace-nowrap px-2 py-2\.5 text-center/);
+  assert.match(source, /cc-tabular whitespace-nowrap/);
+  assert.match(source, /grid grid-cols-1 gap-2/);
+  assert.match(source, /h-9 w-full whitespace-nowrap/);
   assert.match(source, />Thao tác</);
   assert.match(source, /Chốt sao kê/);
   assert.match(source, /Đánh dấu đã thanh toán/);
