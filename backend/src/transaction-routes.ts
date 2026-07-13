@@ -399,13 +399,20 @@ export const registerTransactionRoutes = (
     return {
       data: cardIds.flatMap((cardId) => {
         const card = cardById.get(cardId)!;
-        return (statementsByCard.get(cardId) ?? []).map((statement) =>
-          statementJson(
-            statement,
-            transactionsByStatement.get(idOf(statement._id)) ?? [],
-            card,
-          ),
-        );
+        return (statementsByCard.get(cardId) ?? []).map((statement) => {
+          const statementTransactions =
+            transactionsByStatement.get(idOf(statement._id)) ?? [];
+          return {
+            ...statementJson(
+              statement,
+              statementTransactions,
+              card,
+            ),
+            transactions: statementTransactions.map((transaction) =>
+              transactionJson(transaction),
+            ),
+          };
+        });
       }),
     };
   });

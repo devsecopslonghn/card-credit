@@ -6,11 +6,12 @@ import type { CardSummaryView, CreditCardView, ProviderGroup } from "@/component
 type ProviderSectionProps = {
   group: ProviderGroup;
   cardSummaries: Record<string, CardSummaryView>;
+  statementsAvailable: boolean;
   busyCardId: string;
   onDelete: (card: CreditCardView) => void;
 };
 
-export function ProviderSection({ group, cardSummaries, busyCardId, onDelete }: ProviderSectionProps) {
+export function ProviderSection({ group, cardSummaries, statementsAvailable, busyCardId, onDelete }: ProviderSectionProps) {
   return (
     <section aria-labelledby={`provider-${group.providerKey}`} className="mb-8 min-w-0">
       <div className="mb-3 flex min-w-0 items-center justify-between gap-3 border-b border-gray-200 pb-2">
@@ -27,6 +28,7 @@ export function ProviderSection({ group, cardSummaries, busyCardId, onDelete }: 
             key={card._id}
             card={card}
             summary={cardSummaries[card._id]}
+            statementsAvailable={statementsAvailable}
             busy={busyCardId === card._id}
             onDelete={onDelete}
           />

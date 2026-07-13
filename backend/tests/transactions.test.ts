@@ -231,9 +231,9 @@ test("card statement dashboard batch-loads cards, statements, and transactions",
     ],
   }) as never);
   const transactionFind = t.mock.method(CardTransactionModel, "find", async () => [
-    { statementId: statementA, outcomeAmount: 300, incomeAmount: 0, cashbackRateBps: 1000 },
-    { statementId: statementA, outcomeAmount: 200, incomeAmount: 0, cashbackRateBps: 1000 },
-    { statementId: statementB, outcomeAmount: 100, incomeAmount: 0, cashbackRateBps: 0 },
+    { _id: "507f1f77bcf86cd799439031", userCardId: cardA, statementId: statementA, outcomeAmount: 300, incomeAmount: 0, cashbackRateBps: 1000 },
+    { _id: "507f1f77bcf86cd799439032", userCardId: cardA, statementId: statementA, outcomeAmount: 200, incomeAmount: 0, cashbackRateBps: 1000 },
+    { _id: "507f1f77bcf86cd799439033", userCardId: cardB, statementId: statementB, outcomeAmount: 100, incomeAmount: 0, cashbackRateBps: 0 },
   ] as never);
   const app = buildApp({ isReady: () => true }, "silent");
   registerTransactionRoutes(app, secret);
@@ -251,6 +251,14 @@ test("card statement dashboard batch-loads cards, statements, and transactions",
   ]);
   assert.equal(body.data[0].summary.totalAmountDue, 500);
   assert.equal(body.data[1].summary.totalAmountDue, 100);
+  assert.equal(body.data[0].effectivePaymentStatus, "OPEN");
+  assert.deepEqual(body.data[0].transactions.map((item: { _id: string }) => item._id), [
+    "507f1f77bcf86cd799439031",
+    "507f1f77bcf86cd799439032",
+  ]);
+  assert.deepEqual(body.data[1].transactions.map((item: { _id: string }) => item._id), [
+    "507f1f77bcf86cd799439033",
+  ]);
   assert.equal(cardFind.mock.callCount(), 1);
   assert.equal(statementFind.mock.callCount(), 1);
   assert.equal(transactionFind.mock.callCount(), 1);

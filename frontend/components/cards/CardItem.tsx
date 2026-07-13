@@ -16,11 +16,12 @@ import {
 type CardItemProps = {
   card: CreditCardView;
   summary: CardSummaryView;
+  statementsAvailable: boolean;
   busy: boolean;
   onDelete: (card: CreditCardView) => void;
 };
 
-export function CardItem({ card, summary, busy, onDelete }: CardItemProps) {
+export function CardItem({ card, summary, statementsAvailable, busy, onDelete }: CardItemProps) {
   const displayName = getDisplayName(card);
   const providerName = getProviderName(card);
   const network = getNetwork(card);
@@ -75,13 +76,13 @@ export function CardItem({ card, summary, busy, onDelete }: CardItemProps) {
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
             <dt className="min-w-0 font-medium cc-text-muted">Tổng nợ thẻ</dt>
             <dd className="max-w-[11rem] text-right font-bold cc-danger">
-              {formatVnd(summary.currentOutstandingBalance)}
+              {statementsAvailable ? formatVnd(summary.currentOutstandingBalance) : "--"}
             </dd>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
             <dt className="min-w-0 font-medium cc-text-muted">Cần trả kỳ sao kê</dt>
             <dd className="max-w-[11rem] text-right font-bold cc-danger">
-              {formatVnd(summary.statementAmountDue)}
+              {statementsAvailable ? formatVnd(summary.statementAmountDue) : "--"}
             </dd>
           </div>
         </dl>
