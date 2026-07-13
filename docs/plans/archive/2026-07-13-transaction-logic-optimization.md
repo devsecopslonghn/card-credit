@@ -53,8 +53,7 @@ database schema change is required.
 5. Add frontend partial-failure handling.
 6. Refactor a shared due-row builder.
 
-Phases 1 through 5 are complete. Phase 6 is the next planned iteration and was
-not started.
+All six phases are complete. No follow-up phase remains in this plan.
 
 ## Validation
 
@@ -82,8 +81,7 @@ written after the fix remains compatible with the previous schema.
 
 ## Status
 
-Phases 1 through 5 complete on `ai-task/upcoming-payment-quick-actions`.
-Follow-up phases remain planned and were not started.
+Complete on `ai-task/upcoming-payment-quick-actions`; ready to archive.
 
 ## Phase 1 implementation record
 
@@ -395,4 +393,64 @@ Remaining risks:
   balances and payment periods as incomplete.
 - Browser-level focus behavior for the warning retry button remains unverified.
 
-Follow-up phase, not implemented: Phase 6 shared due-row builder refactor.
+Follow-up phase at the end of Phase 5: Phase 6 shared due-row builder refactor.
+
+## Phase 6 implementation record
+
+Changed files:
+
+- `frontend/lib/cards/dueStatementsCore.mjs`: add `buildStatementRows()` and use
+  it for both upcoming groups and overdue rows.
+- `frontend/tests/dueStatements.test.mjs`: cover shared card resolution, orphan
+  exclusion, numeric amount normalization, and status derivation.
+- `docs/README.md` and this plan: move the completed workstream from active to
+  historical documentation.
+
+Implementation decisions:
+
+- Only the duplicated projection step was shared. Upcoming and overdue filters
+  and sort policies remain separate because they express different behavior.
+- The helper builds the card lookup once, excludes statements whose card is not
+  present, normalizes `totalAmountDue` with `Number`, and calculates status once
+  per retained row.
+- Existing output shapes, month grouping, due counts/amounts, sorting, paid/
+  overdue/future filters, and default `today` behavior are unchanged.
+
+Validation results:
+
+- `cd frontend && node --test tests/dueStatements.test.mjs`: passed.
+- `cd frontend && npm run typecheck && npm run lint && npm test`: passed; all
+  nine unit test files and one integration test file passed.
+- The sandboxed build failed only because Google Fonts were unreachable. The
+  approved `cd frontend && npm run build` networked rerun passed compile,
+  TypeScript, and all route generation. The pre-existing middleware deprecation
+  warning remains.
+- Final Git checks and diff review are recorded before the Phase 6 commit.
+
+Skipped checks:
+
+- Backend and shared validation were skipped because those runtimes and
+  contracts were unchanged.
+- Playwright/E2E and live API/database checks were skipped because this phase is
+  a pure frontend projection refactor with unit coverage.
+
+Blockers: none.
+
+Remaining risks across the completed plan:
+
+- Batch endpoints and aggregations remain unpaginated for very large histories.
+- Database query behavior is covered by model stubs rather than an isolated
+  Mongo integration harness.
+- Reminder claims remain per delivery, distinct owners still require distinct
+  auth repository reads, and the SMTP/database exactly-once gap remains.
+- Browser-level partial-failure focus/layout behavior remains unverified by E2E.
+
+Relevant commits:
+
+- `a4e64cd` — transaction PATCH correctness and list reference batching.
+- `f6bd27b` — dashboard statement batching.
+- `fa95ee9` — calendar feed total batching.
+- `5560b31` — reminder scheduler due-window batching.
+- `4811c20` — dashboard partial-load handling.
+- Phase 6 due-row refactor and archival are committed together after this final
+  record.
