@@ -296,6 +296,7 @@ export default function CardsPage() {
           filteredCardsCount={filteredCards.length}
           providerGroups={providerGroups}
           cardSummaries={cardSummaries}
+          statementsAvailable={!statementsError}
           selectedOwner={selectedOwner}
           busyCardId={busyCardId}
           onRetry={loadCards}

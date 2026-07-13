@@ -10,6 +10,7 @@ type CardListProps = {
   filteredCardsCount: number;
   providerGroups: ProviderGroup[];
   cardSummaries: Record<string, CardSummaryView>;
+  statementsAvailable: boolean;
   selectedOwner: string;
   busyCardId: string;
   onRetry: () => void;
@@ -23,6 +24,7 @@ export function CardList({
   filteredCardsCount,
   providerGroups,
   cardSummaries,
+  statementsAvailable,
   selectedOwner,
   busyCardId,
   onRetry,
@@ -72,6 +74,7 @@ export function CardList({
           key={group.providerKey}
           group={group}
           cardSummaries={cardSummaries}
+          statementsAvailable={statementsAvailable}
           busyCardId={busyCardId}
           onDelete={onDelete}
         />

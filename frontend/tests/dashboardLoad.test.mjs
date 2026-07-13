@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { loadDashboardResources } from "../lib/cards/dashboardLoadCore.mjs";
 
@@ -52,4 +53,23 @@ test("dashboard loader reports both failures with stable fallbacks", async () =>
     cardsError: "Không thể tải danh sách thẻ.",
     statementsError: "Không thể tải kỳ sao kê.",
   });
+});
+
+test("dashboard proxy registers the batch statement endpoint", () => {
+  const config = readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
+
+  assert.match(
+    config,
+    /source: "\/api\/card-statements", destination: `\$\{backend\}\/api\/card-statements`/,
+  );
+});
+
+test("statement load failure marks card amounts unavailable and retains retry", () => {
+  const page = readFileSync(new URL("../app/cards/page.tsx", import.meta.url), "utf8");
+  const card = readFileSync(new URL("../components/cards/CardItem.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /statementsAvailable=\{!statementsError\}/);
+  assert.match(page, /onRetry=\{loadCards\}/);
+  assert.match(card, /statementsAvailable \? formatVnd\(summary\.currentOutstandingBalance\) : "--"/);
+  assert.match(card, /statementsAvailable \? formatVnd\(summary\.statementAmountDue\) : "--"/);
 });
