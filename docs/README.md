@@ -18,6 +18,7 @@
 
 ## Historical plans
 
+- `plans/archive/2026-07-13-upcoming-payment-quick-actions.md`
 - `plans/archive/2026-07-05-card-catalog-baseline.md`
 - `plans/archive/2026-07-card-catalog-release-plan.md`
 - `plans/archive/2026-07-card-catalog-roadmap.md`

@@ -7,7 +7,8 @@ import { CardList } from "@/components/cards/CardList";
 import { DuplicateResolver } from "@/components/cards/DuplicateResolver";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
-import { UpcomingPayments } from "@/components/cards/UpcomingPayments";
+import { UpcomingPayments, paymentActionKey } from "@/components/cards/UpcomingPayments";
+import type { DueStatementRow } from "@/lib/cards/dueStatementsCore.mjs";
 import {
   buildCardSummary,
   filterCardsByOwner,
@@ -22,6 +23,7 @@ import {
   fetchCardStatements,
   fetchTransactions,
   updateTransaction,
+  updateStatementPayment,
   type CardStatementView,
   type CardTransactionView,
   type TransactionPayload,
@@ -46,6 +48,8 @@ export default function CardsPage() {
   const [busyCardId, setBusyCardId] = useState("");
   const [toast, setToast] = useState<Toast | null>(null);
   const [duplicateRefreshKey, setDuplicateRefreshKey] = useState(0);
+  const [pendingPaymentActions, setPendingPaymentActions] = useState<Set<string>>(() => new Set());
+  const pendingPaymentActionsRef = useRef(new Set<string>());
   const [calendarPeriod, setCalendarPeriod] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -176,6 +180,25 @@ export default function CardsPage() {
     }
   };
 
+  const handlePaymentAction = async (statement: DueStatementRow["statement"], action: "CLOSED" | "PAID") => {
+    const key = paymentActionKey(statement._id, action);
+    if (pendingPaymentActionsRef.current.has(key)) return;
+    if (action === "CLOSED" && !window.confirm("Chốt kỳ sao kê này? Sau khi chốt, sửa/xóa giao dịch vẫn được phép nhưng sẽ có cảnh báo tính lại số liệu.")) return;
+
+    pendingPaymentActionsRef.current.add(key);
+    setPendingPaymentActions(new Set(pendingPaymentActionsRef.current));
+    try {
+      const updated = await updateStatementPayment(statement.userCardId, statement._id, action);
+      setStatements((current) => current.map((item) => (item._id === updated._id ? updated : item)));
+      showToast(action === "CLOSED" ? "Đã chốt kỳ sao kê." : "Đã đánh dấu thanh toán.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Không thể cập nhật kỳ sao kê.", "error");
+    } finally {
+      pendingPaymentActionsRef.current.delete(key);
+      setPendingPaymentActions(new Set(pendingPaymentActionsRef.current));
+    }
+  };
+
   return (
     <div className="cc-page min-h-screen overflow-x-hidden px-4 py-10 md:px-8">
       {toast && (
@@ -246,7 +269,7 @@ export default function CardsPage() {
           onAdd={(date) => openTransactionForm(date)}
           onEdit={(transaction) => openTransactionForm(transaction.transactionDate, transaction)}
         />
-        <UpcomingPayments statements={dashboardStatements} cards={cards} selectedOwner={selectedOwner} />
+        <UpcomingPayments statements={dashboardStatements} cards={cards} selectedOwner={selectedOwner} pendingActions={pendingPaymentActions} onPaymentAction={handlePaymentAction} />
         <DuplicateResolver
           refreshKey={duplicateRefreshKey}
           onMerged={refreshCardsAndDuplicates}

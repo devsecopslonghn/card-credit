@@ -18,7 +18,11 @@ type UpcomingPaymentsProps = {
   statements: CardStatementView[];
   cards: CreditCardView[];
   selectedOwner: string;
+  pendingActions: ReadonlySet<string>;
+  onPaymentAction: (statement: DueStatementRow["statement"], action: "CLOSED" | "PAID") => void;
 };
+
+export const paymentActionKey = (statementId: string, action: "CLOSED" | "PAID") => `${statementId}:${action}`;
 
 const statusLabel = {
   UPCOMING: "Sắp đến hạn",
@@ -34,7 +38,7 @@ const statusClass = {
   PAID: "border-emerald-300 bg-emerald-50 text-success",
 } as const;
 
-export function UpcomingPayments({ statements, cards, selectedOwner }: UpcomingPaymentsProps) {
+export function UpcomingPayments({ statements, cards, selectedOwner, pendingActions, onPaymentAction }: UpcomingPaymentsProps) {
   const groups = buildDueStatementGroups({ statements, cards });
   const overdueRows = buildOverdueStatementRows({ statements, cards });
 
@@ -69,7 +73,7 @@ export function UpcomingPayments({ statements, cards, selectedOwner }: UpcomingP
               </p>
             </div>
           </div>
-          <PaymentRows rows={overdueRows} compact />
+          <PaymentRows rows={overdueRows} compact pendingActions={pendingActions} onPaymentAction={onPaymentAction} />
         </section>
       )}
 
@@ -85,7 +89,7 @@ export function UpcomingPayments({ statements, cards, selectedOwner }: UpcomingP
               </p>
             </div>
           </div>
-          <PaymentRows rows={group.rows} />
+          <PaymentRows rows={group.rows} pendingActions={pendingActions} onPaymentAction={onPaymentAction} />
         </section>
       ))}
     </section>
@@ -95,9 +99,13 @@ export function UpcomingPayments({ statements, cards, selectedOwner }: UpcomingP
 function PaymentRows({
   rows,
   compact = false,
+  pendingActions,
+  onPaymentAction,
 }: {
   rows: DueStatementRow[];
   compact?: boolean;
+  pendingActions: ReadonlySet<string>;
+  onPaymentAction: UpcomingPaymentsProps["onPaymentAction"];
 }) {
   return (
     <>
@@ -112,6 +120,7 @@ function PaymentRows({
               <th className="p-3 text-center">Hạn thanh toán</th>
               <th className="p-3 text-right">Số tiền phải trả</th>
               <th className="p-3 text-center">Trạng thái</th>
+              <th className="p-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -129,6 +138,9 @@ function PaymentRows({
                   <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-bold ${statusClass[status]}`}>
                     {statusLabel[status]}
                   </span>
+                </td>
+                <td className="p-3">
+                  <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} />
                 </td>
               </tr>
             ))}
@@ -165,9 +177,37 @@ function PaymentRows({
                 <dd className="cc-tabular mt-1 text-lg font-bold cc-text-primary">{formatVnd(amountDue)}</dd>
               </div>
             </dl>
+            <div className="mt-4 border-t cc-border pt-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide cc-text-muted">Thao tác</p>
+              <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} />
+            </div>
           </article>
         ))}
       </div>
     </>
+  );
+}
+
+function PaymentActions({ statement, pendingActions, onPaymentAction }: {
+  statement: DueStatementRow["statement"];
+  pendingActions: ReadonlySet<string>;
+  onPaymentAction: UpcomingPaymentsProps["onPaymentAction"];
+}) {
+  const closePending = pendingActions.has(paymentActionKey(statement._id, "CLOSED"));
+  const paidPending = pendingActions.has(paymentActionKey(statement._id, "PAID"));
+  const rowPending = closePending || paidPending;
+  const closed = statement.paymentStatus === "STATEMENT_CLOSED" || statement.effectivePaymentStatus === "STATEMENT_CLOSED";
+  const paid = statement.paymentStatus === "PAID" || statement.effectivePaymentStatus === "PAID";
+  const hasAmountDue = Number(statement.summary?.totalAmountDue ?? 0) > 0;
+
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+      <button type="button" disabled={rowPending || closed || paid} onClick={() => onPaymentAction(statement, "CLOSED")} className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60">
+        {closePending ? "Đang chốt..." : closed ? "Đã chốt" : "Chốt sao kê"}
+      </button>
+      <button type="button" disabled={rowPending || paid || !hasAmountDue} onClick={() => onPaymentAction(statement, "PAID")} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60">
+        {paidPending ? "Đang cập nhật..." : paid ? "Đã thanh toán" : "Đánh dấu đã thanh toán"}
+      </button>
+    </div>
   );
 }
