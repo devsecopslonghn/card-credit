@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { buildDueStatementGroups, buildOverdueStatementRows } from "../lib/cards/dueStatementsCore.mjs";
+import { buildDueStatementGroups, buildOverdueStatementRows, buildStatementRows } from "../lib/cards/dueStatementsCore.mjs";
 
 const cards = [
   { _id: "card-a", providerName: "VIB", displayName: "Max Card", owner: "Tôi" },
@@ -75,6 +75,22 @@ test("due statements exclude zero amount future paid and overdue rows", () => {
   assert.deepEqual(overdue.map((row) => row.statement._id), ["overdue"]);
 });
 
+test("shared statement row builder resolves cards amounts and status once", () => {
+  const rows = buildStatementRows({
+    cards,
+    today: "2026-07-10",
+    statements: [
+      statement({ _id: "known", userCardId: "card-a", statementDate: "2026-06-01", paymentDueDate: "2026-07-01", amount: "125000" }),
+      statement({ _id: "orphan", userCardId: "missing", statementDate: "2026-06-01", paymentDueDate: "2026-07-20", amount: 500 }),
+    ],
+  });
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].card._id, "card-a");
+  assert.equal(rows[0].amountDue, 125000);
+  assert.equal(rows[0].status, "OVERDUE");
+});
+
 test("dashboard upcoming component uses semantic tokens and no legacy monthly data", () => {
   const source = readFileSync(new URL("../components/cards/UpcomingPayments.tsx", import.meta.url), "utf8");
   assert.equal(source.includes("monthlyData"), false);
@@ -95,6 +111,11 @@ test("dashboard upcoming component uses semantic tokens and no legacy monthly da
 
 test("cards page sends persisted card and statement ids and replaces successful statement state", () => {
   const source = readFileSync(new URL("../app/cards/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /loadStatements: fetchAllCardStatements/);
+  assert.match(source, /loadDashboardResources/);
+  assert.match(source, /setStatements\(result\.statements\)/);
+  assert.match(source, /setStatementsError\(result\.statementsError\)/);
+  assert.equal(source.includes("loadedCards.map((card) => fetchCardStatements"), false);
   assert.match(source, /updateStatementPayment\(statement\.userCardId, statement\._id, action\)/);
   assert.match(source, /item\._id === updated\._id \? updated : item/);
   assert.match(source, /pendingPaymentActionsRef\.current\.has\(key\)/);

@@ -7,8 +7,6 @@ const monthLabel = (monthKey) => {
   return `Tháng ${month}/${year}`;
 };
 
-const getCard = (cardsById, statement) => cardsById.get(statement.userCardId);
-
 export const getStatementDueStatus = (statement, today = formatDateOnlyFromDate(new Date())) => {
   if (statement.paymentStatus === "PAID" || statement.effectivePaymentStatus === "PAID") return "PAID";
   const comparison = compareDateOnly(statement.paymentDueDate, today);
@@ -17,22 +15,24 @@ export const getStatementDueStatus = (statement, today = formatDateOnlyFromDate(
   return "UPCOMING";
 };
 
-export const buildDueStatementGroups = ({ statements = [], cards = [], today = formatDateOnlyFromDate(new Date()) }) => {
+export const buildStatementRows = ({ statements = [], cards = [], today = formatDateOnlyFromDate(new Date()) }) => {
   const cardsById = new Map(cards.map((card) => [card._id, card]));
-  const rows = statements
-    .map((statement) => {
-      const card = getCard(cardsById, statement);
-      if (!card) return null;
-      const amountDue = Number(statement.summary?.totalAmountDue ?? 0);
-      const status = getStatementDueStatus(statement, today);
-      return {
-        statement,
-        card,
-        amountDue,
-        status,
-      };
-    })
-    .filter(Boolean)
+  const rows = [];
+  for (const statement of statements) {
+    const card = cardsById.get(statement.userCardId);
+    if (!card) continue;
+    rows.push({
+      statement,
+      card,
+      amountDue: Number(statement.summary?.totalAmountDue ?? 0),
+      status: getStatementDueStatus(statement, today),
+    });
+  }
+  return rows;
+};
+
+export const buildDueStatementGroups = ({ statements = [], cards = [], today = formatDateOnlyFromDate(new Date()) }) => {
+  const rows = buildStatementRows({ statements, cards, today })
     .filter(({ statement, amountDue, status }) => {
       if (amountDue <= 0) return false;
       if (status === "PAID" || status === "OVERDUE") return false;
@@ -70,16 +70,7 @@ export const buildDueStatementGroups = ({ statements = [], cards = [], today = f
 };
 
 export const buildOverdueStatementRows = ({ statements = [], cards = [], today = formatDateOnlyFromDate(new Date()) }) => {
-  const cardsById = new Map(cards.map((card) => [card._id, card]));
-  return statements
-    .map((statement) => {
-      const card = getCard(cardsById, statement);
-      if (!card) return null;
-      const amountDue = Number(statement.summary?.totalAmountDue ?? 0);
-      const status = getStatementDueStatus(statement, today);
-      return { statement, card, amountDue, status };
-    })
-    .filter(Boolean)
+  return buildStatementRows({ statements, cards, today })
     .filter(({ amountDue, status }) => amountDue > 0 && status === "OVERDUE")
     .sort((left, right) => left.statement.paymentDueDate.localeCompare(right.statement.paymentDueDate));
 };

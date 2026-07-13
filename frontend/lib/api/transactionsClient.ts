@@ -171,6 +171,16 @@ export const fetchCardStatements = async (cardId: string) => {
   return body.data ?? [];
 };
 
+export const fetchAllCardStatements = async () => {
+  const response = await fetch(`/api/card-statements?timestamp=${Date.now()}`, {
+    cache: "no-store",
+  });
+  if (!response.ok)
+    throw new Error(await parseApiError(response, "Không thể tải kỳ sao kê."));
+  const body = (await response.json()) as DataResponse<CardStatementView[]>;
+  return body.data ?? [];
+};
+
 export const fetchStatementDetail = async (cardId: string, statementId: string) => {
   const response = await fetch(`/api/cards/${cardId}/statements/${statementId}?timestamp=${Date.now()}`, { cache: "no-store" });
   if (!response.ok) throw new Error(await parseApiError(response, "Không thể tải chi tiết kỳ sao kê."));

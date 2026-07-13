@@ -95,7 +95,11 @@ export const transactionInput = (body: Data, current: Data = {}) => {
     "outcomeAmount",
     1,
   );
-  const incomeInputMode = body.incomeInputMode === "RATE" ? "RATE" : "AMOUNT";
+  const incomeInputMode = body.incomeInputMode ?? current.incomeInputMode ?? "AMOUNT";
+  if (incomeInputMode !== "RATE" && incomeInputMode !== "AMOUNT")
+    throw new ApiError(400, "INVALID_REQUEST", "Request body không hợp lệ.", {
+      incomeInputMode: "incomeInputMode chỉ có thể là RATE hoặc AMOUNT.",
+    });
   let incomeAmount: number;
   let partnerReturnRateBps: number;
   if (incomeInputMode === "RATE") {
