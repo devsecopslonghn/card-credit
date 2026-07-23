@@ -13,8 +13,8 @@ transaction cashback estimate.
 2. Add monthly cashback management to card detail.
 3. Add time/card/owner reporting filters and the card-performance dashboard.
 
-Repository policy permits one phase per iteration. This iteration is limited to
-Phase 1 and stops before frontend work.
+Repository policy permits one phase per iteration. Phase 1 and Phase 2 were
+completed in separate iterations; Phase 3 has not started.
 
 ## Phase 1 decisions
 
@@ -43,9 +43,9 @@ Phase 1 and stops before frontend work.
 
 ## Status
 
-Phase 1 complete on `master`.
+Phase 1 and Phase 2 complete on `master`.
 
-Phases 2 and 3 have not started.
+Phase 3 has not started.
 
 ## Phase 1 implementation
 
@@ -82,5 +82,59 @@ Validation therefore ran in the official `node:22-bookworm-slim` container.
 `npm ci` reported one dependency audit finding; no dependency or lockfile was
 changed because remediation is outside this phase.
 
-Remaining work is Phase 2: add frontend types/client and monthly cashback
-management to card detail. It must begin in a separate iteration.
+## Phase 2 decisions
+
+- Card detail owns a separate monthly cashback section; a cashback API failure
+  does not fail the existing card/statement page load.
+- The form defaults to the current calendar month and `PENDING`. Actual amount
+  is enabled and required only for `RECEIVED`.
+- Selecting a month loads that calendar year's history. History is sorted by
+  period descending and provides edit/delete actions in both desktop table and
+  mobile card layouts.
+- Save uses the Phase 1 idempotent PUT contract. Save and confirmed delete both
+  refresh history from the API.
+- The UI explicitly states that bank cashback does not reduce debt, differs
+  from partner returns, and is not added to transaction cashback estimates.
+  Existing transaction cashback UI remains unchanged for reconciliation.
+
+## Phase 2 implementation
+
+Changed files:
+
+- `frontend/lib/api/monthlyCashbacksCore.mjs` and its `.d.mts` declaration:
+  added form/payload normalization, sorting, encoded GET/PUT/DELETE requests,
+  and safe API error handling.
+- `frontend/lib/api/monthlyCashbacksClient.ts`: added browser-facing monthly
+  cashback types and client functions.
+- `frontend/components/cards/MonthlyCashbackSection.tsx`: added loading, empty,
+  error/retry, success, create/update, edit, confirmed delete, desktop, and
+  mobile UI states.
+- `frontend/app/cards/[id]/page.tsx`: mounted the independent monthly cashback
+  section without changing statement or transaction behavior.
+- `frontend/tests/monthlyCashbacks.test.mjs` and `frontend/package.json`: added
+  the focused unit suite to the standard unit test command.
+
+Actual validation results:
+
+- Frontend typecheck on Node 22: passed.
+- Frontend lint on Node 22: passed.
+- Frontend tests on Node 22: passed, 62 unit tests and 6 integration tests.
+  Five new tests cover defaults/status behavior, payload validation, history
+  sorting/edit population, encoded API requests, API errors, mutation refresh,
+  delete confirmation, and desktop/mobile render paths.
+- Next.js 16.2.6 production build on Node 22: passed. The pre-existing
+  middleware deprecation warning remains.
+- Final Git whitespace/status/stat/full-diff checks are run before commit.
+
+The local host still defaults to Node 16, so validation ran with the official
+Node 22 container. The dependency gateway stalled full Next.js tarball
+downloads; exact locked packages were restored locally via verified byte-range
+downloads solely to run validation. No package version or lockfile changed.
+
+No database, migration, seed, smoke, authenticated browser, Playwright, E2E, or
+production-data check was run. Responsive behavior is covered structurally by
+separate desktop table and mobile card render paths plus focused tests; a
+browser visual pass remains optional hardening.
+
+Remaining work is Phase 3: extend report aggregation and add the reporting
+dashboard. It must begin in a separate iteration.
