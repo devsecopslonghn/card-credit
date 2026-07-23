@@ -180,8 +180,9 @@ or debt.
 
 `GET /api/reports/summary` supports all-time, calendar-year, calendar-month,
 owner, and card filters. Transactions are filtered by `transactionDate`;
-monthly bank cashback is filtered by `period`. Matching cards remain in the
-response with zero totals when they have no activity in the selected range.
+monthly bank cashback is filtered by `period`, and paid card fees are filtered
+by `paymentDate`. Matching cards remain in the response with zero totals when
+they have no activity in the selected range.
 
 Report formulas:
 
@@ -195,8 +196,11 @@ monthlyBankCashbackActual =
 monthlyBankCashbackRejected =
   SUM(expectedAmount where status is REJECTED)
 
+totalPaidCardFees =
+  SUM(CardFeePayment.amount)
+
 actualNetBenefit =
-  monthlyBankCashbackActual - totalServiceFee
+  monthlyBankCashbackActual - totalServiceFee - totalPaidCardFees
 ```
 
 Existing transaction cashback fields remain in the response for reconciliation

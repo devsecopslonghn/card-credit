@@ -123,7 +123,8 @@ export default function ReportsPage({
               </h1>
               <p className="mt-1 text-sm cc-text-muted">
                 Cashback ngân hàng theo tháng là nguồn “đã lấy lại” chính.
-                Cashback giao dịch chỉ dùng để đối chiếu.
+                Cashback giao dịch chỉ dùng để đối chiếu. Lợi ích ròng trừ
+                riêng phí giao dịch và phí thẻ thực tế đã đóng.
               </p>
             </div>
             <a href={reportApiUrl(filters)} target="_blank" rel="noopener noreferrer" className="cc-control rounded-lg px-5 py-2.5 text-center text-sm font-semibold hover:bg-surface-elevated">
@@ -174,6 +175,7 @@ export default function ReportsPage({
               <Kpi label="Tổng chi tiêu" value={report.totals.totalOutcome} />
               <Kpi label="Tiền đối tác hoàn" value={report.totals.totalIncome} />
               <Kpi label="Phí dịch vụ" value={report.totals.totalServiceFee} tone="warning" />
+              <Kpi label="Phí thẻ đã đóng" value={report.totals.totalPaidCardFees} tone="danger" />
               <Kpi label="Cashback ngân hàng dự kiến" value={report.totals.monthlyBankCashbackExpected} tone="success" />
               <Kpi label="Cashback ngân hàng thực nhận" value={report.totals.monthlyBankCashbackActual} tone="success" />
               <Kpi label="Cashback bị từ chối" value={report.totals.monthlyBankCashbackRejected} tone="danger" />
@@ -185,13 +187,15 @@ export default function ReportsPage({
                 Hiệu quả từng thẻ
               </h2>
               <p className="mb-4 mt-1 text-sm cc-text-muted">
-                Thẻ không phát sinh dữ liệu trong kỳ vẫn hiển thị với số 0.
+                “Phí giao dịch” là chi tiêu trừ tiền đối tác hoàn; “phí thẻ” là
+                khoản thực tế đã nhập tại chi tiết thẻ. Thẻ không phát sinh dữ
+                liệu trong kỳ vẫn hiển thị với số 0.
               </p>
               <div className="hidden overflow-x-auto lg:block">
-                <table className="min-w-[1180px] w-full border-collapse text-sm">
+                <table className="min-w-[1280px] w-full border-collapse text-sm">
                   <thead className="cc-panel text-left">
                     <tr>
-                      {["Thẻ", "Ngày thêm", "GD", "Chi tiêu", "Đối tác hoàn", "Phí", "CB giao dịch", "CB tháng dự kiến", "CB tháng thực nhận", "Lợi ích ròng"].map((label, index) => (
+                      {["Thẻ", "Ngày thêm", "GD", "Chi tiêu", "Đối tác hoàn", "Phí giao dịch", "Phí thẻ", "CB giao dịch", "CB tháng dự kiến", "CB tháng thực nhận", "Lợi ích ròng"].map((label, index) => (
                         <th key={label} className={`p-3 ${index > 1 ? "text-right" : ""}`}>{label}</th>
                       ))}
                     </tr>
@@ -205,6 +209,7 @@ export default function ReportsPage({
                         <ReportNumber value={formatVnd(card.totals.totalOutcome)} />
                         <ReportNumber value={formatVnd(card.totals.totalIncome)} />
                         <ReportNumber value={formatVnd(card.totals.totalServiceFee)} />
+                        <ReportNumber value={formatVnd(card.totals.totalPaidCardFees)} />
                         <ReportNumber value={formatVnd(card.totals.expectedCashback)} />
                         <ReportNumber value={formatVnd(card.totals.monthlyBankCashbackExpected)} />
                         <ReportNumber value={formatVnd(card.totals.monthlyBankCashbackActual)} />
@@ -224,6 +229,7 @@ export default function ReportsPage({
                       <Metric label="Chi tiêu" value={formatVnd(card.totals.totalOutcome)} />
                       <Metric label="Đối tác hoàn" value={formatVnd(card.totals.totalIncome)} />
                       <Metric label="Phí dịch vụ" value={formatVnd(card.totals.totalServiceFee)} />
+                      <Metric label="Phí thẻ đã đóng" value={formatVnd(card.totals.totalPaidCardFees)} />
                       <Metric label="CB giao dịch đối chiếu" value={formatVnd(card.totals.expectedCashback)} />
                       <Metric label="CB tháng dự kiến" value={formatVnd(card.totals.monthlyBankCashbackExpected)} />
                       <Metric label="CB tháng thực nhận" value={formatVnd(card.totals.monthlyBankCashbackActual)} />

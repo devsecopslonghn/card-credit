@@ -6,6 +6,7 @@ import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
 import { CardTransactionModel } from "../src/models/card-transaction.js";
 import { MonthlyCardCashbackModel } from "../src/models/monthly-card-cashback.js";
+import { CardFeePaymentModel } from "../src/models/card-fee-payment.js";
 import { registerReportRoutes } from "../src/report-routes.js";
 
 const secret = "01234567890123456789012345678901";
@@ -132,6 +133,12 @@ test("report filters transaction dates and cashback periods without double count
         },
       ]),
   );
+  const feeFind = t.mock.method(CardFeePaymentModel, "find", () =>
+    sortedLean([
+      { userCardId: cardA, paymentDate: "2026-07-08", amount: 30 },
+      { userCardId: cardB, paymentDate: "2026-07-18", amount: 10 },
+    ]),
+  );
   const app = buildApp({ isReady: () => true }, "silent");
   registerReportRoutes(app, secret);
   const response = await app.inject({
@@ -157,7 +164,9 @@ test("report filters transaction dates and cashback periods without double count
   assert.equal(body.totals.monthlyBankCashbackExpected, 220);
   assert.equal(body.totals.monthlyBankCashbackActual, 95);
   assert.equal(body.totals.monthlyBankCashbackRejected, 40);
-  assert.equal(body.totals.actualNetBenefit, -1205);
+  assert.equal(body.totals.totalPaidCardFees, 40);
+  assert.equal(body.cards[2].totals.totalPaidCardFees, 0);
+  assert.equal(body.totals.actualNetBenefit, -1245);
   assert.equal(
     body.totals.monthlyBankCashbackActual + body.totals.actualCashback,
     185,
@@ -176,6 +185,11 @@ test("report filters transaction dates and cashback periods without double count
     userCardId: { $in: [cardA, cardB, cardC] },
     period: "2026-07",
   });
+  assert.deepEqual(feeFind.mock.calls[0]?.arguments[0], {
+    workspaceId: "workspace-a",
+    userCardId: { $in: [cardA, cardB, cardC] },
+    paymentDate: { $gte: "2026-07-01", $lt: "2026-08-01" },
+  });
   const annualResponse = await app.inject({
     url: "/api/reports/summary?year=2026",
     headers: { cookie },
@@ -190,6 +204,11 @@ test("report filters transaction dates and cashback periods without double count
     workspaceId: "workspace-a",
     userCardId: { $in: [cardA, cardB, cardC] },
     period: { $gte: "2026-01", $lte: "2026-12" },
+  });
+  assert.deepEqual(feeFind.mock.calls[1]?.arguments[0], {
+    workspaceId: "workspace-a",
+    userCardId: { $in: [cardA, cardB, cardC] },
+    paymentDate: { $gte: "2026-01-01", $lt: "2027-01-01" },
   });
   await app.close();
 });
@@ -219,6 +238,11 @@ test("all-time and card filters retain legacy response fields and workspace scop
     "find",
     () => sortedLean([]),
   );
+  const feeFind = t.mock.method(
+    CardFeePaymentModel,
+    "find",
+    () => sortedLean([]),
+  );
   const app = buildApp({ isReady: () => true }, "silent");
   registerReportRoutes(app, secret);
   const response = await app.inject({
@@ -234,6 +258,7 @@ test("all-time and card filters retain legacy response fields and workspace scop
   assert.equal(body.cards[0].name, "Card A");
   assert.equal(body.cards[0].type, "Visa");
   assert.equal(body.cards[0].totals.totalAmountDue, 0);
+  assert.equal(body.cards[0].totals.totalPaidCardFees, 0);
   assert.deepEqual(cardFind.mock.calls[0]?.arguments[0], {
     workspaceId: "workspace-a",
     _id: cardA,
@@ -243,6 +268,10 @@ test("all-time and card filters retain legacy response fields and workspace scop
     userCardId: { $in: [cardA] },
   });
   assert.deepEqual(cashbackFind.mock.calls[0]?.arguments[0], {
+    workspaceId: "workspace-a",
+    userCardId: { $in: [cardA] },
+  });
+  assert.deepEqual(feeFind.mock.calls[0]?.arguments[0], {
     workspaceId: "workspace-a",
     userCardId: { $in: [cardA] },
   });

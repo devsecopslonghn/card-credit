@@ -22,6 +22,7 @@ export type ReportTotals = {
   monthlyBankCashbackExpected: number;
   monthlyBankCashbackActual: number;
   monthlyBankCashbackRejected: number;
+  totalPaidCardFees: number;
   actualNetBenefit: number;
 };
 

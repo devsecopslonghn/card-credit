@@ -159,10 +159,13 @@ cashback totals:
 - `monthlyBankCashbackExpected`
 - `monthlyBankCashbackActual`
 - `monthlyBankCashbackRejected`
+- `totalPaidCardFees`
 - `actualNetBenefit`
 
 Transaction cashback fields remain compatibility/reconciliation values and are
-not added to monthly bank cashback totals.
+not added to monthly bank cashback totals. Paid card fees are filtered by
+`paymentDate`, remain separate from transactions/spending, and are subtracted
+from actual net benefit.
 
 ## Current Compatibility Mapping
 

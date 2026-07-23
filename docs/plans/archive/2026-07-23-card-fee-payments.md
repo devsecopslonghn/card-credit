@@ -112,7 +112,7 @@ automatically.
 
 ## Status
 
-Phase 1 and Phase 2 complete on `master`. Phase 3 has not started.
+All three phases complete on `master`.
 
 ## Phase 1 decisions
 
@@ -206,8 +206,57 @@ production-data check was run. Responsive behavior is covered structurally and
 by focused source tests; an authenticated browser visual pass remains optional
 hardening.
 
-Remaining work is Phase 3, report integration. It must begin in a separate
-iteration.
+## Phase 3 decisions
+
+- Paid card fees use the same all-time/year/month/owner/card report selection,
+  with calendar filtering on `paymentDate`.
+- `totalPaidCardFees` is added per card and in aggregate without changing or
+  reinterpreting existing transaction totals.
+- Actual net benefit is bank cashback actually received minus both
+  transaction-derived service fees and paid card fees.
+- Report labels keep transaction service fees and manually entered paid card
+  fees visibly separate.
+
+## Phase 3 implementation
+
+Changed files:
+
+- `backend/src/report-routes.ts`: added workspace/card/date-scoped paid-fee
+  loading, per-card/aggregate totals, zero-data defaults, and the updated net
+  benefit formula.
+- `backend/tests/reports.test.ts`: extended month/year/all-time, multi-card,
+  workspace-scope, zero-data, compatibility, and no-double-counting assertions.
+- `frontend/lib/api/reportsCore.d.mts`: extended the compatible report type with
+  `totalPaidCardFees`.
+- `frontend/app/reports/page.tsx`: added the paid-fee KPI and per-card desktop
+  and mobile metrics, with clearer separation from transaction service fees.
+- `frontend/tests/reports.test.mjs`: extended the report source-render
+  assertions.
+- `README.md`, `docs/architecture/card-transaction-statement-model.md`, and
+  `docs/architecture/domain-model.md`: documented the implemented input rule,
+  date filter, new total, and final formula.
+
+Actual validation results:
+
+- Backend `npm run validate` on Node 22: passed, including typecheck, lint, all
+  63 tests, and the production TypeScript build.
+- Frontend typecheck and lint on Node 22: passed.
+- Frontend tests on Node 22: passed, 70 unit tests and 6 integration tests.
+- Next.js 16.2.6 production build on Node 22: passed and included dynamic
+  `/cards/[id]` and `/reports` routes. The pre-existing middleware deprecation
+  warning remains.
+- One initial frontend source-render assertion failed because the unchanged
+  zero-data sentence gained a JSX line break; the assertion was made
+  whitespace-tolerant and the complete frontend validation then passed.
+- Final Git whitespace/status/stat/full-diff checks are run before commit.
+
+No database-backed test, migration, seed, smoke, authenticated browser,
+Playwright, E2E, or production-data check was run. Report route tests mock
+Mongoose models; an isolated Mongo integration and authenticated browser visual
+pass remain optional hardening.
+
+No implementation phase remains. The completed plan is archived with the final
+Phase 3 commit; nothing is pushed.
 
 ## Risks and non-goals
 

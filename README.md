@@ -91,8 +91,10 @@ cashback ước tính trên giao dịch.
 Trang `/reports` tổng hợp hiệu quả toàn thời gian, theo năm hoặc theo tháng, có
 filter chủ thẻ và từng thẻ. KPI “cashback thực nhận” dùng cashback ngân hàng
 theo tháng; cashback giao dịch chỉ hiển thị để đối chiếu và không cộng trùng.
-Lợi ích ròng thực tế bằng cashback ngân hàng thực nhận trừ phí dịch vụ. Nút
-`Xuất JSON` sử dụng cùng filter đang chọn.
+Người dùng chỉ nhập `Phí thẻ đã đóng` khi ngân hàng thực tế thu phí; không cần
+khai báo chu kỳ hoặc bản ghi được miễn. Lợi ích ròng thực tế bằng cashback ngân
+hàng thực nhận trừ phí dịch vụ giao dịch và phí thẻ đã đóng. Nút `Xuất JSON`
+sử dụng cùng filter đang chọn.
 
 Jenkins hiện kế thừa SMTP environment trực tiếp từ agent và Compose chuyển tiếp
 vào backend. Không in các giá trị này trong log. Smoke test SMTP thủ công chỉ
