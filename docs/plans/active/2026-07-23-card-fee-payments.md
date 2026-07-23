@@ -112,7 +112,7 @@ automatically.
 
 ## Status
 
-Phase 1 complete on `master`. Phase 2 and Phase 3 have not started.
+Phase 1 and Phase 2 complete on `master`. Phase 3 has not started.
 
 ## Phase 1 decisions
 
@@ -157,7 +157,56 @@ integration test remains optional hardening.
 The host default remains below the repository's Node 22 contract, so validation
 ran in the official `node:22-bookworm-slim` container.
 
-Remaining work is Phase 2, the card-detail entry UI. It must begin in a separate
+## Phase 2 decisions
+
+- Paid-fee management is an independent card-detail section; its API failure
+  does not fail the existing card, statement, transaction, or cashback views.
+- The form defaults to the user's current local date. A blank record uses POST;
+  editing a history row retains its id and uses PUT.
+- Successful create/update/delete refreshes history. A successful save returns
+  the form to a new entry; deleting the entry being edited also resets it.
+- History is sorted newest first and provides confirmed delete plus separate
+  desktop table and mobile card layouts.
+- The UI explicitly says to enter only fees actually charged and to omit waived
+  fees and recurrence schedules.
+
+## Phase 2 implementation
+
+Changed files:
+
+- `frontend/lib/api/cardFeePaymentsCore.mjs` and its `.d.mts` declaration:
+  added local-date defaults, form/payload validation, stable sorting, encoded
+  list/create/update/delete requests, and safe API errors.
+- `frontend/lib/api/cardFeePaymentsClient.ts`: added browser-facing paid-fee
+  types and client functions.
+- `frontend/components/cards/CardFeePaymentSection.tsx`: added loading, empty,
+  error/retry, success, create/update, edit, confirmed delete, desktop, and
+  mobile UI states.
+- `frontend/app/cards/[id]/page.tsx`: mounted the independent paid-fee section.
+- `frontend/tests/cardFeePayments.test.mjs` and `frontend/package.json`: added
+  four focused tests to the standard unit suite.
+
+Actual validation results:
+
+- Frontend typecheck on Node 22: passed.
+- Frontend lint on Node 22: passed.
+- Frontend tests on Node 22: passed, 70 unit tests and 6 integration tests.
+- Next.js 16.2.6 production build on Node 22: passed and retained the dynamic
+  card-detail and report routes. The pre-existing middleware deprecation
+  warning remains.
+- Final Git whitespace/status/stat/full-diff checks are run before commit.
+
+The dependency gateway stalled the full Next.js tarball. The exact locked
+Next.js 16.2.6 tarball was restored to the local npm cache through verified
+byte-range downloads; `npm ci --offline` then installed the lockfile without
+changing package versions or the lockfile.
+
+No database, migration, seed, smoke, authenticated browser, Playwright, E2E, or
+production-data check was run. Responsive behavior is covered structurally and
+by focused source tests; an authenticated browser visual pass remains optional
+hardening.
+
+Remaining work is Phase 3, report integration. It must begin in a separate
 iteration.
 
 ## Risks and non-goals
