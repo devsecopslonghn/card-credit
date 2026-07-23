@@ -4,26 +4,119 @@ import { sessionFromRequest } from "./auth.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { CardTransactionModel } from "./models/card-transaction.js";
 import { CardStatementModel } from "./models/card-statement.js";
+import { MonthlyCardCashbackModel } from "./models/monthly-card-cashback.js";
+import { ApiError } from "./errors.js";
 import { idOf, plain, summarize, type Data } from "./statement-domain.js";
 
 const Cards = CreditCardModel as mongoose.Model<Data>;
+type ReportFilters = {
+  owner: string | null;
+  cardId: string | null;
+  year: string | null;
+  month: string | null;
+};
+type BankCashbackTotals = {
+  monthlyBankCashbackExpected: number;
+  monthlyBankCashbackActual: number;
+  monthlyBankCashbackRejected: number;
+};
+
+const reportFilters = (query: {
+  owner?: string;
+  cardId?: string;
+  year?: string;
+  month?: string;
+}): ReportFilters => {
+  const owner = query.owner?.trim() || null;
+  const cardId = query.cardId?.trim() || null;
+  const year = query.year?.trim() || null;
+  const month = query.month?.trim() || null;
+  if (
+    year &&
+    (!/^\d{4}$/.test(year) || Number(year) < 1000 || Number(year) > 9998)
+  )
+    throw new ApiError(400, "INVALID_REPORT_FILTER", "Năm báo cáo không hợp lệ.");
+  if (month && (!year || !/^(0[1-9]|1[0-2])$/.test(month)))
+    throw new ApiError(400, "INVALID_REPORT_FILTER", "Tháng báo cáo không hợp lệ.");
+  if (cardId && !mongoose.isValidObjectId(cardId))
+    throw new ApiError(400, "INVALID_REPORT_FILTER", "Card id báo cáo không hợp lệ.");
+  return { owner, cardId, year, month };
+};
+
+const dateFilter = (filters: ReportFilters) => {
+  if (!filters.year) return {};
+  if (filters.month) {
+    const next = new Date(
+      Date.UTC(Number(filters.year), Number(filters.month), 1),
+    );
+    return {
+      transactionDate: {
+        $gte: `${filters.year}-${filters.month}-01`,
+        $lt: next.toISOString().slice(0, 10),
+      },
+    };
+  }
+  return {
+    transactionDate: {
+      $gte: `${filters.year}-01-01`,
+      $lt: `${String(Number(filters.year) + 1).padStart(4, "0")}-01-01`,
+    },
+  };
+};
+
+const periodFilter = (filters: ReportFilters) => {
+  if (!filters.year) return {};
+  if (filters.month) return { period: `${filters.year}-${filters.month}` };
+  return {
+    period: { $gte: `${filters.year}-01`, $lte: `${filters.year}-12` },
+  };
+};
+
+const bankCashbackTotals = (items: Data[]) =>
+  items.reduce<BankCashbackTotals>(
+    (totals, item) => {
+      const expected = Number(item.expectedAmount ?? 0);
+      if (item.status === "PENDING" || item.status === "RECEIVED")
+        totals.monthlyBankCashbackExpected += expected;
+      if (item.status === "RECEIVED")
+        totals.monthlyBankCashbackActual += Number(item.actualAmount ?? 0);
+      if (item.status === "REJECTED")
+        totals.monthlyBankCashbackRejected += expected;
+      return totals;
+    },
+    {
+      monthlyBankCashbackExpected: 0,
+      monthlyBankCashbackActual: 0,
+      monthlyBankCashbackRejected: 0,
+    },
+  );
+
 export const registerReportRoutes = (app: FastifyInstance, secret: string) =>
-  app.get<{ Querystring: { owner?: string } }>(
+  app.get<{
+    Querystring: {
+      owner?: string;
+      cardId?: string;
+      year?: string;
+      month?: string;
+    };
+  }>(
     "/api/reports/summary",
     async (request) => {
       const session = sessionFromRequest(request, secret);
-      const owner = request.query.owner?.trim();
+      const filters = reportFilters(request.query);
       const cards = await Cards.find({
         workspaceId: session.workspaceId,
-        ...(owner ? { owner } : {}),
+        ...(filters.owner ? { owner: filters.owner } : {}),
+        ...(filters.cardId ? { _id: filters.cardId } : {}),
       })
         .sort({ bank: 1, name: 1 })
         .lean();
       const ids = cards.map((card) => card._id);
-      const [transactions, statements] = await Promise.all([
+      const [transactions, statements, monthlyCashbacks] = await Promise.all([
         CardTransactionModel.find({
           workspaceId: session.workspaceId,
           userCardId: { $in: ids },
+          ...dateFilter(filters),
         })
           .sort({ transactionDate: 1 })
           .lean(),
@@ -32,6 +125,13 @@ export const registerReportRoutes = (app: FastifyInstance, secret: string) =>
           userCardId: { $in: ids },
         })
           .sort({ statementDate: 1 })
+          .lean(),
+        MonthlyCardCashbackModel.find({
+          workspaceId: session.workspaceId,
+          userCardId: { $in: ids },
+          ...periodFilter(filters),
+        })
+          .sort({ period: 1 })
           .lean(),
       ]);
       const byCard = new Map<string, Data[]>();
@@ -46,12 +146,30 @@ export const registerReportRoutes = (app: FastifyInstance, secret: string) =>
           ...(statementsByCard.get(idOf(item.userCardId)) ?? []),
           item,
         ]);
+      const cashbacksByCard = new Map<string, Data[]>();
+      for (const item of monthlyCashbacks.map(plain))
+        cashbacksByCard.set(idOf(item.userCardId), [
+          ...(cashbacksByCard.get(idOf(item.userCardId)) ?? []),
+          item,
+        ]);
       const summaries = cards.map((card) => {
         const id = idOf(card._id);
-        const totals = summarize(byCard.get(id) ?? [], card.cashbackCapAmount);
+        const transactionTotals = summarize(
+          byCard.get(id) ?? [],
+          card.cashbackCapAmount,
+        );
+        const cashbackTotals = bankCashbackTotals(cashbacksByCard.get(id) ?? []);
+        const totals = {
+          ...transactionTotals,
+          ...cashbackTotals,
+          actualNetBenefit:
+            cashbackTotals.monthlyBankCashbackActual -
+            Number(transactionTotals.totalServiceFee ?? 0),
+        };
         return {
           id,
           _id: id,
+          createdAt: card.createdAt ?? null,
           presetId: card.presetId ?? null,
           providerCode: card.providerCode ?? null,
           providerName: card.providerName ?? card.bank,
@@ -97,6 +215,10 @@ export const registerReportRoutes = (app: FastifyInstance, secret: string) =>
             "actualNetProfit",
             "annualEligibleSpend",
             "totalAmountDue",
+            "monthlyBankCashbackExpected",
+            "monthlyBankCashbackActual",
+            "monthlyBankCashbackRejected",
+            "actualNetBenefit",
           ] as const)
             sum[field] += Number(card.totals[field] ?? 0);
           return sum;
@@ -114,11 +236,15 @@ export const registerReportRoutes = (app: FastifyInstance, secret: string) =>
           actualNetProfit: 0,
           annualEligibleSpend: 0,
           totalAmountDue: 0,
+          monthlyBankCashbackExpected: 0,
+          monthlyBankCashbackActual: 0,
+          monthlyBankCashbackRejected: 0,
+          actualNetBenefit: 0,
         },
       );
       return {
         generatedAt: new Date().toISOString(),
-        filters: { owner: owner || null },
+        filters,
         totals,
         cards: summaries,
       };

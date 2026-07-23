@@ -147,6 +147,49 @@ Cashback status is tracked per transaction:
 - `RECEIVED`
 - `REJECTED`
 
+## MonthlyCardCashback
+
+Bank-paid cashback is stored independently from transactions and statements.
+Each record belongs to a workspace, user card, and calendar `period` in
+`YYYY-MM` format. The unique key is:
+
+```text
+workspaceId + userCardId + period
+```
+
+Amounts are non-negative integer VND. `RECEIVED` requires `actualAmount` and
+sets `receivedAt`; other statuses store both as `null`. Inactive cards remain
+eligible for historical entries.
+
+This source does not reduce debt, replace partner returns, or overwrite
+transaction cashback estimates.
+
+## Performance Report
+
+`GET /api/reports/summary` supports all-time, calendar-year, calendar-month,
+owner, and card filters. Transactions are filtered by `transactionDate`;
+monthly bank cashback is filtered by `period`. Matching cards remain in the
+response with zero totals when they have no activity in the selected range.
+
+Report formulas:
+
+```text
+monthlyBankCashbackExpected =
+  SUM(expectedAmount where status is PENDING or RECEIVED)
+
+monthlyBankCashbackActual =
+  SUM(actualAmount where status is RECEIVED)
+
+monthlyBankCashbackRejected =
+  SUM(expectedAmount where status is REJECTED)
+
+actualNetBenefit =
+  monthlyBankCashbackActual - totalServiceFee
+```
+
+Existing transaction cashback fields remain in the response for reconciliation
+and are never added to the monthly bank cashback KPI.
+
 ## Cashback Cap Strategy
 
 Cashback cap logic is isolated in `frontend/lib/cards/cashbackCapCore.mjs`.

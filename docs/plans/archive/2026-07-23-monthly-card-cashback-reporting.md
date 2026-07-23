@@ -13,8 +13,8 @@ transaction cashback estimate.
 2. Add monthly cashback management to card detail.
 3. Add time/card/owner reporting filters and the card-performance dashboard.
 
-Repository policy permits one phase per iteration. Phase 1 and Phase 2 were
-completed in separate iterations; Phase 3 has not started.
+Repository policy permits one phase per iteration. All three phases were
+completed in separate iterations.
 
 ## Phase 1 decisions
 
@@ -43,9 +43,7 @@ completed in separate iterations; Phase 3 has not started.
 
 ## Status
 
-Phase 1 and Phase 2 complete on `master`.
-
-Phase 3 has not started.
+All three phases complete on `master`.
 
 ## Phase 1 implementation
 
@@ -136,5 +134,65 @@ production-data check was run. Responsive behavior is covered structurally by
 separate desktop table and mobile card render paths plus focused tests; a
 browser visual pass remains optional hardening.
 
-Remaining work is Phase 3: extend report aggregation and add the reporting
-dashboard. It must begin in a separate iteration.
+## Phase 3 decisions
+
+- The existing unfiltered report remains an all-time report, and its legacy
+  transaction cashback fields remain unchanged.
+- `year`, `month`, `owner`, and `cardId` are optional filters. A month requires
+  a year. Transactions use `transactionDate`; monthly bank cashback uses
+  `period`.
+- Cards matching the owner/card filters remain in the response with zero totals
+  when they have no activity in the selected period.
+- Monthly bank cashback expected includes `PENDING` and `RECEIVED`; actual
+  includes only `RECEIVED`; rejected expected amounts are reported separately.
+- Actual net benefit is monthly bank cashback actually received minus
+  transaction service fees. Transaction cashback remains a reconciliation
+  figure and is not added to the new KPIs.
+- The report page supports all-time, yearly, and monthly views, owner/card
+  selection, retryable loading errors, responsive card/table layouts, and JSON
+  export using the same filters.
+
+## Phase 3 implementation
+
+Changed files:
+
+- `backend/src/report-routes.ts`: added validated date/card filters,
+  workspace-scoped monthly cashback aggregation, zero-data card rows, and the
+  separate bank cashback and actual net benefit fields while preserving the
+  existing response fields.
+- `backend/tests/reports.test.ts`: added range, aggregation, rejection,
+  no-double-counting, zero-data card, compatibility, workspace isolation, and
+  invalid-filter coverage.
+- `frontend/lib/api/reportsCore.mjs`, its `.d.mts` declaration, and
+  `frontend/lib/api/reportsClient.ts`: added typed report filters, response
+  types, filtered URLs, and safe request handling.
+- `frontend/app/reports/page.tsx`: added the responsive performance dashboard,
+  filters, KPIs, per-card details, loading/empty/error/retry states, and
+  filtered JSON export.
+- `frontend/app/cards/page.tsx`: added report navigation and made the existing
+  JSON export preserve the owner filter.
+- `frontend/tests/reports.test.mjs` and `frontend/package.json`: added report
+  API/UI/navigation coverage to the standard unit suite.
+- `README.md`, `docs/architecture/card-transaction-statement-model.md`, and
+  `docs/architecture/domain-model.md`: documented the implemented cashback
+  source, report filters, formulas, and compatibility behavior.
+
+Actual validation results:
+
+- Backend `npm run validate` on Node 22: passed, including typecheck, lint, all
+  55 tests, and the production TypeScript build.
+- Frontend typecheck and lint on Node 22: passed.
+- Frontend tests on Node 22: passed, 66 unit tests and 6 integration tests.
+- Next.js 16.2.6 production build on Node 22: passed and included the dynamic
+  `/reports` route. The pre-existing middleware deprecation warning remains.
+- Final Git whitespace/status/stat/full-diff checks are run before commit.
+
+The host default remains Node 16, so validation ran in the official Node 22
+container. No database-backed test, migration, seed, smoke, authenticated
+browser, Playwright, E2E, or production-data check was run. Report route tests
+mock Mongoose models; responsive behavior is covered structurally and by
+focused render-source tests, so an authenticated browser visual pass remains
+optional hardening.
+
+No implementation phase remains. The plan is archived after final Git review
+and the local Phase 3 commit; nothing is pushed.

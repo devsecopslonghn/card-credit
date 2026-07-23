@@ -153,6 +153,17 @@ Annual fee snapshot policy in reports:
 - Calculations treat unknown annual fee as `0` only for totals to avoid `NaN`.
 - `annualFeeKnown` tells consumers whether the annual fee was known.
 
+Report range extensions preserve those fields and add separate monthly bank
+cashback totals:
+
+- `monthlyBankCashbackExpected`
+- `monthlyBankCashbackActual`
+- `monthlyBankCashbackRejected`
+- `actualNetBenefit`
+
+Transaction cashback fields remain compatibility/reconciliation values and are
+not added to monthly bank cashback totals.
+
 ## Current Compatibility Mapping
 
 When catalog fields are introduced later, legacy fallbacks should be:

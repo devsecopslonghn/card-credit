@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import Link from "next/link";
 import { AddCardModal } from "@/components/cards/AddCardModal";
 import { CalendarTransactions } from "@/components/cards/CalendarTransactions";
 import { CardList } from "@/components/cards/CardList";
@@ -131,6 +132,9 @@ export default function CardsPage() {
     () => statements.filter((statement) => filteredCardIds.has(statement.userCardId)),
     [filteredCardIds, statements],
   );
+  const ownerReportQuery = selectedOwner
+    ? `?owner=${encodeURIComponent(selectedOwner)}`
+    : "";
 
   const closeAddModal = useCallback(() => {
     setIsAddModalOpen(false);
@@ -246,8 +250,14 @@ export default function CardsPage() {
                 ))}
               </select>
             </div>
+            <Link
+              href={`/reports${ownerReportQuery}`}
+              className="cc-control flex w-full justify-center rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-surface-elevated sm:w-auto"
+            >
+              Báo cáo
+            </Link>
             <a
-              href="/api/reports/summary"
+              href={`/api/reports/summary${ownerReportQuery}`}
               target="_blank"
               rel="noopener noreferrer"
               className="cc-control flex w-full justify-center rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-surface-elevated sm:w-auto"

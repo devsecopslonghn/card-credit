@@ -13,7 +13,6 @@
 
 ## Active work
 
-- `plans/active/2026-07-23-monthly-card-cashback-reporting.md`
 - `plans/active/2026-07-13-upcoming-payments-data-normalization.md`
 - `plans/active/2026-07-13-upcoming-payments-table-layout.md`
 - `plans/active/2026-07-13-dashboard-statement-batch-route.md`
@@ -22,6 +21,7 @@
 
 ## Historical plans
 
+- `plans/archive/2026-07-23-monthly-card-cashback-reporting.md`
 - `plans/archive/2026-07-13-transaction-logic-optimization.md`
 - `plans/archive/2026-07-13-upcoming-payment-quick-actions.md`
 - `plans/archive/2026-07-05-card-catalog-baseline.md`
