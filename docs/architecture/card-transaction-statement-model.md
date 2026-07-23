@@ -164,6 +164,18 @@ eligible for historical entries.
 This source does not reduce debt, replace partner returns, or overwrite
 transaction cashback estimates.
 
+## CardFeePayment
+
+An actual card fee is stored independently when the bank charges it. Each
+record belongs to a workspace, user, and card, and contains a valid calendar
+`paymentDate`, a positive integer VND `amount`, an optional note, and
+timestamps. Multiple records may share the same payment date.
+
+History is available for inactive cards and is ordered newest first. A waived
+or uncharged fee has no record. This source has no recurrence, expected amount,
+status, or fee category and does not change transactions, spending, statements,
+or debt.
+
 ## Performance Report
 
 `GET /api/reports/summary` supports all-time, calendar-year, calendar-month,

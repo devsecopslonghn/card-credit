@@ -18,6 +18,7 @@ import { ReminderScheduler } from "./reminder-scheduler.js";
 import { registerWorkspaceRoutes } from "./workspace-routes.js";
 import { registerCalendarSubscriptionRoutes } from "./calendar-subscription-routes.js";
 import { registerMonthlyCardCashbackRoutes } from "./monthly-card-cashback-routes.js";
+import { registerCardFeePaymentRoutes } from "./card-fee-payment-routes.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
@@ -29,6 +30,7 @@ registerWorkspaceRoutes(app, authRepository, config.authSecret);
 registerCalendarSubscriptionRoutes(app, authRepository, config.authSecret);
 registerCardRoutes(app, config.authSecret);
 registerMonthlyCardCashbackRoutes(app, config.authSecret);
+registerCardFeePaymentRoutes(app, config.authSecret);
 const mailService = new SmtpMailService();
 registerTransactionRoutes(app, config.authSecret, { users: authRepository, mail: mailService });
 const reminderScheduler = new ReminderScheduler(authRepository, mailService, config.reminderScanIntervalMs, config.reminderClaimTimeoutMs, app.log);
