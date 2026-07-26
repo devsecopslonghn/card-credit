@@ -57,3 +57,25 @@ in Git.
 No production database test, seed, import, migration, SMTP delivery, Argo CD
 Application creation, traffic cutover, or Docker container shutdown is part of
 this phase.
+
+## Phase 2 status
+
+Implemented locally; the first Jenkins run is pending. The pipeline now:
+
+- provisions an ephemeral Kubernetes agent with
+  `moby/buildkit:v0.30.0-rootless` and no Docker socket;
+- uses the existing `nexus-longhn0710` credential only through Jenkins
+  credential binding and deletes the temporary Docker auth file;
+- builds the frontend and backend Dockerfiles, whose build stages perform the
+  repository's existing lint, typecheck, test, and build validations;
+- pushes both images with the same immutable 12-character Git commit SHA;
+- on `master` only, checks out `k8s-namepsace-chart` with the
+  `devsecopslonghn` GitHub App credential and updates the single
+  `card-credit/values.yaml` image tag;
+- never receives runtime MongoDB, auth, or SMTP credentials and never calls
+  Docker Compose, kubectl, or Helm.
+
+Static checks completed: GitHub App credential type implements Jenkins
+`StandardUsernamePasswordCredentials`; Helm lint/render and server-side dry-run
+still pass after consolidating the two image tags. Actual build/push and GitOps
+write permission must be proven by the first Jenkins run.

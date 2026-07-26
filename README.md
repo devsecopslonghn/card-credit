@@ -96,12 +96,16 @@ khai báo chu kỳ hoặc bản ghi được miễn. Lợi ích ròng thực t�
 hàng thực nhận trừ phí dịch vụ giao dịch và phí thẻ đã đóng. Nút `Xuất JSON`
 sử dụng cùng filter đang chọn.
 
-Jenkins hiện kế thừa SMTP environment trực tiếp từ agent và Compose chuyển tiếp
-vào backend. Không in các giá trị này trong log. Smoke test SMTP thủ công chỉ
-nên gửi một thư tới tài khoản test đã được phê duyệt. Phase sau nên chuyển
-secrets sang Jenkins Credentials mà không đổi contract environment của backend.
+Kubernetes inject SMTP environment trực tiếp từ Secret `card-credit-runtime`
+vào backend. Jenkins không nhận MongoDB, auth hoặc SMTP runtime secrets. Không
+in các giá trị này trong log. Smoke test SMTP thủ công chỉ nên gửi một thư tới
+tài khoản test đã được phê duyệt.
 
-## Docker Compose production
+## Docker Compose rollback
+
+Compose được giữ tạm thời cho rollback trong thời gian chuyển production sang
+Kubernetes; Jenkins không còn dùng Compose để deploy. Không chạy đồng thời seed,
+import hoặc migration từ cả hai môi trường.
 
 Build và chạy hai image từ repository root:
 
@@ -157,9 +161,10 @@ cd ../backend && npm ci && npm run validate
 cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm run build
 ```
 
-Jenkins giữ clean checkout, chạy backend validation bằng UID/GID của agent,
-build cả frontend/backend image với cùng tag, deploy Compose trên master, kiểm tra
-frontend cùng backend liveness/readiness và cleanup cả hai temporary images.
+Jenkins dùng Kubernetes agent và rootless BuildKit, build cả frontend/backend
+image với cùng immutable Git SHA, push lên Nexus và cập nhật image tag trong repo
+GitOps. Hai Dockerfile thực thi validation tương ứng trong build stages. Jenkins
+không deploy trực tiếp; Argo CD đọc Helm chart và reconcile Kubernetes.
 
 ## Catalog import
 

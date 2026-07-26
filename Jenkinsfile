@@ -1,629 +1,191 @@
 pipeline {
-  agent none
+  agent {
+    kubernetes {
+      cloud 'kubernetes'
+      defaultContainer 'buildkit'
+      yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: buildkit
+      image: moby/buildkit:v0.30.0-rootless
+      args:
+        - --oci-worker-no-process-sandbox
+      env:
+        - name: BUILDKIT_HOST
+          value: unix:///run/user/1000/buildkit/buildkitd.sock
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: '3'
+          memory: 4Gi
+      volumeMounts:
+        - name: buildkit-data
+          mountPath: /home/user/.local/share/buildkit
+  volumes:
+    - name: buildkit-data
+      emptyDir: {}
+'''
+    }
+  }
 
   options {
     timestamps()
     disableConcurrentBuilds()
     skipDefaultCheckout(true)
-  }
-
-  parameters {
-    booleanParam(
-      name: 'SEED_SAMPLE_DATA',
-      defaultValue: false,
-      description: 'Insert or update sample data after deploy. Only runs on master branch.'
-    )
-
-    string(
-      name: 'APP_PORT',
-      defaultValue: '8080',
-      description: 'Host port for the Next.js container'
-    )
-
-    string(
-      name: 'DOCKER_IMAGE',
-      defaultValue: 'card-credit',
-      description: 'Local Docker image name without tag'
-    )
+    timeout(time: 60, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
   }
 
   environment {
-    DOCKER_BUILDKIT = '1'
+    NEXUS_REGISTRY = 'nexus.apps.drgdevlab.com'
+    FRONTEND_IMAGE = 'nexus.apps.drgdevlab.com/card-credit/frontend'
+    BACKEND_IMAGE = 'nexus.apps.drgdevlab.com/card-credit/backend'
+    GITOPS_REPOSITORY = 'https://github.com/devsecopslonghn/k8s-namepsace-chart'
   }
 
   stages {
     stage('Checkout') {
-      agent {
-        label 'eztechvn2'
-      }
-
       steps {
-        sh '''
-          set -eu
-
-          echo "Jenkins node: ${NODE_NAME}"
-          echo "Workspace: ${WORKSPACE}"
-          echo "Branch: ${BRANCH_NAME:-unknown}"
-          echo "Build number: ${BUILD_NUMBER}"
-        '''
-
-        deleteDir()
-        checkout scm
-      }
-    }
-
-    stage('Prepare Build Variables') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        script {
-          String branchName = env.BRANCH_NAME ?: 'unknown'
-
-          env.SAFE_BRANCH_NAME = branchName
-            .toLowerCase()
-            .replaceAll('[^a-z0-9_.-]', '-')
-            .replaceAll('-+', '-')
-            .replaceAll('^-|-$', '')
-
-          if (!env.SAFE_BRANCH_NAME?.trim()) {
-            env.SAFE_BRANCH_NAME = 'unknown'
+        container('jnlp') {
+          deleteDir()
+          checkout scm
+          script {
+            env.IMAGE_TAG = sh(
+              returnStdout: true,
+              script: 'git rev-parse --short=12 HEAD'
+            ).trim()
           }
-
-          env.APP_PORT_VALUE = params.APP_PORT?.trim() ?: '8080'
-          env.DOCKER_IMAGE_NAME = params.DOCKER_IMAGE?.trim() ?: 'card-credit'
-
-          env.DOCKER_TAG = "${env.SAFE_BRANCH_NAME}-${env.BUILD_NUMBER}"
-          env.FULL_IMAGE_NAME = "${env.DOCKER_IMAGE_NAME}:${env.DOCKER_TAG}"
-          env.FULL_BACKEND_IMAGE_NAME = "${env.DOCKER_IMAGE_NAME}-backend:${env.DOCKER_TAG}"
-
-          echo "Branch name: ${branchName}"
-          echo "Safe branch name: ${env.SAFE_BRANCH_NAME}"
-          echo "Application port: ${env.APP_PORT_VALUE}"
-          echo "Docker image: ${env.FULL_IMAGE_NAME}"
-          echo "Backend Docker image: ${env.FULL_BACKEND_IMAGE_NAME}"
-        }
-      }
-    }
-
-    stage('Validate Repository Layout') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          test -f frontend/package.json
-          test -f frontend/Dockerfile
-          test -f backend/package.json
-          test -f backend/Dockerfile
-          test -f shared/package.json
-          test -f docker-compose.prod.yml
-          test ! -f Dockerfile
-        '''
-      }
-    }
-
-    stage('Install Dependencies') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          HOST_UID="$(id -u)"
-          HOST_GID="$(id -g)"
-
-          docker run --rm \
-            -u root:root \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -e HOST_UID="$HOST_UID" \
-            -e HOST_GID="$HOST_GID" \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/frontend \
-            node:22-alpine \
-            sh -lc '
-              set -eu
-
-              apk add --no-cache python3 make g++
-
-              rm -rf node_modules .next public/card-images/generated
-
-              npm ci --no-audit --no-fund
-
-              chown -R "$HOST_UID:$HOST_GID" \
-                node_modules \
-                package-lock.json \
-                2>/dev/null || true
-            '
-        '''
-      }
-    }
-
-    stage('Validate Catalog') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          docker run --rm \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/frontend \
-            node:22-alpine \
-            sh -lc 'set -eu; npm run validate:catalog'
-        '''
-      }
-    }
-
-    stage('Type Check') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          docker run --rm \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/frontend \
-            node:22-alpine \
-            sh -lc 'set -eu; npm run typecheck'
-        '''
-      }
-    }
-
-    stage('Lint') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          docker run --rm \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/frontend \
-            node:22-alpine \
-            sh -lc 'set -eu; npm run lint'
-        '''
-      }
-    }
-
-    stage('Unit Tests') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          docker run --rm \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/frontend \
-            node:22-alpine \
-            sh -lc 'set -eu; npm run test:unit'
-        '''
-      }
-    }
-
-    stage('Integration Tests') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          docker run --rm \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/frontend \
-            node:22-alpine \
-            sh -lc 'set -eu; npm run test:integration'
-        '''
-      }
-    }
-
-    stage('Prepare Card Images') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          HOST_UID="$(id -u)"
-          HOST_GID="$(id -g)"
-
-          docker run --rm \
-            -u root:root \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -e HOST_UID="$HOST_UID" \
-            -e HOST_GID="$HOST_GID" \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/frontend \
-            node:22-alpine \
-            sh -lc '
-              set -eu
-
-              npm run prepare:card-images
-
-              chown -R "$HOST_UID:$HOST_GID" \
-                public/card-images \
-                data/card-image-manifest.json \
-                2>/dev/null || true
-            '
-        '''
-      }
-    }
-
-    stage('Build Application') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          HOST_UID="$(id -u)"
-          HOST_GID="$(id -g)"
-
-          docker run --rm \
-            -u root:root \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -e HOST_UID="$HOST_UID" \
-            -e HOST_GID="$HOST_GID" \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/frontend \
-            node:22-alpine \
-            sh -lc '
-              set -eu
-
-              npm run build
-
-              chown -R "$HOST_UID:$HOST_GID" \
-                .next \
-                2>/dev/null || true
-            '
-        '''
-      }
-    }
-
-    stage('Validate Docker Compose') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        withCredentials([
-          string(
-            credentialsId: 'MONGODB-ATLAS',
-            variable: 'MONGODB_URI'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-SECRET',
-            variable: 'AUTH_SECRET'
-          )
-        ]) {
           sh '''
             set -eu
-
-            echo "Validating authentication configuration"
-
-            if [ "${#AUTH_SECRET}" -lt 32 ]; then
-              echo "AUTH_SECRET must contain at least 32 characters"
-              exit 1
-            fi
-
-            echo "Validating Docker Compose configuration"
-            echo "Docker image: ${FULL_IMAGE_NAME}"
-            echo "Application port: ${APP_PORT_VALUE}"
-
-            docker version
-
-            APP_PORT="${APP_PORT_VALUE}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
-            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
-            DOCKER_TAG="${DOCKER_TAG}" \
-              docker compose \
-                -f docker-compose.prod.yml \
-                config --quiet
-
-            echo "Docker Compose configuration is valid"
+            test -n "$IMAGE_TAG"
+            test -f frontend/Dockerfile
+            test -f backend/Dockerfile
+            test -f frontend/package-lock.json
+            test -f backend/package-lock.json
+            echo "Building immutable image tag: ${IMAGE_TAG}"
           '''
         }
       }
     }
 
-    stage('Build Production Image') {
-      agent {
-        label 'eztechvn2'
-      }
-
+    stage('Build and push images') {
       steps {
-        withCredentials([
-          string(
-            credentialsId: 'MONGODB-ATLAS',
-            variable: 'MONGODB_URI'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-SECRET',
-            variable: 'AUTH_SECRET'
-          )
-        ]) {
-          sh '''
-            set -eu
+        container('buildkit') {
+          withCredentials([
+            usernamePassword(
+              credentialsId: 'nexus-longhn0710',
+              usernameVariable: 'NEXUS_USERNAME',
+              passwordVariable: 'NEXUS_PASSWORD'
+            )
+          ]) {
+            sh '''
+              set -eu
+              set +x
 
-            echo "Building image: ${FULL_IMAGE_NAME}"
+              export DOCKER_CONFIG="$WORKSPACE/.docker-auth"
+              mkdir -p "$DOCKER_CONFIG"
+              AUTH="$(printf '%s:%s' "$NEXUS_USERNAME" "$NEXUS_PASSWORD" | base64 | tr -d '\n')"
+              printf '{"auths":{"%s":{"auth":"%s"}}}\n' "$NEXUS_REGISTRY" "$AUTH" > "$DOCKER_CONFIG/config.json"
+              chmod 600 "$DOCKER_CONFIG/config.json"
+              unset AUTH NEXUS_USERNAME NEXUS_PASSWORD
 
-            APP_PORT="${APP_PORT_VALUE}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
-            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
-            DOCKER_TAG="${DOCKER_TAG}" \
-              docker compose \
-                -f docker-compose.prod.yml \
-                build
+              cleanup() {
+                rm -rf "$DOCKER_CONFIG"
+              }
+              trap cleanup EXIT
 
-            docker image inspect "${FULL_IMAGE_NAME}" >/dev/null
-          '''
+              buildctl debug workers
+
+              buildctl build \
+                --frontend dockerfile.v0 \
+                --local context=. \
+                --local dockerfile=frontend \
+                --opt filename=Dockerfile \
+                --output "type=image,name=${FRONTEND_IMAGE}:${IMAGE_TAG},push=true"
+
+              buildctl build \
+                --frontend dockerfile.v0 \
+                --local context=. \
+                --local dockerfile=backend \
+                --opt filename=Dockerfile \
+                --output "type=image,name=${BACKEND_IMAGE}:${IMAGE_TAG},push=true"
+            '''
+          }
         }
       }
     }
 
-    stage('Validate Backend') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          HOST_UID="$(id -u)"
-          HOST_GID="$(id -g)"
-
-          docker run --rm \
-            -u "${HOST_UID}:${HOST_GID}" \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/.npm \
-            -v "$WORKSPACE:/workspace" \
-            -w /workspace/backend \
-            node:22-alpine \
-            sh -lc 'set -eu; npm ci --no-audit --no-fund; npm run validate'
-        '''
-      }
-    }
-
-    stage('Build Backend Production Image') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        sh '''
-          set -eu
-
-          BACKEND_IMAGE="${FULL_BACKEND_IMAGE_NAME}"
-          echo "Building backend image: ${BACKEND_IMAGE}"
-          docker build \
-            -f backend/Dockerfile \
-            -t "${BACKEND_IMAGE}" \
-            .
-          docker image inspect "${BACKEND_IMAGE}" >/dev/null
-        '''
-      }
-    }
-
-    /*
-    stage('Container Smoke Test') {
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        withCredentials([
-          string(
-            credentialsId: 'MONGODB-ATLAS',
-            variable: 'MONGODB_URI'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-SECRET',
-            variable: 'AUTH_SECRET'
-          )
-        ]) {
-          sh '''
-            set -eu
-
-            SMOKE_CONTAINER="card-credit-smoke-${BUILD_NUMBER}"
-
-            cleanup() {
-              docker rm -f "$SMOKE_CONTAINER" >/dev/null 2>&1 || true
-            }
-
-            trap cleanup EXIT
-            cleanup
-
-            docker run -d \
-              --name "$SMOKE_CONTAINER" \
-              -e NODE_ENV=production \
-              -e PORT=3000 \
-              -e MONGODB_URI \
-              -e AUTH_SECRET \
-              -e AUTH_USERS_JSON \
-              "${FULL_IMAGE_NAME}" \
-              >/dev/null
-
-            for attempt in $(seq 1 30); do
-              if docker exec \
-                -e SMOKE_BASE_URL="http://127.0.0.1:3000" \
-                -e SMOKE_TIMEOUT_MS="10000" \
-                "$SMOKE_CONTAINER" \
-                npm run smoke:deploy; then
-                echo "Container smoke test passed"
-                exit 0
-              fi
-
-              echo "Waiting for container smoke test attempt ${attempt}/30"
-              sleep 2
-            done
-
-            echo "Container smoke test failed"
-            docker logs "$SMOKE_CONTAINER" || true
-            exit 1
-          '''
-        }
-      }
-    }
-    */
-
-    stage('Start Application') {
+    stage('Update GitOps image tag') {
       when {
         beforeAgent true
         branch 'master'
       }
-
-      agent {
-        label 'eztechvn2'
-      }
-
       steps {
-        withCredentials([
-          string(
-            credentialsId: 'MONGODB-ATLAS',
-            variable: 'MONGODB_URI'
-          ),
-          string(
-            credentialsId: 'CARD-CREDIT-AUTH-SECRET',
-            variable: 'AUTH_SECRET'
-          )
-        ]) {
-          sh '''
-            set -eu
+        container('jnlp') {
+          dir('gitops-repository') {
+            deleteDir()
+            checkout([
+              $class: 'GitSCM',
+              branches: [[name: '*/master']],
+              userRemoteConfigs: [[
+                url: env.GITOPS_REPOSITORY,
+                credentialsId: 'devsecopslonghn'
+              ]]
+            ])
 
-            echo "Deploying master image: ${FULL_IMAGE_NAME}"
+            withCredentials([
+              usernamePassword(
+                credentialsId: 'devsecopslonghn',
+                usernameVariable: 'GITHUB_APP_USERNAME',
+                passwordVariable: 'GITHUB_APP_TOKEN'
+              )
+            ]) {
+              sh '''
+                set -eu
+                set +x
 
-            APP_PORT="${APP_PORT_VALUE}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
-            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
-            DOCKER_TAG="${DOCKER_TAG}" \
-              docker compose \
-                -f docker-compose.prod.yml \
-                up -d \
-                --force-recreate \
-                --remove-orphans
+                VALUES_FILE=card-credit/values.yaml
+                test -f "$VALUES_FILE"
+                test "$(grep -c '^  tag:' "$VALUES_FILE")" -eq 1
+                sed -i -E "s/^  tag: .*/  tag: ${IMAGE_TAG}/" "$VALUES_FILE"
+                grep -q "^  tag: ${IMAGE_TAG}$" "$VALUES_FILE"
 
-            APP_PORT="${APP_PORT_VALUE}" \
-            DOCKER_IMAGE="${DOCKER_IMAGE_NAME}" \
-            BACKEND_DOCKER_IMAGE="${DOCKER_IMAGE_NAME}-backend" \
-            DOCKER_TAG="${DOCKER_TAG}" \
-              docker compose \
-                -f docker-compose.prod.yml \
-                ps
+                if git diff --quiet -- "$VALUES_FILE"; then
+                  echo "GitOps already references ${IMAGE_TAG}"
+                  exit 0
+                fi
 
-            echo "Checking required authentication variables inside the backend container"
+                git config user.name 'Jenkins GitOps Bot'
+                git config user.email 'jenkins@drgdevlab.com'
+                git add "$VALUES_FILE"
+                git commit -m "Deploy card-credit ${IMAGE_TAG}"
 
-            docker exec card-credit-backend sh -lc '
-              test -n "$AUTH_SECRET" &&
-                echo "AUTH_SECRET=set" ||
-                {
-                  echo "AUTH_SECRET=missing"
-                  exit 1
-                }
+                ASKPASS_FILE="$WORKSPACE/.git-askpass"
+                printf '%s\n' \
+                  '#!/bin/sh' \
+                  'case "$1" in' \
+                  '  *Username*) printf "%s\\n" "$GITHUB_APP_USERNAME" ;;' \
+                  '  *) printf "%s\\n" "$GITHUB_APP_TOKEN" ;;' \
+                  'esac' > "$ASKPASS_FILE"
+                chmod 700 "$ASKPASS_FILE"
+                trap 'rm -f "$ASKPASS_FILE"' EXIT
 
-            '
-
-            echo "Checking frontend and backend health"
-
-            for attempt in $(seq 1 30); do
-              if docker exec card-credit node -e '
-                fetch("http://127.0.0.1:3000/login")
-                  .then((response) => process.exit(response.ok ? 0 : 1))
-                  .catch(() => process.exit(1))
-              ' && docker exec card-credit-backend node -e '
-                Promise.all([
-                  fetch("http://127.0.0.1:3001/health"),
-                  fetch("http://127.0.0.1:3001/ready")
-                ])
-                  .then((responses) => process.exit(responses.every((response) => response.ok) ? 0 : 1))
-                  .catch(() => process.exit(1))
-              '; then
-                echo "Frontend and backend health checks passed"
-                break
-              fi
-
-              if [ "$attempt" -eq 30 ]; then
-                echo "Frontend or backend health check failed"
-                exit 1
-              fi
-
-              echo "Waiting for frontend and backend health (${attempt}/30)"
-              sleep 2
-            done
-          '''
-        }
-      }
-    }
-
-    stage('Seed Sample Data') {
-      when {
-        beforeAgent true
-
-        allOf {
-          branch 'master'
-
-          expression {
-            return params.SEED_SAMPLE_DATA
+                GIT_ASKPASS="$ASKPASS_FILE" GIT_TERMINAL_PROMPT=0 \
+                  git push origin HEAD:master
+              '''
+            }
           }
-        }
-      }
-
-      agent {
-        label 'eztechvn2'
-      }
-
-      steps {
-        withCredentials([
-          string(
-            credentialsId: 'MONGODB-ATLAS',
-            variable: 'MONGODB_URI'
-          )
-        ]) {
-          sh '''
-            set -eu
-
-            echo "Seeding sample data using image: ${FULL_IMAGE_NAME}"
-
-            docker run --rm \
-              -e MONGODB_URI \
-              "${FULL_IMAGE_NAME}" \
-              npm run seed:sample
-          '''
         }
       }
     }
@@ -631,101 +193,12 @@ pipeline {
 
   post {
     always {
-      node('eztechvn2') {
-        script {
-          if (
-            env.BRANCH_NAME != 'master' &&
-            env.FULL_IMAGE_NAME?.trim()
-          ) {
-            sh '''
-              echo "Removing temporary branch image: ${FULL_IMAGE_NAME}"
-
-              docker image rm \
-                "${FULL_IMAGE_NAME}" \
-                2>/dev/null || true
-
-              docker image rm \
-                "${FULL_BACKEND_IMAGE_NAME}" \
-                2>/dev/null || true
-            '''
-          } else if (
-            env.BRANCH_NAME == 'master' &&
-            env.FULL_IMAGE_NAME?.trim()
-          ) {
-            echo "Keeping deployed master image: ${env.FULL_IMAGE_NAME}"
-          }
-        }
-
-        sh '''
-          set +e
-
-          echo "Cleaning workspace build files"
-
-          if command -v docker >/dev/null 2>&1; then
-            docker run --rm \
-              -u root:root \
-              -v "$WORKSPACE:/workspace" \
-              -w /workspace \
-              node:22-alpine \
-              sh -lc '
-                rm -rf \
-                  frontend/node_modules \
-                  frontend/.next \
-                  frontend/public/card-images/generated \
-                  frontend/tsconfig.tsbuildinfo \
-                  backend/node_modules \
-                  backend/dist \
-                  backend/coverage \
-                  shared/node_modules \
-                  shared/coverage
-              '
-
-            if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
-              git -C "$WORKSPACE" checkout -- frontend/data/card-image-manifest.json 2>/dev/null || true
-            else
-              mkdir -p "$WORKSPACE/frontend/data"
-              printf "{}\\n" > "$WORKSPACE/frontend/data/card-image-manifest.json"
-            fi
-
-            echo "Cleaning Docker build cache older than 24 hours"
-
-            docker builder prune \
-              -f \
-              --filter "until=24h" \
-              >/dev/null 2>&1 || true
-          else
-            rm -rf \
-              frontend/node_modules \
-              frontend/.next \
-              frontend/public/card-images/generated \
-              frontend/tsconfig.tsbuildinfo \
-              backend/node_modules \
-              backend/dist \
-              backend/coverage \
-              shared/node_modules \
-              shared/coverage
-
-            if command -v git >/dev/null 2>&1 && [ -d "$WORKSPACE/.git" ]; then
-              git -C "$WORKSPACE" checkout -- frontend/data/card-image-manifest.json 2>/dev/null || true
-            else
-              mkdir -p frontend/data
-              printf "{}\\n" > frontend/data/card-image-manifest.json
-            fi
-          fi
-        '''
+      container('buildkit') {
+        sh 'rm -rf "$WORKSPACE/.docker-auth" 2>/dev/null || true'
       }
     }
-
     success {
-      echo "Pipeline successful for branch: ${env.BRANCH_NAME ?: 'unknown'}"
-    }
-
-    unstable {
-      echo "Pipeline unstable for branch: ${env.BRANCH_NAME ?: 'unknown'}"
-    }
-
-    failure {
-      echo "Pipeline failed for branch: ${env.BRANCH_NAME ?: 'unknown'}"
+      echo "Published card-credit images with tag ${env.IMAGE_TAG}"
     }
   }
 }
