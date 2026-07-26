@@ -13,6 +13,7 @@
 
 ## Active work
 
+- `plans/active/2026-07-26-kubernetes-gitops-migration.md`
 - `plans/active/2026-07-13-upcoming-payments-data-normalization.md`
 - `plans/active/2026-07-13-upcoming-payments-table-layout.md`
 - `plans/active/2026-07-13-dashboard-statement-batch-route.md`
