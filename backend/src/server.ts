@@ -19,6 +19,7 @@ import { registerWorkspaceRoutes } from "./workspace-routes.js";
 import { registerCalendarSubscriptionRoutes } from "./calendar-subscription-routes.js";
 import { registerMonthlyCardCashbackRoutes } from "./monthly-card-cashback-routes.js";
 import { registerCardFeePaymentRoutes } from "./card-fee-payment-routes.js";
+import { syncCatalogFromFile } from "./catalog-sync.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
@@ -61,11 +62,11 @@ process.once("SIGTERM", () => void shutdown("SIGTERM"));
 process.once("SIGINT", () => void shutdown("SIGINT"));
 
 try {
+  await database.connect(config.mongodbUri);
+  const catalogSync = await syncCatalogFromFile();
+  app.log.info({ event: "CATALOG_STARTUP_SYNC_COMPLETED", ...catalogSync });
   await app.listen({ host: config.host, port: config.port });
   app.log.info({ event: "SERVER_LISTENING", host: config.host, port: config.port });
-  void database.connect(config.mongodbUri).catch((error) => {
-    app.log.error({ err: error, event: "DATABASE_CONNECTION_FAILED" });
-  });
   reminderScheduler.start();
 } catch (error) {
   app.log.fatal({ err: error, event: "STARTUP_FAILED" });

@@ -19,11 +19,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV BACKEND_HOST=0.0.0.0
 ENV BACKEND_PORT=3001
+ENV CARD_CATALOG_PATH=/app/catalog/card-presets.json
 RUN addgroup -S backend && adduser -S backend -G backend
 COPY shared /shared
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /app/dist ./dist
+COPY frontend/data/card-presets.json ./catalog/card-presets.json
 USER backend
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

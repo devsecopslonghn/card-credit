@@ -1,16 +1,14 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import mongoose from "mongoose";
 import type { Model } from "mongoose";
 import { guardProductionImport, importCatalog } from "../src/catalog-import.js";
-import { normalizeCatalogProduct, type CatalogProduct } from "../src/catalog.js";
+import { catalogPath, readCatalogFile } from "../src/catalog-sync.js";
+import type { CatalogProduct } from "../src/catalog.js";
 import { CardProductModel } from "../src/models/card-product.js";
 
 guardProductionImport(process.env);
 const uri = process.env.MONGODB_URI?.trim(); if (!uri) throw new Error("MONGODB_URI is required");
 const apply = process.argv.includes("--apply");
-const baseline = path.resolve(process.cwd(), "../frontend/data/card-presets.json");
-const products = (JSON.parse(await readFile(baseline, "utf8")) as Record<string, unknown>[]).map(normalizeCatalogProduct);
+const products = await readCatalogFile(catalogPath());
 const model = CardProductModel as unknown as Model<CatalogProduct>;
 await mongoose.connect(uri);
 try {
