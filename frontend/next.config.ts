@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/api/card-catalog/providers", destination: `${backend}/api/card-catalog/providers` },
       { source: "/api/card-catalog/products", destination: `${backend}/api/card-catalog/products` },
+      { source: "/api/card-catalog/products/:presetId/image", destination: `${backend}/api/card-catalog/products/:presetId/image` },
       { source: "/api/card-catalog/products/:presetId", destination: `${backend}/api/card-catalog/products/:presetId` },
       { source: "/api/admin/card-catalog/:path*", destination: `${backend}/api/admin/card-catalog/:path*` },
       { source: "/api/auth/:path*", destination: `${backend}/api/auth/:path*` },
