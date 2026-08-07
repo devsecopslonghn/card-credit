@@ -3,7 +3,7 @@ import type { FastifyRequest } from "fastify";
 import type { Session } from "./auth.js";
 
 export type CatalogAuditEvent = {
-  event: "CATALOG_PRODUCT_CREATED" | "CATALOG_PRODUCT_UPDATED" | "CATALOG_PROVIDER_BULK_UPDATED" | "CATALOG_PRODUCT_IMAGE_SYNCED";
+  event: "CATALOG_PRODUCT_CREATED" | "CATALOG_PRODUCT_UPDATED" | "CATALOG_PROVIDER_BULK_UPDATED";
   actor: Session;
   request: FastifyRequest;
   resource: Record<string, unknown>;

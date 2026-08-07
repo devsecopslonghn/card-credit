@@ -33,7 +33,10 @@ type CardImageProps = {
 
 export function CardImage({ src, alt, className, sizes }: CardImageProps) {
   const [failed, setFailed] = useState(false);
-  const safeSrc = failed ? CARD_IMAGE_PLACEHOLDER_URL : getSafeCardImageSrc(src);
+  const safeSrc = failed ? "" : getSafeCardImageSrc(src);
+  if (!safeSrc) {
+    return <span className={`flex items-center justify-center gap-2 overflow-hidden text-xs text-red-600 ${className ?? ""}`} role="img" aria-label={`${alt} - ảnh bị lỗi`}>🖼️ Ảnh lỗi</span>;
+  }
   const remote = !isLocalImage(safeSrc) && !isDataImage(safeSrc);
   const wrapperClassName = `relative block overflow-hidden ${className ?? ""}`;
   const imageClassName = "h-full w-full object-contain";
