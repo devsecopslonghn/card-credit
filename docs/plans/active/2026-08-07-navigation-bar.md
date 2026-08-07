@@ -19,6 +19,7 @@ Implemented.
 
 - `frontend/components/layout/NavigationBar.tsx`: shared authenticated navigation, active route state, RBAC-aware admin links, profile link, and logout action.
 - `frontend/app/layout.tsx`: renders the navigation globally.
+- `backend/src/app.ts`: after a verified catalog image sync, updates existing catalog-linked cards with the same `presetId`.
 
 ## Validation
 
