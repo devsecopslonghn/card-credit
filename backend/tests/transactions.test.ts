@@ -226,8 +226,8 @@ test("card statement dashboard batch-loads cards, statements, and transactions",
   }) as never);
   const statementFind = t.mock.method(CardStatementModel, "find", () => ({
     sort: async () => [
-      { _id: statementB, workspaceId: "workspace-a", userCardId: cardB, statementDate: "2026-07-12", paymentDueDate: "2026-07-27", paymentStatus: "OPEN" },
-      { _id: statementA, workspaceId: "workspace-a", userCardId: cardA, statementDate: "2026-07-11", paymentDueDate: "2026-07-26", paymentStatus: "OPEN" },
+      { _id: statementB, workspaceId: "workspace-a", userCardId: cardB, statementDate: "2099-07-12", paymentDueDate: "2099-07-27", paymentStatus: "OPEN" },
+      { _id: statementA, workspaceId: "workspace-a", userCardId: cardA, statementDate: "2099-07-11", paymentDueDate: "2099-07-26", paymentStatus: "OPEN" },
     ],
   }) as never);
   const transactionFind = t.mock.method(CardTransactionModel, "find", async () => [
