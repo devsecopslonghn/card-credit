@@ -97,6 +97,11 @@ export default function ProfilePage() {
                 Quản lý user
               </Link>
             ) : null}
+            {user && canManageUsers(user) ? (
+              <Link href="/admin/card-catalog" className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                Quản lý Card Catalog
+              </Link>
+            ) : null}
             <LogoutButton />
           </div>
         </div>
