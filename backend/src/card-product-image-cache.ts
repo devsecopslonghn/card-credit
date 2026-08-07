@@ -3,7 +3,7 @@ import type { Model } from "mongoose";
 import { CardProductImageModel } from "./models/card-product-image.js";
 import type { CatalogProduct } from "./catalog.js";
 
-type CardProductImage = { presetId: string; sourceUrl: string | null; contentType: string; data: Buffer; byteSize: number; sha256: string; status: "VERIFIED" | "BROKEN"; checkedAt: Date; errorMessage: string | null };
+type CardProductImage = { presetId: string; sourceUrl: string | null; contentType: string; data: Buffer | { buffer?: Uint8Array }; byteSize: number; sha256: string; status: "VERIFIED" | "BROKEN"; checkedAt: Date; errorMessage: string | null };
 const imageModel = CardProductImageModel as unknown as Model<CardProductImage>;
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -36,4 +36,9 @@ export const syncCardProductImage = async (product: CatalogProduct) => {
   }
 };
 
-export const getCachedCardProductImage = (presetId: string) => imageModel.findOne({ presetId, data: { $ne: null }, byteSize: { $gt: 0 } }).select("contentType data -_id").lean();
+export const getCachedCardProductImage = async (presetId: string) => {
+  const image = await imageModel.findOne({ presetId, data: { $ne: null }, byteSize: { $gt: 0 } }).select("contentType data -_id").lean();
+  if (!image) return null;
+  const data = Buffer.isBuffer(image.data) ? image.data : image.data?.buffer ? Buffer.from(image.data.buffer) : null;
+  return data ? { contentType: image.contentType, data } : null;
+};
