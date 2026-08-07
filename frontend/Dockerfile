@@ -7,7 +7,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY shared /workspace/shared
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+# Tailwind/PostCSS uses lightningcss; Alpine requires its musl native optional
+# package to be installed explicitly in the dependency layer.
+RUN npm ci --include=optional
 
 FROM node:22-alpine AS builder
 WORKDIR /workspace/frontend
