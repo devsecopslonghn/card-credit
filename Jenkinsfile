@@ -3,6 +3,7 @@
 ciPipeline(
     type: 'container',
     application: 'card-credit',
+    language: 'javascript',
     artifactProfile: 'nexus-container-dev',
     securityScans: [
         sonar: false,
