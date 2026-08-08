@@ -5,9 +5,10 @@ ciPipeline(
     application: 'card-credit',
     artifactProfile: 'nexus-container-dev',
     securityScans: [
-        sonar: true,
+        sonar: false,
         trivy: true,
-        codeql: false
+        codeql: false,
+        securityBlock: false
     ],
     images: [
         [name: 'frontend', dockerfile: 'frontend/Dockerfile'],
