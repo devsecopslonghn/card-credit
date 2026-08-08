@@ -5,14 +5,14 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY shared /shared
 COPY backend/package.json backend/package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY shared /shared
 COPY --from=deps /app/node_modules ./node_modules
 COPY backend/ .
-RUN npm run validate
+RUN npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -23,7 +23,7 @@ ENV CARD_CATALOG_PATH=/app/catalog/card-presets.json
 RUN addgroup -S backend && adduser -S backend -G backend
 COPY shared /shared
 COPY backend/package.json backend/package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /app/dist ./dist
 COPY frontend/data/card-presets.json ./catalog/card-presets.json
 USER backend
