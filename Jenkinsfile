@@ -14,5 +14,6 @@ cdPipeline(
     strategy: 'gitops',
     application: 'card-credit',
     deploymentProfile: 'card-credit-dev',
+    valuesFile: 'card-credit/values.yaml',
     variables: [imageTag: env.IMAGE_TAG]
 )
