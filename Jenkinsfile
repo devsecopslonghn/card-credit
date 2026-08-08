@@ -4,6 +4,11 @@ ciPipeline(
     type: 'container',
     application: 'card-credit',
     artifactProfile: 'nexus-container-dev',
+    securityScans: [
+        sonar: true,
+        trivy: true,
+        codeql: false
+    ],
     images: [
         [name: 'frontend', dockerfile: 'frontend/Dockerfile'],
         [name: 'backend', dockerfile: 'backend/Dockerfile']
