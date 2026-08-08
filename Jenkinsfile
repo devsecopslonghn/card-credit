@@ -7,6 +7,13 @@ ciPipeline(
     buildSystem: 'npm',
     sourceDirectories: ['frontend', 'backend'],
     artifactProfile: 'nexus-container-dev',
+    quality: [
+        hadolint: true
+    ],
+    publishPolicy: [
+        primaryOnly: true,
+        primaryBranch: 'master'
+    ],
     securityScans: [
         sonar: false,
         trivy: true,
