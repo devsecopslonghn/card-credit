@@ -7,24 +7,15 @@ ciPipeline(
     buildSystem: 'npm',
     sourceDirectories: ['frontend', 'backend'],
     artifactProfile: 'nexus-container-dev',
-    quality: [
-        hadolint: true
-    ],
-    publishPolicy: [
-        primaryOnly: true,
-        primaryBranch: 'master'
-    ],
-    securityScans: [
-        sonar: false,
-        trivy: true,
-        codeql: true,
-        securityBlock: false
-    ],
     images: [
         [name: 'frontend', dockerfile: 'frontend/Dockerfile'],
         [name: 'backend', dockerfile: 'backend/Dockerfile']
     ]
 )
+
+// Shared defaults from company-ci: Node/npm validation, Hadolint, Trivy and
+// CodeQL are enabled; SonarQube is disabled; securityBlock is non-blocking.
+// Override explicitly above only when this application needs a different policy.
 
 cdPipeline(
     strategy: 'gitops',
