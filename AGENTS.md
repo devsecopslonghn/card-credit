@@ -1,5 +1,31 @@
 # Repository Agent Policy
 
+## CI/CD platform integration
+
+This application uses the organization Jenkins Shared Libraries
+`company-ci` and `company-cd`. Keep `Jenkinsfile` intentionally thin: it may
+declare application intent such as build type, Dockerfile paths, logical
+artifact/deployment profiles and application-specific GitOps paths.
+
+Do not hardcode Nexus/AAP/GitOps endpoints, passwords, tokens or credential
+secrets in this repository. Shared infrastructure settings and existing
+credential IDs are supplied by Jenkins Global/System Properties and resolved by
+the libraries. Do not create replacement credentials.
+
+The current deployment strategy is GitOps. `valuesFile` belongs in this
+Jenkinsfile when it is application-specific. Jenkins Kubernetes Cloud owns the
+default agent image and tools; do not add a project-specific agent image unless
+explicitly required.
+
+Use unpinned library names during the current centrally managed rollout:
+
+```groovy
+@Library(['company-ci', 'company-cd']) _
+```
+
+Do not create jobs manually; GitHub Organization Folder discovers the
+Jenkinsfile. Do not push or deploy changes unless explicitly requested.
+
 ## Before editing
 
 1. Read `README.md`, `docs/README.md`, and the relevant active plan under
