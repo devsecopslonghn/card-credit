@@ -4,7 +4,6 @@ ciPipeline(
     type: 'container',
     application: 'card-credit',
     artifactProfile: 'nexus-container-dev',
-    buildkitCacheRepository: 'nexus.apps.drgdevlab.com/card-credit/build-cache',
     images: [
         [name: 'frontend', dockerfile: 'frontend/Dockerfile'],
         [name: 'backend', dockerfile: 'backend/Dockerfile']
