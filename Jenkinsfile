@@ -6,6 +6,7 @@ ciPipeline(
     language: 'javascript',
     buildSystem: 'npm',
     sourceDirectories: ['frontend', 'backend'],
+    sonarSources: ['frontend', 'backend', 'shared'],
     securityScans: [
         sonar: true,
         trivy: true,
