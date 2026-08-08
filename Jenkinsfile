@@ -4,6 +4,8 @@ ciPipeline(
     type: 'container',
     application: 'card-credit',
     language: 'javascript',
+    buildSystem: 'npm',
+    sourceDirectories: ['frontend', 'backend'],
     artifactProfile: 'nexus-container-dev',
     securityScans: [
         sonar: false,
