@@ -6,6 +6,13 @@ ciPipeline(
     language: 'javascript',
     buildSystem: 'npm',
     sourceDirectories: ['frontend', 'backend'],
+    securityScans: [
+        sonar: true,
+        trivy: true,
+        codeql: true,
+        securityBlock: false,
+        sonarProjectKey: 'card-credit'
+    ],
     artifactProfile: 'nexus-container-dev',
     images: [
         [name: 'frontend', dockerfile: 'frontend/Dockerfile'],
@@ -13,9 +20,9 @@ ciPipeline(
     ]
 )
 
-// Shared defaults from company-ci: Node/npm validation, Hadolint, Trivy and
-// CodeQL are enabled; SonarQube is disabled; securityBlock is non-blocking.
-// Override explicitly above only when this application needs a different policy.
+// Shared defaults from company-ci provide Node/npm validation, Hadolint and
+// security tooling. SonarQube endpoint and token credential are resolved from
+// Jenkins global configuration; only this application's project key is explicit.
 
 cdPipeline(
     strategy: 'gitops',
