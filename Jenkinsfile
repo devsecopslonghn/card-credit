@@ -7,7 +7,7 @@ ciPipeline(
     securityScans: [
         sonar: false,
         trivy: true,
-        codeql: false,
+        codeql: true,
         securityBlock: false
     ],
     images: [
