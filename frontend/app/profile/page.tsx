@@ -81,32 +81,28 @@ export default function ProfilePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8 text-gray-900 md:px-8">
+    <main className="cc-page min-h-screen px-4 py-8 text-gray-900 md:px-8">
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Hồ sơ người dùng</h1>
-            <p className="mt-1 text-sm text-gray-500">Thông tin tài khoản và workspace hiện tại.</p>
+            <p className="mb-1 text-sm font-semibold text-blue-700">TÀI KHOẢN</p>
+            <h1 className="text-3xl font-semibold tracking-tight">Hồ sơ người dùng</h1>
+            <p className="mt-1 text-sm text-gray-500">Thông tin cá nhân, bảo mật và lịch thanh toán.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/cards" className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
               Danh sách thẻ
             </Link>
             {user && canManageUsers(user) ? (
-              <Link href="/admin/users" className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                Quản lý user
-              </Link>
-            ) : null}
-            {user && canManageUsers(user) ? (
-              <Link href="/admin/card-catalog" className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                Quản lý Card Catalog
+              <Link href="/admin/users" className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                Admin Console
               </Link>
             ) : null}
             <LogoutButton />
           </div>
         </div>
 
-        <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <section className="cc-section rounded-xl p-6">
           {loading ? <p role="status" className="text-sm text-gray-500">Đang tải hồ sơ...</p> : null}
           {!loading && user ? (
             <>

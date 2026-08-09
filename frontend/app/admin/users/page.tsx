@@ -132,16 +132,17 @@ export default function AdminUsersPage() {
   const isAdmin = currentUser && canManageUsers(currentUser);
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8 text-gray-900 md:px-8">
+    <main className="cc-page min-h-screen px-4 py-8 text-gray-900 md:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Quản lý user</h1>
+            <p className="mb-1 text-sm font-semibold uppercase tracking-wider text-slate-600">ADMIN CONSOLE</p>
+            <h1 className="text-3xl font-semibold tracking-tight">Quản lý người dùng</h1>
             <p className="mt-1 text-sm text-gray-500">Cập nhật role và workspace bằng quyền admin.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/profile" className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              Hồ sơ
+            <Link href="/cards" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-500">
+              ← User Dashboard
             </Link>
             <LogoutButton />
           </div>

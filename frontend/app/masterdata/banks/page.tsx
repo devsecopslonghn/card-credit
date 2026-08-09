@@ -127,11 +127,12 @@ export default function BankMasterdataPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 md:px-8">
+    <div className="cc-page min-h-screen py-10 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900">Masterdata: Ngân hàng</h1>
+            <p className="mb-1 text-sm font-semibold uppercase tracking-wider text-slate-600">ADMIN CONSOLE · MASTER DATA</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Ngân hàng</h1>
             <p className="text-gray-500 mt-1">Quản lý danh mục các ngân hàng phát hành thẻ</p>
           </div>
           <button onClick={openCreateModal} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all shadow-sm flex items-center gap-2">
