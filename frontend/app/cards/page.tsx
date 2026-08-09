@@ -15,6 +15,7 @@ import {
   buildCardSummary,
   filterCardsByOwner,
   getDisplayName,
+  formatVnd,
   getUniqueOwners,
   groupCardsByProvider,
   type CreditCardView,
@@ -132,6 +133,17 @@ export default function CardsPage() {
     () => statements.filter((statement) => filteredCardIds.has(statement.userCardId)),
     [filteredCardIds, statements],
   );
+  const dashboardTotals = useMemo(() => {
+    const summaries = filteredCards.map((card) => cardSummaries[card._id]).filter(Boolean);
+    const currentDebt = summaries.reduce((total, summary) => total + summary.currentOutstandingBalance, 0);
+    const amountDue = dashboardStatements.reduce((total, statement) => {
+      if (statement.paymentStatus === "PAID" || statement.effectivePaymentStatus === "PAID") return total;
+      const due = Number(statement.summary?.totalAmountDue ?? 0);
+      const paid = Number(statement.paidAmount ?? 0);
+      return total + Math.max(0, due - (Number.isFinite(paid) ? paid : 0));
+    }, 0);
+    return { currentDebt, amountDue };
+  }, [cardSummaries, dashboardStatements, filteredCards]);
   const ownerReportQuery = selectedOwner
     ? `?owner=${encodeURIComponent(selectedOwner)}`
     : "";
@@ -224,12 +236,11 @@ export default function CardsPage() {
       )}
 
       <div className="mx-auto max-w-6xl">
-        <header className="cc-section mb-8 flex flex-col items-start justify-between gap-4 rounded-xl p-5 md:flex-row md:items-center">
+        <header className="mb-7 flex flex-col items-start justify-between gap-5 md:flex-row md:items-center">
           <div>
-            <h1 className="text-3xl font-bold cc-text-primary">Thẻ Tín Dụng</h1>
-            <p className="mt-1 font-medium cc-text-muted">
-              Số lượng thẻ hiển thị: {filteredCards.length} / {cards.length}
-            </p>
+            <p className="mb-1 text-sm font-semibold text-blue-700">TỔNG QUAN</p>
+            <h1 className="text-3xl font-semibold tracking-tight cc-text-primary">Thẻ của bạn</h1>
+            <p className="mt-1 font-medium cc-text-muted">Kiểm soát dư nợ, sao kê và hạn thanh toán ở một nơi.</p>
           </div>
           <div className="flex w-full flex-wrap items-center gap-3 md:w-auto">
             <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -275,6 +286,21 @@ export default function CardsPage() {
             <LogoutButton className="w-full sm:w-auto" />
           </div>
         </header>
+
+        <section className="mb-7 grid gap-4 md:grid-cols-2" aria-label="Tổng quan tài chính">
+          <article className="cc-section rounded-xl p-5">
+            <p className="text-sm font-medium cc-text-muted">Tổng dư nợ hiện tại</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight cc-text-primary">{formatVnd(dashboardTotals.currentDebt)}</p>
+            <p className="mt-2 text-xs font-medium cc-text-subtle">Tổng các kỳ sao kê chưa thanh toán</p>
+          </article>
+          <article className={`rounded-xl border p-5 shadow-sm ${dashboardTotals.amountDue > 0 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
+            <p className={`text-sm font-bold uppercase tracking-wide ${dashboardTotals.amountDue > 0 ? "text-amber-800" : "text-emerald-800"}`}>Cần thanh toán</p>
+            <p className={`mt-2 text-3xl font-bold tracking-tight ${dashboardTotals.amountDue > 0 ? "text-amber-950" : "text-emerald-950"}`}>{formatVnd(dashboardTotals.amountDue)}</p>
+            <p className={`mt-2 text-xs font-medium ${dashboardTotals.amountDue > 0 ? "text-amber-800" : "text-emerald-800"}`}>
+              {dashboardTotals.amountDue > 0 ? "Kiểm tra các kỳ sao kê bên dưới." : "Tất cả đã ổn thỏa ở thời điểm hiện tại."}
+            </p>
+          </article>
+        </section>
 
         <CalendarTransactions
           transactions={transactions}

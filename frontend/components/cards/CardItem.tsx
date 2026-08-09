@@ -28,9 +28,9 @@ export function CardItem({ card, summary, statementsAvailable, busy, onDelete }:
   const legacy = isLegacyCard(card);
 
   return (
-    <article className="cc-section flex min-w-0 h-full flex-col overflow-hidden rounded-lg">
+    <article className="cc-section flex min-w-0 h-full flex-col overflow-hidden rounded-xl transition-shadow hover:shadow-md">
       <Link href={`/cards/${card._id}`} className="block outline-none focus:ring-2 focus:ring-blue-500">
-        <div className="relative flex aspect-[1.58/1] max-h-48 w-full items-center justify-center overflow-hidden bg-surface-elevated p-3">
+        <div className="relative flex aspect-[1.58/1] max-h-48 w-full items-center justify-center overflow-hidden bg-gray-50 p-4">
           <CardImage
             src={card.imageUrl}
             alt={`${providerName} ${displayName}`}
@@ -57,7 +57,7 @@ export function CardItem({ card, summary, statementsAvailable, busy, onDelete }:
           >
             {displayName}
           </h3>
-          <p className="mt-1 break-words text-xs font-semibold text-blue-700">Thẻ của: {card.owner || "Tôi"}</p>
+          <p className="mt-1 break-words text-xs font-medium text-blue-700">Thẻ của: {card.owner || "Tôi"}</p>
         </div>
 
         <dl className="mt-4 grid grid-cols-1 gap-2 text-sm">
@@ -74,7 +74,7 @@ export function CardItem({ card, summary, statementsAvailable, busy, onDelete }:
             </dd>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-            <dt className="min-w-0 font-medium cc-text-muted">Tổng nợ thẻ</dt>
+            <dt className="min-w-0 font-medium cc-text-muted">Dư nợ hiện tại</dt>
             <dd className="max-w-[11rem] text-right font-bold cc-danger">
               {statementsAvailable ? formatVnd(summary.currentOutstandingBalance) : "--"}
             </dd>

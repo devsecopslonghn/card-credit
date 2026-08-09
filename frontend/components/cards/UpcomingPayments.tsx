@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   formatDateDisplay,
   formatVnd,
@@ -57,14 +58,23 @@ export function UpcomingPayments({ statements, cards, cardSummaries, selectedOwn
 
   return (
     <section className="cc-section mb-8 rounded-xl p-5" aria-labelledby="upcoming-payments-title">
-      <div className="mb-5 border-b cc-border pb-4">
-        <h2 id="upcoming-payments-title" className="text-xl font-bold cc-text-primary">
-          Danh sách thẻ sắp đến hạn {selectedOwner && `của [${selectedOwner}]`}
-        </h2>
+      <div className="mb-5 flex flex-col justify-between gap-2 border-b cc-border pb-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-700">Ưu tiên xử lý</p>
+          <h2 id="upcoming-payments-title" className="text-2xl font-bold cc-text-primary">Cần thanh toán</h2>
+          {selectedOwner && <p className="mt-1 text-sm font-medium cc-text-muted">Đang lọc theo: {selectedOwner}</p>}
+        </div>
+        <p className="text-sm font-semibold cc-text-muted">{overdueRows.length + groups.reduce((count, group) => count + group.dueCount, 0)} kỳ cần theo dõi</p>
       </div>
 
+      <UrgentPaymentCard
+        row={overdueRows[0] ?? groups[0]?.rows[0]}
+        pendingActions={pendingActions}
+        onPaymentAction={onPaymentAction}
+      />
+
       {overdueRows.length > 0 && (
-        <section className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4" aria-labelledby="overdue-title">
+        <section className="mb-6 mt-6 rounded-xl border border-red-200 bg-red-50 p-4" aria-labelledby="overdue-title">
           <div className="mb-3 flex flex-col justify-between gap-1 sm:flex-row sm:items-end">
             <div>
               <h3 id="overdue-title" className="text-base font-bold text-danger-strong">
@@ -95,6 +105,43 @@ export function UpcomingPayments({ statements, cards, cardSummaries, selectedOwn
         </section>
       ))}
     </section>
+  );
+}
+
+function UrgentPaymentCard({
+  row,
+  pendingActions,
+  onPaymentAction,
+}: {
+  row?: DueStatementRow;
+  pendingActions: ReadonlySet<string>;
+  onPaymentAction: UpcomingPaymentsProps["onPaymentAction"];
+}) {
+  if (!row) return null;
+  const { card, amountDue, dueDate, status, statement } = row;
+  const tone = status === "OVERDUE" || status === "DUE_TODAY"
+    ? "border-red-200 bg-red-50"
+    : "border-amber-200 bg-amber-50";
+  const labelTone = status === "OVERDUE" || status === "DUE_TODAY" ? "text-danger" : "text-warning";
+  const label = status === "OVERDUE" ? "Quá hạn cần xử lý" : status === "DUE_TODAY" ? "Đến hạn hôm nay" : `Đến hạn: ${formatDateDisplay(dueDate)}`;
+  return (
+    <article className={`rounded-xl border p-5 ${tone}`} aria-label="Khoản thanh toán ưu tiên">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className={`mb-2 inline-flex rounded-md border border-current/20 bg-surface px-2.5 py-1 text-sm font-bold ${labelTone}`}>{label}</p>
+          <h3 className="truncate text-lg font-bold cc-text-primary">{getProviderName(card)} · {getDisplayName(card)}</h3>
+          <p className="mt-1 text-sm font-medium cc-text-muted">Hạn thanh toán: {formatDateDisplay(dueDate)}</p>
+        </div>
+        <div className="shrink-0 sm:text-right">
+          <p className="text-sm font-medium cc-text-muted">Số tiền kỳ sao kê cần thanh toán</p>
+          <p className="cc-tabular mt-1 text-3xl font-bold tracking-tight cc-text-primary">{formatVnd(amountDue)}</p>
+        </div>
+      </div>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Link href={`/cards/${card._id}`} className="rounded-lg border cc-border bg-surface px-4 py-2.5 text-center text-sm font-semibold cc-text-muted hover:bg-surface-elevated">Xem chi tiết</Link>
+        {statement && <PaymentActions statement={statement} pendingActions={pendingActions} onPaymentAction={onPaymentAction} />}
+      </div>
+    </article>
   );
 }
 
