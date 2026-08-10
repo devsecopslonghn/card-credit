@@ -16,6 +16,8 @@ const userLinks: NavigationLink[] = [
   { href: "/payments", label: "Thanh toán", icon: "$" },
   { href: "/analytics", label: "Phân tích", icon: "⌁" },
   { href: "/notifications", label: "Thông báo", icon: "◉" },
+  { href: "/fees", label: "Trung tâm phí", icon: "₫" },
+  { href: "/cashback", label: "Cashback", icon: "%" },
   { href: "/profile", label: "Cài đặt", icon: "⚙" },
 ];
 

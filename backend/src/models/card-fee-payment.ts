@@ -21,6 +21,12 @@ const CardFeePaymentSchema = new Schema(
       validate: Number.isSafeInteger,
     },
     note: { type: String, default: "", maxlength: 1000 },
+    category: {
+      type: String,
+      enum: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"],
+      default: "ANNUAL_CARD_FEE",
+      index: true,
+    },
   },
   { timestamps: true },
 );

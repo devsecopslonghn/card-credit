@@ -98,7 +98,7 @@ test("client lists, creates, updates, and deletes encoded resources", async () =
   assert.equal(calls[3].init.method, "DELETE");
 });
 
-test("client errors and UI include refresh, confirmation, and responsive states", async () => {
+test("client errors remain covered and card detail links to the centralized Fee Center", async () => {
   await assert.rejects(
     fetchCardFeePaymentsRequest(
       async () => ({
@@ -113,11 +113,6 @@ test("client errors and UI include refresh, confirmation, and responsive states"
     new URL("../components/cards/CardFeePaymentSection.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(component, /await saveCardFeePayment\(cardId, form\)/);
-  assert.match(component, /await deleteCardFeePayment\(cardId, record\._id\)/);
-  assert.match(component, /window\.confirm/);
-  assert.equal((component.match(/await loadRecords\(\)/g) ?? []).length >= 2, true);
-  assert.match(component, /hidden overflow-x-auto[\s\S]*md:block/);
-  assert.match(component, /space-y-3 md:hidden/);
-  assert.match(component, /Được miễn hoặc chưa bị thu thì không cần nhập/);
+  assert.match(component, /href="\/fees"/);
+  assert.match(component, /nhập tập trung tại Fee Center/);
 });

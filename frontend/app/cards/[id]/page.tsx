@@ -4,7 +4,6 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CardImage } from "@/components/cards/CardImage";
 import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
-import { MonthlyCashbackSection } from "@/components/cards/MonthlyCashbackSection";
 import { CardFeePaymentSection } from "@/components/cards/CardFeePaymentSection";
 import {
   formatAnnualFee,
@@ -357,8 +356,6 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
             </button>
           </form>
         </section>
-
-        <MonthlyCashbackSection cardId={resolvedParams.id} />
 
         <CardFeePaymentSection cardId={resolvedParams.id} />
 

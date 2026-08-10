@@ -21,6 +21,7 @@ import {
   type CreditCardView,
 } from "@/components/cards/cardTypes";
 import { deleteCard, fetchCards } from "@/lib/api/cardsClient";
+import { fetchMonthlyCashFlow, type MonthlyCashFlow } from "@/lib/api/cashFlowClient";
 import {
   createTransaction,
   fetchAllCardStatements,
@@ -53,6 +54,7 @@ export default function CardsPage() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [duplicateRefreshKey, setDuplicateRefreshKey] = useState(0);
   const [pendingPaymentActions, setPendingPaymentActions] = useState<Set<string>>(() => new Set());
+  const [monthlyCashFlow, setMonthlyCashFlow] = useState<MonthlyCashFlow[]>([]);
   const pendingPaymentActionsRef = useRef(new Set<string>());
   const [calendarPeriod, setCalendarPeriod] = useState(() => {
     const now = new Date();
@@ -102,6 +104,11 @@ export default function CardsPage() {
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, [loadCardTransactions, loadCards]);
+
+  useEffect(() => {
+    const period = `${calendarPeriod.year}-${String(calendarPeriod.month + 1).padStart(2, "0")}`;
+    void fetchMonthlyCashFlow(period).then(setMonthlyCashFlow).catch(() => setMonthlyCashFlow([]));
+  }, [calendarPeriod.month, calendarPeriod.year]);
 
   const ownerOptions = useMemo(() => getUniqueOwners(cards), [cards]);
   const filteredCards = useMemo(() => filterCardsByOwner(cards, selectedOwner), [cards, selectedOwner]);
@@ -300,6 +307,14 @@ export default function CardsPage() {
               {dashboardTotals.amountDue > 0 ? "Kiểm tra các kỳ sao kê bên dưới." : "Tất cả đã ổn thỏa ở thời điểm hiện tại."}
             </p>
           </article>
+        </section>
+
+        <section className="cc-section mb-8 p-5" aria-labelledby="cash-flow-title">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div><p className="text-xs font-bold uppercase tracking-wider text-[#00687a]">DÒNG TIỀN THỰC TẾ</p><h2 id="cash-flow-title" className="mt-1 text-xl font-bold">Tổng quan tháng {calendarPeriod.month + 1}/{calendarPeriod.year}</h2></div>
+            <Link href="/fees" className="text-sm font-bold text-[#00687a] hover:underline">Quản lý phí</Link>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">{monthlyCashFlow.filter((item) => !selectedOwner || item.card?.owner === selectedOwner).map((item) => <article key={item.cardId} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}><p className="truncate text-sm font-bold">{item.card?.providerName ?? item.card?.bank ?? "Thẻ"} · {item.card?.displayName ?? item.card?.name ?? item.cardId.slice(-6)}</p><div className="mt-4 grid grid-cols-3 gap-2 text-sm"><div><p className="text-xs cc-text-muted">Tiền Out</p><p className="mt-1 font-bold cc-tabular">{formatVnd(item.totalOut)}</p></div><div><p className="text-xs cc-text-muted">Tiền In</p><p className="mt-1 font-bold text-emerald-600 cc-tabular">{formatVnd(item.totalIn)}</p></div><div><p className="text-xs cc-text-muted">Kết quả</p><p className={`mt-1 font-bold cc-tabular ${item.netResult >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatVnd(item.netResult)}</p></div></div><p className="mt-3 text-xs cc-text-muted">Phí thực tế: {formatVnd(item.actualFees)} · Không có phí thì 0 ₫</p></article>)}{monthlyCashFlow.length === 0 && <p className="text-sm cc-text-muted">Chưa có dữ liệu dòng tiền thực tế cho tháng này.</p>}</div>
         </section>
 
         <CalendarTransactions
