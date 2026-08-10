@@ -191,11 +191,15 @@ export function TransactionFormModal({
                 ))}
               </select>
             </div>
-            <MoneyField id="outcome-amount" label="Số tiền quẹt thẻ" value={outcomeAmount} onChange={handleOutcomeChange} />
-            <MoneyField id="income-amount" label="Đối tác hoàn lại" value={incomeAmount} onChange={syncRateFromIncome} />
+            <MoneyField id="outcome-amount" label="Tiền Out · Chi tiêu bằng thẻ" value={outcomeAmount} onChange={handleOutcomeChange} />
+            <MoneyField id="income-amount" label="Tiền In · Đối tác hoàn" value={incomeAmount} onChange={syncRateFromIncome} />
             <PercentField id="partner-rate" label="Tỷ lệ đối tác hoàn" value={partnerReturnRate} onChange={syncIncomeFromRate} />
             <PercentField id="cashback-rate" label="Tỷ lệ cashback" value={cashbackRate} onChange={setCashbackRate} />
           </div>
+
+          <p className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-xs leading-5 text-cyan-900">
+            Giao dịch này chỉ ghi nhận dòng tiền của một lần quẹt thẻ: <strong>Tiền Out</strong> là khoản chi cho đối tác và <strong>Tiền In</strong> là khoản đối tác hoàn về tài khoản của bạn. Phí thường niên và tiền bạn trả sao kê là dòng tiền riêng, được ghi nhận ở phần phí thẻ và thanh toán để không làm sai tổng chi tiêu.
+          </p>
 
           <label className="flex items-center gap-2 text-sm font-semibold cc-text-muted">
             <input type="checkbox" checked={eligibleForAnnualFeeWaiver} onChange={(event) => setEligibleForAnnualFeeWaiver(event.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
@@ -210,7 +214,9 @@ export function TransactionFormModal({
           </div>
 
           <div className="cc-panel grid grid-cols-1 gap-3 rounded-lg p-4 text-sm sm:grid-cols-2">
-            <Preview label="Phí dịch vụ" value={formatVnd(serviceFee)} />
+            <Preview label="Tiền Out" value={formatVnd(numericOutcome)} />
+            <Preview label="Tiền In" value={formatVnd(numericIncome)} />
+            <Preview label="Chi phí ròng" value={formatVnd(serviceFee)} />
             <Preview label="Cashback theo tỷ lệ" value={formatVnd(expectedCashback)} />
             <Preview label={capLabel} value={cashbackRemaining === null ? "Không giới hạn" : formatVnd(cashbackRemaining)} />
             <Preview label="Cashback được hưởng" value={formatVnd(eligibleCashback)} />
