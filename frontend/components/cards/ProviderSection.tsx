@@ -14,7 +14,7 @@ type ProviderSectionProps = {
 export function ProviderSection({ group, cardSummaries, statementsAvailable, busyCardId, onDelete }: ProviderSectionProps) {
   return (
     <section aria-labelledby={`provider-${group.providerKey}`} className="mb-8 min-w-0">
-      <div className="mb-3 flex min-w-0 items-center justify-between gap-3 border-b border-gray-200 pb-2">
+      <div className="mb-4 flex min-w-0 items-center justify-between gap-3 border-b pb-3" style={{ borderColor: "var(--border)" }}>
         <h2 id={`provider-${group.providerKey}`} className="min-w-0 break-words text-xl font-bold text-gray-900">
           {group.providerName}
         </h2>

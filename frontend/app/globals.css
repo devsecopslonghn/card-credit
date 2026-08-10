@@ -1,24 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8f9fa;
-  --foreground: #111827;
-  --foreground-muted: #374151;
-  --foreground-subtle: #4b5563;
+  --background: #f8f9ff;
+  --foreground: #0b1c30;
+  --foreground-muted: #3d494c;
+  --foreground-subtle: #64748b;
   --surface: #ffffff;
-  --surface-elevated: #f9fafb;
-  --surface-accent: #fff7ed;
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
+  --surface-elevated: #eff4ff;
+  --surface-accent: #e5eeff;
+  --border: #d7e0e5;
+  --border-strong: #bcc9cd;
   --danger: #b91c1c;
   --danger-strong: #991b1b;
   --danger-foreground: #ffffff;
   --warning: #92400e;
   --warning-background: #fffbeb;
-  --success: #047857;
+  --success: #059669;
   --badge-background: #dbeafe;
   --badge-foreground: #1e3a8a;
-  --focus-ring: #2563eb;
+  --focus-ring: #06b6d4;
+  --primary: #00687a;
+  --primary-bright: #06b6d4;
 }
 
 @theme inline {
@@ -54,7 +56,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: Inter, var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 @media (min-width: 1024px) {
@@ -90,7 +92,42 @@ textarea::placeholder {
 .cc-section {
   border: 1px solid var(--border);
   background: var(--surface);
-  box-shadow: 0 1px 2px rgb(17 24 39 / 0.05);
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.05);
+}
+
+.cc-section > h2,
+.cc-section > h3 { color: var(--foreground); }
+
+.cc-page table thead,
+.cc-page .cc-panel { background: var(--surface-elevated); }
+.cc-page table th { color: var(--foreground-muted); font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.cc-page table td { border-color: var(--border); }
+.cc-page input[type="checkbox"] { accent-color: var(--primary-bright); }
+.cc-page .rounded-xl.bg-gray-50,
+.cc-page .rounded-xl.bg-gray-100 { background: var(--surface-elevated); }
+.cc-page .shadow-sm { box-shadow: 0 4px 12px rgb(15 23 42 / 0.05); }
+.cc-page .shadow-md,
+.cc-page .shadow-lg { box-shadow: 0 12px 32px rgb(15 23 42 / 0.1); }
+.cc-page .text-3xl,
+.cc-page .text-2xl { letter-spacing: -0.03em; }
+.cc-page .border-dashed { border-style: dashed; }
+.cc-page .bg-emerald-50 { background: rgb(16 185 129 / 0.08); }
+.cc-page .bg-amber-50 { background: rgb(245 158 11 / 0.1); }
+.cc-page .bg-red-50 { background: rgb(239 68 68 / 0.08); }
+.cc-page .text-emerald-600,
+.cc-page .text-emerald-700 { color: #059669; }
+.cc-page .text-amber-700,
+.cc-page .text-amber-800 { color: #b45309; }
+.cc-page .text-red-600,
+.cc-page .text-red-700 { color: #dc2626; }
+
+@media (max-width: 639px) {
+  .cc-page { padding-top: 1.5rem; }
+  .cc-page h1 { font-size: 1.75rem; line-height: 2.125rem; }
+  .cc-page h2 { font-size: 1.25rem; line-height: 1.75rem; }
+  .cc-section { border-radius: 0.875rem; }
+  .cc-page table { font-size: 0.8125rem; }
 }
 
 .cc-panel {
@@ -122,7 +159,71 @@ textarea::placeholder {
 
 .cc-control:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--focus-ring);
+  border-color: var(--primary-bright);
+  box-shadow: 0 0 0 2px rgb(6 182 212 / 0.2);
+}
+
+.cc-page {
+  min-height: 100vh;
+}
+
+.cc-page h1,
+.cc-page h2,
+.cc-page h3 {
+  letter-spacing: -0.02em;
+}
+
+.cc-page button:not(:disabled),
+.cc-page a {
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.cc-page button.bg-blue-700,
+.cc-page button.bg-blue-600,
+.cc-page a.bg-blue-700 {
+  background: var(--primary-bright);
+}
+
+.cc-page button.bg-blue-700:hover,
+.cc-page button.bg-blue-600:hover,
+.cc-page a.bg-blue-700:hover {
+  background: #0891b2;
+  box-shadow: 0 4px 12px rgb(6 182 212 / 0.22);
+}
+
+.cc-page .rounded-xl.border,
+.cc-page .rounded-2xl.border {
+  border-color: var(--border);
+}
+
+/* Stitch compatibility layer for routes that still use the pre-redesign
+   utility names. Keeping this scoped makes the migration incremental. */
+.cc-page .text-gray-900,
+.cc-page .text-gray-800,
+.cc-page .text-gray-700 { color: var(--foreground); }
+.cc-page .text-gray-600,
+.cc-page .text-gray-500 { color: var(--foreground-muted); }
+.cc-page .border-gray-100,
+.cc-page .border-gray-200,
+.cc-page .border-gray-300 { border-color: var(--border); }
+.cc-page .bg-gray-50,
+.cc-page .bg-gray-100 { background-color: var(--surface-elevated); }
+.cc-page .bg-white { background-color: var(--surface); }
+.cc-page .text-blue-700,
+.cc-page .text-blue-600 { color: var(--primary); }
+.cc-page .bg-blue-50 { background-color: #e5eeff; }
+.cc-page .bg-blue-600,
+.cc-page .bg-blue-700 { background-color: var(--primary-bright); }
+.cc-page .hover\:bg-blue-50:hover { background-color: #e5eeff; }
+.cc-page .hover\:bg-blue-700:hover,
+.cc-page .hover\:bg-blue-800:hover { background-color: #0891b2; }
+.cc-page .ring-blue-500:focus,
+.cc-page .focus\:ring-blue-500:focus { --tw-ring-color: rgb(6 182 212 / 0.35); }
+
+@media (min-width: 1024px) {
+  .cc-page {
+    padding-top: 3rem;
+  }
 }
 
 .cc-badge {

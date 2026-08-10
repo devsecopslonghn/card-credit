@@ -36,12 +36,16 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900">Đăng nhập</h1>
+    <main className="cc-page flex min-h-screen items-center justify-center px-4 py-8">
+      <form onSubmit={handleSubmit} className="cc-section w-full max-w-sm p-6 sm:p-8">
+        <div className="mb-8 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#06b6d4] font-bold text-white">C</span>
+          <div><p className="text-lg font-bold cc-text-primary">Card Credit</p><p className="text-xs cc-text-muted">Premium fintech workspace</p></div>
+        </div>
+        <h1 className="text-2xl font-bold cc-text-primary">Đăng nhập</h1>
         <div className="mt-6 space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-semibold text-gray-900">
+            <label htmlFor="email" className="mb-1 block text-xs font-semibold uppercase tracking-wider cc-text-muted">
               Email
             </label>
             <input
@@ -49,12 +53,12 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+              className="cc-control w-full rounded-lg px-3 py-2.5 outline-none"
               required
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-semibold text-gray-900">
+            <label htmlFor="password" className="mb-1 block text-xs font-semibold uppercase tracking-wider cc-text-muted">
               Mật khẩu
             </label>
             <input
@@ -62,7 +66,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+              className="cc-control w-full rounded-lg px-3 py-2.5 outline-none"
               required
             />
           </div>
@@ -75,15 +79,15 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+          className="mt-6 w-full rounded-lg bg-[#06b6d4] px-4 py-2.5 font-semibold text-white hover:bg-[#0891b2] disabled:opacity-60"
         >
           {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
         <div className="mt-5 flex items-center justify-between text-sm">
-          <Link href="/forgot-password" className="font-medium text-blue-700 hover:text-blue-800">
+          <Link href="/forgot-password" className="font-medium text-[#00687a] hover:text-[#0891b2]">
             Quên mật khẩu?
           </Link>
-          <Link href="/register" className="font-medium text-gray-700 hover:text-gray-900">
+          <Link href="/register" className="font-medium cc-text-muted hover:text-[#0b1c30]">
             Tạo tài khoản
           </Link>
         </div>

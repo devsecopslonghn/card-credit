@@ -30,7 +30,7 @@ export function CardItem({ card, summary, statementsAvailable, busy, onDelete }:
   return (
     <article className="cc-section flex min-w-0 h-full flex-col overflow-hidden rounded-xl transition-shadow hover:shadow-md">
       <Link href={`/cards/${card._id}`} className="block outline-none focus:ring-2 focus:ring-blue-500">
-        <div className="relative flex aspect-[1.58/1] max-h-48 w-full items-center justify-center overflow-hidden bg-gray-50 p-4">
+        <div className="relative flex aspect-[1.58/1] max-h-48 w-full items-center justify-center overflow-hidden bg-[#0f172a] p-4">
           <CardImage
             src={card.imageUrl}
             alt={`${providerName} ${displayName}`}

@@ -19,6 +19,7 @@ import { registerWorkspaceRoutes } from "./workspace-routes.js";
 import { registerCalendarSubscriptionRoutes } from "./calendar-subscription-routes.js";
 import { registerMonthlyCardCashbackRoutes } from "./monthly-card-cashback-routes.js";
 import { registerCardFeePaymentRoutes } from "./card-fee-payment-routes.js";
+import { registerNotificationRoutes } from "./notification-routes.js";
 import { syncCatalogFromFile } from "./catalog-sync.js";
 
 const config = loadConfig();
@@ -32,6 +33,7 @@ registerCalendarSubscriptionRoutes(app, authRepository, config.authSecret);
 registerCardRoutes(app, config.authSecret);
 registerMonthlyCardCashbackRoutes(app, config.authSecret);
 registerCardFeePaymentRoutes(app, config.authSecret);
+registerNotificationRoutes(app, config.authSecret);
 const mailService = new SmtpMailService();
 registerTransactionRoutes(app, config.authSecret, { users: authRepository, mail: mailService });
 const reminderScheduler = new ReminderScheduler(authRepository, mailService, config.reminderScanIntervalMs, config.reminderClaimTimeoutMs, app.log);

@@ -7,14 +7,19 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { canManageUsers } from "@/lib/auth/rbac";
 
 type NavigationUser = { role: "admin" | "user"; displayName?: string; email: string };
+type NavigationLink = { href: string; label: string; icon?: string };
 
-const userLinks = [
-  { href: "/cards", label: "Tổng quan" },
-  { href: "/reports", label: "Báo cáo" },
-  { href: "/profile", label: "Hồ sơ" },
+const userLinks: NavigationLink[] = [
+  { href: "/cards", label: "Tổng quan", icon: "▦" },
+  { href: "/cards", label: "Thẻ của tôi", icon: "▣" },
+  { href: "/transactions", label: "Giao dịch", icon: "▤" },
+  { href: "/payments", label: "Thanh toán", icon: "$" },
+  { href: "/analytics", label: "Phân tích", icon: "⌁" },
+  { href: "/notifications", label: "Thông báo", icon: "◉" },
+  { href: "/profile", label: "Cài đặt", icon: "⚙" },
 ];
 
-const adminLinks = [
+const adminLinks: NavigationLink[] = [
   { href: "/admin/users", label: "Quản lý người dùng" },
   { href: "/admin/card-catalog", label: "Card Catalog" },
   { href: "/masterdata/banks", label: "Ngân hàng" },
@@ -45,8 +50,9 @@ export function NavigationBar() {
   const active = (href: string) => isActive(pathname, href);
   const isAdmin = canManageUsers(user);
   const adminMode = isAdmin && (pathname.startsWith("/admin/") || pathname.startsWith("/masterdata/"));
-  const navLink = (href: string) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${active(href) ? (adminMode ? "bg-slate-800 text-white" : "bg-blue-50 text-blue-700") : (adminMode ? "text-slate-300 hover:bg-slate-800 hover:text-white" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")}`;
+  const navLink = (href: string) => `flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition ${active(href) ? (adminMode ? "bg-slate-800 text-white" : "bg-[#dce7ff] text-[#00687a]") : (adminMode ? "text-slate-300 hover:bg-slate-800 hover:text-white" : "text-[#3d494c] hover:bg-[#eff4ff] hover:text-[#0b1c30]")}`;
   const menuLinks = adminMode ? adminLinks : userLinks;
+  const linkIcon = (link: NavigationLink) => link.icon ?? "•";
 
   return (
     <>
@@ -58,7 +64,7 @@ export function NavigationBar() {
         <nav className="flex-1 space-y-1 px-4 py-4">
           {adminMode ? <Link href="/cards" className="mb-4 flex items-center gap-3 rounded-xl border border-slate-700 px-3 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800">← Quay lại User Dashboard</Link> : null}
           {!adminMode && isAdmin ? <Link href="/admin/users" className="mb-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-bold text-amber-800 hover:bg-amber-100"><span>Admin Console</span><span aria-hidden="true">→</span></Link> : null}
-          {menuLinks.map((link) => <Link key={link.href} href={link.href} aria-current={active(link.href) ? "page" : undefined} className={navLink(link.href)}>{link.label}</Link>)}
+          {menuLinks.map((link) => <Link key={`${link.href}-${link.label}`} href={link.href} aria-current={active(link.href) ? "page" : undefined} className={navLink(link.href)}><span className="w-5 text-center text-lg leading-none" aria-hidden="true">{linkIcon(link)}</span>{link.label}</Link>)}
         </nav>
         <div className={`flex items-center justify-between border-t p-4 ${adminMode ? "border-slate-700" : "border-gray-100"}`}>
           <Link href="/profile" className={`min-w-0 truncate text-sm font-semibold ${adminMode ? "text-slate-200" : "text-gray-700"}`}>{user.displayName || user.email}</Link>
@@ -73,7 +79,7 @@ export function NavigationBar() {
 
       <nav className={`cc-mobile-bottom fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(17,24,39,0.05)] backdrop-blur lg:hidden ${adminMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white/95"}`} aria-label={adminMode ? "Điều hướng quản trị mobile" : "Điều hướng mobile"}>
         <div className="grid h-16 grid-cols-4">
-          {(adminMode ? adminLinks.slice(0, 4) : userLinks).map((link) => <Link key={link.href} href={link.href} className={`flex items-center justify-center px-1 text-center text-[11px] font-semibold ${active(link.href) ? (adminMode ? "text-white" : "text-blue-700") : (adminMode ? "text-slate-400" : "text-gray-500")}`}>{link.label}</Link>)}
+          {(adminMode ? adminLinks.slice(0, 4) : userLinks.slice(0, 4)).map((link) => <Link key={`${link.href}-${link.label}`} href={link.href} className={`flex items-center justify-center px-1 text-center text-[11px] font-semibold ${active(link.href) ? (adminMode ? "text-white" : "text-[#00687a]") : (adminMode ? "text-slate-400" : "text-gray-500")}`}><span className="mr-1 text-base" aria-hidden="true">{linkIcon(link)}</span>{link.label}</Link>)}
         </div>
       </nav>
     </>

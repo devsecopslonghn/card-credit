@@ -184,6 +184,16 @@ Report phải tách rõ `monthlyBankCashbackActual`, `totalServiceFee`,
 
 ## 9. Idempotency, concurrency and rate limits
 
+## 10. Stitch UI projections
+
+| Method/path | Auth | Mục đích |
+|---|---|---|
+| `GET /notifications?limit=50` | Session | Read-only payment-due notification projection scoped theo workspace; không trả secret hoặc raw reminder token. |
+
+The projection is intentionally derived from authoritative card statements. UI
+actions still use the statement payment state-machine endpoint, so the
+notifications screen cannot create a second payment authority.
+
 - Statement create dùng unique key để hai request đồng thời không tạo duplicate;
   route phải xử lý duplicate key bằng read-after-conflict.
 - Monthly cashback upsert theo unique card/period.
@@ -192,4 +202,3 @@ Report phải tách rõ `monthlyBankCashbackActual`, `totalServiceFee`,
 - Production nên rate-limit login, reset request, bootstrap và public feed; không
   rate-limit mutation đến mức làm mất trải nghiệm offline-like nếu chưa có
   requirement cụ thể.
-
