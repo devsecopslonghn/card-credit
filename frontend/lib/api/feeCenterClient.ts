@@ -1,4 +1,4 @@
-export type FeeCategory = "ANNUAL_CARD_FEE" | "MANAGEMENT_FEE" | "OTHER_FEE";
+export type FeeCategory = "ANNUAL_CARD_FEE" | "MANAGEMENT_FEE" | "OTHER_FEE" | "BANK_CASHBACK" | "PARTNER_REFUND";
 export type FeeRecord = { _id: string; userCardId: string; category: FeeCategory; paymentDate: string; amount: number; note: string; card?: { providerName?: string; displayName?: string; bank?: string; name?: string; owner?: string } | null };
 type Form = { id?: string; cardId: string; category: FeeCategory; paymentDate: string; amount: number | ""; note: string };
 const message = async (response: Response, fallback: string) => { try { const body = await response.json() as { error?: { message?: string } }; return body.error?.message ?? fallback; } catch { return fallback; } };

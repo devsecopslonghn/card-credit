@@ -23,7 +23,7 @@ const CardFeePaymentSchema = new Schema(
     note: { type: String, default: "", maxlength: 1000 },
     category: {
       type: String,
-      enum: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"],
+      enum: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE", "BANK_CASHBACK", "PARTNER_REFUND"],
       default: "ANNUAL_CARD_FEE",
       index: true,
     },

@@ -101,57 +101,19 @@ vào backend. Jenkins không nhận MongoDB, auth hoặc SMTP runtime secrets. K
 in các giá trị này trong log. Smoke test SMTP thủ công chỉ nên gửi một thư tới
 tài khoản test đã được phê duyệt.
 
-## Docker Compose rollback
+## Container and deployment
 
-Compose được giữ tạm thời cho rollback trong thời gian chuyển production sang
-Kubernetes; Jenkins không còn dùng Compose để deploy. Không chạy đồng thời seed,
-import hoặc migration từ cả hai môi trường.
-
-Build và chạy hai image từ repository root:
+The repository builds separate frontend and backend images with the Dockerfiles
+used by Jenkins/GitOps. Local validation should use the npm commands below; the
+application no longer maintains a Docker Compose environment.
 
 ```bash
-MONGODB_URI="$MONGODB_URI" \
-AUTH_SECRET="$AUTH_SECRET" \
-DOCKER_TAG=local \
-docker compose -f docker-compose.prod.yml build
-
-APP_PORT=8080 \
-MONGODB_URI="$MONGODB_URI" \
-AUTH_SECRET="$AUTH_SECRET" \
-DOCKER_TAG=local \
-docker compose -f docker-compose.prod.yml up -d --wait
+docker build -f frontend/Dockerfile -t card-credit-frontend:local .
+docker build -f backend/Dockerfile -t card-credit-backend:local .
 ```
 
-Chỉ frontend được publish. Backend port 3001 chỉ nằm trong Compose network.
-Backend `/health` kiểm tra liveness và `/ready` yêu cầu MongoDB connected.
-
-## Test cô lập
-
-`docker-compose.test.yml` thêm MongoDB 8 trên `tmpfs`; không publish database và
-không lưu dữ liệu sau teardown. Không dùng production MongoDB cho test, seed,
-import, migration hoặc E2E.
-
-```bash
-APP_PORT=18080 \
-AUTH_SECRET='01234567890123456789012345678901' \
-MONGODB_URI='mongodb://example.invalid/unused' \
-DOCKER_TAG=local \
-docker compose -p card-credit-test \
-  -f docker-compose.prod.yml -f docker-compose.test.yml up -d --wait
-
-cd frontend
-PLAYWRIGHT_EXTERNAL_SERVER=true \
-PLAYWRIGHT_BASE_URL=http://127.0.0.1:18080 \
-npx playwright test tests/e2e/split-runtime.spec.ts --project=desktop
-```
-
-Teardown:
-
-```bash
-docker compose -p card-credit-test \
-  -f docker-compose.prod.yml -f docker-compose.test.yml \
-  down --volumes --remove-orphans
-```
+MongoDB, auth and SMTP credentials are injected by the deployment environment.
+Do not use production credentials for local tests.
 
 ## Validation
 
@@ -182,5 +144,5 @@ MONGODB_URI='mongodb://127.0.0.1:27017/card-credit-development' npm run import:c
 ```
 
 Production cần thêm override có chủ đích `ALLOW_PRODUCTION_CATALOG_IMPORT=true`.
-Xem [tài liệu kiến trúc](docs/README.md) và
-[implementation plan đã hoàn tất](docs/plans/archive/2026-07-11-split-frontend-backend.md).
+Xem [tài liệu kiến trúc và vận hành](docs/README.md) cùng
+[implementation plan](docs/implementation-plan.md).

@@ -6,8 +6,8 @@ import { CardFeePaymentModel } from "./models/card-fee-payment.js";
 import { CreditCardModel } from "./models/credit-card.js";
 
 type Data = Record<string, unknown>;
-type Category = "ANNUAL_CARD_FEE" | "MANAGEMENT_FEE" | "OTHER_FEE";
-const categories = new Set<Category>(["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"]);
+type Category = "ANNUAL_CARD_FEE" | "MANAGEMENT_FEE" | "OTHER_FEE" | "BANK_CASHBACK" | "PARTNER_REFUND";
+const categories = new Set<Category>(["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE", "BANK_CASHBACK", "PARTNER_REFUND"]);
 const date = (value: unknown) => {
   if (typeof value !== "string" || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(value) || new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) !== value) throw new ApiError(400, "INVALID_FEE", "Ngày phát sinh phí không hợp lệ.");
   return value;

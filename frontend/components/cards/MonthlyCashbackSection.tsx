@@ -27,7 +27,13 @@ const periodLabel = (period: string) => {
   return `Tháng ${month}/${year}`;
 };
 
-export function MonthlyCashbackSection({ cardId }: { cardId: string }) {
+export function MonthlyCashbackSection({
+  cardId,
+  cardName,
+}: {
+  cardId: string;
+  cardName?: string;
+}) {
   const initialPeriod = currentPeriod();
   const [form, setForm] = useState<MonthlyCashbackForm>(() =>
     emptyMonthlyCashbackForm(initialPeriod),
@@ -134,7 +140,7 @@ export function MonthlyCashbackSection({ cardId }: { cardId: string }) {
     >
       <div className="mb-5">
         <h2 id="monthly-cashback-title" className="text-xl font-bold cc-text">
-          Cashback ngân hàng theo tháng
+          Cashback theo tháng · {cardName || "Thẻ đang chọn"}
         </h2>
         <p className="mt-2 max-w-4xl text-sm cc-text-muted">
           Đây là khoản ngân hàng trả riêng theo tháng dương lịch. Khoản này không

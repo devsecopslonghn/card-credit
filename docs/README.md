@@ -2,38 +2,11 @@
 
 ## Current architecture
 
-- `architecture/domain-model.md`
-- `architecture/catalog-snapshot-policy.md`
-- `architecture/card-transaction-statement-model.md`
-- `architecture/backend-extraction-design.md`
+- [Architecture](architecture.md): runtime topology, boundaries and deployment.
+- [API contract](api.md): auth, card, statement, report and central cash-flow APIs.
+- [Database](database.md): persistence, indexes and compatibility policy.
+- [UI architecture review](ui-architecture-review.md): Stitch-aligned route and component decisions.
+- [Requirements](requirements.md): current product behavior and constraints.
 
-## Decisions
-
-- `decisions/0001-fastify-same-origin-backend.md`
-
-## Active work
-
-- `plans/active/2026-07-26-kubernetes-gitops-migration.md`
-- `plans/active/2026-07-13-upcoming-payments-data-normalization.md`
-- `plans/active/2026-07-13-upcoming-payments-table-layout.md`
-- `plans/active/2026-07-13-dashboard-statement-batch-route.md`
-- `plans/active/2026-07-12-payment-reminders.md`
-- `plans/active/2026-07-12-calendar-subscriptions.md`
-
-## Historical plans
-
-- `plans/archive/2026-07-23-card-fee-payments.md`
-- `plans/archive/2026-07-23-monthly-card-cashback-reporting.md`
-- `plans/archive/2026-07-13-transaction-logic-optimization.md`
-- `plans/archive/2026-07-13-upcoming-payment-quick-actions.md`
-- `plans/archive/2026-07-05-card-catalog-baseline.md`
-- `plans/archive/2026-07-card-catalog-release-plan.md`
-- `plans/archive/2026-07-card-catalog-roadmap.md`
-- `plans/archive/2026-07-11-split-frontend-backend.md`
-- `plans/archive/2026-07-11-email-statement-calendar.md`
-
-## Audits
-
-- `audits/2026-07-05-card-catalog-audit.md`
-
-Create `decisions/` and `runbooks/` only when real ADRs or operational runbooks exist.
+Historical planning files are intentionally not linked here until they are
+restored as maintained documents.
