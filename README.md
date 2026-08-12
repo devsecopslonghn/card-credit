@@ -160,13 +160,24 @@ send `Authorization: Bearer <MCP_HTTP_TOKEN>`.
 
 Financial MCP tools:
 
+- `get_statement_summary`
+- `list_transactions`
+- `list_upcoming_statements`
+- `compare_cards`
 - `get_personal_finance_summary`
+- `list_accounts`
+- `preview_create_account`
+- `confirm_create_account`
 - `preview_import_financial_transaction`
 - `confirm_import_financial_transaction`
 
 Mutation luôn theo luồng `preview -> human confirm -> idempotent confirm`.
 MCP không tự chọn user/workspace, tự tính quota, tự tính statement hoặc truy cập
 MongoDB trực tiếp.
+
+Các MCP tool transaction/payment legacy đã được loại bỏ. MCP chỉ ghi giao dịch
+qua Financial Domain; dữ liệu credit cũ chỉ được giữ cho migration và các REST
+adapter chưa migrate.
 
 ## Financial API nhanh
 

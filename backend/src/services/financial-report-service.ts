@@ -17,6 +17,51 @@ const add = (target: ReturnType<typeof empty>, item: Record<string, unknown>) =>
 };
 
 export class FinancialReportService {
+  static async statementSummary(ctx: ServiceContext, statementId: string) {
+    const statement = await CardStatementModel.findOne({ _id: statementId, workspaceId: ctx.workspaceId }).lean();
+    if (!statement) return null;
+    const transactions = await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, statementId }).lean();
+    const totals = empty();
+    for (const item of transactions) add(totals, item as Record<string, unknown>);
+    return {
+      id: String(statement._id),
+      cardId: String(statement.userCardId),
+      statementDate: statement.statementDate,
+      periodStartDate: statement.periodStartDate,
+      periodEndDate: statement.periodEndDate,
+      paymentDueDate: statement.paymentDueDate,
+      paymentStatus: statement.paymentStatus,
+      outstandingDebt: Math.max(0, totals.creditDebt),
+      totals,
+      transactions: transactions.map((item) => ({
+        id: String(item._id),
+        accountId: String(item.accountId),
+        amount: item.amount,
+        transactionType: item.transactionType,
+        ownership: item.ownership,
+        transactionDate: item.transactionDate,
+        note: item.note ?? "",
+        impact: {
+          personalSpending: item.personalSpending,
+          debitCashflow: item.debitCashflow,
+          creditDebt: item.creditDebt,
+          outstandingReceivable: item.outstandingReceivable,
+        },
+      })),
+    };
+  }
+
+  static async upcomingStatements(ctx: ServiceContext, limit = 20) {
+    const statements = await CardStatementModel.find({ workspaceId: ctx.workspaceId, paymentStatus: { $ne: "PAID" } })
+      .sort({ paymentDueDate: 1 }).limit(Math.min(Math.max(limit, 1), 50)).lean();
+    const result = [];
+    for (const statement of statements) {
+      const summary = await this.statementSummary(ctx, String(statement._id));
+      if (summary) result.push(summary);
+    }
+    return result;
+  }
+
   static async summary(ctx: ServiceContext, range: Range) {
     const [items, accounts] = await Promise.all([
       FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionDate: { $gte: range.from, $lte: range.to } }).lean(),
