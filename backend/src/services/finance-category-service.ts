@@ -1,0 +1,32 @@
+import { FinanceCategoryModel } from "../models/finance-category.js";
+import { ApiError } from "../errors.js";
+import { idOf, plain } from "../statement-domain.js";
+import type { ServiceContext } from "./types/service-context.js";
+import mongoose from "mongoose";
+
+const Categories = FinanceCategoryModel as unknown as mongoose.Model<Record<string, unknown>>;
+
+const defaults = ["HOUSING", "FOOD", "INTERNET", "TRANSPORT", "SHOPPING", "HEALTH", "INSURANCE", "ENTERTAINMENT", "EDUCATION", "FAMILY", "OTHER"];
+
+export class FinanceCategoryService {
+  static async list(ctx: ServiceContext) {
+    const existing = await Categories.find({ workspaceId: ctx.workspaceId, active: { $ne: false } }).sort({ name: 1 }).lean();
+    return existing.map((item) => ({ id: idOf(item._id), name: item.name, parentId: item.parentId ?? null, system: item.system === true }));
+  }
+
+  static async ensureDefaults(ctx: ServiceContext) {
+    await Categories.bulkWrite(defaults.map((name) => ({ updateOne: { filter: { workspaceId: ctx.workspaceId, name }, update: { $setOnInsert: { workspaceId: ctx.workspaceId, name, system: true, active: true } }, upsert: true } })) as never[]);
+    return this.list(ctx);
+  }
+
+  static async create(ctx: ServiceContext, input: { name: string; parentId?: string }) {
+    const name = input.name.trim().toUpperCase();
+    if (!name || name.length > 80) throw new ApiError(400, "INVALID_CATEGORY", "Tên category không hợp lệ.");
+    try {
+      return plain(await Categories.create({ workspaceId: ctx.workspaceId, name, parentId: input.parentId ?? null, system: false }));
+    } catch (error) {
+      if ((error as { code?: number }).code === 11000) throw new ApiError(409, "CATEGORY_EXISTS", "Category đã tồn tại.");
+      throw error;
+    }
+  }
+}

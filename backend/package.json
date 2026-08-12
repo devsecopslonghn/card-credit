@@ -12,6 +12,7 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "validate": "npm run typecheck && npm run lint && npm test && npm run build",
     "import:catalog": "tsx scripts/import-card-catalog.ts"
+    ,"migrate:finance": "tsx scripts/migrate-financial-domain.ts"
   },
   "dependencies": {
     "@card-credit/contracts": "file:../shared",
