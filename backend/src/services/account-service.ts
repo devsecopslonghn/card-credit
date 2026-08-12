@@ -4,6 +4,8 @@ import { ApiError } from "../errors.js";
 import { idOf, plain } from "../statement-domain.js";
 import { accountGroup, type AccountType } from "../financial-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
+import crypto from "node:crypto";
+import { McpMutationModel } from "../models/mcp-mutation.js";
 
 type CreateAccountInput = {
   name: string;
@@ -47,7 +49,7 @@ export class AccountService {
     });
   }
 
-  static async create(ctx: ServiceContext, input: CreateAccountInput) {
+  static async create(ctx: ServiceContext, input: CreateAccountInput, idempotencyKey?: string) {
     const name = input.name.trim();
     if (!name || name.length > 120) {
       throw new ApiError(400, "INVALID_ACCOUNT", "Tên tài khoản không hợp lệ.");
@@ -58,6 +60,15 @@ export class AccountService {
     if (input.type !== "CREDIT" && input.creditCardId) {
       throw new ApiError(400, "INVALID_ACCOUNT", "Chỉ tài khoản CREDIT mới được liên kết thẻ.");
     }
+    const operation = "create_account";
+    const payloadHash = crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    if (idempotencyKey) {
+      const existingMutation = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).lean();
+      if (existingMutation) {
+        if (existingMutation.payloadHash !== payloadHash) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
+        return existingMutation.result;
+      }
+    }
     try {
       const account = await AccountModel.create({
         userId: ctx.userId,
@@ -67,9 +78,19 @@ export class AccountService {
         creditCardId: input.creditCardId ?? null,
         openingBalance: input.openingBalance ?? 0,
       });
-      return serialize(account);
+      const result = serialize(account);
+      if (idempotencyKey) await McpMutationModel.create({ workspaceId: ctx.workspaceId, userId: ctx.userId, operation, idempotencyKey, payloadHash, result });
+      return result;
     } catch (error) {
       if ((error as { code?: number }).code === 11000) {
+        const existing = await AccountModel.findOne({ workspaceId: ctx.workspaceId, name, type: input.type, active: { $ne: false } }).lean();
+        if (existing) {
+          const result = serialize(existing);
+          if (idempotencyKey) {
+            try { await McpMutationModel.create({ workspaceId: ctx.workspaceId, userId: ctx.userId, operation, idempotencyKey, payloadHash, result }); } catch (mutationError) { if ((mutationError as { code?: number }).code !== 11000) throw mutationError; }
+          }
+          return result;
+        }
         throw new ApiError(409, "ACCOUNT_EXISTS", "Tài khoản đã tồn tại trong workspace.");
       }
       throw error;
