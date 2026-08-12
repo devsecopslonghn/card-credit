@@ -38,7 +38,11 @@ FinancialTransactionSchema.index({ workspaceId: 1, accountId: 1, transactionDate
 FinancialTransactionSchema.index({ workspaceId: 1, categoryId: 1, transactionDate: -1 });
 FinancialTransactionSchema.index(
   { workspaceId: 1, legacyTransactionId: 1 },
-  { name: "financial_transaction_legacy_unique", unique: true, sparse: true },
+  {
+    name: "financial_transaction_legacy_unique",
+    unique: true,
+    partialFilterExpression: { legacyTransactionId: { $type: "objectId" } },
+  },
 );
 
 export const FinancialTransactionModel =

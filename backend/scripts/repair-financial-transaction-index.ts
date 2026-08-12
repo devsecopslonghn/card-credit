@@ -22,7 +22,11 @@ try {
     }
     await collection.createIndex(
       { workspaceId: 1, legacyTransactionId: 1 },
-      { name: "financial_transaction_legacy_unique", unique: true, sparse: true },
+      {
+        name: "financial_transaction_legacy_unique",
+        unique: true,
+        partialFilterExpression: { legacyTransactionId: { $type: "objectId" } },
+      },
     );
     console.log(JSON.stringify({ repaired: true, removedNullLinks: nullCount }));
   }
