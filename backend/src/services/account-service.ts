@@ -1,4 +1,5 @@
 import { AccountModel } from "../models/account.js";
+import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { ApiError } from "../errors.js";
 import { idOf, plain } from "../statement-domain.js";
 import { accountGroup, type AccountType } from "../financial-domain.js";
@@ -30,7 +31,20 @@ export class AccountService {
     const accounts = await AccountModel.find({ workspaceId: ctx.workspaceId })
       .sort({ active: -1, createdAt: -1 })
       .lean();
-    return accounts.map(serialize);
+    const balances = await FinancialTransactionModel.aggregate([
+      { $match: { workspaceId: ctx.workspaceId } },
+      { $group: { _id: "$accountId", debitCashflow: { $sum: "$debitCashflow" }, creditDebt: { $sum: "$creditDebt" } } },
+    ]);
+    const balanceById = new Map(balances.map((item) => [String(item._id), item]));
+    return accounts.map((account) => {
+      const totals = balanceById.get(String(account._id)) ?? { debitCashflow: 0, creditDebt: 0 };
+      const openingBalance = Number(account.openingBalance ?? 0);
+      return {
+        ...serialize(account),
+        currentBalance: openingBalance + (String(account.type) === "CREDIT" ? 0 : Number(totals.debitCashflow ?? 0)),
+        currentDebt: openingBalance + Number(totals.creditDebt ?? 0),
+      };
+    });
   }
 
   static async create(ctx: ServiceContext, input: CreateAccountInput) {

@@ -41,6 +41,8 @@ export type FinanceAccount = {
   active: boolean;
   creditCardId: string | null;
   openingBalance: number;
+  currentBalance: number;
+  currentDebt: number;
 };
 
 export const listFinanceAccounts = () => request<FinanceAccount[]>("/api/accounts");
