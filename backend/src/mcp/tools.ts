@@ -14,7 +14,13 @@ const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSO
 
 export const registerMcpTools = (server: McpServer, ctx: ServiceContext) => {
   server.registerTool("get_statement_summary", { description: "Read a workspace-scoped credit-card statement summary.", inputSchema: { statementId: z.string().min(1) } }, async ({ statementId }) => json(await StatementService.getSummary(ctx, statementId)));
-  server.registerTool("list_transactions", { description: "List workspace-scoped credit-card transactions.", inputSchema: { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), cardId: z.string().min(1).optional(), statementId: z.string().min(1).optional() } }, async (filters) => json(await TransactionService.list(ctx, filters)));
+  server.registerTool("list_transactions", { description: "List all workspace-scoped financial transactions, including debit, cash and credit. Also returns legacy credit-card transactions for compatibility.", inputSchema: { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), cardId: z.string().min(1).optional(), statementId: z.string().min(1).optional() } }, async (filters) => json({
+    financialTransactions: await FinancialTransactionService.list(ctx, {
+      from: filters.date,
+      to: filters.date,
+    }),
+    legacyCreditTransactions: await TransactionService.list(ctx, filters),
+  }));
   server.registerTool("compare_cards", { description: "Compare active cards in the fixed workspace.", inputSchema: {} }, async () => json(await CardService.compare(ctx)));
   server.registerTool("list_upcoming_statements", { description: "List unpaid statements ordered by payment due date.", inputSchema: { limit: z.number().int().min(1).max(50).default(20) } }, async ({ limit }) => json(await StatementService.listUpcoming(ctx, limit)));
   server.registerTool("preview_create_transaction", { description: "Prepare a transaction change. Does not write data.", inputSchema: { userCardId: z.string().min(1), transactionDate: z.string(), outcomeAmount: z.number().int().positive(), incomeAmount: z.number().int().nonnegative().optional(), partnerReturnRateBps: z.number().int().min(0).max(10000).optional(), cashbackRateBps: z.number().int().min(0).max(10000), note: z.string().max(1000).optional() } }, async (payload) => json({ operation: "create_transaction", payload, confirmationToken: createPreviewToken("create_transaction", payload), expiresInSeconds: 300 }));
