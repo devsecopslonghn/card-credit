@@ -6,7 +6,6 @@ import { CreditCardModel } from "./models/credit-card.js";
 import { CardTransactionModel } from "./models/card-transaction.js";
 import { CardStatementModel } from "./models/card-statement.js";
 import {
-  derived,
   effectivePaymentStatus,
   idOf,
   integer,
@@ -21,6 +20,7 @@ import type { AuthRepository } from "./auth-repository.js";
 import { MailDeliveryError, MailUnavailableError, maskEmail, type MailService } from "./mail-service.js";
 import { composeStatementCalendarEmail } from "./statement-calendar-email.js";
 import { projectStatementCalendar, serializeStatementCalendar } from "./statement-calendar.js";
+import { TransactionService } from "./services/transaction-service.js";
 
 const Cards = CreditCardModel as mongoose.Model<Data>;
 const Transactions = CardTransactionModel;
@@ -94,48 +94,6 @@ const getOrCreateStatement = async (
     { upsert: true, returnDocument: "after" },
   );
 };
-const statementJson = (
-  statement: unknown,
-  transactions: Data[],
-  card: Data,
-) => {
-  const value = plain(statement);
-  const summary = summarize(transactions, card.cashbackCapAmount);
-  return {
-    ...value,
-    _id: idOf(value._id),
-    userCardId: idOf(value.userCardId),
-    effectivePaymentStatus: effectivePaymentStatus(value),
-    summary,
-    cashbackCapAmount: card.cashbackCapAmount ?? null,
-    cashbackCapPeriod: card.cashbackCapPeriod ?? "STATEMENT",
-  };
-};
-const transactionJson = (
-  transaction: unknown,
-  statement?: unknown,
-  card?: Data,
-) => {
-  const value = plain(transaction);
-  return {
-    ...value,
-    _id: idOf(value._id),
-    userCardId: idOf(value.userCardId),
-    statementId: idOf(value.statementId),
-    derived: derived(value),
-    statement:
-      statement && card ? statementJson(statement, [], card) : undefined,
-    card: card
-      ? {
-          _id: idOf(card._id),
-          providerName: card.providerName ?? card.bank,
-          displayName: card.displayName ?? card.name,
-          network: card.network ?? card.type,
-          owner: card.owner ?? "Tôi",
-        }
-      : undefined,
-  };
-};
 const groupTransactionsByStatement = (transactions: Data[]) => {
   const grouped = new Map<string, Data[]>();
   for (const transaction of transactions) {
@@ -175,55 +133,21 @@ export const registerTransactionRoutes = (
     };
   }>("/api/card-transactions", async (request) => {
     const session = sessionFromRequest(request, secret);
-    const query: Data = { workspaceId: session.workspaceId };
     const cardId = request.query.cardId ?? request.query.userCardId;
     if (request.query.date) {
       if (!validDate(request.query.date))
         throw new ApiError(400, "INVALID_DATE", "Ngày không hợp lệ.");
-      query.transactionDate = request.query.date;
     }
     if (cardId) {
       objectId(cardId, "cardId");
-      query.userCardId = cardId;
     }
     if (request.query.statementId) {
       objectId(request.query.statementId, "statementId");
-      query.statementId = request.query.statementId;
     }
-    const items = await Transactions.find(query).sort({
-      transactionDate: -1,
-      createdAt: -1,
-    });
-    const values = items.map(plain);
-    const cardIds = [...new Set(values.map((item) => idOf(item.userCardId)).filter(Boolean))];
-    const statementIds = [
-      ...new Set(values.map((item) => idOf(item.statementId)).filter(Boolean)),
-    ];
-    const [cards, statements] = await Promise.all([
-      cardIds.length
-        ? Cards.find({
-            _id: { $in: cardIds },
-            workspaceId: session.workspaceId,
-          })
-        : [],
-      statementIds.length
-        ? Statements.find({
-            _id: { $in: statementIds },
-            workspaceId: session.workspaceId,
-          })
-        : [],
-    ]);
-    const cardById = new Map(cards.map((card) => [idOf(card._id), plain(card)]));
-    const statementById = new Map(
-      statements.map((statement) => [idOf(statement._id), statement]),
-    );
     return {
-      data: items.map((item, index) =>
-        transactionJson(
-          item,
-          statementById.get(idOf(values[index]?.statementId)),
-          cardById.get(idOf(values[index]?.userCardId)),
-        ),
+      data: await TransactionService.list(
+        { workspaceId: session.workspaceId, userId: session.userId, role: session.role },
+        { date: request.query.date, cardId, statementId: request.query.statementId },
       ),
     };
   });
@@ -255,7 +179,7 @@ export const registerTransactionRoutes = (
     return reply
       .code(201)
       .send({
-        data: transactionJson(item, statement, card),
+        data: TransactionService.serializeTransaction(item, statement, card),
         requiresClosedStatementConfirmation:
           statement?.paymentStatus === "STATEMENT_CLOSED",
       });
@@ -291,7 +215,7 @@ export const registerTransactionRoutes = (
         { returnDocument: "after" },
       );
       return {
-        data: transactionJson(item, statement, card),
+        data: TransactionService.serializeTransaction(item, statement, card),
         requiresClosedStatementConfirmation:
           oldStatement?.paymentStatus === "STATEMENT_CLOSED" ||
           statement?.paymentStatus === "STATEMENT_CLOSED",
@@ -360,7 +284,7 @@ export const registerTransactionRoutes = (
         workspaceId: session.workspaceId,
       });
       return {
-        data: transactionJson(item, statement, card ? plain(card) : undefined),
+        data: TransactionService.serializeTransaction(item, statement, card ? plain(card) : undefined),
         requiresClosedStatementConfirmation:
           statement?.paymentStatus === "STATEMENT_CLOSED",
       };
@@ -403,13 +327,13 @@ export const registerTransactionRoutes = (
           const statementTransactions =
             transactionsByStatement.get(idOf(statement._id)) ?? [];
           return {
-            ...statementJson(
+            ...TransactionService.serializeStatement(
               statement,
               statementTransactions,
               card,
             ),
             transactions: statementTransactions.map((transaction) =>
-              transactionJson(transaction),
+              TransactionService.serializeTransaction(transaction),
             ),
           };
         });
@@ -438,7 +362,7 @@ export const registerTransactionRoutes = (
       const transactionsByStatement = groupTransactionsByStatement(transactions);
       return {
         data: statements.map((statement) =>
-          statementJson(
+          TransactionService.serializeStatement(
             statement,
             transactionsByStatement.get(idOf(statement._id)) ?? [],
             card,
@@ -463,9 +387,9 @@ export const registerTransactionRoutes = (
       }).sort({ transactionDate: -1, createdAt: -1 });
       return {
         data: {
-          ...statementJson(statement, transactions.map(plain), card),
+          ...TransactionService.serializeStatement(statement, transactions.map(plain), card),
           transactions: transactions.map((item) =>
-            transactionJson(item, statement, card),
+            TransactionService.serializeTransaction(item, statement, card),
           ),
         },
       };
@@ -519,7 +443,7 @@ export const registerTransactionRoutes = (
         { $set: update },
         { returnDocument: "after" },
       );
-      return { data: statementJson(result, transactions.map(plain), card) };
+      return { data: TransactionService.serializeStatement(result, transactions.map(plain), card) };
     },
   );
   if (calendarEmail) app.post<{

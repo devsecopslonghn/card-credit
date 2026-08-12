@@ -123,6 +123,16 @@ cd ../backend && npm ci && npm run validate
 cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm run build
 ```
 
+## MCP remote server
+
+The backend exposes a remote Streamable HTTP MCP endpoint at `/mcp` for
+OpenClaw with Codex. It uses a fixed user/workspace and does not implement
+login or multi-user access.
+
+Required runtime variables are `MONGODB_URI`, `AUTH_SECRET`, `MCP_USER_ID`,
+`MCP_WORKSPACE_ID`, `MCP_HTTP_TOKEN`, and `MCP_PREVIEW_SECRET`. Requests must
+send `Authorization: Bearer <MCP_HTTP_TOKEN>`.
+
 Jenkins dùng Kubernetes agent và rootless BuildKit, build cả frontend/backend
 image với cùng immutable Git SHA, push lên Nexus và cập nhật image tag trong repo
 GitOps. Hai Dockerfile thực thi validation tương ứng trong build stages. Jenkins

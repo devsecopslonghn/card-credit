@@ -23,10 +23,13 @@ import { registerNotificationRoutes } from "./notification-routes.js";
 import { registerFeeCenterRoutes } from "./fee-center-routes.js";
 import { registerCashFlowRoutes } from "./cash-flow-routes.js";
 import { syncCatalogFromFile } from "./catalog-sync.js";
+import { registerMcpHttp } from "./mcp/http.js";
+import { fixedMcpContext } from "./mcp/context.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
 const app = buildApp(database, config.logLevel, new MongoCatalogRepository(), config.authSecret, writeCatalogAudit);
+if (config.mcpHttpToken) registerMcpHttp(app, fixedMcpContext(), config.mcpHttpToken);
 const authRepository = new MongoAuthRepository();
 registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
 registerUserRoutes(app, authRepository, config.authSecret);

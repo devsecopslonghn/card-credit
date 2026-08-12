@@ -10,6 +10,7 @@ export type BackendConfig = {
   returnResetToken: boolean;
   reminderScanIntervalMs: number;
   reminderClaimTimeoutMs: number;
+  mcpHttpToken?: string;
 };
 
 const required = (env: NodeJS.ProcessEnv, name: string) => {
@@ -56,5 +57,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     returnResetToken: env.PASSWORD_RESET_RETURN_TOKEN === "true",
     reminderScanIntervalMs: env.NODE_ENV === "test" ? 0 : integer(env.REMINDER_SCAN_INTERVAL_MS, 60000, "REMINDER_SCAN_INTERVAL_MS"),
     reminderClaimTimeoutMs: duration(env.REMINDER_CLAIM_TIMEOUT_MS, 300000, "REMINDER_CLAIM_TIMEOUT_MS"),
+    mcpHttpToken: env.MCP_HTTP_TOKEN?.trim() || undefined,
   };
 };
