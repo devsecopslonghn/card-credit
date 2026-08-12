@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { composeStatementCalendarEmail } from "../src/statement-calendar-email.js";
 import { projectStatementCalendar, serializeStatementCalendar } from "../src/statement-calendar.js";
-import { effectivePaymentStatus } from "../src/statement-domain.js";
+import { effectivePaymentStatus, isOverdue, isPaid, isUnpaid } from "../src/statement-domain.js";
 
 const input = {
   identity: "workspace/card/statement",
@@ -57,6 +57,10 @@ test("effective status preserves paid/open and derives overdue without changing 
   assert.equal(effectivePaymentStatus({ paymentStatus: "OPEN", paymentDueDate: "2026-07-12" }, "2026-07-11"), "OPEN");
   assert.equal(effectivePaymentStatus({ paymentStatus: "OPEN", paymentDueDate: "2026-07-11" }, "2026-07-11"), "OPEN");
   assert.equal(effectivePaymentStatus({ paymentStatus: "STATEMENT_CLOSED", paymentDueDate: "2026-07-10" }, "2026-07-11"), "OVERDUE");
+  assert.equal(isPaid({ paymentStatus: "PAID" }), true);
+  assert.equal(isUnpaid({ paymentStatus: "STATEMENT_CLOSED" }), true);
+  assert.equal(isOverdue({ paymentStatus: "STATEMENT_CLOSED", paymentDueDate: "2026-07-10" }, "2026-07-11"), true);
+  assert.equal(isOverdue({ paymentStatus: "STATEMENT_CLOSED", paymentDueDate: "2026-07-11" }, "2026-07-11"), false);
 });
 
 test("email composer creates safe Vietnamese multipart content and calendar filename", () => {

@@ -252,9 +252,14 @@ export const summarize = (transactions: Data[], capValue: unknown = null) => {
   };
 };
 
-export const effectivePaymentStatus = (statement: Data, today = new Date().toISOString().slice(0, 10)) =>
-  statement.paymentStatus !== "PAID" &&
+export type StoredPaymentStatus = "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
+export type EffectivePaymentStatus = StoredPaymentStatus;
+
+export const isPaid = (statement: Data) => statement.paymentStatus === "PAID";
+export const isUnpaid = (statement: Data) => !isPaid(statement);
+export const isOverdue = (statement: Data, today = new Date().toISOString().slice(0, 10)) =>
+  isUnpaid(statement) &&
   typeof statement.paymentDueDate === "string" &&
-  statement.paymentDueDate < today
-    ? "OVERDUE"
-    : String(statement.paymentStatus ?? "OPEN");
+  statement.paymentDueDate < today;
+export const effectivePaymentStatus = (statement: Data, today = new Date().toISOString().slice(0, 10)): EffectivePaymentStatus =>
+  isOverdue(statement, today) ? "OVERDUE" : String(statement.paymentStatus ?? "OPEN") as EffectivePaymentStatus;

@@ -1,7 +1,7 @@
 import { CardStatementModel } from "../models/card-statement.js";
 import { CardTransactionModel } from "../models/card-transaction.js";
 import { CreditCardModel } from "../models/credit-card.js";
-import { effectivePaymentStatus, idOf, plain, summarize } from "../statement-domain.js";
+import { effectivePaymentStatus, idOf, isOverdue, isUnpaid, plain, summarize } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 
 export class StatementService {
@@ -22,6 +22,8 @@ export class StatementService {
       paymentDueDate: String(value.paymentDueDate),
       paymentStatus: value.paymentStatus,
       effectivePaymentStatus: effectivePaymentStatus(value),
+      isUnpaid: isUnpaid(value),
+      isOverdue: isOverdue(value),
       summary: summarize(transactions, cardValue.cashbackCapAmount),
       currency: "VND",
     };
