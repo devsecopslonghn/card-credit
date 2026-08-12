@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 const secret = () => process.env.MCP_PREVIEW_SECRET?.trim() || process.env.AUTH_SECRET || "";
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
 export const createPreviewToken = (operation: string, payload: unknown) => {
-  const body = encode({ operation, payload, expiresAt: Date.now() + 5 * 60_000 });
+  const body = encode({ operation, payload, expiresAt: Date.now() + 30 * 60_000 });
   const signature = crypto.createHmac("sha256", secret()).update(body).digest("base64url");
   return `${body}.${signature}`;
 };

@@ -23,6 +23,7 @@ export type CreateFinancialTransactionInput = {
   note?: string;
   statementId?: string;
 };
+export type CreateFinancialTransactionBatchInput = { items: CreateFinancialTransactionInput[] };
 
 const serialize = (value: unknown) => {
   const item = plain(value);
@@ -56,6 +57,30 @@ const normalizedNote = (note: unknown) => {
 };
 
 export class FinancialTransactionService {
+  static async createBatch(ctx: ServiceContext, input: CreateFinancialTransactionBatchInput, idempotencyKey: string) {
+    if (input.items.length < 1 || input.items.length > 50) throw new ApiError(400, "INVALID_TRANSACTION_BATCH", "Batch phải từ 1 đến 50 giao dịch.");
+    if (idempotencyKey.trim().length < 8) throw new ApiError(400, "INVALID_IDEMPOTENCY_KEY", "Idempotency key không hợp lệ.");
+    const session = await mongoose.startSession();
+    try {
+      let output: unknown;
+      await session.withTransaction(async () => {
+        const operation = "import_financial_transaction_batch";
+        const payloadHash = crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
+        const existing = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();
+        if (existing) {
+          if (existing.payloadHash !== payloadHash) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
+          output = existing.result;
+          return;
+        }
+        const items = [];
+        for (const item of input.items) items.push(await this.createInternal(ctx, item, session));
+        output = { count: items.length, items };
+        await McpMutationModel.create([{ workspaceId: ctx.workspaceId, userId: ctx.userId, operation, idempotencyKey, payloadHash, result: output }], { session });
+      });
+      return output;
+    } finally { await session.endSession(); }
+  }
+
   static async create(ctx: ServiceContext, input: CreateFinancialTransactionInput, idempotencyKey?: string) {
     if (!idempotencyKey) return this.createInternal(ctx, input);
     if (idempotencyKey.trim().length < 8) throw new ApiError(400, "INVALID_IDEMPOTENCY_KEY", "Idempotency key không hợp lệ.");
