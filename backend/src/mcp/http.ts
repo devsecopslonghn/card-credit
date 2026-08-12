@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { randomUUID } from "node:crypto";
 import { createMcpServer } from "./tools.js";
 import type { ServiceContext } from "../services/types/service-context.js";
 
@@ -10,12 +12,21 @@ const authorized = (request: FastifyRequest, token: string) => {
 };
 
 export const registerMcpHttp = (app: FastifyInstance, ctx: ServiceContext, token: string) => {
-  app.post<{ Body: unknown }>("/mcp", async (request, reply) => {
+  const transports = new Map<string, StreamableHTTPServerTransport>();
+  const handle = async (request: FastifyRequest<{ Body: unknown }>, reply: import("fastify").FastifyReply) => {
     if (!authorized(request, token)) return reply.code(401).header("WWW-Authenticate", "Bearer").send({ error: "MCP_UNAUTHORIZED" });
     reply.hijack();
-    const server = createMcpServer(ctx);
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    await server.connect(transport);
+    const sessionId = request.headers["mcp-session-id"];
+    let transport = typeof sessionId === "string" ? transports.get(sessionId) : undefined;
+    if (!transport && request.method === "POST" && isInitializeRequest(request.body)) {
+      const created = new StreamableHTTPServerTransport({ sessionIdGenerator: randomUUID, onsessioninitialized: (id) => { transports.set(id, created); }, onsessionclosed: (id) => { transports.delete(id); } });
+      transport = created;
+      await createMcpServer(ctx).connect(transport);
+    }
+    if (!transport) return reply.code(400).send({ error: "MCP_SESSION_REQUIRED" });
     await transport.handleRequest(request.raw, reply.raw, request.body);
-  });
+  };
+  app.post<{ Body: unknown }>("/mcp", handle);
+  app.get<{ Body: unknown }>("/mcp", handle);
+  app.delete<{ Body: unknown }>("/mcp", handle);
 };
