@@ -25,11 +25,13 @@ import { registerCashFlowRoutes } from "./cash-flow-routes.js";
 import { syncCatalogFromFile } from "./catalog-sync.js";
 import { registerMcpHttp } from "./mcp/http.js";
 import { fixedMcpContext } from "./mcp/context.js";
+import { registerApiDocs } from "./api-docs.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
 const app = buildApp(database, config.logLevel, new MongoCatalogRepository(), config.authSecret, writeCatalogAudit);
 if (config.mcpHttpToken) registerMcpHttp(app, fixedMcpContext(), config.mcpHttpToken);
+if (process.env.API_DOCS_ENABLED !== "false") await registerApiDocs(app);
 const authRepository = new MongoAuthRepository();
 registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
 registerUserRoutes(app, authRepository, config.authSecret);

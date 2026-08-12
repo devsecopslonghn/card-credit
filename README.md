@@ -133,6 +133,12 @@ Required runtime variables are `MONGODB_URI`, `AUTH_SECRET`, `MCP_USER_ID`,
 `MCP_WORKSPACE_ID`, `MCP_HTTP_TOKEN`, and `MCP_PREVIEW_SECRET`. Requests must
 send `Authorization: Bearer <MCP_HTTP_TOKEN>`.
 
+## API documentation
+
+Swagger UI is available at `/docs`; the OpenAPI JSON is available at
+`/docs/json`. The document covers REST endpoints and MCP tools. Set
+`API_DOCS_ENABLED=false` to disable it.
+
 Jenkins dùng Kubernetes agent và rootless BuildKit, build cả frontend/backend
 image với cùng immutable Git SHA, push lên Nexus và cập nhật image tag trong repo
 GitOps. Hai Dockerfile thực thi validation tương ứng trong build stages. Jenkins
