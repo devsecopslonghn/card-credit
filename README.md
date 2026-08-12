@@ -175,6 +175,11 @@ Mutation luôn theo luồng `preview -> human confirm -> idempotent confirm`.
 MCP không tự chọn user/workspace, tự tính quota, tự tính statement hoặc truy cập
 MongoDB trực tiếp.
 
+Account types:
+
+- `DEBIT`, `CASH`, `E_WALLET`: nhóm `REAL_MONEY`, được tính vào tiền đang nắm giữ.
+- `CREDIT`: nhóm `DEBT`, chỉ tính vào dư nợ, không cộng vào số dư khả dụng.
+
 Các MCP tool transaction/payment legacy đã được loại bỏ. MCP chỉ ghi giao dịch
 qua Financial Domain; dữ liệu credit cũ chỉ được giữ cho migration và các REST
 adapter chưa migrate.

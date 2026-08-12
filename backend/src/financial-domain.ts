@@ -1,6 +1,8 @@
 import { ApiError } from "./errors.js";
 
-export type AccountType = "DEBIT" | "CASH" | "CREDIT";
+export type AccountType = "DEBIT" | "CASH" | "E_WALLET" | "CREDIT";
+export type AccountGroup = "REAL_MONEY" | "DEBT";
+export const accountGroup = (type: AccountType): AccountGroup => type === "CREDIT" ? "DEBT" : "REAL_MONEY";
 export type Ownership = "PERSONAL" | "PAID_FOR_OTHER";
 export type FinancialTransactionType =
   | "EXPENSE"
@@ -72,10 +74,10 @@ export const calculateFinancialImpact = (
   const isOutflow = type === "EXPENSE";
   const isCreditCharge = input.accountType === "CREDIT" && isOutflow;
   const isDebitOutflow =
-    (input.accountType === "DEBIT" || input.accountType === "CASH") &&
+    (input.accountType !== "CREDIT") &&
     (isOutflow || type === "STATEMENT_PAYMENT");
   const isDebitInflow =
-    (input.accountType === "DEBIT" || input.accountType === "CASH") &&
+    (input.accountType !== "CREDIT") &&
     ["REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME"].includes(type);
   const personalSpending = isOutflow
     ? Math.max(

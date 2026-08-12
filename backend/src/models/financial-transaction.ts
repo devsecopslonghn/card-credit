@@ -9,7 +9,7 @@ const FinancialTransactionSchema = new Schema(
     // Optional legacy link. Keep it absent for new transactions so the sparse
     // unique index does not treat multiple missing links as the same value.
     legacyTransactionId: { type: Schema.Types.ObjectId, ref: "CardTransaction" },
-    accountType: { type: String, enum: ["DEBIT", "CASH", "CREDIT"], required: true },
+    accountType: { type: String, enum: ["DEBIT", "CASH", "E_WALLET", "CREDIT"], required: true },
     transactionType: {
       type: String,
       enum: ["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT"],

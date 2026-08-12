@@ -1,7 +1,7 @@
 import { AccountModel } from "../models/account.js";
 import { ApiError } from "../errors.js";
 import { idOf, plain } from "../statement-domain.js";
-import type { AccountType } from "../financial-domain.js";
+import { accountGroup, type AccountType } from "../financial-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 
 type CreateAccountInput = {
@@ -17,6 +17,7 @@ const serialize = (value: unknown) => {
     id: idOf(item._id),
     name: item.name,
     type: item.type,
+    group: accountGroup(item.type as AccountType),
     currency: item.currency ?? "VND",
     active: item.active !== false,
     creditCardId: item.creditCardId ? idOf(item.creditCardId) : null,

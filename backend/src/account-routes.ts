@@ -10,7 +10,7 @@ type Body = {
   openingBalance?: unknown;
 };
 
-const accountTypes = new Set<AccountType>(["DEBIT", "CASH", "CREDIT"]);
+const accountTypes = new Set<AccountType>(["DEBIT", "CASH", "E_WALLET", "CREDIT"]);
 
 export const registerAccountRoutes = (app: FastifyInstance, secret: string) => {
   app.get("/api/accounts", async (request) => {
@@ -26,7 +26,7 @@ export const registerAccountRoutes = (app: FastifyInstance, secret: string) => {
     const creditCardId = typeof body.creditCardId === "string" ? body.creditCardId : undefined;
     const openingBalance = body.openingBalance === undefined ? undefined : Number(body.openingBalance);
     if (!type) {
-      return reply.status(400).send({ error: { code: "INVALID_ACCOUNT", message: "type phải là DEBIT, CASH hoặc CREDIT." } });
+      return reply.status(400).send({ error: { code: "INVALID_ACCOUNT", message: "type phải là DEBIT, CASH, E_WALLET hoặc CREDIT." } });
     }
     return reply.status(201).send({
       data: await AccountService.create(sessionFromRequest(request, secret), {

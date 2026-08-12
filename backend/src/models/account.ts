@@ -5,7 +5,7 @@ const AccountSchema = new Schema(
     userId: { type: String, required: true },
     workspaceId: { type: String, required: true },
     name: { type: String, required: true, trim: true, maxlength: 120 },
-    type: { type: String, enum: ["DEBIT", "CASH", "CREDIT"], required: true },
+    type: { type: String, enum: ["DEBIT", "CASH", "E_WALLET", "CREDIT"], required: true },
     currency: { type: String, default: "VND", enum: ["VND"] },
     active: { type: Boolean, default: true },
     // Only CREDIT accounts use these fields. They are snapshots of card terms.

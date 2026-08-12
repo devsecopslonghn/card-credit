@@ -93,6 +93,8 @@ export class FinancialReportService {
       totals,
       debit: byAccountType.get("DEBIT") ?? empty(),
       cash: byAccountType.get("CASH") ?? empty(),
+      eWallet: byAccountType.get("E_WALLET") ?? empty(),
+      realMoney: ["DEBIT", "CASH", "E_WALLET"].reduce((total, type) => { const value = byAccountType.get(type); if (value) { total.personalSpending += value.personalSpending; total.debitCashflow += value.debitCashflow; total.creditDebt += value.creditDebt; total.outstandingReceivable += value.outstandingReceivable; total.reimbursementReceived += value.reimbursementReceived; total.transactionCount += value.transactionCount; } return total; }, empty()),
       credit: byAccountType.get("CREDIT") ?? empty(),
       byCategory: Object.fromEntries(byCategory),
       byAccount: Object.fromEntries([...byAccount.entries()].map(([id, value]) => [id, { name: accountNames.get(id) ?? "", ...value }])),

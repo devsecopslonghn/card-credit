@@ -10,7 +10,7 @@ export type FinancialTransaction = {
   id: string;
   accountId: string;
   statementId: string | null;
-  accountType: "DEBIT" | "CASH" | "CREDIT";
+  accountType: "DEBIT" | "CASH" | "E_WALLET" | "CREDIT";
   transactionType: string;
   ownership: "PERSONAL" | "PAID_FOR_OTHER";
   amount: number;
@@ -31,3 +31,16 @@ export const listFinancialTransactions = (query = "") => request<FinancialTransa
 export const getFinancialSummary = (from: string, to: string) => request(`/api/financial-reports/summary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
 export const getCreditStatements = (from?: string, to?: string) => request(`/api/financial-reports/credit-statements${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`);
 export const getBudgetStatus = (month: string) => request(`/api/finance/budgets/status?month=${encodeURIComponent(month)}`);
+
+export type FinanceAccount = {
+  id: string;
+  name: string;
+  type: "DEBIT" | "CASH" | "E_WALLET" | "CREDIT";
+  group: "REAL_MONEY" | "DEBT";
+  currency: "VND";
+  active: boolean;
+  creditCardId: string | null;
+  openingBalance: number;
+};
+
+export const listFinanceAccounts = () => request<FinanceAccount[]>("/api/accounts");
