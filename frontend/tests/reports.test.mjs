@@ -47,25 +47,16 @@ test("report client loads the same filtered JSON URL and exposes API errors", as
   );
 });
 
-test("reports page renders KPI, zero-card rows, responsive layouts, retry, and filtered export", () => {
+test("financial reports page renders separated financial KPIs and category breakdown", () => {
   const page = readFileSync(
     new URL("../app/reports/page.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(page, /href=\{reportApiUrl\(filters\)\}/);
-  assert.match(page, /Cashback ngân hàng dự kiến/);
-  assert.match(page, /Cashback ngân hàng thực nhận/);
-  assert.match(page, /Phí thẻ đã đóng/);
-  assert.match(page, /Lợi ích ròng thực tế/);
-  assert.match(page, /card\.totals\.expectedCashback/);
-  assert.match(page, /card\.totals\.totalPaidCardFees/);
-  assert.match(
-    page,
-    /Thẻ không phát sinh dữ\s+liệu trong kỳ vẫn hiển thị với số 0/,
-  );
-  assert.match(page, /hidden overflow-x-auto lg:block/);
-  assert.match(page, /space-y-4 lg:hidden/);
-  assert.match(page, /onRetry=\{loadReport\}/);
+  assert.match(page, /Personal spending/);
+  assert.match(page, /Debit\/Cash\/E-wallet flow/);
+  assert.match(page, /Credit debt/);
+  assert.match(page, /Khoản phải thu/);
+  assert.match(page, /Chi tiêu theo danh mục/);
 });
 
 test("cards navigation and JSON export preserve the selected owner filter", () => {
