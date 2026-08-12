@@ -9,7 +9,7 @@ const AccountSchema = new Schema(
     currency: { type: String, default: "VND", enum: ["VND"] },
     active: { type: Boolean, default: true },
     // Only CREDIT accounts use these fields. They are snapshots of card terms.
-    creditCardId: { type: Schema.Types.ObjectId, ref: "CreditCard", default: null },
+    creditCardId: { type: Schema.Types.ObjectId, ref: "CreditCard" },
     openingBalance: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true },
@@ -17,7 +17,14 @@ const AccountSchema = new Schema(
 
 AccountSchema.index({ workspaceId: 1, active: 1, createdAt: -1 });
 AccountSchema.index({ workspaceId: 1, name: 1 }, { unique: true });
-AccountSchema.index({ workspaceId: 1, creditCardId: 1 }, { unique: true, sparse: true });
+AccountSchema.index(
+  { workspaceId: 1, creditCardId: 1 },
+  {
+    name: "account_credit_card_unique",
+    unique: true,
+    partialFilterExpression: { creditCardId: { $type: "objectId" } },
+  },
+);
 
 export const AccountModel =
   (mongoose.models.Account ?? mongoose.model("Account", AccountSchema)) as mongoose.Model<
