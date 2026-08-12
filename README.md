@@ -3,6 +3,31 @@
 Card Credit quản lý thẻ tín dụng, giao dịch, kỳ sao kê, cashback, ghi chú,
 master data và Card Catalog theo workspace.
 
+Hiện repository đã mở rộng thành hệ thống quản lý tài chính cá nhân. Credit
+card là một phương thức thanh toán trong Financial Domain, không phải toàn bộ
+financial model.
+
+## Financial Domain
+
+Input dùng chung cho debit, cash và credit, nhưng hệ thống tách ba góc nhìn:
+
+- `personalSpending`: chi phí thực sự thuộc về cá nhân.
+- `debitCashflow`: tiền debit/cash thực tế vào hoặc ra.
+- `creditDebt`: khoản nợ credit card và statement.
+
+Quy tắc chính:
+
+- Mua bằng credit làm tăng `creditDebt`, chưa làm giảm `debitCashflow`.
+- Trả statement làm giảm credit debt và debit cashflow, không tạo thêm expense.
+- Chi hộ vẫn ghi gross charge vào statement; chỉ phần không được hoàn tính vào
+  personal spending.
+- Reimbursement, refund và cashback là các loại settlement khác nhau.
+- Budget tính theo personal spending, không tính statement payment.
+
+Các module chính gồm Accounts, Financial Transactions, Credit Statements,
+Categories, Budgets, Recurring Expenses và Reports. Business calculation nằm
+trong backend domain/service; REST là adapter và MCP chỉ parse rồi gọi service.
+
 ## Kiến trúc
 
 - `frontend/`: Next.js 16 và React 19, chỉ chứa UI, browser clients và static assets.
@@ -132,6 +157,92 @@ login or multi-user access.
 Required runtime variables are `MONGODB_URI`, `AUTH_SECRET`, `MCP_USER_ID`,
 `MCP_WORKSPACE_ID`, `MCP_HTTP_TOKEN`, and `MCP_PREVIEW_SECRET`. Requests must
 send `Authorization: Bearer <MCP_HTTP_TOKEN>`.
+
+Financial MCP tools:
+
+- `get_personal_finance_summary`
+- `preview_import_financial_transaction`
+- `confirm_import_financial_transaction`
+
+Mutation luôn theo luồng `preview -> human confirm -> idempotent confirm`.
+MCP không tự chọn user/workspace, tự tính quota, tự tính statement hoặc truy cập
+MongoDB trực tiếp.
+
+## Financial API nhanh
+
+```text
+GET  /api/accounts
+POST /api/accounts
+GET  /api/financial-transactions
+POST /api/financial-transactions
+GET  /api/financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
+GET  /api/financial-reports/credit-statements
+GET  /api/finance/categories
+POST /api/finance/categories
+PUT  /api/finance/budgets
+GET  /api/finance/budgets/status?month=YYYY-MM
+GET  /api/finance/recurring-expenses
+POST /api/finance/recurring-expenses
+```
+
+Swagger UI: `/docs`. MCP endpoint: `/mcp`.
+
+## Migration dữ liệu card cũ
+
+Migration đã apply cho workspace MCP:
+
+```text
+workspace: longhn0710-workspace
+cards: 5
+accounts created: 5
+transactions migrated: 14
+```
+
+Script mặc định dry-run và bắt buộc scope workspace:
+
+```bash
+cd backend
+MONGODB_URI="..." \
+FINANCE_MIGRATION_WORKSPACE_ID="longhn0710-workspace" \
+npm run migrate:finance
+```
+
+Chỉ apply sau khi review dry-run và backup:
+
+```bash
+MONGODB_URI="..." \
+FINANCE_MIGRATION_WORKSPACE_ID="longhn0710-workspace" \
+CONFIRM_FINANCE_MIGRATION=YES \
+npm run migrate:finance -- --apply
+```
+
+Migration idempotent qua `legacyTransactionId`. Xem chi tiết tại
+[finance-domain-plan](docs/finance-domain-plan.md).
+
+## Bước tiếp theo sau khi push/deploy
+
+1. Theo dõi Jenkins build theo Git SHA mới.
+2. Chờ image publish và Argo CD reconcile.
+3. Kiểm tra rollout:
+
+   ```bash
+   kubectl -n card-credit rollout status deploy/card-credit-backend
+   kubectl -n card-credit get pods
+   ```
+
+4. Kiểm tra readiness và Swagger:
+
+   ```bash
+   curl -fsS https://<host>/ready
+   open https://<host>/docs
+   ```
+
+5. Tạo account `DEBIT` hoặc `CASH`, nhập một giao dịch và kiểm tra summary.
+6. Qua OpenClaw thử câu read-only trước: `tóm tắt tài chính tháng này`.
+7. Với câu nhập liệu, luôn review preview trước khi confirm.
+
+Không chạy migration lại sau mỗi deploy. Không commit secrets, MongoDB URI hoặc
+MCP token.
 
 ## API documentation
 
