@@ -3,7 +3,6 @@ import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
 import { sessionFromRequest, type Session } from "./auth.js";
 import { CreditCardModel } from "./models/credit-card.js";
-import { CardTransactionModel } from "./models/card-transaction.js";
 import { CardStatementModel } from "./models/card-statement.js";
 import {
   effectivePaymentStatus,
@@ -21,7 +20,6 @@ import { FinancialTransactionModel } from "./models/financial-transaction.js";
 import { FinancialTransactionService } from "./services/financial-transaction-service.js";
 
 const Cards = CreditCardModel as mongoose.Model<Data>;
-const Transactions = CardTransactionModel;
 const Statements = CardStatementModel;
 const objectId = (value: string, field = "id") => {
   if (!mongoose.isValidObjectId(value))
@@ -54,6 +52,19 @@ const statementFor = async (
     throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
   return statement;
 };
+const financialView = (transaction: Data, card: Data): Data => ({
+  ...transaction,
+  _id: idOf(transaction._id),
+  userCardId: idOf(card._id),
+  statementId: idOf(transaction.statementId),
+  transactionDate: transaction.transactionDate,
+  outcomeAmount: Number(transaction.amount ?? 0),
+  incomeAmount: Number(transaction.reimbursementExpected ?? 0),
+  note: transaction.note ?? "",
+  cashbackRateBps: Math.round(Number(transaction.serviceFeeRate ?? 0) * 100),
+  actualCashbackAmount: Number(transaction.cashbackReceived ?? 0),
+  cashbackStatus: Number(transaction.cashbackReceived ?? 0) > 0 ? "RECEIVED" : "PENDING",
+});
 const groupTransactionsByStatement = (transactions: Data[]) => {
   const grouped = new Map<string, Data[]>();
   for (const transaction of transactions) {
@@ -82,16 +93,14 @@ export const registerTransactionRoutes = (
         }).sort({ statementDate: -1 })
       : [];
     const statementIds = statements.map((statement) => idOf(statement._id));
-    const transactions = statementIds.length
-      ? (
-          await Transactions.find({
-            statementId: { $in: statementIds },
-            workspaceId: session.workspaceId,
-          })
-        ).map(plain)
-      : [];
     const cardById = new Map(cards.map((card) => [idOf(card._id), plain(card)]));
-    const transactionsByStatement = groupTransactionsByStatement(transactions);
+    const financeTransactions = statementIds.length
+      ? await FinancialTransactionModel.find({ statementId: { $in: statementIds }, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } })
+      : [];
+    const transactionsByStatement = groupTransactionsByStatement(financeTransactions.map((item) => {
+      const card = cardById.get(idOf(statements.find((statement) => idOf(statement._id) === idOf(item.statementId))?.userCardId));
+      return financialView(item as Data, card ?? {});
+    }));
     const statementsByCard = new Map<string, typeof statements>();
     for (const statement of statements) {
       const cardId = idOf(statement.userCardId);
@@ -130,14 +139,9 @@ export const registerTransactionRoutes = (
         workspaceId: session.workspaceId,
       }).sort({ statementDate: -1 });
       const statementIds = statements.map((statement) => idOf(statement._id));
-      const transactions = statementIds.length
-        ? (
-            await Transactions.find({
-              statementId: { $in: statementIds },
-              workspaceId: session.workspaceId,
-            })
-          ).map(plain)
-        : [];
+    const transactions = statementIds.length
+      ? (await FinancialTransactionModel.find({ statementId: { $in: statementIds }, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } })).map((item) => financialView(plain(item), card))
+      : [];
       const transactionsByStatement = groupTransactionsByStatement(transactions);
       return {
         data: statements.map((statement) =>
@@ -160,10 +164,7 @@ export const registerTransactionRoutes = (
         request.params.statementId,
         session,
       );
-      const transactions = await Transactions.find({
-        statementId: request.params.statementId,
-        workspaceId: session.workspaceId,
-      }).sort({ transactionDate: -1, createdAt: -1 });
+      const transactions = (await FinancialTransactionModel.find({ statementId: request.params.statementId, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } }).sort({ transactionDate: -1, createdAt: -1 })).map((item) => financialView(plain(item), card));
       return {
         data: {
           ...TransactionService.serializeStatement(statement, transactions.map(plain), card),
@@ -184,10 +185,7 @@ export const registerTransactionRoutes = (
         request.params.statementId,
         session,
       );
-      const transactions = await Transactions.find({
-        statementId: request.params.statementId,
-        workspaceId: session.workspaceId,
-      });
+      const transactions = await FinancialTransactionModel.find({ statementId: request.params.statementId, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } });
       const action =
         request.body?.action === "REOPEN"
           ? "REOPEN"
@@ -212,10 +210,7 @@ export const registerTransactionRoutes = (
             : {
                 paymentStatus: "PAID",
                 paidAt: new Date(),
-                paidAmount: summarize(
-                  transactions.map(plain),
-                  card.cashbackCapAmount,
-                ).totalAmountDue,
+                paidAmount: transactions.reduce((sum, item) => sum + Number(item.amount ?? 0), 0),
               };
       const result = await Statements.findOneAndUpdate(
         { _id: request.params.statementId, workspaceId: session.workspaceId },
@@ -232,7 +227,7 @@ export const registerTransactionRoutes = (
           await FinancialTransactionService.create(session, { accountId: repaymentAccountId, transactionDate: new Date(String(result.paidAt ?? new Date())).toISOString().slice(0, 10), amount: Number(result.paidAmount), transactionType: "STATEMENT_PAYMENT", statementId: String(result._id), note: `Thanh toán sao kê ${String(result._id)}` }, `statement-payment:${String(result._id)}:${Number(result.paidAmount)}`);
         }
       }
-      return { data: TransactionService.serializeStatement(result, transactions.map(plain), card) };
+      return { data: TransactionService.serializeStatement(result, transactions.map((item) => financialView(item as Data, card)), card) };
     },
   );
   if (calendarEmail) app.post<{
@@ -249,10 +244,7 @@ export const registerTransactionRoutes = (
 
     const card = plain(await cardFor(request.params.id, session));
     const statement = plain(await statementFor(request.params.id, request.params.statementId, session));
-    const transactions = (await Transactions.find({
-      statementId: request.params.statementId,
-      workspaceId: session.workspaceId,
-    })).map(plain);
+    const transactions = (await FinancialTransactionModel.find({ statementId: request.params.statementId, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } })).map((item) => financialView(plain(item), card));
     const summary = summarize(transactions, card.cashbackCapAmount);
     const displayName = String(card.displayName ?? card.name ?? "Thẻ tín dụng");
     const projection = {

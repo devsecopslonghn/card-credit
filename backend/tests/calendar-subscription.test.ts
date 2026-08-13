@@ -7,7 +7,7 @@ import type { AuthRepository } from "../src/auth-repository.js";
 import { CalendarSubscriptionModel } from "../src/models/calendar-subscription.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
-import { CardTransactionModel } from "../src/models/card-transaction.js";
+import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 
 test("subscription token is random, URL-safe and stored through a one-way hash", () => {
   const first = createSubscriptionToken(); const second = createSubscriptionToken();
@@ -79,7 +79,7 @@ test("subscription feed aggregates all statement amounts in one workspace-scoped
       ],
     }),
   }) as never);
-  const aggregate = t.mock.method(CardTransactionModel, "aggregate", async () => [
+  const aggregate = t.mock.method(FinancialTransactionModel, "aggregate", async () => [
     { _id: statementA, amount: 500_000 },
     { _id: statementB, amount: 750_000 },
   ] as never);
@@ -112,12 +112,9 @@ test("subscription feed aggregates all statement amounts in one workspace-scoped
   assert.equal(aggregate.mock.callCount(), 1);
   assert.deepEqual(aggregate.mock.calls[0]?.arguments[0], [
     {
-      $match: {
-        workspaceId: "workspace-a",
-        statementId: { $in: [statementA, statementB] },
+        $match: { workspaceId: "workspace-a", statementId: { $in: [statementA, statementB] }, transactionType: { $ne: "STATEMENT_PAYMENT" } },
       },
-    },
-    { $group: { _id: "$statementId", amount: { $sum: "$outcomeAmount" } } },
+      { $group: { _id: "$statementId", amount: { $sum: "$amount" } } },
   ]);
   await app.close();
 });

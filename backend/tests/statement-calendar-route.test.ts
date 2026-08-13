@@ -6,7 +6,7 @@ import type { AuthRepository, AuthUser } from "../src/auth-repository.js";
 import { MailDeliveryError, MailUnavailableError, type MailService } from "../src/mail-service.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
-import { CardTransactionModel } from "../src/models/card-transaction.js";
+import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 import type { ComposedEmail } from "../src/statement-calendar-email.js";
 import { registerTransactionRoutes } from "../src/transaction-routes.js";
 
@@ -35,17 +35,17 @@ const installModels = (options: { card?: object | null; statement?: object | nul
   const originals = {
     card: Object.getOwnPropertyDescriptor(CreditCardModel, "findOne"),
     statement: Object.getOwnPropertyDescriptor(CardStatementModel, "findOne"),
-    transactions: Object.getOwnPropertyDescriptor(CardTransactionModel, "find"),
+    transactions: Object.getOwnPropertyDescriptor(FinancialTransactionModel, "find"),
   };
   const card = options.card === undefined ? { _id: cardId, workspaceId: "workspace-a", displayName: "Platinum", providerName: "Bank", owner: "Tôi", cashbackCapAmount: null } : options.card;
   const statement = options.statement === undefined ? { _id: statementId, workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-07-01", periodEndDate: "2026-07-31", statementDate: "2026-07-31", paymentDueDate: "2026-08-15", paymentStatus: "OPEN" } : options.statement;
   Object.defineProperty(CreditCardModel, "findOne", { configurable: true, value: async () => card });
   Object.defineProperty(CardStatementModel, "findOne", { configurable: true, value: async () => statement });
-  Object.defineProperty(CardTransactionModel, "find", { configurable: true, value: async () => [{ outcomeAmount: 250_000, incomeAmount: 0, cashbackRateBps: 0 }] });
+  Object.defineProperty(FinancialTransactionModel, "find", { configurable: true, value: async () => [{ amount: 250_000, reimbursementExpected: 0, serviceFeeRate: 0, cashbackReceived: 0, transactionDate: "2026-07-10", note: "" }] });
   return () => {
     if (originals.card) Object.defineProperty(CreditCardModel, "findOne", originals.card);
     if (originals.statement) Object.defineProperty(CardStatementModel, "findOne", originals.statement);
-    if (originals.transactions) Object.defineProperty(CardTransactionModel, "find", originals.transactions);
+    if (originals.transactions) Object.defineProperty(FinancialTransactionModel, "find", originals.transactions);
   };
 };
 

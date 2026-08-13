@@ -3,7 +3,7 @@ import type { AuthRepository } from "./auth-repository.js";
 import type { MailService } from "./mail-service.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { CardStatementModel } from "./models/card-statement.js";
-import { CardTransactionModel } from "./models/card-transaction.js";
+import { FinancialTransactionModel } from "./models/financial-transaction.js";
 import { ReminderDeliveryModel } from "./models/reminder-delivery.js";
 import { WorkspaceModel } from "./models/workspace.js";
 import { composePaymentReminder, reminderDueDate, reminderIsDue, retryAt } from "./payment-reminder.js";
@@ -41,9 +41,9 @@ export class ReminderScheduler {
     const workspaces = fallbackWorkspaceIds.length ? await WorkspaceModel.find({ workspaceId: { $in: fallbackWorkspaceIds } }) : [];
     const workspaceOwnerById = new Map(workspaces.map((workspace) => [String(workspace.get("workspaceId")), String(workspace.get("ownerUserId") ?? "")]));
     const statementIds = [...new Set(candidates.map(({ statement }) => statement._id))];
-    const totals = await CardTransactionModel.aggregate([
-      { $match: { workspaceId: { $in: workspaceIds }, statementId: { $in: statementIds } } },
-      { $group: { _id: "$statementId", amount: { $sum: "$outcomeAmount" } } },
+    const totals = await FinancialTransactionModel.aggregate([
+      { $match: { workspaceId: { $in: workspaceIds }, statementId: { $in: statementIds }, transactionType: { $ne: "STATEMENT_PAYMENT" } } },
+      { $group: { _id: "$statementId", amount: { $sum: "$amount" } } },
     ]);
     const amountByStatement = new Map(totals.map((total) => [String(total._id), Number(total.amount ?? 0)]));
     const userById = new Map<string, ReturnType<AuthRepository["findUserById"]>>();

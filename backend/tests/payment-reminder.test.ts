@@ -6,7 +6,7 @@ import { composePaymentReminder, reminderDueDate, reminderIsDue, retryAt } from 
 import { ReminderScheduler } from "../src/reminder-scheduler.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
-import { CardTransactionModel } from "../src/models/card-transaction.js";
+import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 import { ReminderDeliveryModel } from "../src/models/reminder-delivery.js";
 import { WorkspaceModel } from "../src/models/workspace.js";
 import type { AuthRepository, AuthUser } from "../src/auth-repository.js";
@@ -49,7 +49,7 @@ test("scheduler scans exact due dates and batch-loads statements, totals, and us
   const workspaceFind = t.mock.method(WorkspaceModel, "find", async () => [{
     get: (field: string) => field === "workspaceId" ? "workspace-a" : userId,
   }] as never);
-  const aggregate = t.mock.method(CardTransactionModel, "aggregate", async () => [
+  const aggregate = t.mock.method(FinancialTransactionModel, "aggregate", async () => [
     { _id: statementA, amount: 100_000 },
     { _id: statementB, amount: 200_000 },
   ] as never);

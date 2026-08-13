@@ -6,7 +6,7 @@ import { ApiError } from "./errors.js";
 import { CalendarSubscriptionModel } from "./models/calendar-subscription.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { CardStatementModel } from "./models/card-statement.js";
-import { CardTransactionModel } from "./models/card-transaction.js";
+import { FinancialTransactionModel } from "./models/financial-transaction.js";
 import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel, serializePaymentDueFeed, validSubscriptionToken } from "./calendar-subscription.js";
 import { effectivePaymentStatus } from "./statement-domain.js";
 
@@ -44,9 +44,9 @@ export const registerCalendarSubscriptionRoutes = (app: FastifyInstance, users: 
     const cardById = new Map(cards.map((card) => [String(card._id), card as Data]));
     const statements = cardById.size ? await CardStatementModel.find({ workspaceId: subscription.workspaceId, userCardId: { $in: [...cardById.keys()] }, paymentStatus: { $ne: "PAID" } }).sort({ paymentDueDate: 1 }).lean() : [];
     const statementIds = statements.map((statement) => statement._id);
-    const totals = statementIds.length ? await CardTransactionModel.aggregate([
-      { $match: { workspaceId: subscription.workspaceId, statementId: { $in: statementIds } } },
-      { $group: { _id: "$statementId", amount: { $sum: "$outcomeAmount" } } },
+    const totals = statementIds.length ? await FinancialTransactionModel.aggregate([
+      { $match: { workspaceId: subscription.workspaceId, statementId: { $in: statementIds }, transactionType: { $ne: "STATEMENT_PAYMENT" } } },
+      { $group: { _id: "$statementId", amount: { $sum: "$amount" } } },
     ]) : [];
     const amountByStatement = new Map(totals.map((total) => [String(total._id), Number(total.amount ?? 0)]));
     const inputs = statements.map((statement) => { const item = statement as Data; const card = cardById.get(String(item.userCardId))!; return { identity: `${subscription.workspaceId}/${subscription.userId}/${String(item._id)}`, displayName: String(card.displayName ?? card.name ?? "Thẻ tín dụng"), providerName: String(card.providerName ?? card.bank ?? "Ngân hàng"), owner: String(card.owner ?? "Tôi"), periodStartDate: String(item.periodStartDate), periodEndDate: String(item.periodEndDate), statementDate: String(item.statementDate), paymentDueDate: String(item.paymentDueDate), totalAmountDue: amountByStatement.get(String(item._id)) ?? 0, effectivePaymentStatus: effectivePaymentStatus(item), timezone: String(card.reminderTimezone ?? "Asia/Ho_Chi_Minh") }; });

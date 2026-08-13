@@ -6,7 +6,7 @@ import { derived, statementPeriod, summarize, transactionInput, validDate } from
 import { registerTransactionRoutes } from "../src/transaction-routes.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
-import { CardTransactionModel } from "../src/models/card-transaction.js";
+import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 
 const secret = "01234567890123456789012345678901";
 const cookie = sessionCookie(signSession({ userId: "user-1", email: "user@example.test", role: "user", workspaceId: "workspace-a" }, secret));
@@ -208,10 +208,10 @@ test("card statement dashboard batch-loads cards, statements, and transactions",
       { _id: statementA, workspaceId: "workspace-a", userCardId: cardA, statementDate: "2099-07-11", paymentDueDate: "2099-07-26", paymentStatus: "OPEN" },
     ],
   }) as never);
-  const transactionFind = t.mock.method(CardTransactionModel, "find", async () => [
-    { _id: "507f1f77bcf86cd799439031", userCardId: cardA, statementId: statementA, outcomeAmount: 300, incomeAmount: 0, cashbackRateBps: 1000 },
-    { _id: "507f1f77bcf86cd799439032", userCardId: cardA, statementId: statementA, outcomeAmount: 200, incomeAmount: 0, cashbackRateBps: 1000 },
-    { _id: "507f1f77bcf86cd799439033", userCardId: cardB, statementId: statementB, outcomeAmount: 100, incomeAmount: 0, cashbackRateBps: 0 },
+  const transactionFind = t.mock.method(FinancialTransactionModel, "find", async () => [
+    { _id: "507f1f77bcf86cd799439031", statementId: statementA, amount: 300, reimbursementExpected: 0, serviceFeeRate: 10, cashbackReceived: 0, transactionDate: "2099-07-10", note: "" },
+    { _id: "507f1f77bcf86cd799439032", statementId: statementA, amount: 200, reimbursementExpected: 0, serviceFeeRate: 10, cashbackReceived: 0, transactionDate: "2099-07-10", note: "" },
+    { _id: "507f1f77bcf86cd799439033", statementId: statementB, amount: 100, reimbursementExpected: 0, serviceFeeRate: 0, cashbackReceived: 0, transactionDate: "2099-07-10", note: "" },
   ] as never);
   const app = buildApp({ isReady: () => true }, "silent");
   registerTransactionRoutes(app, secret);
@@ -248,8 +248,7 @@ test("card statement dashboard batch-loads cards, statements, and transactions",
     workspaceId: "workspace-a",
   });
   assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], {
-    statementId: { $in: [statementB, statementA] },
-    workspaceId: "workspace-a",
+    statementId: { $in: [statementB, statementA] }, workspaceId: "workspace-a", transactionType: { $ne: "STATEMENT_PAYMENT" },
   });
   await app.close();
 });
@@ -269,9 +268,9 @@ test("per-card statement list loads all statement transactions in one query", as
       { _id: statementA, workspaceId: "workspace-a", userCardId: cardId, statementDate: "2026-07-11", paymentDueDate: "2026-07-26", paymentStatus: "OPEN" },
     ],
   }) as never);
-  const transactionFind = t.mock.method(CardTransactionModel, "find", async () => [
-    { statementId: statementA, outcomeAmount: 300, incomeAmount: 0, cashbackRateBps: 0 },
-    { statementId: statementB, outcomeAmount: 200, incomeAmount: 0, cashbackRateBps: 0 },
+  const transactionFind = t.mock.method(FinancialTransactionModel, "find", async () => [
+    { statementId: statementA, amount: 300, reimbursementExpected: 0, serviceFeeRate: 0, cashbackReceived: 0, transactionDate: "2026-07-10", note: "" },
+    { statementId: statementB, amount: 200, reimbursementExpected: 0, serviceFeeRate: 0, cashbackReceived: 0, transactionDate: "2026-07-10", note: "" },
   ] as never);
   const app = buildApp({ isReady: () => true }, "silent");
   registerTransactionRoutes(app, secret);
@@ -292,7 +291,7 @@ test("per-card statement list loads all statement transactions in one query", as
   assert.equal(transactionFind.mock.callCount(), 1);
   assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], {
     statementId: { $in: [statementB, statementA] },
-    workspaceId: "workspace-a",
+    workspaceId: "workspace-a", transactionType: { $ne: "STATEMENT_PAYMENT" },
   });
   await app.close();
 });

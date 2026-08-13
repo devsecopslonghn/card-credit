@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { CardStatementModel } from "../models/card-statement.js";
-import { CardTransactionModel } from "../models/card-transaction.js";
+import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { CreditCardModel } from "../models/credit-card.js";
 import {
   derived,
@@ -49,9 +49,9 @@ export class TransactionService {
   static async list(ctx: ServiceContext, filters: TransactionListFilters): Promise<TransactionServiceResult[]> {
     const query: Data = { workspaceId: ctx.workspaceId };
     if (filters.date) query.transactionDate = filters.date;
-    if (filters.cardId) query.userCardId = filters.cardId;
+    if (filters.cardId) query.accountId = filters.cardId;
     if (filters.statementId) query.statementId = filters.statementId;
-    const items = await CardTransactionModel.find(query).sort({ transactionDate: -1, createdAt: -1 });
+    const items = await FinancialTransactionModel.find(query).sort({ transactionDate: -1, createdAt: -1 });
     const values = items.map(plain);
     const cardIds = [...new Set(values.map((item) => idOf(item.userCardId)).filter(Boolean))];
     const statementIds = [...new Set(values.map((item) => idOf(item.statementId)).filter(Boolean))];
