@@ -113,12 +113,15 @@ export class FinancialTransactionService {
     const account = await AccountModel.findOne({ _id: input.accountId, workspaceId: ctx.workspaceId, active: { $ne: false } }).session(session ?? null).lean();
     if (!account) throw new ApiError(404, "ACCOUNT_NOT_FOUND", "Không tìm thấy tài khoản.");
     const accountType = String(account.type) as AccountType;
+    const effectiveReimbursementExpected = input.reimbursementExpected ?? (
+      accountType === "CREDIT" && input.ownership === "PAID_FOR_OTHER" ? Math.round(input.amount * 0.95) : undefined
+    );
     const impact = calculateFinancialImpact({
       accountType,
       transactionType: input.transactionType,
       ownership: input.ownership,
       amount: input.amount,
-      reimbursementExpected: input.reimbursementExpected,
+      reimbursementExpected: effectiveReimbursementExpected,
       refundReceived: input.refundReceived,
       cashbackReceived: input.cashbackReceived,
     });
@@ -153,7 +156,7 @@ export class FinancialTransactionService {
       transactionType: input.transactionType ?? "EXPENSE",
       ownership: input.ownership ?? "PERSONAL",
       amount: input.amount,
-      reimbursementExpected: input.reimbursementExpected ?? 0,
+      reimbursementExpected: effectiveReimbursementExpected ?? 0,
       refundReceived: input.refundReceived ?? 0,
       cashbackReceived: input.cashbackReceived ?? 0,
       categoryId: input.categoryId?.trim() || "OTHER",
