@@ -6,6 +6,7 @@ const FinancialTransactionSchema = new Schema(
     workspaceId: { type: String, required: true },
     accountId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
     statementId: { type: Schema.Types.ObjectId, ref: "CardStatement", default: null },
+    reimbursementForTransactionId: { type: Schema.Types.ObjectId, ref: "FinancialTransaction", default: null },
     // Optional legacy link. Keep it absent for new transactions so the sparse
     // unique index does not treat multiple missing links as the same value.
     legacyTransactionId: { type: Schema.Types.ObjectId, ref: "CardTransaction" },
@@ -18,6 +19,7 @@ const FinancialTransactionSchema = new Schema(
     ownership: { type: String, enum: ["PERSONAL", "PAID_FOR_OTHER"], default: "PERSONAL" },
     amount: { type: Number, required: true, min: 1 },
     reimbursementExpected: { type: Number, default: 0, min: 0 },
+    serviceFeeRate: { type: Number, default: 0, min: 0, max: 100 },
     refundReceived: { type: Number, default: 0, min: 0 },
     cashbackReceived: { type: Number, default: 0, min: 0 },
     categoryId: { type: String, default: "OTHER" },

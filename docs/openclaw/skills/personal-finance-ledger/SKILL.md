@@ -26,11 +26,11 @@ For each item identify:
 - category and note;
 - `PERSONAL` or `PAID_FOR_OTHER`;
 - expected reimbursement;
-- fee charged, service fee, refund or cashback.
+- `serviceFeeRate` when the credit transaction is paid for someone else; never invent or ask again if the user supplied it.
 
 ## Paid-for-other and fees
 
-All credit-card transactions described as `thanh toán hộ` use the default service fee of 5%. Do not ask the user to confirm this rule again.
+All credit-card transactions described as `thanh toán hộ` require the user-provided service fee rate in the mutation payload. Do not silently assume 5% and do not ask again when the rate is already present.
 
 For a paid-for-other credit charge, keep these values separate in the preview:
 
@@ -43,11 +43,11 @@ For a paid-for-other credit charge, keep these values separate in the preview:
 Rules:
 
 - For base amount `A`, `creditDebt = A`.
-- Default service fee is 5% of `A`.
-- `outstandingReceivable = A * 0.95` (rounded to the nearest VND when needed).
+- `serviceFee = A * serviceFeeRate / 100`.
+- `outstandingReceivable = A - serviceFee` (rounded to the nearest VND when needed).
 - `personalSpending = A - outstandingReceivable` (normally 5% of `A`).
-- Example: charge 1.000.000đ → credit debt 1.000.000đ, receivable 950.000đ, personal spending 50.000đ.
-- Do not ask who pays the fee; under this rule the master bears the 5% difference.
+- Example with a 5% rate: charge 1.000.000đ → credit debt 1.000.000đ, receivable 950.000đ, personal spending 50.000đ.
+- The fee is the personal remainder; never increase the receivable above the charged amount.
 
 ## Reimbursement
 

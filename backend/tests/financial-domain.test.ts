@@ -54,7 +54,7 @@ test("paid-for-other tracks receivable and only personal remainder", () => {
       accountType: "CREDIT",
       amount: 15000000,
       ownership: "PAID_FOR_OTHER",
-      reimbursementExpected: 14000000,
+      serviceFeeRate: 6.6666667,
     }),
     {
       grossAmount: 15000000,
@@ -78,5 +78,12 @@ test("reimbursement is debit inflow, not personal spending", () => {
       outstandingReceivable: 0,
       reimbursementReceived: 14000000,
     },
+  );
+});
+
+test("paid-for-other fee rate is supplied by the caller", () => {
+  assert.deepEqual(
+    calculateFinancialImpact({ accountType: "CREDIT", amount: 1000000, ownership: "PAID_FOR_OTHER", serviceFeeRate: 5 }),
+    { grossAmount: 1000000, personalSpending: 50000, debitCashflow: 0, creditDebt: 1000000, outstandingReceivable: 950000, reimbursementReceived: 0 },
   );
 });

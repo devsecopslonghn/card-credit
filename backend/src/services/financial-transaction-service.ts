@@ -18,10 +18,12 @@ export type CreateFinancialTransactionInput = {
   transactionType?: FinancialTransactionType;
   ownership?: Ownership;
   reimbursementExpected?: number;
+  serviceFeeRate?: number;
   refundReceived?: number;
   cashbackReceived?: number;
   note?: string;
   statementId?: string;
+  reimbursementForTransactionId?: string;
 };
 export type CreateFinancialTransactionBatchInput = { items: CreateFinancialTransactionInput[] };
 
@@ -31,10 +33,12 @@ const serialize = (value: unknown) => {
     id: idOf(item._id),
     accountId: idOf(item.accountId),
     statementId: item.statementId ? idOf(item.statementId) : null,
+    reimbursementForTransactionId: item.reimbursementForTransactionId ? idOf(item.reimbursementForTransactionId) : null,
     accountType: item.accountType,
     transactionType: item.transactionType,
     ownership: item.ownership,
     amount: item.amount,
+    serviceFeeRate: item.serviceFeeRate,
     categoryId: item.categoryId,
     transactionDate: item.transactionDate,
     note: item.note ?? "",
@@ -113,14 +117,17 @@ export class FinancialTransactionService {
     const account = await AccountModel.findOne({ _id: input.accountId, workspaceId: ctx.workspaceId, active: { $ne: false } }).session(session ?? null).lean();
     if (!account) throw new ApiError(404, "ACCOUNT_NOT_FOUND", "Không tìm thấy tài khoản.");
     const accountType = String(account.type) as AccountType;
-    const effectiveReimbursementExpected = input.reimbursementExpected ?? (
-      accountType === "CREDIT" && input.ownership === "PAID_FOR_OTHER" ? Math.round(input.amount * 0.95) : undefined
-    );
+    const isPaidForOtherCredit = accountType === "CREDIT" && (input.ownership ?? "PERSONAL") === "PAID_FOR_OTHER";
+    if (isPaidForOtherCredit && input.serviceFeeRate === undefined) throw new ApiError(400, "SERVICE_FEE_REQUIRED", "Thanh toán hộ Credit phải có serviceFeeRate.");
+    const effectiveReimbursementExpected = isPaidForOtherCredit
+      ? Math.round(input.amount * (1 - Number(input.serviceFeeRate) / 100))
+      : input.reimbursementExpected;
     const impact = calculateFinancialImpact({
       accountType,
       transactionType: input.transactionType,
       ownership: input.ownership,
       amount: input.amount,
+      serviceFeeRate: input.serviceFeeRate ?? 0,
       reimbursementExpected: effectiveReimbursementExpected,
       refundReceived: input.refundReceived,
       cashbackReceived: input.cashbackReceived,
@@ -130,9 +137,17 @@ export class FinancialTransactionService {
       : null;
     if (input.statementId && !statementId) throw new ApiError(400, "INVALID_STATEMENT_ID", "statementId không hợp lệ.");
     if (input.transactionType === "STATEMENT_PAYMENT") {
+      if (accountType === "CREDIT") throw new ApiError(400, "INVALID_REPAYMENT_ACCOUNT", "Thanh toán nợ Credit phải dùng tài khoản DEBIT, CASH hoặc E_WALLET.");
       if (!statementId) throw new ApiError(400, "STATEMENT_REQUIRED", "Thanh toán sao kê phải có statementId.");
       const statement = await CardStatementModel.findOne({ _id: statementId, workspaceId: ctx.workspaceId }).session(session ?? null).lean();
       if (!statement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy sao kê.");
+    }
+    let reimbursementForTransactionId: mongoose.Types.ObjectId | null = null;
+    if (input.reimbursementForTransactionId) {
+      if (!mongoose.isValidObjectId(input.reimbursementForTransactionId)) throw new ApiError(400, "INVALID_REIMBURSEMENT_SOURCE", "Giao dịch nguồn hoàn tiền không hợp lệ.");
+      reimbursementForTransactionId = new mongoose.Types.ObjectId(input.reimbursementForTransactionId);
+      const source = await FinancialTransactionModel.findOne({ _id: reimbursementForTransactionId, workspaceId: ctx.workspaceId, ownership: "PAID_FOR_OTHER", transactionType: "EXPENSE" }).session(session ?? null).lean();
+      if (!source) throw new ApiError(404, "REIMBURSEMENT_SOURCE_NOT_FOUND", "Không tìm thấy giao dịch thanh toán hộ nguồn.");
     }
     let card: Record<string, unknown> | null = null;
     if (accountType === "CREDIT") {
@@ -152,6 +167,7 @@ export class FinancialTransactionService {
       workspaceId: ctx.workspaceId,
       accountId: account._id,
       statementId,
+      reimbursementForTransactionId,
       accountType,
       transactionType: input.transactionType ?? "EXPENSE",
       ownership: input.ownership ?? "PERSONAL",

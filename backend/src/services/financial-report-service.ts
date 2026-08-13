@@ -88,9 +88,13 @@ export class FinancialReportService {
     }
     const totals = empty();
     for (const item of items) add(totals, item as Record<string, unknown>);
+    const netAssets = accounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
+    const creditDebtBalance = accounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;
     return {
       range,
       totals,
+      netAssets,
+      creditDebtBalance,
       debit: byAccountType.get("DEBIT") ?? empty(),
       cash: byAccountType.get("CASH") ?? empty(),
       eWallet: byAccountType.get("E_WALLET") ?? empty(),
@@ -106,7 +110,7 @@ export class FinancialReportService {
     if (range) query.statementDate = { $gte: range.from, $lte: range.to };
     const [statements, transactions] = await Promise.all([
       CardStatementModel.find(query).sort({ paymentDueDate: 1 }).lean(),
-      FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountType: "CREDIT", statementId: { $ne: null } }).lean(),
+      FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, statementId: { $ne: null } }).lean(),
     ]);
     const grouped = new Map<string, { grossCharges: number; payments: number; personalSpending: number; outstandingReceivable: number; transactionCount: number }>();
     for (const transaction of transactions) {
@@ -115,7 +119,8 @@ export class FinancialReportService {
       if (transaction.transactionType === "STATEMENT_PAYMENT") current.payments += Number(transaction.amount ?? 0);
       else current.grossCharges += Number(transaction.amount ?? 0);
       current.personalSpending += Number(transaction.personalSpending ?? 0);
-      current.outstandingReceivable += Number(transaction.outstandingReceivable ?? 0) - Number(transaction.reimbursementReceived ?? 0);
+      current.outstandingReceivable += Number(transaction.outstandingReceivable ?? 0);
+      if (transaction.transactionType === "REIMBURSEMENT") current.outstandingReceivable -= Number(transaction.amount ?? 0);
       current.transactionCount += 1;
       grouped.set(statementId, current);
     }

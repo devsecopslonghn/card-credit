@@ -19,6 +19,7 @@ export type FinancialTransactionInput = {
   ownership?: Ownership;
   amount: number;
   reimbursementExpected?: number;
+  serviceFeeRate?: number;
   refundReceived?: number;
   cashbackReceived?: number;
 };
@@ -55,8 +56,12 @@ export const calculateFinancialImpact = (
   }
   const type = input.transactionType ?? "EXPENSE";
   const ownership = input.ownership ?? "PERSONAL";
+  const serviceFeeRate = input.serviceFeeRate ?? 0;
+  if (!Number.isFinite(serviceFeeRate) || serviceFeeRate < 0 || serviceFeeRate > 100) throw new ApiError(400, "INVALID_SERVICE_FEE_RATE", "Tỷ lệ phí dịch vụ phải từ 0 đến 100%.");
   const reimbursementExpected = integerAmount(
-    input.reimbursementExpected ?? 0,
+    input.accountType === "CREDIT" && ownership === "PAID_FOR_OTHER"
+      ? Math.round(amount * (1 - serviceFeeRate / 100))
+      : input.reimbursementExpected ?? 0,
     "reimbursementExpected",
   );
   const refundReceived = integerAmount(
