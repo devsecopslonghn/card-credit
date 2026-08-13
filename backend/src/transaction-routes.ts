@@ -8,12 +8,8 @@ import { CardStatementModel } from "./models/card-statement.js";
 import {
   effectivePaymentStatus,
   idOf,
-  integer,
   plain,
-  statementPeriod,
   summarize,
-  transactionInput,
-  validDate,
   type Data,
 } from "./statement-domain.js";
 import type { AuthRepository } from "./auth-repository.js";
@@ -58,44 +54,6 @@ const statementFor = async (
     throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
   return statement;
 };
-const editable = (statement: Data | null) => {
-  if (statement?.paymentStatus === "PAID")
-    throw new ApiError(
-      409,
-      "STATEMENT_PAID_LOCKED",
-      "Kỳ sao kê đã thanh toán. Hãy mở lại kỳ sao kê trước khi chỉnh sửa giao dịch.",
-    );
-};
-const getOrCreateStatement = async (
-  card: Data,
-  transactionDate: string,
-  session: Session,
-) => {
-  const period = statementPeriod(
-    transactionDate,
-    Number(card.statementDay ?? 1),
-    Number(card.paymentDueDays ?? 15),
-  );
-  return Statements.findOneAndUpdate(
-    {
-      workspaceId: session.workspaceId,
-      userCardId: card._id,
-      statementDate: period.statementDate,
-    },
-    {
-      $setOnInsert: {
-        userId: session.userId,
-        workspaceId: session.workspaceId,
-        userCardId: card._id,
-        ...period,
-        paymentStatus: "OPEN",
-        paidAt: null,
-        paidAmount: null,
-      },
-    },
-    { upsert: true, returnDocument: "after" },
-  );
-};
 const groupTransactionsByStatement = (transactions: Data[]) => {
   const grouped = new Map<string, Data[]>();
   for (const transaction of transactions) {
@@ -106,192 +64,11 @@ const groupTransactionsByStatement = (transactions: Data[]) => {
   }
   return grouped;
 };
-const transactionFor = async (id: string, session: Session) => {
-  objectId(id, "transactionId");
-  const item = await Transactions.findOne({
-    _id: id,
-    workspaceId: session.workspaceId,
-  });
-  if (!item)
-    throw new ApiError(
-      404,
-      "TRANSACTION_NOT_FOUND",
-      "Không tìm thấy giao dịch.",
-    );
-  return item;
-};
-
 export const registerTransactionRoutes = (
   app: FastifyInstance,
   secret: string,
   calendarEmail?: { users: AuthRepository; mail: MailService },
 ) => {
-  app.get<{
-    Querystring: {
-      date?: string;
-      cardId?: string;
-      userCardId?: string;
-      statementId?: string;
-    };
-  }>("/api/card-transactions", async (request) => {
-    const session = sessionFromRequest(request, secret);
-    const cardId = request.query.cardId ?? request.query.userCardId;
-    if (request.query.date) {
-      if (!validDate(request.query.date))
-        throw new ApiError(400, "INVALID_DATE", "Ngày không hợp lệ.");
-    }
-    if (cardId) {
-      objectId(cardId, "cardId");
-    }
-    if (request.query.statementId) {
-      objectId(request.query.statementId, "statementId");
-    }
-    return {
-      data: await TransactionService.list(
-        { workspaceId: session.workspaceId, userId: session.userId, role: session.role },
-        { date: request.query.date, cardId, statementId: request.query.statementId },
-      ),
-    };
-  });
-  app.post<{ Body: Data }>("/api/card-transactions", async (request, reply) => {
-    const session = sessionFromRequest(request, secret);
-    const requestedCard = request.body?.userCardId ?? request.body?.cardId;
-    if (typeof requestedCard !== "string")
-      throw new ApiError(400, "INVALID_REQUEST", "Request body không hợp lệ.", {
-        cardId: "cardId là bắt buộc.",
-      });
-    const cardDoc = await cardFor(requestedCard, session);
-    const card = plain(cardDoc);
-    const input = transactionInput(request.body ?? {});
-    const statement = await getOrCreateStatement(
-      card,
-      input.transactionDate,
-      session,
-    );
-    editable(statement ? plain(statement) : null);
-    const item = await Transactions.create({
-      userId: session.userId,
-      workspaceId: session.workspaceId,
-      userCardId: card._id,
-      statementId: statement?._id,
-      ...input,
-      cashbackStatus: "PENDING",
-      actualCashbackAmount: null,
-    });
-    return reply
-      .code(201)
-      .send({
-        data: TransactionService.serializeTransaction(item, statement, card),
-        requiresClosedStatementConfirmation:
-          statement?.paymentStatus === "STATEMENT_CLOSED",
-      });
-  });
-  app.patch<{ Params: { id: string }; Body: Data }>(
-    "/api/card-transactions/:id",
-    async (request) => {
-      const session = sessionFromRequest(request, secret);
-      const currentDoc = await transactionFor(request.params.id, session);
-      const current = plain(currentDoc);
-      const oldStatement = await Statements.findOne({
-        _id: current.statementId,
-        workspaceId: session.workspaceId,
-      });
-      editable(oldStatement ? plain(oldStatement) : null);
-      const cardId = idOf(
-        request.body?.userCardId ?? request.body?.cardId ?? current.userCardId,
-      );
-      const cardDoc = await cardFor(cardId, session);
-      const card = plain(cardDoc);
-      const input = transactionInput(request.body ?? {}, current);
-      const statement = await getOrCreateStatement(
-        card,
-        input.transactionDate,
-        session,
-      );
-      editable(statement ? plain(statement) : null);
-      const item = await Transactions.findOneAndUpdate(
-        { _id: request.params.id, workspaceId: session.workspaceId },
-        {
-          $set: { userCardId: card._id, statementId: statement?._id, ...input },
-        },
-        { returnDocument: "after" },
-      );
-      return {
-        data: TransactionService.serializeTransaction(item, statement, card),
-        requiresClosedStatementConfirmation:
-          oldStatement?.paymentStatus === "STATEMENT_CLOSED" ||
-          statement?.paymentStatus === "STATEMENT_CLOSED",
-      };
-    },
-  );
-  app.delete<{ Params: { id: string } }>(
-    "/api/card-transactions/:id",
-    async (request) => {
-      const session = sessionFromRequest(request, secret);
-      const item = await transactionFor(request.params.id, session);
-      const statement = await Statements.findOne({
-        _id: item.statementId,
-        workspaceId: session.workspaceId,
-      });
-      editable(statement ? plain(statement) : null);
-      await Transactions.deleteOne({
-        _id: request.params.id,
-        workspaceId: session.workspaceId,
-      });
-      return {
-        data: {
-          deletedId: request.params.id,
-          requiresClosedStatementConfirmation:
-            statement?.paymentStatus === "STATEMENT_CLOSED",
-        },
-      };
-    },
-  );
-  app.patch<{ Params: { id: string }; Body: Data }>(
-    "/api/card-transactions/:id/cashback",
-    async (request) => {
-      const session = sessionFromRequest(request, secret);
-      const current = await transactionFor(request.params.id, session);
-      const statement = await Statements.findOne({
-        _id: current.statementId,
-        workspaceId: session.workspaceId,
-      });
-      editable(statement ? plain(statement) : null);
-      const status = request.body?.cashbackStatus;
-      if (
-        status !== "PENDING" &&
-        status !== "RECEIVED" &&
-        status !== "REJECTED"
-      )
-        throw new ApiError(
-          400,
-          "INVALID_CASHBACK_STATUS",
-          "Trạng thái cashback không hợp lệ.",
-        );
-      const actual =
-        status === "RECEIVED"
-          ? integer(
-              request.body?.actualCashbackAmount,
-              "actualCashbackAmount",
-              0,
-            )
-          : null;
-      const item = await Transactions.findOneAndUpdate(
-        { _id: request.params.id, workspaceId: session.workspaceId },
-        { $set: { cashbackStatus: status, actualCashbackAmount: actual } },
-        { returnDocument: "after" },
-      );
-      const card = await Cards.findOne({
-        _id: item?.userCardId,
-        workspaceId: session.workspaceId,
-      });
-      return {
-        data: TransactionService.serializeTransaction(item, statement, card ? plain(card) : undefined),
-        requiresClosedStatementConfirmation:
-          statement?.paymentStatus === "STATEMENT_CLOSED",
-      };
-    },
-  );
   app.get("/api/card-statements", async (request) => {
     const session = sessionFromRequest(request, secret);
     const cards = await Cards.find({ workspaceId: session.workspaceId }).sort({

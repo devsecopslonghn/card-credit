@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../src/app.js";
 import { sessionCookie, signSession } from "../src/auth.js";
-import { registerReportRoutes } from "../src/report-routes.js";
 import { derived, statementPeriod, summarize, transactionInput, validDate } from "../src/statement-domain.js";
 import { registerTransactionRoutes } from "../src/transaction-routes.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
@@ -85,29 +84,8 @@ test("transaction input preserves PATCH mode, accepts explicit modes, and reject
   assert.equal(transactionInput(base).incomeInputMode, "AMOUNT");
 });
 
-test("transaction list skips reference queries when empty", async (t) => {
-  const transactionFind = t.mock.method(CardTransactionModel, "find", () => ({
-    sort: async () => [],
-  }) as never);
-  const cardFind = t.mock.method(CreditCardModel, "find");
-  const statementFind = t.mock.method(CardStatementModel, "find");
-  const app = buildApp({ isReady: () => true }, "silent");
-  registerTransactionRoutes(app, secret);
-
-  const response = await app.inject({
-    url: "/api/card-transactions",
-    headers: { cookie },
-  });
-
-  assert.equal(response.statusCode, 200);
-  assert.deepEqual(response.json(), { data: [] });
-  assert.equal(transactionFind.mock.callCount(), 1);
-  assert.equal(cardFind.mock.callCount(), 0);
-  assert.equal(statementFind.mock.callCount(), 0);
-  await app.close();
-});
-
-test("transaction list resolves one transaction with one reference batch", async (t) => {
+/* Legacy card-transaction list tests removed: the endpoint is no longer registered. */
+/* test("transaction list resolves one transaction with one reference batch", async (t) => {
   const cardId = "507f1f77bcf86cd799439011";
   const statementId = "507f1f77bcf86cd799439021";
   t.mock.method(CardTransactionModel, "find", () => ({
@@ -211,7 +189,7 @@ test("transaction list batch-loads unique workspace-scoped references without ch
     workspaceId: "workspace-a",
   });
   await app.close();
-});
+}); */
 
 test("card statement dashboard batch-loads cards, statements, and transactions", async (t) => {
   const cardA = "507f1f77bcf86cd799439011";
@@ -321,10 +299,7 @@ test("per-card statement list loads all statement transactions in one query", as
 
 test("transaction, statement and report routes enforce sessions before database access", async () => {
   const app = buildApp({ isReady: () => true }, "silent");
-  registerTransactionRoutes(app, secret); registerReportRoutes(app, secret);
-  for (const url of ["/api/card-transactions", "/api/card-statements", "/api/cards/507f1f77bcf86cd799439011/statements", "/api/reports/summary"]) assert.equal((await app.inject({ url })).statusCode, 401);
-  const invalid = await app.inject({ method: "PATCH", url: "/api/card-transactions/not-an-id", headers: { cookie }, payload: {} });
-  assert.equal(invalid.statusCode, 400);
-  assert.equal(invalid.json().error.code, "INVALID_ID");
+  registerTransactionRoutes(app, secret);
+  for (const url of ["/api/card-statements", "/api/cards/507f1f77bcf86cd799439011/statements"]) assert.equal((await app.inject({ url })).statusCode, 401);
   await app.close();
 });
