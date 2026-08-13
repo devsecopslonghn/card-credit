@@ -27,9 +27,11 @@ export const registerCashFlowRoutes = (app: FastifyInstance, secret: string) => 
     const own = transactions.filter((item) => (item.accountType === "CREDIT" && accountToCard.get(String(item.accountId)) === cardId) || (item.transactionType === "STATEMENT_PAYMENT" && item.statementId && statementToCard.get(String(item.statementId)) === cardId));
     const statementPayments = own.filter((item) => item.transactionType === "STATEMENT_PAYMENT").reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
     const partnerReturns = own.filter((item) => item.transactionType === "REIMBURSEMENT" || item.transactionType === "REFUND").reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+    const actualFees = own.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").reduce((sum, item) => sum + Math.max(0, Number(item.amount ?? 0) - Number(item.reimbursementExpected ?? 0)), 0);
+    const bankCashbackActual = own.reduce((sum, item) => sum + Number(item.cashbackReceived ?? 0), 0);
     const totalOut = statementPayments;
     const totalIn = partnerReturns;
-    return { cardId, period: selectedPeriod, totalOut, totalIn, statementPayments, actualFees: 0, partnerReturns, bankCashbackActual: 0, netResult: totalIn - totalOut, card };
+    return { cardId, period: selectedPeriod, totalOut, totalIn, statementPayments, actualFees, partnerReturns, bankCashbackActual, netResult: totalIn - totalOut, card };
   });
   return reply.send({ data: rows, period: selectedPeriod });
 });
