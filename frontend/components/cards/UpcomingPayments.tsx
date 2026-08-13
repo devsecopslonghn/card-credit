@@ -14,7 +14,7 @@ import {
   buildOverdueStatementRows,
   type DueStatementRow,
 } from "@/lib/cards/dueStatementsCore.mjs";
-import type { CardStatementView } from "@/lib/api/transactionsClient";
+import type { CardStatementView } from "@/lib/api/statementsClient";
 
 type UpcomingPaymentsProps = {
   statements: CardStatementView[];

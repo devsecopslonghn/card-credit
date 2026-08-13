@@ -126,7 +126,7 @@ async function mockCardApis(
   const deleteRequests: string[] = [];
 
   await page.route("**/api/notes**", (route) => json(route, []));
-  await page.route("**/api/card-transactions**", (route) =>
+  await page.route("**/api/financial-transactions**", (route) =>
     json(route, { data: [] }),
   );
   await page.route("**/api/cards/duplicates**", (route) =>

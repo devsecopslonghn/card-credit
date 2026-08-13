@@ -23,8 +23,8 @@ test.describe("isolated split runtime", () => {
       const [me, cards, transactions, reports] = await Promise.all([
         fetch("/api/auth/me"),
         fetch("/api/cards"),
-        fetch("/api/card-transactions"),
-        fetch("/api/reports/summary"),
+        fetch("/api/financial-transactions"),
+        fetch("/api/financial-reports/summary"),
       ]);
       return {
         me: { status: me.status, body: await me.json() },
@@ -45,6 +45,6 @@ test.describe("isolated split runtime", () => {
     expect(result.cards).toEqual({ status: 200, body: [] });
     expect(result.transactions).toEqual({ status: 200, body: { data: [] } });
     expect(result.reports.status).toBe(200);
-    expect(result.reports.body.cards).toEqual([]);
+    expect(result.reports.body.data).toBeDefined();
   });
 });

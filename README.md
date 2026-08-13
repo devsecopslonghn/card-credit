@@ -203,37 +203,11 @@ POST /api/finance/recurring-expenses
 
 Swagger UI: `/docs`. MCP endpoint: `/mcp`.
 
-## Migration dữ liệu card cũ
+## Dữ liệu tài chính
 
-Migration đã apply cho workspace MCP:
-
-```text
-workspace: longhn0710-workspace
-cards: 5
-accounts created: 5
-transactions migrated: 14
-```
-
-Script mặc định dry-run và bắt buộc scope workspace:
-
-```bash
-cd backend
-MONGODB_URI="..." \
-FINANCE_MIGRATION_WORKSPACE_ID="longhn0710-workspace" \
-npm run migrate:finance
-```
-
-Chỉ apply sau khi review dry-run và backup:
-
-```bash
-MONGODB_URI="..." \
-FINANCE_MIGRATION_WORKSPACE_ID="longhn0710-workspace" \
-CONFIRM_FINANCE_MIGRATION=YES \
-npm run migrate:finance -- --apply
-```
-
-Migration idempotent qua `legacyTransactionId`. Xem chi tiết tại
-[finance-domain-plan](docs/finance-domain-plan.md).
+Nguồn dữ liệu duy nhất là `accounts`, `financialtransactions` và `cardstatements`.
+Collection giao dịch card cũ đã được backup, migrate và xóa; không chạy lại migration cũ.
+Xem nguyên tắc tại [finance-source-of-truth](docs/finance-source-of-truth.md).
 
 ## Bước tiếp theo sau khi push/deploy
 

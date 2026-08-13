@@ -7,7 +7,7 @@ import {
   fetchAllCardStatements,
   updateStatementPayment,
   type CardStatementView,
-} from "@/lib/api/transactionsClient";
+} from "@/lib/api/statementsClient";
 import {
   formatVnd,
   getDisplayName,

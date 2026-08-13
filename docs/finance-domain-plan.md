@@ -29,29 +29,9 @@ slice, and keep workspace scoping and idempotent mutations intact.
 
 ## Legacy migration runbook
 
-The existing `CreditCard`, `CardTransaction`, and `CardStatement` collections
-remain the legacy source during the transition. The new financial transaction
-collection is populated by `backend/scripts/migrate-financial-domain.ts`.
+`Account`, `FinancialTransaction`, `CreditCard`, and `CardStatement` are the
+active source collections. The former `CardTransaction` collection was backed
+up, migrated, and removed on 2026-08-13.
 
-1. Run `npm run migrate:finance` with a read-only review of the counts.
-2. Snapshot MongoDB before applying.
-3. Run `npm run migrate:finance -- --apply` once for the selected environment.
-4. Compare migrated transaction counts and gross credit charges by workspace.
-5. Keep legacy writes enabled until the new read projection has been verified.
-6. Switch writes to `FinancialTransactionService`, then remove the old write
-   path in a separate change. Do not run both write paths for the same input.
-
-The migration requires `FINANCE_MIGRATION_WORKSPACE_ID`. Applying also requires
-`CONFIRM_FINANCE_MIGRATION=YES`; this prevents an accidental all-workspace write.
-Example:
-
-```bash
-FINANCE_MIGRATION_WORKSPACE_ID=<workspace-id> \
-CONFIRM_FINANCE_MIGRATION=YES \
-npm run migrate:finance -- --apply
-```
-
-The migration is idempotent through `legacyTransactionId`. Rollback before
-legacy write cutover is removal of only the new `Account` and
-`FinancialTransaction` records created by the migration, using their migration
-marker; do not delete legacy collections.
+No legacy migration command remains. Future changes must write only through
+`FinancialTransactionService`; restore uses the verified MongoDB backup.

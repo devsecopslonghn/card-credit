@@ -102,7 +102,7 @@ catalog/card components, import scripts, database docs/tests.
 - Add reconciliation fixture tests for formulas and reopen behavior.
 
 **Files affected**: `backend/src/statement-domain.ts`, `backend/src/transaction-routes.ts`,
-`backend/src/models/card-statement.ts`, `backend/src/models/card-transaction.ts`,
+`backend/src/models/card-statement.ts`, `backend/src/models/financial-transaction.ts`,
 `frontend/lib/cards/*`, card/statement components and tests.
 
 **Dependencies**: Milestone 2; final business-rule sign-off.
@@ -213,4 +213,3 @@ rerun CI/CD, deploy hoặc approve pipeline khi chưa có yêu cầu rõ ràng.
 - Database indexes/migrations có review và rollback path.
 - Docs cập nhật cùng implementation; no known high-severity issue mở.
 - Production deployment có backup, monitoring, smoke test và rollback owner.
-

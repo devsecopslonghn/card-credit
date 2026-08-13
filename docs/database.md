@@ -70,13 +70,6 @@ cho card mới.
 Statement summary được tính từ transactions thay vì lưu bản sao có nguy cơ stale;
 nếu materialize về sau phải có rebuild/consistency strategy.
 
-### CardTransaction (`cardtransactions`)
-
-`workspaceId`, `userId`, `userCardId`, `statementId`, `transactionDate`,
-`outcomeAmount`, `incomeAmount`, `partnerReturnRateBps`, `incomeInputMode`,
-`cashbackRateBps`, `actualCashbackAmount`, `cashbackStatus`,
-`eligibleForAnnualFeeWaiver`, `note`, timestamps.
-
 ### MonthlyCardCashback (`monthlycardcashbacks`)
 
 `workspaceId`, `userId`, `userCardId`, `period`, `expectedAmount`, `actualAmount`,
@@ -118,7 +111,7 @@ không dùng legacy masterdata để overwrite snapshot card.
 ```text
 User 1 ---- N CreditCard N ---- 1 CardProduct (logical preset snapshot)
  |                 |
- |                 +---- N CardStatement 1 ---- N CardTransaction
+ |                 +---- N CardStatement 1 ---- N FinancialTransaction
  |                 |
  |                 +---- N MonthlyCardCashback
  |                 |
@@ -150,9 +143,8 @@ workspace trước mutation, đặc biệt `userCardId`, `statementId` và feed 
 | cardproductimages | `{ presetId: 1 }` unique | Image cache lookup. |
 | cardstatements | `{ workspaceId: 1, userCardId: 1, statementDate: 1 }` unique | No duplicate statement. |
 | cardstatements | `{ workspaceId: 1, paymentStatus: 1, paymentDueDate: 1 }` | Dashboard/reminder due scan. |
-| cardtransactions | `{ workspaceId: 1, transactionDate: -1 }` | Date list/report input. |
-| cardtransactions | `{ workspaceId: 1, userCardId: 1, transactionDate: -1 }` | Card history. |
-| cardtransactions | `{ workspaceId: 1, statementId: 1 }` | Statement detail/summary. |
+| financialtransactions | `{ workspaceId: 1, transactionDate: -1, createdAt: -1 }` | Unified finance list/report input. |
+| financialtransactions | `{ workspaceId: 1, accountId: 1, transactionDate: -1 }` | Account balance/history. |
 | monthlycardcashbacks | `{ workspaceId: 1, userCardId: 1, period: 1 }` unique | Monthly upsert. |
 | monthlycardcashbacks | `{ workspaceId: 1, period: -1 }` | Range report. |
 | cardfeepayments | `{ workspaceId: 1, userCardId: 1, paymentDate: -1, createdAt: -1 }` | Fee history/range. |
@@ -200,4 +192,3 @@ không thêm index tùy tiện trên high-write collections nếu không có que
 - Deployment rollback dùng image tag trước; không chạy dual-write thường trực.
 - Không dùng `git reset --hard`, drop collection hoặc migration destructive tự
   động trong CI.
-

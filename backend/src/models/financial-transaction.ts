@@ -7,9 +7,6 @@ const FinancialTransactionSchema = new Schema(
     accountId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
     statementId: { type: Schema.Types.ObjectId, ref: "CardStatement", default: null },
     reimbursementForTransactionId: { type: Schema.Types.ObjectId, ref: "FinancialTransaction", default: null },
-    // Optional legacy link. Keep it absent for new transactions so the sparse
-    // unique index does not treat multiple missing links as the same value.
-    legacyTransactionId: { type: Schema.Types.ObjectId, ref: "CardTransaction" },
     accountType: { type: String, enum: ["DEBIT", "CASH", "E_WALLET", "CREDIT"], required: true },
     transactionType: {
       type: String,
@@ -38,15 +35,6 @@ const FinancialTransactionSchema = new Schema(
 FinancialTransactionSchema.index({ workspaceId: 1, transactionDate: -1, createdAt: -1 });
 FinancialTransactionSchema.index({ workspaceId: 1, accountId: 1, transactionDate: -1 });
 FinancialTransactionSchema.index({ workspaceId: 1, categoryId: 1, transactionDate: -1 });
-FinancialTransactionSchema.index(
-  { workspaceId: 1, legacyTransactionId: 1 },
-  {
-    name: "financial_transaction_legacy_unique",
-    unique: true,
-    partialFilterExpression: { legacyTransactionId: { $type: "objectId" } },
-  },
-);
-
 export const FinancialTransactionModel =
   (mongoose.models.FinancialTransaction ??
     mongoose.model("FinancialTransaction", FinancialTransactionSchema)) as mongoose.Model<

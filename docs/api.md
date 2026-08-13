@@ -105,11 +105,8 @@ Resource không tồn tại hoặc ngoài workspace đều xử lý như `404 CA
 
 | Method/path | Auth | Request/response |
 |---|---|---|
-| `GET /card-transactions?cardId=&statementId=&date=` | Session | Transactions scoped workspace, kèm statement/card projection. |
-| `POST /card-transactions` | Session | `{userCardId,transactionDate,outcomeAmount,incomeAmount,partnerReturnRateBps,incomeInputMode,cashbackRateBps,eligibleForAnnualFeeWaiver,note}`; tạo/gán statement. |
-| `PATCH /card-transactions/:id` | Session | Update cùng validation; không cho sửa khi statement `PAID`. |
-| `DELETE /card-transactions/:id` | Session | Xóa nếu statement chưa paid; summary đọc lại từ transactions. |
-| `PATCH /card-transactions/:id/cashback` | Session | `{cashbackStatus,actualCashbackAmount?}`; cập nhật reconciliation. |
+| `GET /financial-transactions?accountId=&categoryId=&from=&to=` | Session | Unified transactions scoped to workspace. |
+| `POST /financial-transactions` | Session | Creates a Financial Domain transaction through the service layer. |
 | `GET /card-statements` | Session | Statements của tất cả card trong workspace. |
 | `GET /cards/:id/statements` | Session | Statements của card. |
 | `GET /cards/:id/statements/:statementId` | Session | Statement + transactions + summary. |

@@ -12,8 +12,6 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "validate": "npm run typecheck && npm run lint && npm test && npm run build",
     "import:catalog": "tsx scripts/import-card-catalog.ts",
-    "migrate:finance": "tsx scripts/migrate-financial-domain.ts",
-    "repair:finance-index": "tsx scripts/repair-financial-transaction-index.ts",
     "repair:account-index": "tsx scripts/repair-account-index.ts",
     "sync:paid-statements": "tsx scripts/sync-paid-statements-to-finance.ts",
     "backup:finance": "tsx scripts/backup-finance-workspace.ts",

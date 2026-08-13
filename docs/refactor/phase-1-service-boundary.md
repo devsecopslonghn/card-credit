@@ -46,7 +46,7 @@ not rename the whole backend in this phase.
 - Added transaction filters/result types.
 - Added `TransactionService.list()` for workspace-scoped transaction reads and
   DTO serialization.
-- Adapted `GET /api/card-transactions` to call the service.
+- Adapted transaction reads to use the Financial Domain service.
 - Preserved existing route response shape and validation behavior.
 
 ## Verification evidence

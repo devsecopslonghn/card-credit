@@ -24,7 +24,7 @@ import {
   fetchAllCardStatements,
   updateStatementPayment,
   type CardStatementView,
-} from "@/lib/api/transactionsClient";
+} from "@/lib/api/statementsClient";
 
 type Toast = { message: string; type: "success" | "error" };
 
