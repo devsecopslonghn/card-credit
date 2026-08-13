@@ -61,6 +61,23 @@ const normalizedNote = (note: unknown) => {
 };
 
 export class FinancialTransactionService {
+  static async preview(ctx: ServiceContext, input: CreateFinancialTransactionBatchInput) {
+    const items = [];
+    for (const item of input.items) {
+      const account = await AccountModel.findOne({ _id: item.accountId, workspaceId: ctx.workspaceId, active: { $ne: false } }).lean();
+      if (!account) throw new ApiError(404, "ACCOUNT_NOT_FOUND", "Không tìm thấy tài khoản.");
+      const accountType = String(account.type) as AccountType;
+      const paidForOtherCredit = accountType === "CREDIT" && (item.ownership ?? "PERSONAL") === "PAID_FOR_OTHER";
+      if (paidForOtherCredit && item.serviceFeeRate === undefined) throw new ApiError(400, "SERVICE_FEE_REQUIRED", "Thanh toán hộ Credit phải có serviceFeeRate.");
+      const reimbursementExpected = paidForOtherCredit
+        ? Math.round(item.amount * (1 - Number(item.serviceFeeRate) / 100))
+        : item.reimbursementExpected;
+      const impact = calculateFinancialImpact({ accountType, transactionType: item.transactionType, ownership: item.ownership, amount: item.amount, reimbursementExpected, refundReceived: item.refundReceived, cashbackReceived: item.cashbackReceived, serviceFeeRate: item.serviceFeeRate });
+      items.push({ ...item, reimbursementExpected, previewImpact: impact });
+    }
+    return { items };
+  }
+
   static async createBatch(ctx: ServiceContext, input: CreateFinancialTransactionBatchInput, idempotencyKey: string) {
     if (input.items.length < 1 || input.items.length > 50) throw new ApiError(400, "INVALID_TRANSACTION_BATCH", "Batch phải từ 1 đến 50 giao dịch.");
     if (idempotencyKey.trim().length < 8) throw new ApiError(400, "INVALID_IDEMPOTENCY_KEY", "Idempotency key không hợp lệ.");

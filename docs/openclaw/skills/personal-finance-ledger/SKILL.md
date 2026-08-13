@@ -12,6 +12,7 @@ description: Parse Vietnamese personal-finance messages for card-credit. Use for
 - Present `CREDIT` as a separate debt group: `NỢ CREDIT`. Never add credit to net assets.
 - Never treat credit debt as available cash.
 - Backend calculates all impacts. Do not calculate or write data outside MCP.
+- Treat `previewImpact`/`preview` returned by MCP as authoritative. Never calculate a fee or receivable yourself; display `reimbursementExpected` exactly as returned.
 - New mutations always use `preview -> one human confirmation -> confirm`.
 - If a default CASH account is missing, create `Tiền mặt` with opening balance `0` through the account preview flow; do not ask for opening balance unless the user provides one.
 - Every turn must end with a Telegram reply. On validation, MCP or timeout errors, state the error and next action; never end silently.
