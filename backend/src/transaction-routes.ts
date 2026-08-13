@@ -21,6 +21,8 @@ import { MailDeliveryError, MailUnavailableError, maskEmail, type MailService } 
 import { composeStatementCalendarEmail } from "./statement-calendar-email.js";
 import { projectStatementCalendar, serializeStatementCalendar } from "./statement-calendar.js";
 import { TransactionService } from "./services/transaction-service.js";
+import { FinancialTransactionModel } from "./models/financial-transaction.js";
+import { FinancialTransactionService } from "./services/financial-transaction-service.js";
 
 const Cards = CreditCardModel as mongoose.Model<Data>;
 const Transactions = CardTransactionModel;
@@ -443,6 +445,16 @@ export const registerTransactionRoutes = (
         { $set: update },
         { returnDocument: "after" },
       );
+      if (action === "PAID" && result && Number(result.paidAmount ?? 0) > 0) {
+        const existingPayment = await FinancialTransactionModel.findOne({ workspaceId: session.workspaceId, statementId: result._id, transactionType: "STATEMENT_PAYMENT" }).lean();
+        if (!existingPayment) {
+          const repaymentAccountId = typeof request.body?.repaymentAccountId === "string" && request.body.repaymentAccountId.trim()
+            ? request.body.repaymentAccountId.trim()
+            : process.env.FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID?.trim();
+          if (!repaymentAccountId) throw new ApiError(400, "REPAYMENT_ACCOUNT_REQUIRED", "Cần chọn tài khoản DEBIT/CASH/E_WALLET dùng để trả sao kê.");
+          await FinancialTransactionService.create(session, { accountId: repaymentAccountId, transactionDate: new Date(String(result.paidAt ?? new Date())).toISOString().slice(0, 10), amount: Number(result.paidAmount), transactionType: "STATEMENT_PAYMENT", statementId: String(result._id), note: `Thanh toán sao kê ${String(result._id)}` }, `statement-payment:${String(result._id)}:${Number(result.paidAmount)}`);
+        }
+      }
       return { data: TransactionService.serializeStatement(result, transactions.map(plain), card) };
     },
   );
