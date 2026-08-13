@@ -3,11 +3,9 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { AddCardModal } from "@/components/cards/AddCardModal";
-import { CalendarTransactions } from "@/components/cards/CalendarTransactions";
 import { CardList } from "@/components/cards/CardList";
 import { DuplicateResolver } from "@/components/cards/DuplicateResolver";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-import { TransactionFormModal } from "@/components/cards/TransactionFormModal";
 import { UpcomingPayments, paymentActionKey } from "@/components/cards/UpcomingPayments";
 import type { DueStatementRow } from "@/lib/cards/dueStatementsCore.mjs";
 import { loadDashboardResources } from "@/lib/cards/dashboardLoadCore.mjs";
@@ -23,14 +21,9 @@ import {
 import { deleteCard, fetchCards } from "@/lib/api/cardsClient";
 import { fetchMonthlyCashFlow, type MonthlyCashFlow } from "@/lib/api/cashFlowClient";
 import {
-  createTransaction,
   fetchAllCardStatements,
-  fetchTransactions,
-  updateTransaction,
   updateStatementPayment,
   type CardStatementView,
-  type CardTransactionView,
-  type TransactionPayload,
 } from "@/lib/api/transactionsClient";
 
 type Toast = { message: string; type: "success" | "error" };
@@ -41,12 +34,7 @@ export default function CardsPage() {
   const [cardsLoading, setCardsLoading] = useState(true);
   const [cardsError, setCardsError] = useState("");
   const [statementsError, setStatementsError] = useState("");
-  const [transactions, setTransactions] = useState<CardTransactionView[]>([]);
   const [statements, setStatements] = useState<CardStatementView[]>([]);
-  const [transactionSubmitting, setTransactionSubmitting] = useState(false);
-  const [transactionError, setTransactionError] = useState("");
-  const [transactionFormDate, setTransactionFormDate] = useState("");
-  const [editingTransaction, setEditingTransaction] = useState<CardTransactionView | null>(null);
   const [selectedOwner, setSelectedOwner] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<CreditCardView | null>(null);
@@ -56,7 +44,7 @@ export default function CardsPage() {
   const [pendingPaymentActions, setPendingPaymentActions] = useState<Set<string>>(() => new Set());
   const [monthlyCashFlow, setMonthlyCashFlow] = useState<MonthlyCashFlow[]>([]);
   const pendingPaymentActionsRef = useRef(new Set<string>());
-  const [calendarPeriod, setCalendarPeriod] = useState(() => {
+  const [calendarPeriod] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
   });
@@ -89,21 +77,12 @@ export default function CardsPage() {
     void loadCards();
   }, [loadCards]);
 
-  const loadCardTransactions = useCallback(async () => {
-    try {
-      setTransactions(await fetchTransactions());
-    } catch (error) {
-      console.error("Lỗi tải giao dịch", error);
-    }
-  }, []);
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void loadCards();
-      void loadCardTransactions();
     }, 0);
     return () => window.clearTimeout(timeoutId);
-  }, [loadCardTransactions, loadCards]);
+  }, [loadCards]);
 
   useEffect(() => {
     const period = `${calendarPeriod.year}-${String(calendarPeriod.month + 1).padStart(2, "0")}`;
@@ -159,38 +138,6 @@ export default function CardsPage() {
     setIsAddModalOpen(false);
     requestAnimationFrame(() => addButtonRef.current?.focus());
   }, []);
-
-  const reloadTransactionData = useCallback(async () => {
-    await Promise.all([loadCards(), loadCardTransactions()]);
-  }, [loadCardTransactions, loadCards]);
-
-  const openTransactionForm = (date: string, transaction: CardTransactionView | null = null) => {
-    setTransactionFormDate(date);
-    setEditingTransaction(transaction);
-    setTransactionError("");
-  };
-
-  const handleTransactionSubmit = async (payload: TransactionPayload, warning: string) => {
-    if (warning && !window.confirm(warning)) return;
-    setTransactionSubmitting(true);
-    setTransactionError("");
-    try {
-      if (editingTransaction) {
-        await updateTransaction(editingTransaction._id, payload);
-        showToast("Đã cập nhật giao dịch.");
-      } else {
-        await createTransaction(payload);
-        showToast("Đã tạo giao dịch.");
-      }
-      setTransactionFormDate("");
-      setEditingTransaction(null);
-      await reloadTransactionData();
-    } catch (error) {
-      setTransactionError(error instanceof Error ? error.message : "Không thể lưu giao dịch.");
-    } finally {
-      setTransactionSubmitting(false);
-    }
-  };
 
   const executeDelete = async () => {
     if (!cardToDelete) return;
@@ -317,14 +264,6 @@ export default function CardsPage() {
           <div className="grid gap-3 md:grid-cols-3">{monthlyCashFlow.filter((item) => !selectedOwner || item.card?.owner === selectedOwner).map((item) => <article key={item.cardId} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}><p className="truncate text-sm font-bold">{item.card?.providerName ?? item.card?.bank ?? "Thẻ"} · {item.card?.displayName ?? item.card?.name ?? item.cardId.slice(-6)}</p><div className="mt-4 grid grid-cols-3 gap-2 text-sm"><div><p className="text-xs cc-text-muted">Tiền Out</p><p className="mt-1 font-bold cc-tabular">{formatVnd(item.totalOut)}</p></div><div><p className="text-xs cc-text-muted">Tiền In</p><p className="mt-1 font-bold text-emerald-600 cc-tabular">{formatVnd(item.totalIn)}</p></div><div><p className="text-xs cc-text-muted">Kết quả</p><p className={`mt-1 font-bold cc-tabular ${item.netResult >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatVnd(item.netResult)}</p></div></div><p className="mt-3 text-xs cc-text-muted">Phí thực tế: {formatVnd(item.actualFees)} · Không có phí thì 0 ₫</p></article>)}{monthlyCashFlow.length === 0 && <p className="text-sm cc-text-muted">Chưa có dữ liệu dòng tiền thực tế cho tháng này.</p>}</div>
         </section>
 
-        <CalendarTransactions
-          transactions={transactions}
-          currentYear={calendarPeriod.year}
-          currentMonth={calendarPeriod.month}
-          onPeriodChange={setCalendarPeriod}
-          onAdd={(date) => openTransactionForm(date)}
-          onEdit={(transaction) => openTransactionForm(transaction.transactionDate, transaction)}
-        />
         {statementsError && (
           <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert">
             <p className="font-semibold text-amber-900">{statementsError}</p>
@@ -360,22 +299,6 @@ export default function CardsPage() {
           onClose={closeAddModal}
           onCreated={refreshCardsAndDuplicates}
           onSuccess={(message) => showToast(message)}
-        />
-
-        <TransactionFormModal
-          key={editingTransaction?._id ?? transactionFormDate}
-          open={Boolean(transactionFormDate)}
-          date={transactionFormDate}
-          cards={cards.filter((card) => card.active !== false)}
-          statements={statements}
-          transaction={editingTransaction}
-          submitting={transactionSubmitting}
-          error={transactionError}
-          onClose={() => {
-            setTransactionFormDate("");
-            setEditingTransaction(null);
-          }}
-          onSubmit={handleTransactionSubmit}
         />
 
         {cardToDelete && (
