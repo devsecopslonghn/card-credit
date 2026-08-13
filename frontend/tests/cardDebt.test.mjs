@@ -66,14 +66,7 @@ test("statement cashback cap resets when summaries are calculated per statement 
   assert.equal(august.remainingCashback, 100_000);
 });
 
-test("card detail displays debt from statements without legacy card amount fields", () => {
+test("card detail redirects to the unified financial screens", () => {
   const source = readFileSync(new URL("../app/cards/[id]/page.tsx", import.meta.url), "utf8");
-  assert.match(source, /summarizeCardDebt/);
-  assert.match(source, /Đang nợ ngân hàng/);
-  assert.match(source, /Cần thanh toán tháng này/);
-  assert.match(source, /Cần thanh toán tháng kế tiếp/);
-  assert.match(source, /Cashback được hưởng\/đã dùng kỳ này/);
-  assert.match(source, /summary\?\.cashbackCap \?\?/);
-  assert.equal(source.includes("amountDueThisMonth"), false);
-  assert.equal(source.includes("monthlyData"), false);
+  assert.match(source, /redirect\("\/cards"\)/);
 });
