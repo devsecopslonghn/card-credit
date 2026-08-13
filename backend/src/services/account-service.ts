@@ -57,7 +57,7 @@ export class AccountService {
       return {
         ...serialize(account),
         currentBalance: openingBalance + (String(account.type) === "CREDIT" ? 0 : Number(totals.debitCashflow ?? 0)),
-        currentDebt: openingBalance + Number(totals.creditDebt ?? 0) - (paidByCreditAccount.get(String(account._id)) ?? 0),
+        currentDebt: Math.max(0, openingBalance + Number(totals.creditDebt ?? 0) - (paidByCreditAccount.get(String(account._id)) ?? 0)),
       };
     });
   }

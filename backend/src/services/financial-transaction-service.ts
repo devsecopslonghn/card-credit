@@ -61,6 +61,24 @@ const normalizedNote = (note: unknown) => {
 };
 
 export class FinancialTransactionService {
+  static async payStatement(ctx: ServiceContext, statementId: string, repaymentAccountId: string, paidAmount: number, paidAt: Date) {
+    if (!mongoose.isValidObjectId(statementId) || !mongoose.isValidObjectId(repaymentAccountId)) throw new ApiError(400, "INVALID_PAYMENT_REFERENCE", "Tham chiếu thanh toán không hợp lệ.");
+    if (!Number.isSafeInteger(paidAmount) || paidAmount <= 0) throw new ApiError(400, "INVALID_PAYMENT_AMOUNT", "Số tiền thanh toán không hợp lệ.");
+    const session = await mongoose.startSession();
+    try {
+      let output: Record<string, unknown> | undefined;
+      await session.withTransaction(async () => {
+        const statement = await CardStatementModel.findOne({ _id: statementId, workspaceId: ctx.workspaceId }).session(session).lean();
+        if (!statement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy sao kê.");
+        const existing = await FinancialTransactionModel.findOne({ workspaceId: ctx.workspaceId, statementId, transactionType: "STATEMENT_PAYMENT" }).session(session).lean();
+        if (!existing) await this.createInternal(ctx, { accountId: repaymentAccountId, transactionDate: paidAt.toISOString().slice(0, 10), amount: paidAmount, transactionType: "STATEMENT_PAYMENT", statementId, note: `Thanh toán sao kê ${statementId}` }, session);
+        const result = await CardStatementModel.findOneAndUpdate({ _id: statementId, workspaceId: ctx.workspaceId }, { $set: { paymentStatus: "PAID", paidAt, paidAmount } }, { returnDocument: "after", session }).lean();
+        output = result as Record<string, unknown>;
+      });
+      return output;
+    } finally { await session.endSession(); }
+  }
+
   static async preview(ctx: ServiceContext, input: CreateFinancialTransactionBatchInput) {
     const items = [];
     for (const item of input.items) {
@@ -125,6 +143,7 @@ export class FinancialTransactionService {
   }
 
   private static async createInternal(ctx: ServiceContext, input: CreateFinancialTransactionInput, session?: mongoose.ClientSession) {
+    if (input.transactionType === "TRANSFER") throw new ApiError(400, "TRANSFER_NOT_SUPPORTED", "Chuyển tiền cần chỉ định tài khoản nguồn và đích; chưa thể ghi như giao dịch đơn.");
     if (!mongoose.isValidObjectId(input.accountId)) {
       throw new ApiError(400, "INVALID_ACCOUNT_ID", "accountId không hợp lệ.");
     }

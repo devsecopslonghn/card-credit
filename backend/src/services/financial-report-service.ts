@@ -23,6 +23,9 @@ export class FinancialReportService {
     const transactions = await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, statementId }).lean();
     const totals = empty();
     for (const item of transactions) add(totals, item as Record<string, unknown>);
+    const sourceIds = transactions.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").map((item) => item._id);
+    const reimbursements = sourceIds.length ? await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 }).lean() : [];
+    totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
     return {
       id: String(statement._id),
       cardId: String(statement.userCardId),
@@ -88,10 +91,9 @@ export class FinancialReportService {
     }
     const totals = empty();
     for (const item of items) add(totals, item as Record<string, unknown>);
-    const reimbursements = items
-      .filter((item) => item.transactionType === "REIMBURSEMENT")
-      .reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
-    totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements);
+    const sourceIds = items.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").map((item) => item._id);
+    const reimbursements = sourceIds.length ? await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 }).lean() : [];
+    totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
     const netAssets = accounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
     const creditDebtBalance = accounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;
     return {

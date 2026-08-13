@@ -212,21 +212,23 @@ export const registerTransactionRoutes = (
                 paidAt: new Date(),
                 paidAmount: transactions.reduce((sum, item) => sum + Number(item.amount ?? 0), 0),
               };
+      if (action === "PAID") {
+        const paidAmount = transactions.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+        const repaymentAccountId = typeof request.body?.repaymentAccountId === "string" && request.body.repaymentAccountId.trim()
+          ? request.body.repaymentAccountId.trim()
+          : process.env.FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID?.trim();
+        if (paidAmount > 0 && !repaymentAccountId) throw new ApiError(400, "REPAYMENT_ACCOUNT_REQUIRED", "Cần chọn tài khoản DEBIT/CASH/E_WALLET dùng để trả sao kê.");
+        const paidStatement = paidAmount > 0 && repaymentAccountId
+          ? await FinancialTransactionService.payStatement(session, request.params.statementId, repaymentAccountId, paidAmount, new Date())
+          : await Statements.findOneAndUpdate({ _id: request.params.statementId, workspaceId: session.workspaceId }, { $set: update }, { returnDocument: "after" });
+        if (!paidStatement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
+        return { data: TransactionService.serializeStatement(paidStatement, transactions.map((item) => financialView(item as Data, card)), card) };
+      }
       const result = await Statements.findOneAndUpdate(
         { _id: request.params.statementId, workspaceId: session.workspaceId },
         { $set: update },
         { returnDocument: "after" },
       );
-      if (action === "PAID" && result && Number(result.paidAmount ?? 0) > 0) {
-        const existingPayment = await FinancialTransactionModel.findOne({ workspaceId: session.workspaceId, statementId: result._id, transactionType: "STATEMENT_PAYMENT" }).lean();
-        if (!existingPayment) {
-          const repaymentAccountId = typeof request.body?.repaymentAccountId === "string" && request.body.repaymentAccountId.trim()
-            ? request.body.repaymentAccountId.trim()
-            : process.env.FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID?.trim();
-          if (!repaymentAccountId) throw new ApiError(400, "REPAYMENT_ACCOUNT_REQUIRED", "Cần chọn tài khoản DEBIT/CASH/E_WALLET dùng để trả sao kê.");
-          await FinancialTransactionService.create(session, { accountId: repaymentAccountId, transactionDate: new Date(String(result.paidAt ?? new Date())).toISOString().slice(0, 10), amount: Number(result.paidAmount), transactionType: "STATEMENT_PAYMENT", statementId: String(result._id), note: `Thanh toán sao kê ${String(result._id)}` }, `statement-payment:${String(result._id)}:${Number(result.paidAmount)}`);
-        }
-      }
       return { data: TransactionService.serializeStatement(result, transactions.map((item) => financialView(item as Data, card)), card) };
     },
   );
