@@ -88,6 +88,10 @@ export class FinancialReportService {
     }
     const totals = empty();
     for (const item of items) add(totals, item as Record<string, unknown>);
+    const reimbursements = items
+      .filter((item) => item.transactionType === "REIMBURSEMENT")
+      .reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+    totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements);
     const netAssets = accounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
     const creditDebtBalance = accounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;
     return {
