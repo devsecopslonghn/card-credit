@@ -275,7 +275,7 @@ export default function CardsPage() {
               Báo cáo
             </Link>
             <a
-              href={`/api/reports/summary${ownerReportQuery}`}
+              href={`/reports${ownerReportQuery ? `?${ownerReportQuery.replace(/^\?/, "")}` : ""}`}
               target="_blank"
               rel="noopener noreferrer"
               className="cc-control flex w-full justify-center rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-surface-elevated sm:w-auto"

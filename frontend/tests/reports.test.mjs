@@ -66,8 +66,5 @@ test("cards navigation and JSON export preserve the selected owner filter", () =
   );
   assert.match(page, /ownerReportQuery = selectedOwner/);
   assert.match(page, /href=\{`\/reports\$\{ownerReportQuery\}`\}/);
-  assert.match(
-    page,
-    /href=\{`\/api\/reports\/summary\$\{ownerReportQuery\}`\}/,
-  );
+  assert.match(page, /href=\{`\/reports\$\{ownerReportQuery \? /);
 });
