@@ -21,6 +21,11 @@ import { CardQueryService } from "../src/services/card-query-service.js";
 import { CashFlowQueryService } from "../src/services/cash-flow-query-service.js";
 import { FeeQueryService } from "../src/services/fee-query-service.js";
 import { MonthlyCashbackQueryService } from "../src/services/monthly-cashback-query-service.js";
+import { StatementPaymentCommandService } from "../src/services/statement-payment-command-service.js";
+import { registerTransactionRoutes } from "../src/transaction-routes.js";
+import { statementPaymentPreviewSchema } from "@card-credit/contracts";
+import type { PreviewConfirmationService } from "../src/services/preview-confirmation-service.js";
+import type { PreviewTokenCodec } from "../src/mcp/preview.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 import type { AuthRepository } from "../src/auth-repository.js";
 
@@ -108,5 +113,50 @@ test("REST and MCP fee, Fee Center and cashback adapters parse to the same DTOs"
   assert.equal(payments.mock.callCount(), 2);
   assert.equal(centerService.mock.callCount(), 2);
   assert.equal(cashbackService.mock.callCount(), 2);
+  await app.close();
+});
+
+test("REST and MCP statement payment previews parse to the same canonical DTO", async (t) => {
+  const statementId = "507f1f77bcf86cd799439021";
+  const fixture = {
+    operation: "pay_statement" as const,
+    cardId,
+    statementId,
+    action: "PAID" as const,
+    paymentStatus: "OPEN" as const,
+    nextPaymentStatus: "PAID" as const,
+    statementAmount: 1000,
+    paymentAmount: 0,
+    outstandingAmount: 1000,
+    amountToPay: 1000,
+    repaymentAccountId: "507f1f77bcf86cd799439031",
+    version: "2026-08-16T00:00:00.000Z",
+    requiresRepaymentAccount: false,
+    warnings: [],
+  };
+  const preview = t.mock.method(StatementPaymentCommandService, "preview", async (ctx: ServiceContext, requestedCardId: string, requestedStatementId: string, input: { action: string; repaymentAccountId?: string }) => {
+    assert.equal(ctx.workspaceId, user.workspaceId);
+    assert.equal(requestedCardId, cardId);
+    assert.equal(requestedStatementId, statementId);
+    assert.deepEqual(input, { action: "PAID", repaymentAccountId: fixture.repaymentAccountId });
+    return fixture;
+  });
+  const metadata = { previewId: "00000000-0000-4000-8000-000000000001", confirmationToken: "token", expiresAt: Date.parse("2026-08-16T00:05:00.000Z"), expiresInSeconds: 300 };
+  const previewService = { issue: async () => metadata } as unknown as PreviewConfirmationService;
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerTransactionRoutes(app, secret, undefined, previewService);
+  const rest = await app.inject({ method: "POST", url: `/api/cards/${cardId}/statements/${statementId}/payment/preview`, headers: { cookie: browserCookie }, payload: { action: "PAID", repaymentAccountId: fixture.repaymentAccountId } });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: "payment-parity-test", version: "1.0.0" });
+  const codec = { issue: () => metadata, verify: () => ({ previewId: metadata.previewId }) } as unknown as PreviewTokenCodec;
+  const server = createMcpServer(mcpContext, codec, previewService);
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  const mcpResult = await client.callTool({ name: "preview_pay_statement", arguments: { cardId, statementId, input: { action: "PAID", repaymentAccountId: fixture.repaymentAccountId } } });
+  const mcpContent = mcpResult.content as Array<{ type?: string; text?: string }>;
+  const mcp = JSON.parse(mcpContent[0]?.text ?? "null");
+  assert.deepEqual(statementPaymentPreviewSchema.parse(rest.json().data), statementPaymentPreviewSchema.parse(mcp));
+  assert.equal(preview.mock.callCount(), 2);
+  await client.close();
+  await server.close();
   await app.close();
 });
