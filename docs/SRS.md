@@ -287,10 +287,10 @@ Hai nhóm cross-cutting:
 | STM-04 | Stored status gồm `OPEN`, `STATEMENT_CLOSED`, `PAID`, `OVERDUE`; effective `OVERDUE` được suy ra khi chưa paid và due date nhỏ hơn ngày hiện tại. |
 | STM-05 | API phải list statement toàn workspace, list theo card và đọc detail gồm transaction/summary. |
 | STM-06 | Action `CLOSED` chuyển kỳ sang `STATEMENT_CLOSED` và không được áp dụng trực tiếp lên kỳ đã paid. |
-| STM-07 | Action `PAID` phải dùng real-money repayment account khi amount lớn hơn 0, tạo tối đa một `STATEMENT_PAYMENT` theo statement và cập nhật paid metadata trong một MongoDB transaction. |
-| STM-08 | Repayment account lấy từ request `repaymentAccountId` hoặc fallback `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |
-| STM-09 | Action `REOPEN` AS-IS đưa kỳ về `STATEMENT_CLOSED` và xóa paid metadata; payment transaction hiện không bị xóa/reverse. |
-| STM-10 | Legacy statement summary adapter loại `STATEMENT_PAYMENT`, map Financial Transaction sang contract cũ rồi tính total due, fee, cashback cap và profit. |
+| STM-07 | Action `PAID` phải dùng repayment account đang hoạt động thuộc workspace, loại `DEBIT|CASH|E_WALLET`, khi outstanding amount lớn hơn 0; tạo tối đa một `STATEMENT_PAYMENT` theo statement và cập nhật paid metadata trong một MongoDB transaction. |
+| STM-08 | Request phải dùng strict input `{action, repaymentAccountId?}`; không còn fallback mặc định từ `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |
+| STM-09 | Action `REOPEN` chỉ mở lại kỳ chưa `PAID` về `OPEN`; kỳ `PAID` bị khóa. Không xóa/reverse payment transaction trong slice này; reversal là command/transaction type riêng. |
+| STM-10 | Statement read và payment response dùng canonical `StatementDto`; Frontend chỉ map alias tương thích, không tự tính lại amount, fee, cashback hoặc payment state. |
 
 ### 5.5 Benefits & Fees
 
@@ -499,8 +499,10 @@ phản ánh phần thuộc cá nhân.
 3. Financial summary giảm real-money cashflow và credit debt nhưng không tăng
    personal spending.
 
-Điều kiện hiện tại: frontend payment client chỉ gửi action, vì vậy cần
-`FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID` nếu statement có amount lớn hơn 0.
+Frontend `/payments` và `/cards` tải các tài khoản `REAL_MONEY`, yêu cầu chọn
+`repaymentAccountId` khi outstanding amount lớn hơn 0 và gửi strict command input.
+Backend không nhận action lạ, không tin fallback environment và trả lại canonical
+`StatementDto` sau khi command hoàn tất.
 
 ### UC-05 — Chi hộ và nhận hoàn
 
@@ -633,14 +635,14 @@ Tất cả path dưới đây là path backend. Browser đi qua Next rewrite cho
 | `/` | Redirect `/dashboard` | Hoàn chỉnh |
 | `/register`, `/login`, `/forgot-password` | Auth forms | Có API integration; forgot password chưa gửi email thực tế |
 | `/dashboard` | KPI tháng và sáu transaction gần nhất | Read-only |
-| `/cards` | Card dashboard, add/delete, duplicate merge, statement actions, monthly cash flow | Có mutation; payment phụ thuộc repayment account fallback |
+| `/cards` | Card dashboard, add/delete, duplicate merge, statement actions, monthly cash flow | Có mutation; payment chọn repayment account real-money |
 | `/cards/[id]` | Redirect về `/cards` | Card detail/editor legacy đã loại bỏ |
 | `/accounts` | Group và hiển thị balance/debt | Read-only; chưa có create UI |
 | `/transactions` | List/filter transaction | Modal “AI” chỉ preview text cục bộ, chưa gọi MCP/REST để ghi |
 | `/budgets` | Đọc trạng thái budget tháng hiện tại | Read-only; DTO UI/backend đang lệch |
 | `/reports` | Summary tháng hiện tại và category breakdown | Read-only; chưa có filter/export thật |
 | `/analytics` | Redirect `/reports` | Compatibility |
-| `/payments` | List/filter statement, đánh dấu paid | Có mutation; client chưa chọn repayment account |
+| `/payments` | List/filter statement, đánh dấu paid | Có mutation; client chọn repayment account real-money |
 | `/cashback` | Chọn card, CRUD monthly bank cashback | Có API integration nhưng không nằm trong main navigation |
 | `/fees` | CRUD categorized Fee Center | Có API integration |
 | `/notifications` | Read statement notification projection | Read-only |
@@ -667,7 +669,7 @@ one-off calendar email và Swagger/MCP management.
 | Reset dev | `PASSWORD_RESET_RETURN_TOKEN` | Chỉ nên bật trong môi trường kiểm soát |
 | SMTP | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, optional `SMTP_PORT`, `SMTP_SECURE` | Cần cho email/reminder |
 | Reminder | `REMINDER_SCAN_INTERVAL_MS`, `REMINDER_CLAIM_TIMEOUT_MS` | Default 60s và 300s |
-| Payment | `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID` | Fallback hiện cần cho UI payment |
+| Payment | `repaymentAccountId` | Chọn từ account `DEBIT|CASH|E_WALLET` đang hoạt động trong workspace; không dùng fallback environment |
 | MCP | `MCP_HTTP_TOKEN`, `MCP_WORKSPACE_ID`, `MCP_USER_ID`, optional `MCP_PREVIEW_SECRET` | Khi token bật endpoint, `MCP_PREVIEW_SECRET` phải explicit và tối thiểu 32 ký tự; không fallback `AUTH_SECRET` |
 | Catalog | `CARD_CATALOG_PATH` | Backend image dùng `/app/catalog/card-presets.json` |
 | Docs | `API_DOCS_ENABLED` | `false` để tắt Swagger |
@@ -754,9 +756,9 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 | GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter, private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes`, Notes POST, Profile PATCH, Workspace owner PUT, Calendar subscription list, Masterdata routes, Admin users/audit routes, Catalog admin routes và one-off calendar email revalidate user active/locked/workspace (và role cho admin mutation/read). Còn thiếu session version/revocation tức thời, atomic role/version guard và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
 | GAP-SEC-02 | Cao | Public register chấp nhận `workspaceId` do client truyền. Người biết workspace ID có thể tự đăng ký vào workspace đó nếu không có policy bổ sung ngoài source. |
 | GAP-DATA-01 | Cao | Delete card và duplicate merge không cascade/relink account, statement, transaction, cashback, fee, reminder. Có thể tạo orphan hoặc xóa source trong khi dữ liệu tài chính vẫn tham chiếu source card. |
-| GAP-PAY-01 | Cao | Frontend payment chỉ gửi `action`, không cho chọn `repaymentAccountId`; payment có amount sẽ lỗi nếu thiếu `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |
-| GAP-PAY-02 | Cao | Payment route coi mọi action khác `REOPEN`/`CLOSED` là `PAID`; request thiếu/sai action có thể đánh dấu paid. `REOPEN` không reverse/xóa `STATEMENT_PAYMENT`, nên cashflow/debt có thể không phục hồi. |
-| GAP-STM-01 | Đã xử lý một phần | Statement Read v1, notification, private calendar feed, payment-reminder, one-off calendar-email và `creditStatements` report projections đã dùng shared `StatementDto`, `StatementQueryService` và persisted `creditDebt`/impact cho REST GET, MCP summary/upcoming, Frontend read, notifications, ICS, scheduled/one-off email và credit report; calendar feed vẫn giữ `lastAccessedAt` write hiện hữu nhưng không đổi schema; payment PATCH/state transition vẫn còn legacy mutation/formula cần slice riêng. |
+| GAP-PAY-01 | Đã xử lý một phần | `/payments` và `/cards` đã chọn account `REAL_MONEY` và gửi `repaymentAccountId`; backend không còn fallback environment. Còn thiếu preview/confirm, generic idempotency/audit và MCP payment command. |
+| GAP-PAY-02 | Đã xử lý một phần | Payment command dùng strict action, card/workspace scope, persisted `creditDebt`, Mongo transaction, PAID lock và unique partial index cho một `STATEMENT_PAYMENT`; `PAID` lặp lại là idempotent. `REOPEN` sau `PAID` vẫn bị khóa và chưa có reversal/compensating transaction; concurrency/audit/MCP follow-up vẫn mở. |
+| GAP-STM-01 | Đã xử lý một phần | Statement Read v1, notification, private calendar feed, payment-reminder, one-off calendar-email và `creditStatements` report projections dùng shared `StatementDto`, `StatementQueryService` và persisted `creditDebt`/impact cho REST GET, MCP summary/upcoming, Frontend read, notifications, ICS, scheduled/one-off email và credit report. Payment PATCH hiện đã đi qua `StatementPaymentCommandService`, strict shared input và trả canonical DTO; calendar feed vẫn giữ `lastAccessedAt` write hiện hữu. Reversal, payment preview/confirm và MCP mutation còn là follow-up. |
 | GAP-REP-01 | Đã xử lý một phần | `FinancialReportService` và shared `FinancialReportDto` đã đọc ledger transaction, `MonthlyCardCashbackModel` và `CardFeePaymentModel` theo workspace/range; report summary hiện dùng shared strict date-range contract với REST/MCP/Frontend parity (REST default current-month → today, MCP yêu cầu đủ range, ngày sai/range đảo/filter dư fail-closed). Transaction, statement, report và fee DTO hiện dùng chung strict calendar-date validator nên ngày không tồn tại bị reject fail-closed. `credit-statements` projection cũng đã có shared strict list contract cho REST/Frontend, giữ raw payment status và optional range behavior. REST, MCP `get_personal_finance_summary`, frontend client/report page dùng cùng DTO. Card fee history/Fee Center GET, monthly cashback GET và monthly cash-flow GET dùng shared read schemas + query services; fee/cashback REST mutations đã được đưa vào `FeeCommandService`/`MonthlyCashbackCommandService` với trusted context, nhưng vẫn là compatibility commands chưa có generic preview-confirm/idempotency/audit và chưa có MCP mutation. Cash-flow vẫn giữ extraction formula và chưa follow `reimbursementForTransactionId` về expense CREDIT. Owner/card/year/month filters, orphan cleanup, semantic cash-flow repair và legacy fee-category migration cần slice riêng; vì vậy chưa đóng hoàn toàn FR-08. |
 | GAP-OPS-01 | Cao | `server.ts` gọi `syncCatalogFromFile()` với apply=true mỗi lần start, trái với mô tả dry-run/operator-controlled trong `backend/README.md`; admin catalog changes trùng baseline có thể bị ghi đè khi restart. |
 | GAP-MCP-01 | Đã xử lý một phần | Preview token v1 hiện dùng dedicated `MCP_PREVIEW_SECRET`, TTL 300 giây, HMAC domain separation và bind operation, canonical payload hash, workspace/user/channel; token không chứa raw payload. Token vẫn stateless/replayable tới expiry, chưa bind resource version, chưa có one-time human approval, `McpMutationModel` vẫn chỉ là idempotency receipt chứ chưa phải append-only audit; cùng preview với key khác vẫn có thể lặp effect. |

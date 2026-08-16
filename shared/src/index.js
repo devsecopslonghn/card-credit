@@ -65,6 +65,8 @@ export {
 } from "./planning-contracts.js";
 export {
   statementPaymentStatusSchema,
+  statementPaymentActionSchema,
+  statementPaymentInputSchema,
   statementSummarySchema,
   statementSchema,
   statementListSchema,

@@ -5,6 +5,11 @@ import { isoDateSchema } from "./date-contracts.js";
 const safeNonNegativeInteger = z.number().int().nonnegative().refine(Number.isSafeInteger, "Must be a safe integer");
 const safePositiveInteger = z.number().int().positive().refine(Number.isSafeInteger, "Must be a safe integer");
 export const statementPaymentStatusSchema = z.enum(["OPEN", "STATEMENT_CLOSED", "PAID", "OVERDUE"]);
+export const statementPaymentActionSchema = z.enum(["CLOSED", "PAID", "REOPEN"]);
+export const statementPaymentInputSchema = z.object({
+  action: statementPaymentActionSchema,
+  repaymentAccountId: z.string().trim().min(1).optional(),
+}).strict();
 
 export const statementSummarySchema = z.object({
   statementAmount: safeNonNegativeInteger,

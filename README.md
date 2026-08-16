@@ -193,8 +193,9 @@ Account types:
 - `CREDIT`: nhóm `DEBT`, chỉ tính vào dư nợ, không cộng vào số dư khả dụng.
 
 Các MCP tool transaction/payment legacy đã được loại bỏ. MCP chỉ ghi giao dịch
-qua Financial Domain; dữ liệu credit cũ chỉ được giữ cho migration và các REST
-adapter chưa migrate.
+qua Financial Domain; dữ liệu credit cũ chỉ được giữ cho migration. REST payment
+đã dùng strict shared command và `StatementPaymentCommandService`; MCP payment
+mutation vẫn chưa expose cho tới khi hoàn tất preview/confirm/idempotency/audit.
 
 ## Financial API nhanh
 

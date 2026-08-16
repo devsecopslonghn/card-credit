@@ -1,5 +1,5 @@
-import { statementListSchema, statementSchema } from "@card-credit/contracts";
-import type { StatementDto } from "@card-credit/contracts";
+import { statementListSchema, statementPaymentInputSchema, statementSchema } from "@card-credit/contracts";
+import type { StatementDto, StatementPaymentAction } from "@card-credit/contracts";
 
 export type PaymentStatus = "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
 export type StatementSummary = {
@@ -67,4 +67,7 @@ const parseStatement = (value: unknown) => toLegacyStatement(statementSchema.par
 export const fetchCardStatements = async (cardId: string) => parseStatementList(await request<unknown>(`/api/cards/${cardId}/statements?timestamp=${Date.now()}`, { cache: "no-store" }));
 export const fetchAllCardStatements = async () => parseStatementList(await request<unknown>(`/api/card-statements?timestamp=${Date.now()}`, { cache: "no-store" }));
 export const fetchStatementDetail = async (cardId: string, statementId: string) => parseStatement(await request<unknown>(`/api/cards/${cardId}/statements/${statementId}?timestamp=${Date.now()}`, { cache: "no-store" }));
-export const updateStatementPayment = (cardId: string, statementId: string, action: "PAID" | "REOPEN" | "CLOSED") => request<CardStatementView>(`/api/cards/${cardId}/statements/${statementId}/payment`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+export const updateStatementPayment = async (cardId: string, statementId: string, action: StatementPaymentAction, repaymentAccountId?: string) => {
+  const payload = statementPaymentInputSchema.parse({ action, ...(repaymentAccountId ? { repaymentAccountId } : {}) });
+  return toLegacyStatement(statementSchema.parse(await request<unknown>(`/api/cards/${cardId}/statements/${statementId}/payment`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })) as StatementDto);
+};

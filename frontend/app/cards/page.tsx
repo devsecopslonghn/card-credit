@@ -20,6 +20,7 @@ import {
 } from "@/components/cards/cardTypes";
 import { deleteCard, fetchCards } from "@/lib/api/cardsClient";
 import { fetchMonthlyCashFlow, type MonthlyCashFlow } from "@/lib/api/cashFlowClient";
+import { listFinanceAccounts, type FinanceAccount } from "@/lib/api/financeClient";
 import {
   fetchAllCardStatements,
   updateStatementPayment,
@@ -35,6 +36,8 @@ export default function CardsPage() {
   const [cardsError, setCardsError] = useState("");
   const [statementsError, setStatementsError] = useState("");
   const [statements, setStatements] = useState<CardStatementView[]>([]);
+  const [repaymentAccounts, setRepaymentAccounts] = useState<FinanceAccount[]>([]);
+  const [repaymentAccountId, setRepaymentAccountId] = useState("");
   const [selectedOwner, setSelectedOwner] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<CreditCardView | null>(null);
@@ -83,6 +86,14 @@ export default function CardsPage() {
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, [loadCards]);
+
+  useEffect(() => {
+    void listFinanceAccounts().then((items) => {
+      const realMoney = items.filter((item) => item.active && item.group === "REAL_MONEY");
+      setRepaymentAccounts(realMoney);
+      setRepaymentAccountId((current) => current || realMoney[0]?.id || "");
+    }).catch(() => setRepaymentAccounts([]));
+  }, []);
 
   useEffect(() => {
     const period = `${calendarPeriod.year}-${String(calendarPeriod.month + 1).padStart(2, "0")}`;
@@ -159,11 +170,15 @@ export default function CardsPage() {
     const key = paymentActionKey(statement._id, action);
     if (pendingPaymentActionsRef.current.has(key)) return;
     if (action === "CLOSED" && !window.confirm("Chốt kỳ sao kê này? Sau khi chốt, sửa/xóa giao dịch vẫn được phép nhưng sẽ có cảnh báo tính lại số liệu.")) return;
+    if (action === "PAID" && Number((statement.summary as { outstandingAmount?: number } | undefined)?.outstandingAmount ?? 0) > 0 && !repaymentAccountId) {
+      showToast("Hãy chọn tài khoản DEBIT/CASH/E_WALLET để trả sao kê.", "error");
+      return;
+    }
 
     pendingPaymentActionsRef.current.add(key);
     setPendingPaymentActions(new Set(pendingPaymentActionsRef.current));
     try {
-      const updated = await updateStatementPayment(statement.userCardId, statement._id, action);
+      const updated = await updateStatementPayment(statement.userCardId, statement._id, action, repaymentAccountId || undefined);
       setStatements((current) => current.map((item) => (item._id === updated._id ? updated : item)));
       showToast(action === "CLOSED" ? "Đã chốt kỳ sao kê." : "Đã đánh dấu thanh toán.");
     } catch (error) {
@@ -215,6 +230,10 @@ export default function CardsPage() {
                 ))}
               </select>
             </div>
+            <select aria-label="Tài khoản trả nợ" value={repaymentAccountId} onChange={(event) => setRepaymentAccountId(event.target.value)} className="cc-control min-w-48 rounded-lg p-2.5 text-sm font-semibold">
+              <option value="">Chọn tài khoản trả nợ</option>
+              {repaymentAccounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.type}</option>)}
+            </select>
             <Link
               href="/reports"
               className="cc-control flex w-full justify-center rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-surface-elevated sm:w-auto"

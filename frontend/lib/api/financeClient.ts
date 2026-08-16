@@ -1,4 +1,4 @@
-import { budgetStatusListSchema, creditStatementReportListSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, reportDateRangeSchema } from "@card-credit/contracts";
+import { accountListSchema, budgetStatusListSchema, creditStatementReportListSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, reportDateRangeSchema } from "@card-credit/contracts";
 import type { AccountDto, BudgetStatusDto, CreditStatementReportDto, FinancialReportDto, FinancialTransactionDto, FinancialTransactionListQuery } from "@card-credit/contracts";
 
 export type FinancialTransaction = FinancialTransactionDto;
@@ -29,4 +29,4 @@ export const getBudgetStatus = async (month: string): Promise<BudgetStatusDto[]>
 
 export type FinanceAccount = AccountDto;
 
-export const listFinanceAccounts = () => request<FinanceAccount[]>("/api/accounts");
+export const listFinanceAccounts = async () => accountListSchema.parse(await request<unknown>("/api/accounts")) as FinanceAccount[];

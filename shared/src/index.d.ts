@@ -263,6 +263,8 @@ export declare const statementSummarySchema: z.ZodObject<any>;
 export declare const statementSchema: z.ZodObject<any>;
 export declare const statementListSchema: z.ZodArray<typeof statementSchema>;
 export declare const statementPaymentStatusSchema: z.ZodEnum<any>;
+export declare const statementPaymentActionSchema: z.ZodEnum<any>;
+export declare const statementPaymentInputSchema: z.ZodObject<any>;
 export type StatementSummaryDto = {
   statementAmount: number;
   paymentAmount: number;
@@ -288,6 +290,8 @@ export type StatementDto = {
   summary: StatementSummaryDto;
   transactions?: FinancialTransactionDto[];
 };
+export type StatementPaymentAction = "CLOSED" | "PAID" | "REOPEN";
+export type StatementPaymentInput = { action: StatementPaymentAction; repaymentAccountId?: string };
 
 export declare const financialReportMetricSchema: z.ZodObject<any>;
 export declare const financialReportTotalsSchema: z.ZodObject<any>;

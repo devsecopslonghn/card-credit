@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { statementListSchema } from "../src/index.js";
+import { statementListSchema, statementPaymentInputSchema } from "../src/index.js";
 
 const transaction = {
   id: "tx-1", accountId: "account-1", statementId: "statement-1", reimbursementForTransactionId: null,
@@ -20,4 +20,11 @@ test("statement read DTO keeps persisted-impact totals and nested transactions",
   assert.deepEqual(statementListSchema.parse([statement]), [statement]);
   assert.throws(() => statementListSchema.parse([{ ...statement, summary: { ...statement.summary, outstandingAmount: -1 } }]));
   assert.throws(() => statementListSchema.parse([{ ...statement, paymentDueDate: "2026-02-30" }]));
+});
+
+test("statement payment input is strict and never defaults an unknown action", () => {
+  assert.deepEqual(statementPaymentInputSchema.parse({ action: "PAID", repaymentAccountId: " account-1 " }), { action: "PAID", repaymentAccountId: "account-1" });
+  assert.throws(() => statementPaymentInputSchema.parse({}));
+  assert.throws(() => statementPaymentInputSchema.parse({ action: "INVALID" }));
+  assert.throws(() => statementPaymentInputSchema.parse({ action: "PAID", unexpected: true }));
 });

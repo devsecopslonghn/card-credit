@@ -1,71 +1,15 @@
-import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
-import { sessionFromRequest, type Session } from "./auth.js";
 import { browserActorContext, browserServiceContext } from "./context.js";
-import { CreditCardModel } from "./models/credit-card.js";
-import { CardStatementModel } from "./models/card-statement.js";
-import {
-  idOf,
-  plain,
-  type Data,
-} from "./statement-domain.js";
 import type { AuthRepository } from "./auth-repository.js";
 import { MailDeliveryError, MailUnavailableError, maskEmail, type MailService } from "./mail-service.js";
 import { composeStatementCalendarEmail } from "./statement-calendar-email.js";
 import { projectStatementCalendar, serializeStatementCalendar } from "./statement-calendar.js";
-import { TransactionService } from "./services/transaction-service.js";
-import { FinancialTransactionModel } from "./models/financial-transaction.js";
-import { FinancialTransactionService } from "./services/financial-transaction-service.js";
 import { StatementQueryService } from "./services/statement-query-service.js";
+import { StatementPaymentCommandService } from "./services/statement-payment-command-service.js";
 import { CardQueryService } from "./services/card-query-service.js";
+import { statementPaymentInputSchema, type StatementPaymentInput } from "@card-credit/contracts";
 
-const Cards = CreditCardModel as mongoose.Model<Data>;
-const Statements = CardStatementModel;
-const objectId = (value: string, field = "id") => {
-  if (!mongoose.isValidObjectId(value))
-    throw new ApiError(400, "INVALID_ID", "Id không hợp lệ.", {
-      [field]: "ObjectId không hợp lệ.",
-    });
-};
-const cardFor = async (id: string, session: Session) => {
-  objectId(id, "cardId");
-  const card = await Cards.findOne({
-    _id: id,
-    workspaceId: session.workspaceId,
-  });
-  if (!card) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
-  return card;
-};
-const statementFor = async (
-  cardId: string,
-  statementId: string,
-  session: Session,
-) => {
-  await cardFor(cardId, session);
-  objectId(statementId, "statementId");
-  const statement = await Statements.findOne({
-    _id: statementId,
-    userCardId: cardId,
-    workspaceId: session.workspaceId,
-  });
-  if (!statement)
-    throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
-  return statement;
-};
-const financialView = (transaction: Data, card: Data): Data => ({
-  ...transaction,
-  _id: idOf(transaction._id),
-  userCardId: idOf(card._id),
-  statementId: idOf(transaction.statementId),
-  transactionDate: transaction.transactionDate,
-  outcomeAmount: Number(transaction.amount ?? 0),
-  incomeAmount: Number(transaction.reimbursementExpected ?? 0),
-  note: transaction.note ?? "",
-  cashbackRateBps: Math.round(Number(transaction.serviceFeeRate ?? 0) * 100),
-  actualCashbackAmount: Number(transaction.cashbackReceived ?? 0),
-  cashbackStatus: Number(transaction.cashbackReceived ?? 0) > 0 ? "RECEIVED" : "PENDING",
-});
 export const registerTransactionRoutes = (
   app: FastifyInstance,
   secret: string,
@@ -86,61 +30,14 @@ export const registerTransactionRoutes = (
       return { data: await StatementQueryService.get(await browserServiceContext(request, secret, calendarEmail?.users), request.params.id, request.params.statementId) };
     },
   );
-  app.patch<{ Params: { id: string; statementId: string }; Body: Data }>(
+  app.patch<{ Params: { id: string; statementId: string }; Body: Record<string, unknown> }>(
     "/api/cards/:id/statements/:statementId/payment",
     async (request) => {
-      const session = sessionFromRequest(request, secret);
-      const card = plain(await cardFor(request.params.id, session));
-      const statement = await statementFor(
-        request.params.id,
-        request.params.statementId,
-        session,
-      );
-      const transactions = await FinancialTransactionModel.find({ statementId: request.params.statementId, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } });
-      const action =
-        request.body?.action === "REOPEN"
-          ? "REOPEN"
-          : request.body?.action === "CLOSED"
-            ? "CLOSED"
-            : "PAID";
-      if (action === "CLOSED" && statement.paymentStatus === "PAID")
-        throw new ApiError(
-          409,
-          "STATEMENT_PAID_LOCKED",
-          "Kỳ sao kê đã thanh toán. Hãy mở lại kỳ sao kê trước.",
-        );
-      const update =
-        action === "REOPEN"
-          ? {
-              paymentStatus: "STATEMENT_CLOSED",
-              paidAt: null,
-              paidAmount: null,
-            }
-          : action === "CLOSED"
-            ? { paymentStatus: "STATEMENT_CLOSED" }
-            : {
-                paymentStatus: "PAID",
-                paidAt: new Date(),
-                paidAmount: transactions.reduce((sum, item) => sum + Number(item.amount ?? 0), 0),
-              };
-      if (action === "PAID") {
-        const paidAmount = transactions.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
-        const repaymentAccountId = typeof request.body?.repaymentAccountId === "string" && request.body.repaymentAccountId.trim()
-          ? request.body.repaymentAccountId.trim()
-          : process.env.FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID?.trim();
-        if (paidAmount > 0 && !repaymentAccountId) throw new ApiError(400, "REPAYMENT_ACCOUNT_REQUIRED", "Cần chọn tài khoản DEBIT/CASH/E_WALLET dùng để trả sao kê.");
-        const paidStatement = paidAmount > 0 && repaymentAccountId
-          ? await FinancialTransactionService.payStatement(await browserServiceContext(request, secret, calendarEmail?.users), request.params.statementId, repaymentAccountId, paidAmount, new Date())
-          : await Statements.findOneAndUpdate({ _id: request.params.statementId, workspaceId: session.workspaceId }, { $set: update }, { returnDocument: "after" });
-        if (!paidStatement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
-        return { data: TransactionService.serializeStatement(paidStatement, transactions.map((item) => financialView(item as Data, card)), card) };
-      }
-      const result = await Statements.findOneAndUpdate(
-        { _id: request.params.statementId, workspaceId: session.workspaceId },
-        { $set: update },
-        { returnDocument: "after" },
-      );
-      return { data: TransactionService.serializeStatement(result, transactions.map((item) => financialView(item as Data, card)), card) };
+      const parsed = statementPaymentInputSchema.safeParse(request.body);
+      if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
+      const context = await browserServiceContext(request, secret, calendarEmail?.users);
+      await StatementPaymentCommandService.execute(context, request.params.id, request.params.statementId, parsed.data as StatementPaymentInput, new Date());
+      return { data: await StatementQueryService.get(context, request.params.id, request.params.statementId) };
     },
   );
   if (calendarEmail) app.post<{

@@ -35,6 +35,14 @@ const FinancialTransactionSchema = new Schema(
 FinancialTransactionSchema.index({ workspaceId: 1, transactionDate: -1, createdAt: -1 });
 FinancialTransactionSchema.index({ workspaceId: 1, accountId: 1, transactionDate: -1 });
 FinancialTransactionSchema.index({ workspaceId: 1, categoryId: 1, transactionDate: -1 });
+FinancialTransactionSchema.index(
+  { workspaceId: 1, statementId: 1, transactionType: 1 },
+  {
+    name: "statement_payment_unique",
+    unique: true,
+    partialFilterExpression: { transactionType: "STATEMENT_PAYMENT", statementId: { $type: "objectId" } },
+  },
+);
 export const FinancialTransactionModel =
   (mongoose.models.FinancialTransaction ??
     mongoose.model("FinancialTransaction", FinancialTransactionSchema)) as mongoose.Model<
