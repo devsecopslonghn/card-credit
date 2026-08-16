@@ -21,6 +21,16 @@ export const createFinancialTransactionInputSchema = z.object({
   reimbursementForTransactionId: z.string().trim().min(1).optional(),
 });
 export const createFinancialTransactionBatchInputSchema = z.object({ items: z.array(createFinancialTransactionInputSchema).min(1).max(50) });
+export const financialTransactionListQuerySchema = z.object({
+  from: isoDateSchema.optional(),
+  to: isoDateSchema.optional(),
+  accountId: z.string().trim().min(1).optional(),
+  categoryId: z.string().trim().min(1).optional(),
+}).strict().superRefine((query, context) => {
+  if (query.from && query.to && query.from > query.to) {
+    context.addIssue({ code: "custom", path: ["to"], message: "The transaction range must be ordered from earliest to latest date" });
+  }
+});
 export const financialImpactSchema = z.object({
   personalSpending: z.number(),
   debitCashflow: z.number(),

@@ -52,6 +52,7 @@ export {
   ownershipSchema,
   createFinancialTransactionInputSchema,
   createFinancialTransactionBatchInputSchema,
+  financialTransactionListQuerySchema,
   financialImpactSchema,
   financialTransactionSchema,
   financialTransactionListSchema,

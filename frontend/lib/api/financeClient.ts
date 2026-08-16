@@ -1,5 +1,5 @@
-import { budgetStatusListSchema, creditStatementReportListSchema, financialReportSchema, financialTransactionListSchema, reportDateRangeSchema } from "@card-credit/contracts";
-import type { AccountDto, BudgetStatusDto, CreditStatementReportDto, FinancialReportDto, FinancialTransactionDto } from "@card-credit/contracts";
+import { budgetStatusListSchema, creditStatementReportListSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, reportDateRangeSchema } from "@card-credit/contracts";
+import type { AccountDto, BudgetStatusDto, CreditStatementReportDto, FinancialReportDto, FinancialTransactionDto, FinancialTransactionListQuery } from "@card-credit/contracts";
 
 export type FinancialTransaction = FinancialTransactionDto;
 
@@ -10,7 +10,16 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   return body.data;
 };
 
-export const listFinancialTransactions = async (query = "") => financialTransactionListSchema.parse(await request<unknown>(`/api/financial-transactions${query}`)) as FinancialTransaction[];
+export const listFinancialTransactions = async (input: FinancialTransactionListQuery = {}) => {
+  const query = financialTransactionListQuerySchema.parse(input);
+  const params = new URLSearchParams();
+  for (const key of ["from", "to", "accountId", "categoryId"] as const) {
+    const value = query[key] as string | undefined;
+    if (value) params.set(key, value);
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return financialTransactionListSchema.parse(await request<unknown>(`/api/financial-transactions${suffix}`)) as FinancialTransaction[];
+};
 export const getFinancialSummary = async (from: string, to: string): Promise<FinancialReportDto> => {
   const range = reportDateRangeSchema.parse({ from, to }) as { from: string; to: string };
   return financialReportSchema.parse(await request<unknown>(`/api/financial-reports/summary?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`)) as FinancialReportDto;

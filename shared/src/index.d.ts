@@ -194,6 +194,7 @@ export declare const financialTransactionTypeSchema: z.ZodEnum<any>;
 export declare const ownershipSchema: z.ZodEnum<any>;
 export declare const createFinancialTransactionInputSchema: z.ZodObject<any>;
 export declare const createFinancialTransactionBatchInputSchema: z.ZodObject<any>;
+export declare const financialTransactionListQuerySchema: z.ZodObject<any>;
 export declare const financialImpactSchema: z.ZodObject<any>;
 export declare const financialTransactionSchema: z.ZodObject<any>;
 export declare const financialTransactionListSchema: z.ZodArray<typeof financialTransactionSchema>;
@@ -215,6 +216,12 @@ export type CreateFinancialTransactionInput = {
   reimbursementForTransactionId?: string;
 };
 export type CreateFinancialTransactionBatchInput = { items: CreateFinancialTransactionInput[] };
+export type FinancialTransactionListQuery = {
+  from?: string;
+  to?: string;
+  accountId?: string;
+  categoryId?: string;
+};
 export type FinancialImpactDto = {
   personalSpending: number;
   debitCashflow: number;

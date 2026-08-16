@@ -10,7 +10,7 @@ import { AccountService } from "../services/account-service.js";
 import { FeeQueryService } from "../services/fee-query-service.js";
 import { MonthlyCashbackQueryService } from "../services/monthly-cashback-query-service.js";
 import { CashFlowQueryService } from "../services/cash-flow-query-service.js";
-import { reportDateRangeSchema, type CreateRealMoneyAccountInput, type FeeCategory } from "@card-credit/contracts";
+import { financialTransactionListQuerySchema, reportDateRangeSchema, type CreateRealMoneyAccountInput, type FeeCategory, type FinancialTransactionListQuery } from "@card-credit/contracts";
 import { randomUUID } from "node:crypto";
 import { MCP_OPERATION, mcpToolMetadata } from "./manifest.js";
 
@@ -27,7 +27,10 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
   };
   const codec = () => previewCodec ?? createPreviewTokenCodec({ secret: process.env.MCP_PREVIEW_SECRET?.trim() ?? "" });
   server.registerTool("get_statement_summary", mcpToolMetadata("get_statement_summary"), async ({ statementId }: { statementId: string }) => json(await StatementQueryService.getById(await invocationContext(), statementId)));
-  server.registerTool("list_transactions", mcpToolMetadata("list_transactions"), async (filters: { date?: string; accountId?: string; categoryId?: string }) => json(await FinancialTransactionService.list(await invocationContext(), { from: filters.date, to: filters.date, accountId: filters.accountId, categoryId: filters.categoryId })));
+  server.registerTool("list_transactions", mcpToolMetadata("list_transactions"), async (filters: FinancialTransactionListQuery) => {
+    const query = financialTransactionListQuerySchema.parse(filters ?? {});
+    return json(await FinancialTransactionService.list(await invocationContext(), query));
+  });
   server.registerTool("get_monthly_cash_flow", mcpToolMetadata("get_monthly_cash_flow"), async ({ period, cardId }: { period?: string; cardId?: string }) => json(await CashFlowQueryService.list(await invocationContext(), { period, cardId })));
  server.registerTool("compare_cards", mcpToolMetadata("compare_cards"), async () => json(await CardService.compare(await invocationContext())));
   server.registerTool("list_duplicate_cards", mcpToolMetadata("list_duplicate_cards"), async () => json(await CardQueryService.listDuplicates(await invocationContext())));
