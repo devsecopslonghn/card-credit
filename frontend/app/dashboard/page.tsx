@@ -3,12 +3,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FinanceShell, Metric, vnd, typeClass, typeLabel } from "@/components/finance/FinanceShell";
 import { getFinancialSummary, listFinancialTransactions, type FinancialTransaction } from "@/lib/api/financeClient";
+import type { FinancialReportDto } from "@card-credit/contracts";
 
-type Summary = { totals: { personalSpending: number; debitCashflow: number; creditDebt: number; outstandingReceivable: number }; netAssets: number; creditDebtBalance: number };
 const monthRange = () => { const now = new Date(); return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10), to: now.toISOString().slice(0, 10) }; };
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<Summary | null>(null); const [rows, setRows] = useState<FinancialTransaction[]>([]); const [error, setError] = useState("");
-  useEffect(() => { const { from, to } = monthRange(); void Promise.all([getFinancialSummary(from, to) as Promise<Summary>, listFinancialTransactions(`?from=${from}&to=${to}`)]).then(([s, r]) => { setSummary(s); setRows(r.slice(0, 6)); }).catch(() => setError("Không thể tải tổng quan tài chính.")); }, []);
+  const [summary, setSummary] = useState<FinancialReportDto | null>(null); const [rows, setRows] = useState<FinancialTransaction[]>([]); const [error, setError] = useState("");
+  useEffect(() => { const { from, to } = monthRange(); void Promise.all([getFinancialSummary(from, to), listFinancialTransactions(`?from=${from}&to=${to}`)]).then(([s, r]) => { setSummary(s); setRows(r.slice(0, 6)); }).catch(() => setError("Không thể tải tổng quan tài chính.")); }, []);
   return <FinanceShell title="Tổng quan" action={<Link href="/transactions?add=1" className="rounded-lg bg-[#087f83] px-4 py-2.5 font-semibold text-white">+ Thêm giao dịch</Link>}>
     {error ? <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">{error}</p> : null}
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Metric label="Tài sản ròng" value={summary?.netAssets ?? 0} tone="positive" hint="DEBIT + CASH + E-WALLET"/><Metric label="Nợ Credit" value={summary?.creditDebtBalance ?? 0} tone="debt" hint="Chỉ giảm khi trả nợ"/><Metric label="Chi tiêu cá nhân" value={summary?.totals.personalSpending ?? 0}/><Metric label="Khoản phải thu" value={summary?.totals.outstandingReceivable ?? 0} tone="receivable" hint="Đã trừ khoản hoàn"/></div>

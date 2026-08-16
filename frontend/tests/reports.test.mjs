@@ -5,6 +5,7 @@ import test from "node:test";
 test("finance client uses the canonical financial report endpoint", () => {
   const client = readFileSync(new URL("../lib/api/financeClient.ts", import.meta.url), "utf8");
   assert.match(client, /\/api\/financial-reports\/summary\?from=/);
+  assert.match(client, /financialReportSchema\.parse/);
   assert.doesNotMatch(client, /\/api\/reports\/summary/);
 });
 
@@ -17,6 +18,8 @@ test("financial reports page renders separated financial KPIs and category break
   assert.match(page, /Debit\/Cash\/E-wallet flow/);
   assert.match(page, /Credit debt/);
   assert.match(page, /Khoản phải thu/);
+  assert.match(page, /Lợi ích và chi phí/);
+  assert.match(page, /actualNetBenefit/);
   assert.match(page, /Chi tiêu theo danh mục/);
 });
 

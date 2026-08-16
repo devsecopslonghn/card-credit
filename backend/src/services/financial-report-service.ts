@@ -1,11 +1,25 @@
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { AccountModel } from "../models/account.js";
+import { CardFeePaymentModel } from "../models/card-fee-payment.js";
+import { MonthlyCardCashbackModel } from "../models/monthly-card-cashback.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { StatementQueryService } from "./statement-query-service.js";
+import { financialReportSchema } from "@card-credit/contracts";
+import type { FinancialReportDto } from "@card-credit/contracts";
 
 type Range = { from: string; to: string };
 
 const empty = () => ({ personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionCount: 0 });
+const emptyTotals = () => ({
+  ...empty(),
+  totalServiceFee: 0,
+  transactionCashbackActual: 0,
+  monthlyBankCashbackExpected: 0,
+  monthlyBankCashbackActual: 0,
+  monthlyBankCashbackRejected: 0,
+  totalPaidCardFees: 0,
+  actualNetBenefit: 0,
+});
 
 const add = (target: ReturnType<typeof empty>, item: Record<string, unknown>) => {
   target.personalSpending += Number(item.personalSpending ?? 0);
@@ -26,9 +40,15 @@ export class FinancialReportService {
   }
 
   static async summary(ctx: ServiceContext, range: Range) {
-    const [items, accounts] = await Promise.all([
+    const [items, accounts, monthlyCashbacks, feePayments] = await Promise.all([
       FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionDate: { $gte: range.from, $lte: range.to } }).lean(),
       AccountModel.find({ workspaceId: ctx.workspaceId, active: { $ne: false } }).lean(),
+      MonthlyCardCashbackModel.find({ workspaceId: ctx.workspaceId, period: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } }).lean(),
+      CardFeePaymentModel.find({
+        workspaceId: ctx.workspaceId,
+        paymentDate: { $gte: range.from, $lte: range.to },
+        category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] },
+      }).lean(),
     ]);
     const byCategory = new Map<string, ReturnType<typeof empty>>();
     const byAccountType = new Map<string, ReturnType<typeof empty>>();
@@ -49,14 +69,35 @@ export class FinancialReportService {
       add(accountTotals, value);
       byAccount.set(accountId, accountTotals);
     }
-    const totals = empty();
+    const totals = emptyTotals();
     for (const item of items) add(totals, item as Record<string, unknown>);
+    totals.totalServiceFee = items.reduce((sum, item) => {
+      const value = item as Record<string, unknown>;
+      if (value.transactionType !== "EXPENSE" || value.ownership !== "PAID_FOR_OTHER") return sum;
+      return sum + Math.max(0, Number(value.amount ?? 0) - Number(value.reimbursementExpected ?? 0));
+    }, 0);
+    totals.transactionCashbackActual = items.reduce((sum, item) => sum + Math.max(0, Number((item as Record<string, unknown>).cashbackReceived ?? 0)), 0);
+    totals.monthlyBankCashbackExpected = monthlyCashbacks.reduce((sum, item) => sum + Math.max(0, Number((item as Record<string, unknown>).expectedAmount ?? 0)), 0);
+    totals.monthlyBankCashbackActual = monthlyCashbacks.reduce((sum, item) => {
+      const value = item as Record<string, unknown>;
+      return sum + (value.status === "RECEIVED" ? Math.max(0, Number(value.actualAmount ?? 0)) : 0);
+    }, 0);
+    totals.monthlyBankCashbackRejected = monthlyCashbacks.reduce((sum, item) => {
+      const value = item as Record<string, unknown>;
+      return sum + (value.status === "REJECTED" ? Math.max(0, Number(value.expectedAmount ?? 0)) : 0);
+    }, 0);
+    const paidFeeCategories = new Set(["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"]);
+    totals.totalPaidCardFees = feePayments.reduce((sum, item) => {
+      const value = item as Record<string, unknown>;
+      return sum + (paidFeeCategories.has(String(value.category)) ? Math.max(0, Number(value.amount ?? 0)) : 0);
+    }, 0);
+    totals.actualNetBenefit = totals.monthlyBankCashbackActual - totals.totalServiceFee - totals.totalPaidCardFees;
     const sourceIds = items.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").map((item) => item._id);
     const reimbursements = sourceIds.length ? await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 }).lean() : [];
     totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
     const netAssets = accounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
     const creditDebtBalance = accounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;
-    return {
+    return financialReportSchema.parse({
       range,
       totals,
       netAssets,
@@ -68,7 +109,7 @@ export class FinancialReportService {
       credit: byAccountType.get("CREDIT") ?? empty(),
       byCategory: Object.fromEntries(byCategory),
       byAccount: Object.fromEntries([...byAccount.entries()].map(([id, value]) => [id, { name: accountNames.get(id) ?? "", ...value }])),
-    };
+    }) as FinancialReportDto;
   }
 
   static async creditStatements(ctx: ServiceContext, range?: Range) {

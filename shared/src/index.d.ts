@@ -227,3 +227,37 @@ export type StatementDto = {
   summary: StatementSummaryDto;
   transactions?: FinancialTransactionDto[];
 };
+
+export declare const financialReportMetricSchema: z.ZodObject<any>;
+export declare const financialReportTotalsSchema: z.ZodObject<any>;
+export declare const financialReportSchema: z.ZodObject<any>;
+export type FinancialReportMetricDto = {
+  personalSpending: number;
+  debitCashflow: number;
+  creditDebt: number;
+  outstandingReceivable: number;
+  reimbursementReceived: number;
+  transactionCount: number;
+};
+export type FinancialReportTotalsDto = FinancialReportMetricDto & {
+  totalServiceFee: number;
+  transactionCashbackActual: number;
+  monthlyBankCashbackExpected: number;
+  monthlyBankCashbackActual: number;
+  monthlyBankCashbackRejected: number;
+  totalPaidCardFees: number;
+  actualNetBenefit: number;
+};
+export type FinancialReportDto = {
+  range: { from: string; to: string };
+  totals: FinancialReportTotalsDto;
+  netAssets: number;
+  creditDebtBalance: number;
+  debit: FinancialReportMetricDto;
+  cash: FinancialReportMetricDto;
+  eWallet: FinancialReportMetricDto;
+  realMoney: FinancialReportMetricDto;
+  credit: FinancialReportMetricDto;
+  byCategory: Record<string, FinancialReportMetricDto>;
+  byAccount: Record<string, FinancialReportMetricDto & { name: string }>;
+};

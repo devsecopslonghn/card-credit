@@ -65,3 +65,8 @@ export {
   statementSchema,
   statementListSchema,
 } from "./statement-contracts.js";
+export {
+  financialReportMetricSchema,
+  financialReportTotalsSchema,
+  financialReportSchema,
+} from "./report-contracts.js";
