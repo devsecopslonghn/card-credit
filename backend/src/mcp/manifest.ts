@@ -19,6 +19,7 @@ const definitions = [
   { name: "get_statement_summary", description: "Read a workspace-scoped credit-card statement summary from Financial Domain.", kind: "query", inputSchema: { statementId: z.string().min(1) } },
   { name: "list_transactions", description: "List all workspace-scoped financial transactions from Financial Domain, including debit, cash and credit.", kind: "query", inputSchema: { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), accountId: z.string().min(1).optional(), categoryId: z.string().min(1).optional() } },
   { name: "compare_cards", description: "Compare active cards in the fixed workspace.", kind: "query", inputSchema: {} },
+  { name: "list_duplicate_cards", description: "List exact duplicate card groups in the fixed workspace, including inactive cards.", kind: "query", inputSchema: {} },
   { name: "list_card_fee_payments", description: "List canonical fee payments for one card in the fixed workspace.", kind: "query", inputSchema: { cardId: z.string().min(1) } },
   { name: "list_fee_center", description: "List canonical categorized fee records in the fixed workspace.", kind: "query", inputSchema: { cardId: z.string().min(1).optional(), category: feeCategorySchema.optional() } },
   { name: "list_monthly_cashbacks", description: "List canonical monthly bank cashback records for one card and year.", kind: "query", inputSchema: { cardId: z.string().min(1), year: z.string().regex(/^\d{4}$/) } },

@@ -5,6 +5,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createMcpServer } from "../src/mcp/tools.js";
 import { FeeQueryService } from "../src/services/fee-query-service.js";
 import { MonthlyCashbackQueryService } from "../src/services/monthly-cashback-query-service.js";
+import { CardQueryService } from "../src/services/card-query-service.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const context: ServiceContext = {
@@ -65,6 +66,31 @@ test("MCP fee and cashback read tools delegate trusted context and canonical DTO
   assert.equal(cardFee.mock.callCount(), 1);
   assert.equal(feeCenter.mock.callCount(), 1);
   assert.equal(cashback.mock.callCount(), 1);
+});
+
+test("MCP duplicate-card read tool delegates trusted context and canonical groups", async (t) => {
+  const duplicates = t.mock.method(CardQueryService, "listDuplicates", async (ctx: ServiceContext) => {
+    assert.equal(ctx.workspaceId, "workspace-a");
+    assert.equal(ctx.userId, "user-a");
+    assert.equal(ctx.channel, "mcp");
+    assert.notEqual(ctx.correlationId, "mcp-test");
+    return [{
+      fingerprint: "workspace-a::preset-1::Alice",
+      presetId: "preset-1",
+      normalizedOwner: "Alice",
+      reason: "Same workspace, catalog preset and normalized owner.",
+      cards: [{ id: "card-1", presetId: "preset-1", owner: "Alice", status: "ACTIVE", displayName: "Card 1" }],
+    }];
+  });
+
+  assert.deepEqual(await call("list_duplicate_cards", {}), [{
+    fingerprint: "workspace-a::preset-1::Alice",
+    presetId: "preset-1",
+    normalizedOwner: "Alice",
+    reason: "Same workspace, catalog preset and normalized owner.",
+    cards: [{ id: "card-1", presetId: "preset-1", owner: "Alice", status: "ACTIVE", displayName: "Card 1" }],
+  }]);
+  assert.equal(duplicates.mock.callCount(), 1);
 });
 
 test("MCP read tool schemas reject tenant fields and malformed year", async () => {

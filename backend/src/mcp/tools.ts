@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CardService } from "../services/card-service.js";
+import { CardQueryService } from "../services/card-query-service.js";
 import { createPreviewTokenCodec, type PreviewBinding, type PreviewTokenCodec } from "./preview.js";
 import type { ServiceContext } from "../services/types/service-context.js";
 import { FinancialTransactionService, type CreateFinancialTransactionBatchInput } from "../services/financial-transaction-service.js";
@@ -27,6 +28,7 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
   server.registerTool("get_statement_summary", mcpToolMetadata("get_statement_summary"), async ({ statementId }: { statementId: string }) => json(await StatementQueryService.getById(await invocationContext(), statementId)));
   server.registerTool("list_transactions", mcpToolMetadata("list_transactions"), async (filters: { date?: string; accountId?: string; categoryId?: string }) => json(await FinancialTransactionService.list(await invocationContext(), { from: filters.date, to: filters.date, accountId: filters.accountId, categoryId: filters.categoryId })));
  server.registerTool("compare_cards", mcpToolMetadata("compare_cards"), async () => json(await CardService.compare(await invocationContext())));
+  server.registerTool("list_duplicate_cards", mcpToolMetadata("list_duplicate_cards"), async () => json(await CardQueryService.listDuplicates(await invocationContext())));
   server.registerTool("list_card_fee_payments", mcpToolMetadata("list_card_fee_payments"), async ({ cardId }: { cardId: string }) => json(await FeeQueryService.listCardPayments(await invocationContext(), cardId)));
   server.registerTool("list_fee_center", mcpToolMetadata("list_fee_center"), async ({ cardId, category }: { cardId?: string; category?: FeeCategory }) => json(await FeeQueryService.listCenter(await invocationContext(), { ...(cardId ? { cardId } : {}), ...(category ? { category } : {}) })));
   server.registerTool("list_monthly_cashbacks", mcpToolMetadata("list_monthly_cashbacks"), async ({ cardId, year }: { cardId: string; year: string }) => json(await MonthlyCashbackQueryService.list(await invocationContext(), cardId, year)));
