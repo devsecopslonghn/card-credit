@@ -122,12 +122,13 @@ Summary response nên có:
     "paymentDueDate": "2026-08-22",
     "effectivePaymentStatus": "OPEN",
     "summary": {
-      "totalAmountDue": 12000000,
-      "serviceFee": 400000,
-      "eligibleCashback": 500000,
-      "exceededCashback": 100000,
-      "expectedNetProfit": 100000,
-      "annualEligibleSpend": 12000000
+      "statementAmount": 12000000,
+      "paymentAmount": 0,
+      "outstandingAmount": 12000000,
+      "personalSpending": 12000000,
+      "outstandingReceivable": 0,
+      "reimbursementReceived": 0,
+      "transactionCount": 3
     },
     "transactions": []
   }
@@ -146,22 +147,22 @@ Summary response nên có:
 | `POST /cards/:cardId/fee-payments` | Session | `{paymentDate,amount,note?}`. |
 | `PUT /cards/:cardId/fee-payments/:feePaymentId` | Session | Sửa actual fee. |
 | `DELETE /cards/:cardId/fee-payments/:feePaymentId` | Session | Xóa fee. |
-| `GET /reports/summary?...` | Session | Report theo range/owner/card; output đủ KPI và card zero rows. |
+| `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Financial report theo khoảng ngày; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category. |
+| `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Credit statement projection dùng canonical `StatementQueryService`; `from/to` tùy chọn. |
 | `GET /notes` | Session | List note workspace. |
 | `POST /notes` | Session | `{date,content}`; content rỗng là delete. |
 
-Report query target:
+Report query hiện tại:
 
 ```text
-range=all|year|month
-year=2026
-month=2026-08
-owner=...
-cardId=...
+from=2026-08-01
+to=2026-08-31
 ```
 
-Report phải tách rõ `monthlyBankCashbackActual`, `totalServiceFee`,
-`totalPaidCardFees`, `actualNetBenefit`; transaction cashback chỉ là đối chiếu.
+Owner/card/year/month filters và fee/cashback report parity chưa nằm trong
+runtime contract hiện tại; phải mở thành contract slice riêng trước khi thêm
+query parameters. `creditStatements` trả compatibility field names nhưng
+amount semantics lấy persisted `creditDebt`/impact từ canonical statement DTO.
 
 ## 8. Calendar, profile and admin endpoints
 
