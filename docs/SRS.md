@@ -643,7 +643,7 @@ one-off calendar email và Swagger/MCP management.
 | SMTP | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, optional `SMTP_PORT`, `SMTP_SECURE` | Cần cho email/reminder |
 | Reminder | `REMINDER_SCAN_INTERVAL_MS`, `REMINDER_CLAIM_TIMEOUT_MS` | Default 60s và 300s |
 | Payment | `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID` | Fallback hiện cần cho UI payment |
-| MCP | `MCP_HTTP_TOKEN`, `MCP_WORKSPACE_ID`, `MCP_USER_ID`, optional `MCP_PREVIEW_SECRET` | Token bật endpoint; preview secret fallback `AUTH_SECRET` |
+| MCP | `MCP_HTTP_TOKEN`, `MCP_WORKSPACE_ID`, `MCP_USER_ID`, optional `MCP_PREVIEW_SECRET` | Khi token bật endpoint, `MCP_PREVIEW_SECRET` phải explicit và tối thiểu 32 ký tự; không fallback `AUTH_SECRET` |
 | Catalog | `CARD_CATALOG_PATH` | Backend image dùng `/app/catalog/card-presets.json` |
 | Docs | `API_DOCS_ENABLED` | `false` để tắt Swagger |
 
@@ -737,7 +737,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 | GAP-MCP-01 | Đã xử lý một phần | Preview token v1 hiện dùng dedicated `MCP_PREVIEW_SECRET`, TTL 300 giây, HMAC domain separation và bind operation, canonical payload hash, workspace/user/channel; token không chứa raw payload. Token vẫn stateless/replayable tới expiry, chưa bind resource version, chưa có one-time human approval, `McpMutationModel` vẫn chỉ là idempotency receipt chứ chưa phải append-only audit; cùng preview với key khác vẫn có thể lặp effect. |
 | GAP-ACC-01 | Trung bình | Create CREDIT account không kiểm tra `creditCardId` tồn tại, active và cùng workspace trước khi persist. |
 | GAP-REP-02 | Trung bình | `netAssets`/`creditDebtBalance` trong range report dùng opening balance cộng transaction chỉ trong range. Dashboard gọi range tháng nên KPI “balance” có thể bỏ qua giao dịch lịch sử trước tháng. |
-| GAP-UI-01 | Trung bình | Budget backend trả `limitAmount`, `usedAmount`, `usagePercent`, `status`; UI đọc `limit`, `spent`, `remaining`, làm hiển thị không đúng. |
+| GAP-UI-01 | Đã xử lý | Budget status dùng shared `BudgetStatusDto` (`limitAmount`, `usedAmount`, `remainingAmount`, `usagePercent`, `status`) ở backend serializer, frontend runtime parser và Budget UI; contract tests nằm ở `cc4d333`. Budget write input/month validation vẫn là AS-IS riêng. |
 | GAP-UI-02 | Trung bình | Reports UI chỉ đọc tháng hiện tại, bỏ query owner/card/year/month; link “Xuất JSON” trên card dashboard mở lại trang HTML `/reports`, không gọi JSON API export. |
 | GAP-UI-03 | Trung bình | Transaction “AI modal” chỉ hiển thị text preview cục bộ và đóng modal; chưa kết nối MCP hoặc REST mutation. Accounts/category/budget/recurring cũng thiếu write UI tương ứng. |
 | GAP-AUTH-01 | Trung bình | Forgot-password tạo token nhưng không gọi mail service; production khi không bật return-token vẫn trả generic success mà không gửi hướng dẫn. |
