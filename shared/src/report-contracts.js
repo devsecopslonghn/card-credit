@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { statementPaymentStatusSchema } from "./statement-contracts.js";
 
 const safeInteger = z.number().int().refine(Number.isSafeInteger, "Must be a safe integer");
 const safeNonNegativeInteger = safeInteger.nonnegative();
@@ -64,3 +65,20 @@ export const financialReportSchema = z.object({
   byCategory: z.record(z.string(), financialReportMetricSchema),
   byAccount: z.record(z.string(), accountMetricSchema),
 });
+
+export const creditStatementReportSchema = z.strictObject({
+  statementId: z.string().min(1),
+  statementDate: reportDateSchema,
+  periodStartDate: reportDateSchema,
+  periodEndDate: reportDateSchema,
+  paymentDueDate: reportDateSchema,
+  paymentStatus: statementPaymentStatusSchema,
+  outstandingDebt: safeNonNegativeInteger,
+  grossCharges: safeNonNegativeInteger,
+  payments: safeNonNegativeInteger,
+  personalSpending: safeNonNegativeInteger,
+  outstandingReceivable: safeNonNegativeInteger,
+  transactionCount: safeNonNegativeInteger,
+});
+
+export const creditStatementReportListSchema = z.array(creditStatementReportSchema);

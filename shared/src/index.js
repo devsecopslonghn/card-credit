@@ -61,11 +61,14 @@ export {
   budgetStatusListSchema,
 } from "./planning-contracts.js";
 export {
+  statementPaymentStatusSchema,
   statementSummarySchema,
   statementSchema,
   statementListSchema,
 } from "./statement-contracts.js";
 export {
+  creditStatementReportSchema,
+  creditStatementReportListSchema,
   reportDateSchema,
   reportDateRangeSchema,
   resolveReportDateRange,

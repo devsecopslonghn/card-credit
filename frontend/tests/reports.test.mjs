@@ -7,6 +7,7 @@ test("finance client uses the canonical financial report endpoint", () => {
   assert.match(client, /\/api\/financial-reports\/summary\?from=/);
   assert.match(client, /financialReportSchema\.parse/);
   assert.match(client, /reportDateRangeSchema\.parse/);
+  assert.match(client, /creditStatementReportListSchema\.parse/);
   assert.doesNotMatch(client, /\/api\/reports\/summary/);
 });
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { financialReportSchema, reportDateRangeSchema, reportDateSchema, resolveReportDateRange } from "../src/index.js";
+import { creditStatementReportListSchema, financialReportSchema, reportDateRangeSchema, reportDateSchema, resolveReportDateRange } from "../src/index.js";
 
 const metric = { personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionCount: 0 };
 
@@ -35,4 +35,25 @@ test("report date range keeps REST defaults in the shared contract", () => {
   assert.deepEqual(resolveReportDateRange({}, today), { from: "2026-08-01", to: "2026-08-16" });
   assert.deepEqual(resolveReportDateRange({ from: "2026-07-10" }, today), { from: "2026-07-10", to: "2026-08-16" });
   assert.deepEqual(resolveReportDateRange({ to: "2026-08-10" }, today), { from: "2026-08-01", to: "2026-08-10" });
+});
+
+test("credit statement report projection is strict and uses canonical statement semantics", () => {
+  const report = [{
+    statementId: "statement-1",
+    statementDate: "2026-08-01",
+    periodStartDate: "2026-07-02",
+    periodEndDate: "2026-08-01",
+    paymentDueDate: "2026-08-16",
+    paymentStatus: "OPEN",
+    outstandingDebt: 800,
+    grossCharges: 1000,
+    payments: 200,
+    personalSpending: 700,
+    outstandingReceivable: 50,
+    transactionCount: 3,
+  }];
+  assert.deepEqual(creditStatementReportListSchema.parse(report), report);
+  assert.throws(() => creditStatementReportListSchema.parse([{ ...report[0], paymentStatus: "EFFECTIVE_OVERDUE" }]));
+  assert.throws(() => creditStatementReportListSchema.parse([{ ...report[0], outstandingDebt: -1 }]));
+  assert.throws(() => creditStatementReportListSchema.parse([{ ...report[0], workspaceId: "workspace-a" }]));
 });

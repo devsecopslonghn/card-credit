@@ -1,5 +1,5 @@
-import { budgetStatusListSchema, financialReportSchema, financialTransactionListSchema, reportDateRangeSchema } from "@card-credit/contracts";
-import type { AccountDto, BudgetStatusDto, FinancialReportDto, FinancialTransactionDto } from "@card-credit/contracts";
+import { budgetStatusListSchema, creditStatementReportListSchema, financialReportSchema, financialTransactionListSchema, reportDateRangeSchema } from "@card-credit/contracts";
+import type { AccountDto, BudgetStatusDto, CreditStatementReportDto, FinancialReportDto, FinancialTransactionDto } from "@card-credit/contracts";
 
 export type FinancialTransaction = FinancialTransactionDto;
 
@@ -15,7 +15,7 @@ export const getFinancialSummary = async (from: string, to: string): Promise<Fin
   const range = reportDateRangeSchema.parse({ from, to }) as { from: string; to: string };
   return financialReportSchema.parse(await request<unknown>(`/api/financial-reports/summary?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`)) as FinancialReportDto;
 };
-export const getCreditStatements = (from?: string, to?: string) => request(`/api/financial-reports/credit-statements${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`);
+export const getCreditStatements = async (from?: string, to?: string): Promise<CreditStatementReportDto[]> => creditStatementReportListSchema.parse(await request<unknown>(`/api/financial-reports/credit-statements${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`)) as CreditStatementReportDto[];
 export const getBudgetStatus = async (month: string): Promise<BudgetStatusDto[]> => budgetStatusListSchema.parse(await request<unknown>(`/api/finance/budgets/status?month=${encodeURIComponent(month)}`)) as BudgetStatusDto[];
 
 export type FinanceAccount = AccountDto;

@@ -3,7 +3,7 @@ import { financialTransactionSchema } from "./transaction-contracts.js";
 
 const safeNonNegativeInteger = z.number().int().nonnegative().refine(Number.isSafeInteger, "Must be a safe integer");
 const safePositiveInteger = z.number().int().positive().refine(Number.isSafeInteger, "Must be a safe integer");
-const paymentStatusSchema = z.enum(["OPEN", "STATEMENT_CLOSED", "PAID", "OVERDUE"]);
+export const statementPaymentStatusSchema = z.enum(["OPEN", "STATEMENT_CLOSED", "PAID", "OVERDUE"]);
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
@@ -28,8 +28,8 @@ export const statementSchema = z.object({
   paymentDueDate: isoDateSchema,
   statementDaySnapshot: z.number().int().min(1).max(31).refine(Number.isSafeInteger, "Must be a safe integer"),
   paymentDueDaysSnapshot: safePositiveInteger,
-  paymentStatus: paymentStatusSchema,
-  effectivePaymentStatus: paymentStatusSchema,
+  paymentStatus: statementPaymentStatusSchema,
+  effectivePaymentStatus: statementPaymentStatusSchema,
   paidAt: z.string().nullable(),
   paidAmount: safeNonNegativeInteger.nullable(),
   summary: statementSummarySchema,

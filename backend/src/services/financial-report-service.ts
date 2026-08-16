@@ -4,8 +4,8 @@ import { CardFeePaymentModel } from "../models/card-fee-payment.js";
 import { MonthlyCardCashbackModel } from "../models/monthly-card-cashback.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { StatementQueryService } from "./statement-query-service.js";
-import { financialReportSchema, reportDateRangeSchema } from "@card-credit/contracts";
-import type { FinancialReportDto } from "@card-credit/contracts";
+import { creditStatementReportListSchema, financialReportSchema, reportDateRangeSchema } from "@card-credit/contracts";
+import type { CreditStatementReportDto, FinancialReportDto } from "@card-credit/contracts";
 
 type Range = { from: string; to: string };
 
@@ -120,7 +120,7 @@ export class FinancialReportService {
       order: "paymentDueDate",
       includeTransactions: false,
     });
-    return statements.map((statement) => ({
+    return creditStatementReportListSchema.parse(statements.map((statement) => ({
       statementId: statement.id,
       statementDate: statement.statementDate,
       periodStartDate: statement.periodStartDate,
@@ -133,6 +133,6 @@ export class FinancialReportService {
       personalSpending: statement.summary.personalSpending,
       outstandingReceivable: statement.summary.outstandingReceivable,
       transactionCount: statement.summary.transactionCount,
-    }));
+    }))) as CreditStatementReportDto[];
   }
 }

@@ -78,3 +78,18 @@ test("REST and MCP report adapters pass one canonical explicit date range", asyn
   assert.deepEqual(observed, [range, range]);
   await app.close();
 });
+
+test("REST credit-statement projection keeps the canonical shared list contract", async (t) => {
+  const data = [{
+    statementId: "statement-1", statementDate: "2026-08-01", periodStartDate: "2026-07-02", periodEndDate: "2026-08-01",
+    paymentDueDate: "2026-08-16", paymentStatus: "OPEN", outstandingDebt: 800, grossCharges: 1000, payments: 200,
+    personalSpending: 700, outstandingReceivable: 50, transactionCount: 3,
+  }];
+  t.mock.method(FinancialReportService, "creditStatements", async () => data as never);
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerFinancialReportRoutes(app, secret, users);
+  const response = await app.inject({ url: "/api/financial-reports/credit-statements", headers: { cookie } });
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json().data, data);
+  await app.close();
+});

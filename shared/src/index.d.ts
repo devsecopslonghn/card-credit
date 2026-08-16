@@ -254,6 +254,7 @@ export type BudgetStatusDto = {
 export declare const statementSummarySchema: z.ZodObject<any>;
 export declare const statementSchema: z.ZodObject<any>;
 export declare const statementListSchema: z.ZodArray<typeof statementSchema>;
+export declare const statementPaymentStatusSchema: z.ZodEnum<any>;
 export type StatementSummaryDto = {
   statementAmount: number;
   paymentAmount: number;
@@ -283,6 +284,8 @@ export type StatementDto = {
 export declare const financialReportMetricSchema: z.ZodObject<any>;
 export declare const financialReportTotalsSchema: z.ZodObject<any>;
 export declare const financialReportSchema: z.ZodObject<any>;
+export declare const creditStatementReportSchema: z.ZodObject<any>;
+export declare const creditStatementReportListSchema: z.ZodArray<typeof creditStatementReportSchema>;
 export declare const reportDateSchema: z.ZodString;
 export declare const reportDateRangeSchema: z.ZodObject<any>;
 export declare const resolveReportDateRange: (
@@ -318,6 +321,20 @@ export type FinancialReportDto = {
   credit: FinancialReportMetricDto;
   byCategory: Record<string, FinancialReportMetricDto>;
   byAccount: Record<string, FinancialReportMetricDto & { name: string }>;
+};
+export type CreditStatementReportDto = {
+  statementId: string;
+  statementDate: string;
+  periodStartDate: string;
+  periodEndDate: string;
+  paymentDueDate: string;
+  paymentStatus: "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
+  outstandingDebt: number;
+  grossCharges: number;
+  payments: number;
+  personalSpending: number;
+  outstandingReceivable: number;
+  transactionCount: number;
 };
 
 export declare const feeCategorySchema: z.ZodEnum<any>;
