@@ -10,7 +10,7 @@ implemented yet.
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
 | Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract slice đã hoàn tất và remote đã nhận; trusted context vẫn là checkpoint kế tiếp | `a54f09e` / `origin/master` | Bổ sung `ServiceContext.channel` + `correlationId` và context factories |
-| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context factory đã validation pass, đang chờ commit | — | Commit/push context foundation rồi rà session expiry/revalidation |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context foundation đã push; session expiry/revalidation còn thiếu | `12ba6ed` / `origin/master` | Revalidate browser/MCP identity trước mỗi private service call |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
@@ -46,8 +46,7 @@ implemented yet.
 - Residual risk: session chưa revalidate user active/role/workspace mỗi request;
   MCP fixed identity chưa kiểm tra active user/workspace từ repository. Đây là
   checkpoint kế tiếp của Access & Tenancy, chưa phải security completion.
-- Commit/push: pending; không đánh dấu Phase 1 hoàn tất cho tới khi SHA remote
-  được ghi ở checkpoint kế tiếp.
+- Commit/push: `12ba6ed` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
