@@ -152,6 +152,16 @@ Summary response nên có:
 | `GET /notes` | Session | List note workspace. |
 | `POST /notes` | Session | `{date,content}`; content rỗng là delete. |
 
+Fee read responses are canonical and shared across backend/frontend:
+
+- `GET /cards/:cardId/fee-payments` returns `FeePaymentDto[]` with
+  `id`, `cardId`, `category`, `paymentDate`, `amount`, and `note`.
+- `GET /fee-center` returns `FeeCenterRecordDto[]`, which extends the same
+  payment fields with `card: {id, providerName, displayName, owner} | null`.
+- The REST `{data}` envelope and existing mutation response aliases are
+  transport/compatibility adapters only; fee write routes remain legacy and
+  are not yet exposed as MCP commands.
+
 Report query hiện tại:
 
 ```text

@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract và account-card validation đã push | `d0d2c9b` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation và fee read parity đã push | `eaf6ec8` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata và CREDIT account-card validation đã push; generic persistent command guard còn là decision gate | `d0d2c9b` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup và read-only fee/cashback report parity đã push; refund-aware fee formula đã push; write commands chưa mở | `3b8f76a` / `origin/master` | Chờ chốt contract filters và legacy fee-category migration; giữ payment/write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula và canonical fee read parity đã push; write commands chưa mở | `eaf6ec8` / `origin/master` | Chờ chốt contract filters và legacy fee-category migration; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -591,6 +591,26 @@ implemented yet.
 - Database impact: read-only field đã tồn tại trong `FinancialTransaction`; không
   migration/index/write, không cần Kubernetes backup.
 - Commit/push: `1567c41` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Fee Read Contract Parity
+
+- Scope: read-only vertical slice cho card fee history và Fee Center. Shared
+  runtime schemas/types định nghĩa `FeePaymentDto` và `FeeCenterRecordDto`;
+  backend `FeeQueryService` là source duy nhất cho hai GET REST; frontend
+  runtime-parse canonical DTO rồi giữ compatibility adapter riêng cho legacy
+  card-fee UI/mutation responses.
+- Security/tenancy: GET routes tạo `browserServiceContext`, revalidate signed
+  session user/workspace và delegate card ownership cho `CardQueryService`;
+  Fee Center giữ orphan fee record với `card: null` thay vì bỏ silent.
+- Acceptance evidence: shared `validate` pass (11 tests); backend full
+  `npm run validate` pass; frontend `typecheck`, `lint`, `test` pass (73 unit +
+  6 integration) và `build` pass; `git diff --check` pass trước commit.
+- Database impact: chỉ đọc `CardFeePayment`/`CreditCard` hiện có; không schema,
+  index, migration hay data write, không cần Kubernetes backup.
+- Residual risk: POST/PUT/DELETE fee routes vẫn là legacy direct-model
+  compatibility paths; chưa có Fee MCP tool, generic preview-confirm/
+  idempotency/audit cho fee mutation, và chưa migrate legacy fee categories.
+- Commit/push: `eaf6ec8` đã push thành công lên `origin/master`.
 
 ### Decision gate: Owner/Card/Year/Month Report Filters
 
