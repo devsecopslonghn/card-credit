@@ -9,9 +9,9 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog và Card Portfolio read/write contracts đã validation; create/update slice đang chờ commit/push | `c39ff5c` / `origin/master` | Commit/push create/update command, sau đó REST inventory drift gate |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog và Card Portfolio read/write contracts đã push; REST inventory còn thủ công | `514e6e9` / `origin/master` | Xây REST route inventory/drift gate và tiếp tục transaction contract |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
-| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog và Card read service đã push; create/update command đã validation; delete/merge policy còn thiếu | `c39ff5c` / `origin/master` | Commit/push create/update; dừng trước delete/merge để chốt RESTRICT/REASSIGN/CASCADE |
+| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
@@ -161,8 +161,7 @@ implemented yet.
   Kubernetes cho commit này.
 - Residual risk/blocker: delete/merge vẫn là legacy direct-model path, merge có
   hai write rời và chưa transaction/idempotency. Không mở card mutation qua MCP.
-- Commit/push: chờ commit feature sau khi checkpoint này được review trong
-  working tree.
+- Commit/push: `514e6e9` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
