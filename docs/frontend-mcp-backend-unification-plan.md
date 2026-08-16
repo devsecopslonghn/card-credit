@@ -9,10 +9,10 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup và benefits report contract đã push | `3b8f76a` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract và account-card validation đã push | `3729786` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
-| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening và honest MCP audit metadata đã push; generic persistent command guard còn là decision gate | `ba851a3` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
+| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata và CREDIT account-card validation đã push; generic persistent command guard còn là decision gate | `3729786` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup và read-only fee/cashback report parity đã push; refund-aware fee formula đã push; write commands chưa mở | `3b8f76a` / `origin/master` | Chờ chốt contract filters và legacy fee-category migration; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
@@ -32,6 +32,23 @@ implemented yet.
   slice này. Cross-workspace service integration test cần bổ sung cùng trusted
   context foundation.
 - Commit/push: `a54f09e` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: CREDIT Account Card Validation
+
+- Independent review: bounded GAP-ACC-01 slice được duyệt; validation đặt trong
+  `AccountService`, không thay đổi shared input schema, MCP manifest hoặc model.
+- Changed write-set: `AccountService.create` kiểm tra `creditCardId` malformed,
+  tồn tại, active và cùng `workspaceId` trước `AccountModel.create`; REST route
+  dùng service nên nhận cùng behavior; idempotency replay trả receipt trước card
+  lookup. CREDIT không có card link vẫn được giữ hợp lệ.
+- Acceptance evidence: 5 account service tests pass, gồm active same-workspace,
+  missing/inactive/cross-workspace, malformed id, non-CREDIT boundary và replay;
+  backend typecheck/lint pass.
+- Residual risk: card có thể bị deactivate/delete giữa read validation và
+  account write; transaction/locking và card lifecycle policy cần decision riêng.
+- Database impact: chỉ thêm read validation trước write, không migration/index/
+  data change và không cần Kubernetes backup.
+- Commit/push: `3729786` đã push thành công lên `origin/master`.
 
 ### Completed checkpoint: Trusted ServiceContext (ready to commit)
 
