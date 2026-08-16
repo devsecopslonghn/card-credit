@@ -3,6 +3,7 @@ import test from "node:test";
 import { buildApp } from "../src/app.js";
 import { signSession, sessionCookie } from "../src/auth.js";
 import { InMemoryNotesRepository } from "../src/notes.js";
+import type { NotesRepository } from "../src/notes.js";
 import { registerNotesRoutes } from "../src/notes-routes.js";
 const secret = "01234567890123456789012345678901";
 const cookie = (workspaceId: string, userId = "u1") => sessionCookie(signSession({ userId, email: `${userId}@example.test`, role: "user", workspaceId }, secret));
@@ -13,4 +14,22 @@ test("notes require auth, scope by workspace, upsert, and delete blank content",
   assert.equal((await app.inject({ url: "/api/notes", headers: { cookie: cookie("a") } })).json()[0].content, "Note");
   assert.deepEqual((await app.inject({ url: "/api/notes", headers: { cookie: cookie("b", "u2") } })).json(), []);
   await app.inject({ method: "POST", url: "/api/notes", headers: { cookie: cookie("a") }, payload: { date: "2026-07-11", content: " " } }); assert.deepEqual((await app.inject({ url: "/api/notes", headers: { cookie: cookie("a") } })).json(), []); await app.close();
+});
+
+test("notes POST revalidates the browser identity before repository writes", async () => {
+  let writes = 0;
+  const repository: NotesRepository = {
+    list: async () => [],
+    upsert: async () => { writes += 1; return { workspaceId: "a", date: "2026-07-11", content: "blocked" }; },
+    remove: async () => { writes += 1; },
+  };
+  const users = {
+    findUserById: async () => ({ id: "u1", email: "u1@example.test", passwordHash: "", role: "user" as const, workspaceId: "b", displayName: "Moved", active: true, lockedAt: null }),
+  };
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerNotesRoutes(app, repository, secret, users);
+  const response = await app.inject({ method: "POST", url: "/api/notes", headers: { cookie: cookie("a") }, payload: { date: "2026-07-11", content: "blocked" } });
+  assert.equal(response.statusCode, 401);
+  assert.equal(writes, 0);
+  await app.close();
 });
