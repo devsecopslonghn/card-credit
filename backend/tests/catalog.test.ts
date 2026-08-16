@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import crypto from "node:crypto";
 import test from "node:test";
 import { buildApp } from "../src/app.js";
+import { sessionCookie, signSession } from "../src/auth.js";
 import { InMemoryCatalogRepository, type CatalogProduct, validateCatalogProducts } from "../src/catalog.js";
 
 const secret = "test-secret-at-least-thirty-two-characters";
 const product: CatalogProduct = { presetId: "test-visa", providerCode: "TST", providerName: "Test Bank", displayName: "Test Visa", network: "Visa", segment: "Classic", annualFee: 100, targetSpendForWaiver: null, imageUrl: null, benefits: ["Benefit"], sourceUrl: "https://example.test/card", sourceCheckedAt: "2026-07-11", active: true, sortOrder: 1, theme: { background: "#000", accent: "#fff" } };
-const cookie = (role = "admin") => { const payload = Buffer.from(JSON.stringify({ userId: "u1", email: "admin@example.test", role, workspaceId: "w1" })).toString("base64url"); return `card_credit_session=${payload}.${crypto.createHmac("sha256", secret).update(payload).digest("base64url")}`; };
+const cookie = (role = "admin") => sessionCookie(signSession({ userId: "u1", email: "admin@example.test", role, workspaceId: "w1" }, secret));
 
 test("public catalog uses repository, hides inactive products, and omits legacy aliases", async () => {
   const app = buildApp({ isReady: () => true }, "silent", new InMemoryCatalogRepository([product, { ...product, presetId: "inactive-visa", sortOrder: 2, active: false }]), secret);

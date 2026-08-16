@@ -37,7 +37,7 @@ const app = buildApp(database, config.logLevel, new MongoCatalogRepository(), co
 const authRepository = new MongoAuthRepository();
 if (config.mcpHttpToken) registerMcpHttp(app, fixedMcpContext(), config.mcpHttpToken, authRepository);
 if (process.env.API_DOCS_ENABLED !== "false") await registerApiDocs(app);
-registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, audit: writeAuthAudit });
+registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, sessionMaxAgeMs: config.sessionMaxAgeMs, audit: writeAuthAudit });
 registerUserRoutes(app, authRepository, config.authSecret);
 registerWorkspaceRoutes(app, authRepository, config.authSecret);
 registerCalendarSubscriptionRoutes(app, authRepository, config.authSecret);

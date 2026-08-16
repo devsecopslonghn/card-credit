@@ -629,6 +629,7 @@ one-off calendar email và Swagger/MCP management.
 | Nhóm | Biến | Yêu cầu |
 |---|---|---|
 | Backend bắt buộc | `MONGODB_URI`, `AUTH_SECRET` | Auth secret tối thiểu 32 ký tự |
+| Auth session | `AUTH_SESSION_MAX_AGE_MS` | Optional; absolute session lifetime, mặc định 8 giờ, giới hạn 1 phút–30 ngày |
 | Backend listener | `BACKEND_HOST`, `BACKEND_PORT`, `LOG_LEVEL`, `SHUTDOWN_TIMEOUT_MS` | Có default an toàn trong config |
 | Frontend proxy | `BACKEND_INTERNAL_URL` | Default local hoặc `http://backend:3001` ở production |
 | Auth bootstrap | `AUTH_BOOTSTRAP_TOKEN`, `AUTH_USERS_JSON` | Optional, phải có cả dữ liệu và token để dùng |
@@ -719,7 +720,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 
 | ID | Mức độ | Hiện trạng và tác động |
 |---|---|---|
-| GAP-SEC-01 | Cao | Session chứa `issuedAt` nhưng không kiểm tra expiry và không reload role/workspace/user state ở mỗi request. Session cũ tiếp tục mang claim cũ sau khi admin đổi role/workspace hoặc khóa user. |
+| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ) và browser/MCP adapter revalidate user active/locked/workspace. Còn thiếu session version/revocation tức thời và một số private direct-model route chưa đi qua service context. |
 | GAP-SEC-02 | Cao | Public register chấp nhận `workspaceId` do client truyền. Người biết workspace ID có thể tự đăng ký vào workspace đó nếu không có policy bổ sung ngoài source. |
 | GAP-DATA-01 | Cao | Delete card và duplicate merge không cascade/relink account, statement, transaction, cashback, fee, reminder. Có thể tạo orphan hoặc xóa source trong khi dữ liệu tài chính vẫn tham chiếu source card. |
 | GAP-PAY-01 | Cao | Frontend payment chỉ gửi `action`, không cho chọn `repaymentAccountId`; payment có amount sẽ lỗi nếu thiếu `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |

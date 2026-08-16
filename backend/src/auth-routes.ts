@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { ApiError } from "./errors.js";
-import { sessionCookie, sessionFromRequest, signSession, type Session } from "./auth.js";
+import { DEFAULT_SESSION_MAX_AGE_MS, sessionCookie, sessionFromRequest, signSession, type Session } from "./auth.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import type { AuthRepository, AuthUser } from "./auth-repository.js";
 
@@ -11,6 +11,7 @@ type AuthOptions = {
   bootstrapToken?: string;
   configuredUsers?: Array<Record<string, unknown>>;
   returnResetToken?: boolean;
+  sessionMaxAgeMs?: number;
   audit?: (event: string, request: FastifyRequest, actor?: Session | null, email?: string | null, resource?: Record<string, unknown>) => Promise<void>;
 };
 const emailOf = (value: unknown) => typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -29,7 +30,7 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
   };
   app.post<{ Body: Record<string, unknown> }>("/api/auth/login", async (request, reply) => {
     const email = emailOf(request.body?.email);
-    try { const session = await authenticate(email, request.body?.password); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret))); return { user: publicUser(session) }; }
+    try { const session = await authenticate(email, request.body?.password); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: publicUser(session) }; }
     catch (error) { await audit("LOGIN_FAILURE", request, null, email, { type: "auth", action: "login", errorCode: error instanceof ApiError ? error.code : "UNKNOWN" }); throw error; }
   });
   app.get("/api/auth/me", async (request) => ({ user: publicUser(sessionFromRequest(request, options.secret)) }));
@@ -40,7 +41,7 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
     const role = await options.repository.countUsers() === 0 ? "admin" : "user";
     const workspaceId = typeof request.body?.workspaceId === "string" && request.body.workspaceId.trim() ? request.body.workspaceId.trim() : `${email.split("@")[0]!.replace(/[^a-z0-9]+/g, "-")}-workspace`;
     const user = await options.repository.createUser({ email, passwordHash: await hashPassword(password), role, workspaceId, displayName: typeof request.body?.displayName === "string" ? request.body.displayName.trim() : email.split("@")[0]!, active: true, lockedAt: null });
-    const session = toSession(user); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret))); return { user: publicUser(session) };
+    const session = toSession(user); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: publicUser(session) };
   });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/forgot-password", async (request) => {
     const email = emailOf(request.body?.email); if (email && !validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const user = email ? await options.repository.findUserByEmail(email) : null; let rawToken: string | null = null;

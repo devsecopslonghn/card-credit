@@ -10,7 +10,7 @@ implemented yet.
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
 | Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract slice đã hoàn tất và remote đã nhận; trusted context vẫn là checkpoint kế tiếp | `a54f09e` / `origin/master` | Bổ sung `ServiceContext.channel` + `correlationId` và context factories |
-| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context + identity revalidation đã push; session expiry/version và direct routes còn thiếu | `bccd9b1` / `origin/master` | Chuẩn hóa session expiry/version và hoàn tất private adapter coverage |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã validation; session version và direct routes còn thiếu | `bccd9b1` / `origin/master` | Commit/push session expiry, sau đó chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
@@ -65,6 +65,24 @@ implemented yet.
 - Database impact: read-only user lookup; không migration/index/write, không cần
   Kubernetes backup.
 - Commit/push: `bccd9b1` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Signed session expiry (ready to commit)
+
+- Independent review: dùng absolute expiry, `issuedAt` bắt buộc, reject timestamp
+  thiếu/sai/quá tương lai và cookie cũ; mặc định 8 giờ, cấu hình được qua
+  `AUTH_SESSION_MAX_AGE_MS` trong giới hạn 1 phút–30 ngày.
+- Changed write-set: `backend/src/auth.ts`, `auth-routes.ts`, `config.ts`,
+  `server.ts` và auth/catalog/config tests; cookie login/register nhận `Max-Age`
+  nhưng server-side `issuedAt` check là nguồn quyết định.
+- Acceptance evidence: backend `npm run validate` pass (70 tests, typecheck,
+  lint và build); test mới bao phủ expired/future sessions và fixture cũ đã
+  chuyển sang signed session hợp lệ.
+- Operational impact: cookie không có `issuedAt` hoặc quá hạn sẽ yêu cầu đăng
+  nhập lại; không có thay đổi schema/index/migration hay ghi DB.
+- Residual risk: chưa có session version/revocation tức thời và một số private
+  direct-model route chưa qua service context.
+- Commit/push: chờ commit feature sau khi checkpoint này được review trong
+  working tree.
 
 ### Execution rules
 

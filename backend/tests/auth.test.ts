@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../src/app.js";
 import { registerAuthRoutes } from "../src/auth-routes.js";
+import { sessionCookie, sessionFromRequest, signSession } from "../src/auth.js";
 import type { AuthRepository, AuthUser, ResetToken } from "../src/auth-repository.js";
 
 class MemoryAuth implements AuthRepository {
@@ -43,4 +44,14 @@ test("bootstrap is disabled without token and guarded when configured", async ()
   const enabled = buildApp({ isReady: () => true }, "silent"); registerAuthRoutes(enabled, { repository, secret, bootstrapToken: "bootstrap-secret", configuredUsers: [{ email: "user@example.test", password: "valid-pass", role: "user", workspaceId: "w1" }] });
   assert.equal((await enabled.inject({ method: "POST", url: "/api/auth/bootstrap-users", headers: { authorization: "Bearer wrong" } })).statusCode, 403);
   assert.equal((await enabled.inject({ method: "POST", url: "/api/auth/bootstrap-users", headers: { authorization: "Bearer bootstrap-secret" } })).statusCode, 200); await enabled.close();
+});
+
+test("signed sessions expire from issuedAt and reject future timestamps", () => {
+  const secret = "01234567890123456789012345678901";
+  const session = { userId: "u1", email: "u@example.test", role: "user", workspaceId: "w1" } as const;
+  const expired = sessionCookie(signSession(session, secret, Date.now() - 3_601_000));
+  const future = sessionCookie(signSession(session, secret, Date.now() + 6 * 60_000));
+  const request = (cookie: string) => ({ headers: { cookie } } as never);
+  assert.throws(() => sessionFromRequest(request(expired), secret, 3_600_000), (error) => (error as { code?: string }).code === "UNAUTHENTICATED");
+  assert.throws(() => sessionFromRequest(request(future), secret, 3_600_000), (error) => (error as { code?: string }).code === "UNAUTHENTICATED");
 });

@@ -1,3 +1,5 @@
+import { sessionMaxAgeMs } from "./auth.js";
+
 export type BackendConfig = {
   host: string;
   port: number;
@@ -11,6 +13,7 @@ export type BackendConfig = {
   reminderScanIntervalMs: number;
   reminderClaimTimeoutMs: number;
   mcpHttpToken?: string;
+  sessionMaxAgeMs: number;
 };
 
 const required = (env: NodeJS.ProcessEnv, name: string) => {
@@ -58,5 +61,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     reminderScanIntervalMs: env.NODE_ENV === "test" ? 0 : integer(env.REMINDER_SCAN_INTERVAL_MS, 60000, "REMINDER_SCAN_INTERVAL_MS"),
     reminderClaimTimeoutMs: duration(env.REMINDER_CLAIM_TIMEOUT_MS, 300000, "REMINDER_CLAIM_TIMEOUT_MS"),
     mcpHttpToken: env.MCP_HTTP_TOKEN?.trim() || undefined,
+    sessionMaxAgeMs: sessionMaxAgeMs(env.AUTH_SESSION_MAX_AGE_MS),
   };
 };
