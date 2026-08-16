@@ -9,10 +9,10 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard và smoke report contract đã push | `8211e2f` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report và honest MCP audit metadata đã push | `ba851a3` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
-| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
+| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening và honest MCP audit metadata đã push; generic persistent command guard còn là decision gate | `ba851a3` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements và Frontend private-route guard đã push; fee/cashback report và write command slices chưa mở | `8211e2f` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
@@ -483,6 +483,20 @@ implemented yet.
 - Database impact: docs/script-only, không query/migration/index/data write và
   không cần Kubernetes backup.
 - Commit/push: `8211e2f` đã push thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: Honest MCP Audit Metadata
+
+- Scope: docs/runtime metadata-only; không thay đổi registered tools, token
+  verification hay mutation execution behavior.
+- Changed write-set: `backend/src/api-docs.ts` đánh dấu `auditStatus: PENDING`
+  và sửa `mutationPolicy` để phản ánh preview/confirm/idempotency hiện có,
+  append-only audit chưa được triển khai.
+- Acceptance evidence: backend typecheck/lint và MCP inventory/REST manifest
+  focused tests pass (4 tests); SRS GAP-MCP-01 vẫn giữ trạng thái partial.
+- Database impact: không model/schema/index/migration/data write; không cần
+  Kubernetes backup.
+- Commit/push: `ba851a3` đã push thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
 
 ### Execution rules
