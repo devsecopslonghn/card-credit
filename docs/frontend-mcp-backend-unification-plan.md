@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, stateless MCP preview hardening và SRS risk ledger đã push | `c7e4cb6` / `origin/master` | Đối chiếu preview projection còn compatibility |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, stateless MCP preview hardening, SRS risk ledger và notification projection đã push | `c3e396f` / `origin/master` | Đối chiếu calendar/reminder/report preview còn compatibility |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget read parity đã push; write command chưa mở | `cc4d333` / `origin/master` | Giữ PUT/upsert và Planning write contract cho slice riêng; tiếp tục runtime REST parity không-DB |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget read parity và Notification statement projection đã push; write command/calendar/reminder/report slices chưa mở | `c3e396f` / `origin/master` | Hợp nhất calendar feed/reminder read projection; giữ write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -322,6 +322,28 @@ implemented yet.
 - Acceptance evidence: focused StatementQuery/REST tests pass (9 tests); không
   thay đổi model/index/migration hoặc dữ liệu.
 - Commit/push: `9ef5d33` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Engagement Notification Statement Projection
+
+- Independent review: bounded read-only slice; không gọi `upcoming()` vì
+  notification phải giữ paid rows và limit 1..100. Orphan statement vẫn được
+  trả để giữ compatibility, card thiếu dùng fallback message hiện tại.
+- Changed write-set: `StatementQueryService.listNotifications` batch-load canonical
+  Statement DTO/financial impact; notification adapter dùng effective status và
+  `CardQueryService`; runtime composition truyền trusted auth repository để
+  browser context revalidate user/workspace; focused notification tests.
+- Compatibility: response envelope và exact row fields (`id`, `type`, `status`,
+  `title`, `message`, `dueDate`, `paymentStatus`, `cardId`, `meta.limit`) giữ
+  nguyên; chỉ thay source của status/ordering/amount semantics sang backend
+  service. Calendar feed/reminder/report projection chưa chuyển.
+- Acceptance evidence: backend `npm run validate` pass (88 tests, typecheck,
+  lint, build), focused notification tests cover paid/overdue/future/orphan,
+  clamp 100, workspace filters, single transaction batch và unauthenticated
+  rejection.
+- Database impact: read-only model access thay qua service, không schema/index/
+  migration/data write, không cần Kubernetes backup.
+- Commit/push: `c3e396f` đã push thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
 
 ### Execution rules
 
