@@ -128,9 +128,11 @@ export default function CardsPage() {
     }, 0);
     return { currentDebt, amountDue };
   }, [cardSummaries, dashboardStatements, filteredCards]);
-  const ownerReportQuery = selectedOwner
-    ? `?owner=${encodeURIComponent(selectedOwner)}`
-    : "";
+  const reportExportUrl = useMemo(() => {
+    const from = `${calendarPeriod.year}-${String(calendarPeriod.month + 1).padStart(2, "0")}-01`;
+    const to = new Date().toISOString().slice(0, 10);
+    return `/api/financial-reports/summary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  }, [calendarPeriod.month, calendarPeriod.year]);
 
   const closeAddModal = useCallback(() => {
     setIsAddModalOpen(false);
@@ -214,18 +216,18 @@ export default function CardsPage() {
               </select>
             </div>
             <Link
-              href={`/reports${ownerReportQuery}`}
+              href="/reports"
               className="cc-control flex w-full justify-center rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-surface-elevated sm:w-auto"
             >
               Báo cáo
             </Link>
             <a
-              href={`/reports${ownerReportQuery ? `?${ownerReportQuery.replace(/^\?/, "")}` : ""}`}
+              href={reportExportUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="cc-control flex w-full justify-center rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-surface-elevated sm:w-auto"
             >
-              Xuất JSON
+              Xuất JSON (toàn workspace)
             </a>
             <button
               ref={addButtonRef}
