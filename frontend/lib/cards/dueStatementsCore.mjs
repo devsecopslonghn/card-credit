@@ -43,6 +43,8 @@ const isPaid = (statement) =>
   statement?.paymentStatus === "PAID" || statement?.effectivePaymentStatus === "PAID";
 
 export const getRemainingAmountDue = (statement) => {
+  const canonicalOutstanding = parsePaymentAmount(statement?.summary?.outstandingAmount);
+  if (Number.isFinite(canonicalOutstanding)) return Math.max(0, canonicalOutstanding);
   const total = parsePaymentAmount(statement?.summary?.totalAmountDue);
   if (!Number.isFinite(total) || isPaid(statement)) return 0;
   const paid = parsePaymentAmount(statement?.paidAmount);

@@ -2,6 +2,7 @@ import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { AccountModel } from "../models/account.js";
 import { CardStatementModel } from "../models/card-statement.js";
 import type { ServiceContext } from "./types/service-context.js";
+import { StatementQueryService } from "./statement-query-service.js";
 
 type Range = { from: string; to: string };
 
@@ -18,51 +19,11 @@ const add = (target: ReturnType<typeof empty>, item: Record<string, unknown>) =>
 
 export class FinancialReportService {
   static async statementSummary(ctx: ServiceContext, statementId: string) {
-    const statement = await CardStatementModel.findOne({ _id: statementId, workspaceId: ctx.workspaceId }).lean();
-    if (!statement) return null;
-    const transactions = await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, statementId }).lean();
-    const totals = empty();
-    for (const item of transactions) add(totals, item as Record<string, unknown>);
-    const sourceIds = transactions.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").map((item) => item._id);
-    const reimbursements = sourceIds.length ? await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 }).lean() : [];
-    totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
-    return {
-      id: String(statement._id),
-      cardId: String(statement.userCardId),
-      statementDate: statement.statementDate,
-      periodStartDate: statement.periodStartDate,
-      periodEndDate: statement.periodEndDate,
-      paymentDueDate: statement.paymentDueDate,
-      paymentStatus: statement.paymentStatus,
-      outstandingDebt: Math.max(0, totals.creditDebt),
-      totals,
-      transactions: transactions.map((item) => ({
-        id: String(item._id),
-        accountId: String(item.accountId),
-        amount: item.amount,
-        transactionType: item.transactionType,
-        ownership: item.ownership,
-        transactionDate: item.transactionDate,
-        note: item.note ?? "",
-        impact: {
-          personalSpending: item.personalSpending,
-          debitCashflow: item.debitCashflow,
-          creditDebt: item.creditDebt,
-          outstandingReceivable: item.outstandingReceivable,
-        },
-      })),
-    };
+    return StatementQueryService.getById(ctx, statementId);
   }
 
   static async upcomingStatements(ctx: ServiceContext, limit = 20) {
-    const statements = await CardStatementModel.find({ workspaceId: ctx.workspaceId, paymentStatus: { $ne: "PAID" } })
-      .sort({ paymentDueDate: 1 }).limit(Math.min(Math.max(limit, 1), 50)).lean();
-    const result = [];
-    for (const statement of statements) {
-      const summary = await this.statementSummary(ctx, String(statement._id));
-      if (summary) result.push(summary);
-    }
-    return result;
+    return StatementQueryService.upcoming(ctx, limit);
   }
 
   static async summary(ctx: ServiceContext, range: Range) {

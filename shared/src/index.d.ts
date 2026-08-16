@@ -199,3 +199,31 @@ export type BudgetStatusDto = {
   usagePercent: number;
   status: BudgetStatus;
 };
+export declare const statementSummarySchema: z.ZodObject<any>;
+export declare const statementSchema: z.ZodObject<any>;
+export declare const statementListSchema: z.ZodArray<typeof statementSchema>;
+export type StatementSummaryDto = {
+  statementAmount: number;
+  paymentAmount: number;
+  outstandingAmount: number;
+  personalSpending: number;
+  outstandingReceivable: number;
+  reimbursementReceived: number;
+  transactionCount: number;
+};
+export type StatementDto = {
+  id: string;
+  cardId: string;
+  periodStartDate: string;
+  periodEndDate: string;
+  statementDate: string;
+  paymentDueDate: string;
+  statementDaySnapshot: number;
+  paymentDueDaysSnapshot: number;
+  paymentStatus: "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
+  effectivePaymentStatus: "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
+  paidAt: string | null;
+  paidAmount: number | null;
+  summary: StatementSummaryDto;
+  transactions?: FinancialTransactionDto[];
+};

@@ -9,11 +9,11 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory và runtime REST parity gate đã push; preview projection còn compatibility | `de69c2c` / `origin/master` | Đối chiếu preview projection và tiếp tục contract drift ở Statement/Billing slice |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity và Statement Read v1 đã push; preview projection còn compatibility | `PENDING` / working tree | Commit/push Statement Read v1; sau đó đối chiếu preview projection |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account và Financial Transaction input/output contracts đã push; generic command guard còn là decision gate | `e2a6b9b` / `origin/master` | Tách generic command guard thành decision gate vì có persistent idempotency/audit impact; tiếp tục query parity không-DB nếu phù hợp |
-| Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
+| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 đã hoàn tất review và validation; payment state transition vẫn legacy | `PENDING` / working tree | Commit/push read slice; sau đó tách payment state machine và command guard |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget read parity đã push; write command chưa mở | `cc4d333` / `origin/master` | Giữ PUT/upsert và Planning write contract cho slice riêng; tiếp tục runtime REST parity không-DB |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
@@ -250,6 +250,35 @@ implemented yet.
 - Residual risk: Budget write input và month validation vẫn là AS-IS; sẽ xử lý
   trong Planning command slice riêng. Không mở Planning MCP tool.
 - Commit/push: `cc4d333` đã push thành công lên `origin/master`; ledger này sẽ được ghi nhận ở commit docs kế tiếp.
+
+### Completed checkpoint: Credit Billing Statement Read v1 (ready to commit)
+
+- Independent review: read-only vertical slice đã được duyệt; canonical source là
+  persisted `creditDebt`/transaction impact. Không migrate dữ liệu, không đổi
+  payment PATCH/state transition, không thêm MCP mutation.
+- Changed write-set: shared `StatementDto`/summary/transaction schemas và types;
+  backend `StatementQueryService` batch-load statements/cards/transactions,
+  REST statement GET adapters và `FinancialReportService` delegation; MCP
+  `get_statement_summary`/`list_upcoming_statements` tiếp tục đi qua service;
+  frontend parser + compatibility adapter cho `_id/userCardId` và legacy
+  payment consumer; cards/payments/upcoming UI đọc `summary.outstandingAmount`.
+- Canonical formulas: positive `creditDebt` là statement amount, negative
+  `creditDebt`/`STATEMENT_PAYMENT` là payment amount, outstanding là
+  `max(statementAmount - paymentAmount, 0)`; payment không tăng transaction
+  count; reimbursement và receivable lấy persisted impact, không tính lại từ
+  `serviceFeeRate`/cashback.
+- Acceptance evidence: shared `npm run validate` pass (9 tests); backend
+  `npm run validate` pass (83 tests, typecheck, lint, build); frontend
+  `typecheck`, `lint`, `npm test` pass (72 unit + 6 integration); focused
+  statement query and REST tests cover parent/workspace scope and one batch
+  transaction query.
+- Compatibility/risk: payment PATCH response/request vẫn legacy và giữ adapter;
+  notification/calendar/reminder và `creditStatements` report projection chưa
+  chuyển sang canonical service; generic preview-confirm-idempotency-audit
+  guard vẫn là decision gate cho write slice kế tiếp.
+- Database impact: chỉ read repository/service/contract/UI code và test fixtures;
+  không schema/index/migration/data/write, không cần Kubernetes backup.
+- Commit/push: pending until feature commit and ledger commit are pushed.
 
 ### Execution rules
 

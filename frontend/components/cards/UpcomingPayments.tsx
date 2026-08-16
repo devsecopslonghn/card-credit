@@ -264,7 +264,7 @@ function PaymentActions({ statement, pendingActions, onPaymentAction, desktop = 
   const rowPending = closePending || paidPending;
   const closed = statement.paymentStatus === "STATEMENT_CLOSED" || statement.effectivePaymentStatus === "STATEMENT_CLOSED";
   const paid = statement.paymentStatus === "PAID" || statement.effectivePaymentStatus === "PAID";
-  const hasAmountDue = Number(statement.summary?.totalAmountDue ?? 0) > 0;
+  const hasAmountDue = Number((statement.summary as { outstandingAmount?: number } | undefined)?.outstandingAmount ?? 0) > 0;
 
   return (
     <div className={desktop ? "grid grid-cols-1 gap-2" : "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center"}>

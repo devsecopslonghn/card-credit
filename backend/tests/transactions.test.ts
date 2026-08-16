@@ -209,9 +209,9 @@ test("card statement dashboard batch-loads cards, statements, and transactions",
     ],
   }) as never);
   const transactionFind = t.mock.method(FinancialTransactionModel, "find", async () => [
-    { _id: "507f1f77bcf86cd799439031", statementId: statementA, amount: 300, reimbursementExpected: 0, serviceFeeRate: 10, cashbackReceived: 0, transactionDate: "2099-07-10", note: "" },
-    { _id: "507f1f77bcf86cd799439032", statementId: statementA, amount: 200, reimbursementExpected: 0, serviceFeeRate: 10, cashbackReceived: 0, transactionDate: "2099-07-10", note: "" },
-    { _id: "507f1f77bcf86cd799439033", statementId: statementB, amount: 100, reimbursementExpected: 0, serviceFeeRate: 0, cashbackReceived: 0, transactionDate: "2099-07-10", note: "" },
+    { _id: "507f1f77bcf86cd799439031", statementId: statementA, accountId: cardA, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 300, creditDebt: 300, personalSpending: 300, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, serviceFeeRate: 10, transactionDate: "2099-07-10", note: "" },
+    { _id: "507f1f77bcf86cd799439032", statementId: statementA, accountId: cardA, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 200, creditDebt: 200, personalSpending: 200, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, serviceFeeRate: 10, transactionDate: "2099-07-10", note: "" },
+    { _id: "507f1f77bcf86cd799439033", statementId: statementB, accountId: cardB, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 100, creditDebt: 100, personalSpending: 100, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, serviceFeeRate: 0, transactionDate: "2099-07-10", note: "" },
   ] as never);
   const app = buildApp({ isReady: () => true }, "silent");
   registerTransactionRoutes(app, secret);
@@ -223,32 +223,32 @@ test("card statement dashboard batch-loads cards, statements, and transactions",
   const body = response.json();
 
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(body.data.map((item: { _id: string }) => item._id), [
-    statementA,
+  assert.deepEqual(body.data.map((item: { id: string }) => item.id), [
     statementB,
+    statementA,
   ]);
-  assert.equal(body.data[0].summary.totalAmountDue, 500);
-  assert.equal(body.data[1].summary.totalAmountDue, 100);
+  assert.equal(body.data[0].summary.statementAmount, 100);
+  assert.equal(body.data[1].summary.statementAmount, 500);
   assert.equal(body.data[0].effectivePaymentStatus, "OPEN");
-  assert.deepEqual(body.data[0].transactions.map((item: { _id: string }) => item._id), [
+  assert.deepEqual(body.data[1].transactions.map((item: { id: string }) => item.id), [
     "507f1f77bcf86cd799439031",
     "507f1f77bcf86cd799439032",
   ]);
-  assert.deepEqual(body.data[1].transactions.map((item: { _id: string }) => item._id), [
+  assert.deepEqual(body.data[0].transactions.map((item: { id: string }) => item.id), [
     "507f1f77bcf86cd799439033",
   ]);
   assert.equal(cardFind.mock.callCount(), 1);
   assert.equal(statementFind.mock.callCount(), 1);
   assert.equal(transactionFind.mock.callCount(), 1);
   assert.deepEqual(cardFind.mock.calls[0]?.arguments[0], {
+    _id: { $in: [cardB, cardA] },
     workspaceId: "workspace-a",
   });
   assert.deepEqual(statementFind.mock.calls[0]?.arguments[0], {
-    userCardId: { $in: [cardA, cardB] },
     workspaceId: "workspace-a",
   });
   assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], {
-    statementId: { $in: [statementB, statementA] }, workspaceId: "workspace-a", transactionType: { $ne: "STATEMENT_PAYMENT" },
+    statementId: { $in: [statementB, statementA] }, workspaceId: "workspace-a",
   });
   await app.close();
 });
@@ -269,8 +269,8 @@ test("per-card statement list loads all statement transactions in one query", as
     ],
   }) as never);
   const transactionFind = t.mock.method(FinancialTransactionModel, "find", async () => [
-    { statementId: statementA, amount: 300, reimbursementExpected: 0, serviceFeeRate: 0, cashbackReceived: 0, transactionDate: "2026-07-10", note: "" },
-    { statementId: statementB, amount: 200, reimbursementExpected: 0, serviceFeeRate: 0, cashbackReceived: 0, transactionDate: "2026-07-10", note: "" },
+    { _id: "507f1f77bcf86cd799439031", statementId: statementA, accountId: cardId, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 300, creditDebt: 300, personalSpending: 300, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, serviceFeeRate: 0, transactionDate: "2026-07-10", note: "" },
+    { _id: "507f1f77bcf86cd799439032", statementId: statementB, accountId: cardId, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 200, creditDebt: 200, personalSpending: 200, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, serviceFeeRate: 0, transactionDate: "2026-07-10", note: "" },
   ] as never);
   const app = buildApp({ isReady: () => true }, "silent");
   registerTransactionRoutes(app, secret);
@@ -282,16 +282,16 @@ test("per-card statement list loads all statement transactions in one query", as
   const body = response.json();
 
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(body.data.map((item: { _id: string }) => item._id), [
+  assert.deepEqual(body.data.map((item: { id: string }) => item.id), [
     statementB,
     statementA,
   ]);
-  assert.equal(body.data[0].summary.totalAmountDue, 200);
-  assert.equal(body.data[1].summary.totalAmountDue, 300);
+  assert.equal(body.data[0].summary.statementAmount, 200);
+  assert.equal(body.data[1].summary.statementAmount, 300);
   assert.equal(transactionFind.mock.callCount(), 1);
   assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], {
     statementId: { $in: [statementB, statementA] },
-    workspaceId: "workspace-a", transactionType: { $ne: "STATEMENT_PAYMENT" },
+    workspaceId: "workspace-a",
   });
   await app.close();
 });

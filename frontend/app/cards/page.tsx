@@ -124,9 +124,7 @@ export default function CardsPage() {
     const currentDebt = summaries.reduce((total, summary) => total + summary.currentOutstandingBalance, 0);
     const amountDue = dashboardStatements.reduce((total, statement) => {
       if (statement.paymentStatus === "PAID" || statement.effectivePaymentStatus === "PAID") return total;
-      const due = Number(statement.summary?.totalAmountDue ?? 0);
-      const paid = Number(statement.paidAmount ?? 0);
-      return total + Math.max(0, due - (Number.isFinite(paid) ? paid : 0));
+      return total + Number(statement.summary?.outstandingAmount ?? 0);
     }, 0);
     return { currentDebt, amountDue };
   }, [cardSummaries, dashboardStatements, filteredCards]);

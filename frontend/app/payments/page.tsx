@@ -56,7 +56,7 @@ export default function PaymentsPage() {
   const enriched = useMemo(() => rows.map((row) => ({
     row,
     card: cardById.get(row.userCardId),
-    amount: Math.max(0, Number(row.summary?.totalAmountDue ?? 0) - Number(row.paidAmount ?? 0)),
+    amount: Math.max(0, Number(row.summary?.outstandingAmount ?? 0)),
     effectiveStatus: row.effectivePaymentStatus || row.paymentStatus,
   })), [cardById, rows]);
   const filtered = useMemo(() => enriched.filter(({ row, card, effectiveStatus }) => {

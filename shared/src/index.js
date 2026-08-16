@@ -60,3 +60,8 @@ export {
   budgetStatusSchemaDto,
   budgetStatusListSchema,
 } from "./planning-contracts.js";
+export {
+  statementSummarySchema,
+  statementSchema,
+  statementListSchema,
+} from "./statement-contracts.js";

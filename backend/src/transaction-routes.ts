@@ -19,6 +19,7 @@ import { projectStatementCalendar, serializeStatementCalendar } from "./statemen
 import { TransactionService } from "./services/transaction-service.js";
 import { FinancialTransactionModel } from "./models/financial-transaction.js";
 import { FinancialTransactionService } from "./services/financial-transaction-service.js";
+import { StatementQueryService } from "./services/statement-query-service.js";
 
 const Cards = CreditCardModel as mongoose.Model<Data>;
 const Statements = CardStatementModel;
@@ -66,114 +67,24 @@ const financialView = (transaction: Data, card: Data): Data => ({
   actualCashbackAmount: Number(transaction.cashbackReceived ?? 0),
   cashbackStatus: Number(transaction.cashbackReceived ?? 0) > 0 ? "RECEIVED" : "PENDING",
 });
-const groupTransactionsByStatement = (transactions: Data[]) => {
-  const grouped = new Map<string, Data[]>();
-  for (const transaction of transactions) {
-    const statementId = idOf(transaction.statementId);
-    const items = grouped.get(statementId);
-    if (items) items.push(transaction);
-    else grouped.set(statementId, [transaction]);
-  }
-  return grouped;
-};
 export const registerTransactionRoutes = (
   app: FastifyInstance,
   secret: string,
   calendarEmail?: { users: AuthRepository; mail: MailService },
 ) => {
   app.get("/api/card-statements", async (request) => {
-    const session = sessionFromRequest(request, secret);
-    const cards = await Cards.find({ workspaceId: session.workspaceId }).sort({
-      createdAt: -1,
-    });
-    const cardIds = cards.map((card) => idOf(card._id));
-    const statements = cardIds.length
-      ? await Statements.find({
-          userCardId: { $in: cardIds },
-          workspaceId: session.workspaceId,
-        }).sort({ statementDate: -1 })
-      : [];
-    const statementIds = statements.map((statement) => idOf(statement._id));
-    const cardById = new Map(cards.map((card) => [idOf(card._id), plain(card)]));
-    const financeTransactions = statementIds.length
-      ? await FinancialTransactionModel.find({ statementId: { $in: statementIds }, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } })
-      : [];
-    const transactionsByStatement = groupTransactionsByStatement(financeTransactions.map((item) => {
-      const card = cardById.get(idOf(statements.find((statement) => idOf(statement._id) === idOf(item.statementId))?.userCardId));
-      return financialView(item as Data, card ?? {});
-    }));
-    const statementsByCard = new Map<string, typeof statements>();
-    for (const statement of statements) {
-      const cardId = idOf(statement.userCardId);
-      const cardStatements = statementsByCard.get(cardId);
-      if (cardStatements) cardStatements.push(statement);
-      else statementsByCard.set(cardId, [statement]);
-    }
-    return {
-      data: cardIds.flatMap((cardId) => {
-        const card = cardById.get(cardId)!;
-        return (statementsByCard.get(cardId) ?? []).map((statement) => {
-          const statementTransactions =
-            transactionsByStatement.get(idOf(statement._id)) ?? [];
-          return {
-            ...TransactionService.serializeStatement(
-              statement,
-              statementTransactions,
-              card,
-            ),
-            transactions: statementTransactions.map((transaction) =>
-              TransactionService.serializeTransaction(transaction),
-            ),
-          };
-        });
-      }),
-    };
+    return { data: await StatementQueryService.list(await browserServiceContext(request, secret, calendarEmail?.users)) };
   });
   app.get<{ Params: { id: string } }>(
     "/api/cards/:id/statements",
     async (request) => {
-      const session = sessionFromRequest(request, secret);
-      const cardDoc = await cardFor(request.params.id, session);
-      const card = plain(cardDoc);
-      const statements = await Statements.find({
-        userCardId: request.params.id,
-        workspaceId: session.workspaceId,
-      }).sort({ statementDate: -1 });
-      const statementIds = statements.map((statement) => idOf(statement._id));
-    const transactions = statementIds.length
-      ? (await FinancialTransactionModel.find({ statementId: { $in: statementIds }, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } })).map((item) => financialView(plain(item), card))
-      : [];
-      const transactionsByStatement = groupTransactionsByStatement(transactions);
-      return {
-        data: statements.map((statement) =>
-          TransactionService.serializeStatement(
-            statement,
-            transactionsByStatement.get(idOf(statement._id)) ?? [],
-            card,
-          ),
-        ),
-      };
+      return { data: await StatementQueryService.list(await browserServiceContext(request, secret, calendarEmail?.users), { cardId: request.params.id }) };
     },
   );
   app.get<{ Params: { id: string; statementId: string } }>(
     "/api/cards/:id/statements/:statementId",
     async (request) => {
-      const session = sessionFromRequest(request, secret);
-      const card = plain(await cardFor(request.params.id, session));
-      const statement = await statementFor(
-        request.params.id,
-        request.params.statementId,
-        session,
-      );
-      const transactions = (await FinancialTransactionModel.find({ statementId: request.params.statementId, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } }).sort({ transactionDate: -1, createdAt: -1 })).map((item) => financialView(plain(item), card));
-      return {
-        data: {
-          ...TransactionService.serializeStatement(statement, transactions.map(plain), card),
-          transactions: transactions.map((item) =>
-            TransactionService.serializeTransaction(item, statement, card),
-          ),
-        },
-      };
+      return { data: await StatementQueryService.get(await browserServiceContext(request, secret, calendarEmail?.users), request.params.id, request.params.statementId) };
     },
   );
   app.patch<{ Params: { id: string; statementId: string }; Body: Data }>(
