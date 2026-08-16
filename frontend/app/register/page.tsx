@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { parseAuthSessionResponse } from "@/lib/api/authSessionCore.mjs";
 
 export default function RegisterPage() {
   const [displayName, setDisplayName] = useState("");
@@ -32,6 +33,8 @@ export default function RegisterPage() {
         const body = (await response.json()) as { error?: { message?: string } };
         throw new Error(body.error?.message || "Không thể tạo tài khoản.");
       }
+
+      parseAuthSessionResponse(await response.json());
 
       window.location.href = "/cards";
     } catch (registerError) {

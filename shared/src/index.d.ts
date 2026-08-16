@@ -376,3 +376,10 @@ export type UserDto = {
   active: boolean;
   lockedAt: string | null;
 };
+export declare const authSessionSchema: z.ZodObject<any>;
+export declare const authSessionListSchema: z.ZodArray<typeof authSessionSchema>;
+export type AuthSessionDto = {
+  email: string;
+  role: "admin" | "user";
+  workspaceId: string;
+};

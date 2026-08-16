@@ -104,3 +104,4 @@ export {
   masterCardTypeListSchema,
 } from "./masterdata-contracts.js";
 export { userSchema, userListSchema } from "./user-contracts.js";
+export { authSessionSchema, authSessionListSchema } from "./auth-contracts.js";

@@ -28,7 +28,7 @@ test("register, me, logout, login, and reset preserve cookie contracts", async (
   registerAuthRoutes(app, { repository, secret, returnResetToken: true, audit: async (event) => { events.push(event); } });
   const registered = await app.inject({ method: "POST", url: "/api/auth/register", payload: { email: "admin@example.test", password: "valid-pass" } });
   assert.equal(registered.statusCode, 201); const cookie = String(registered.headers["set-cookie"]); assert.match(cookie, /HttpOnly/); assert.match(cookie, /Secure/); assert.match(cookie, /SameSite=Lax/);
-  const me = await app.inject({ url: "/api/auth/me", headers: { cookie } }); assert.equal(me.statusCode, 200); assert.equal(me.json().user.role, "admin");
+const me = await app.inject({ url: "/api/auth/me", headers: { cookie } }); assert.equal(me.statusCode, 200); assert.equal(me.json().user.role, "admin"); assert.deepEqual(Object.keys(me.json().user).sort(), ["email", "role", "workspaceId"]);
   repository.users[0]!.active = false; assert.equal((await app.inject({ url: "/api/auth/me", headers: { cookie } })).statusCode, 401); repository.users[0]!.active = true;
   const logout = await app.inject({ method: "POST", url: "/api/auth/logout", headers: { cookie } }); assert.match(String(logout.headers["set-cookie"]), /Max-Age=0/);
   const login = await app.inject({ method: "POST", url: "/api/auth/login", payload: { email: "admin@example.test", password: "valid-pass" } }); assert.equal(login.statusCode, 200);

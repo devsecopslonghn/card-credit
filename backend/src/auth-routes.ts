@@ -5,6 +5,7 @@ import { DEFAULT_SESSION_MAX_AGE_MS, sessionCookie, sessionFromRequest, signSess
 import { hashPassword, verifyPassword } from "./password.js";
 import type { AuthRepository, AuthUser } from "./auth-repository.js";
 import { browserServiceContext } from "./context.js";
+import { authSessionListSchema, authSessionSchema } from "@card-credit/contracts";
 
 export type AuthOptions = {
   repository: AuthRepository;
@@ -31,10 +32,10 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
   };
   app.post<{ Body: Record<string, unknown> }>("/api/auth/login", async (request, reply) => {
     const email = emailOf(request.body?.email);
-    try { const session = await authenticate(email, request.body?.password); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: publicUser(session) }; }
+    try { const session = await authenticate(email, request.body?.password); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser }; }
     catch (error) { await audit("LOGIN_FAILURE", request, null, email, { type: "auth", action: "login", errorCode: error instanceof ApiError ? error.code : "UNKNOWN" }); throw error; }
   });
-  app.get("/api/auth/me", async (request) => { const context = await browserServiceContext(request, options.secret, options.repository); const user = await options.repository.findUserById(context.userId); if (!user) throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hợp lệ."); return { user: publicUser({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId }) }; });
+  app.get("/api/auth/me", async (request) => { const context = await browserServiceContext(request, options.secret, options.repository); const user = await options.repository.findUserById(context.userId); if (!user) throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hợp lệ."); return { user: authSessionSchema.parse(publicUser({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId })) }; });
   app.post("/api/auth/logout", async (request, reply) => { let actor: Session | null = null; try { actor = sessionFromRequest(request, options.secret); } catch { actor = null; } await audit("LOGOUT", request, actor, actor?.email, { type: "auth", action: "logout" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true }; });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/register", async (request, reply) => {
     const email = emailOf(request.body?.email); if (!validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const password = requirePassword(request.body?.password);
@@ -42,7 +43,7 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
     const role = await options.repository.countUsers() === 0 ? "admin" : "user";
     const workspaceId = typeof request.body?.workspaceId === "string" && request.body.workspaceId.trim() ? request.body.workspaceId.trim() : `${email.split("@")[0]!.replace(/[^a-z0-9]+/g, "-")}-workspace`;
     const user = await options.repository.createUser({ email, passwordHash: await hashPassword(password), role, workspaceId, displayName: typeof request.body?.displayName === "string" ? request.body.displayName.trim() : email.split("@")[0]!, active: true, lockedAt: null });
-    const session = toSession(user); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: publicUser(session) };
+    const session = toSession(user); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser };
   });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/forgot-password", async (request) => {
     const email = emailOf(request.body?.email); if (email && !validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const user = email ? await options.repository.findUserByEmail(email) : null; let rawToken: string | null = null;
@@ -57,7 +58,7 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
   });
   app.post("/api/auth/bootstrap-users", async (request) => {
     if (!options.bootstrapToken) throw new ApiError(503, "BOOTSTRAP_DISABLED", "Bootstrap user API chưa được bật."); const authorization = request.headers.authorization ?? ""; const provided = authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : String(request.headers["x-bootstrap-token"] ?? ""); if (provided !== options.bootstrapToken) throw new ApiError(403, "FORBIDDEN", "Bootstrap token không hợp lệ."); if (!options.configuredUsers?.length) throw new ApiError(400, "NO_BOOTSTRAP_USERS", "AUTH_USERS_JSON chưa có user để bootstrap."); const results = [];
-    for (const item of options.configuredUsers) { const email = emailOf(item.email); if (!validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ."); const passwordHash = typeof item.passwordHash === "string" ? item.passwordHash : await hashPassword(requirePassword(item.password)); const user = await options.repository.upsertUser({ email, passwordHash, role: item.role === "admin" ? "admin" : "user", workspaceId: String(item.workspaceId), displayName: typeof item.displayName === "string" ? item.displayName.trim() : email.split("@")[0]!, active: item.active !== false, lockedAt: item.lockedAt ? new Date(String(item.lockedAt)) : null }); results.push(publicUser(toSession(user))); }
-    await audit("USER_BOOTSTRAPPED", request, null, null, { type: "auth", action: "bootstrap-users", count: results.length }); return { users: results };
+    for (const item of options.configuredUsers) { const email = emailOf(item.email); if (!validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ."); const passwordHash = typeof item.passwordHash === "string" ? item.passwordHash : await hashPassword(requirePassword(item.password)); const user = await options.repository.upsertUser({ email, passwordHash, role: item.role === "admin" ? "admin" : "user", workspaceId: String(item.workspaceId), displayName: typeof item.displayName === "string" ? item.displayName.trim() : email.split("@")[0]!, active: item.active !== false, lockedAt: item.lockedAt ? new Date(String(item.lockedAt)) : null }); results.push(authSessionSchema.parse(publicUser(toSession(user)))); }
+    await audit("USER_BOOTSTRAPPED", request, null, null, { type: "auth", action: "bootstrap-users", count: results.length }); return { users: authSessionListSchema.parse(results) };
   });
 };

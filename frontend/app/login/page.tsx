@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { parseAuthSessionResponse } from "@/lib/api/authSessionCore.mjs";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -25,6 +26,8 @@ export default function LoginPage() {
         const body = (await response.json()) as { error?: { message?: string } };
         throw new Error(body.error?.message || "Không thể đăng nhập.");
       }
+
+      parseAuthSessionResponse(await response.json());
 
       const nextPath = new URLSearchParams(window.location.search).get("next");
       window.location.href = nextPath?.startsWith("/") ? nextPath : "/cards";
