@@ -1,5 +1,5 @@
 import { z, type ZodRawShape } from "zod";
-import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInputSchema } from "@card-credit/contracts";
+import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInputSchema, feeCategorySchema } from "@card-credit/contracts";
 
 export type McpToolKind = "query" | "preview" | "confirm";
 export type McpToolDefinition = {
@@ -19,6 +19,9 @@ const definitions = [
   { name: "get_statement_summary", description: "Read a workspace-scoped credit-card statement summary from Financial Domain.", kind: "query", inputSchema: { statementId: z.string().min(1) } },
   { name: "list_transactions", description: "List all workspace-scoped financial transactions from Financial Domain, including debit, cash and credit.", kind: "query", inputSchema: { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), accountId: z.string().min(1).optional(), categoryId: z.string().min(1).optional() } },
   { name: "compare_cards", description: "Compare active cards in the fixed workspace.", kind: "query", inputSchema: {} },
+  { name: "list_card_fee_payments", description: "List canonical fee payments for one card in the fixed workspace.", kind: "query", inputSchema: { cardId: z.string().min(1) } },
+  { name: "list_fee_center", description: "List canonical categorized fee records in the fixed workspace.", kind: "query", inputSchema: { cardId: z.string().min(1).optional(), category: feeCategorySchema.optional() } },
+  { name: "list_monthly_cashbacks", description: "List canonical monthly bank cashback records for one card and year.", kind: "query", inputSchema: { cardId: z.string().min(1), year: z.string().regex(/^\d{4}$/) } },
   { name: "list_upcoming_statements", description: "List unpaid statements from Financial Domain ordered by payment due date.", kind: "query", inputSchema: { limit: z.number().int().min(1).max(50).default(20) } },
   { name: "get_personal_finance_summary", description: "Read canonical ledger totals and benefit reconciliation, including bank cashback and paid card fees.", kind: "query", inputSchema: { from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) } },
   { name: "preview_import_financial_transaction", description: "Prepare transactions and return backend-calculated impacts. The caller must present previewImpact exactly; do not recalculate fees or receivables.", kind: "preview", operation: MCP_OPERATION.importFinancialTransactionBatch, inputSchema: createFinancialTransactionBatchInputSchema.shape },

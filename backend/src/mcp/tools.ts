@@ -6,7 +6,9 @@ import { FinancialTransactionService, type CreateFinancialTransactionBatchInput 
 import { FinancialReportService } from "../services/financial-report-service.js";
 import { StatementQueryService } from "../services/statement-query-service.js";
 import { AccountService } from "../services/account-service.js";
-import type { CreateRealMoneyAccountInput } from "@card-credit/contracts";
+import { FeeQueryService } from "../services/fee-query-service.js";
+import { MonthlyCashbackQueryService } from "../services/monthly-cashback-query-service.js";
+import type { CreateRealMoneyAccountInput, FeeCategory } from "@card-credit/contracts";
 import { randomUUID } from "node:crypto";
 import { MCP_OPERATION, mcpToolMetadata } from "./manifest.js";
 
@@ -24,8 +26,11 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
   const codec = () => previewCodec ?? createPreviewTokenCodec({ secret: process.env.MCP_PREVIEW_SECRET?.trim() ?? "" });
   server.registerTool("get_statement_summary", mcpToolMetadata("get_statement_summary"), async ({ statementId }: { statementId: string }) => json(await StatementQueryService.getById(await invocationContext(), statementId)));
   server.registerTool("list_transactions", mcpToolMetadata("list_transactions"), async (filters: { date?: string; accountId?: string; categoryId?: string }) => json(await FinancialTransactionService.list(await invocationContext(), { from: filters.date, to: filters.date, accountId: filters.accountId, categoryId: filters.categoryId })));
-  server.registerTool("compare_cards", mcpToolMetadata("compare_cards"), async () => json(await CardService.compare(await invocationContext())));
-  server.registerTool("list_upcoming_statements", mcpToolMetadata("list_upcoming_statements"), async ({ limit }: { limit: number }) => json(await StatementQueryService.upcoming(await invocationContext(), limit)));
+ server.registerTool("compare_cards", mcpToolMetadata("compare_cards"), async () => json(await CardService.compare(await invocationContext())));
+  server.registerTool("list_card_fee_payments", mcpToolMetadata("list_card_fee_payments"), async ({ cardId }: { cardId: string }) => json(await FeeQueryService.listCardPayments(await invocationContext(), cardId)));
+  server.registerTool("list_fee_center", mcpToolMetadata("list_fee_center"), async ({ cardId, category }: { cardId?: string; category?: FeeCategory }) => json(await FeeQueryService.listCenter(await invocationContext(), { ...(cardId ? { cardId } : {}), ...(category ? { category } : {}) })));
+  server.registerTool("list_monthly_cashbacks", mcpToolMetadata("list_monthly_cashbacks"), async ({ cardId, year }: { cardId: string; year: string }) => json(await MonthlyCashbackQueryService.list(await invocationContext(), cardId, year)));
+ server.registerTool("list_upcoming_statements", mcpToolMetadata("list_upcoming_statements"), async ({ limit }: { limit: number }) => json(await StatementQueryService.upcoming(await invocationContext(), limit)));
   server.registerTool("get_personal_finance_summary", mcpToolMetadata("get_personal_finance_summary"), async ({ from, to }: { from: string; to: string }) => json(await FinancialReportService.summary(await invocationContext(), { from, to })));
   server.registerTool("preview_import_financial_transaction", mcpToolMetadata("preview_import_financial_transaction"), async (payload: CreateFinancialTransactionBatchInput) => { const context = await invocationContext(); const normalized = await FinancialTransactionService.preview(context, payload); const confirmationPayload = payload; const metadata = codec().issue(MCP_OPERATION.importFinancialTransactionBatch, confirmationPayload, binding(context)); return json({ operation: MCP_OPERATION.importFinancialTransactionBatch, payload: confirmationPayload, preview: normalized.items.map((item) => ({ amount: item.amount, serviceFeeRate: item.serviceFeeRate ?? 0, serviceFee: item.amount - Number(item.reimbursementExpected ?? 0), reimbursementExpected: item.reimbursementExpected ?? 0, impact: item.previewImpact })), ...metadata }); });
   server.registerTool("confirm_import_financial_transaction", mcpToolMetadata("confirm_import_financial_transaction"), async ({ payload, confirmationToken, idempotencyKey }: { payload: CreateFinancialTransactionBatchInput; confirmationToken: string; idempotencyKey: string }) => { const context = await invocationContext(); codec().verify(confirmationToken, MCP_OPERATION.importFinancialTransactionBatch, payload, binding(context)); return json(await FinancialTransactionService.createBatch(context, payload, idempotencyKey)); });
