@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI và API docs cleanup đã push | `c13ef35` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup và benefits report contract đã push | `41920dc` / `origin/master` | Mở rộng owner/card/year/month filters sau khi chốt contract; giữ payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening và honest MCP audit metadata đã push; generic persistent command guard còn là decision gate | `ba851a3` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard và report UI cleanup đã push; fee/cashback report và write command slices chưa mở | `23a294d` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup và read-only fee/cashback report parity đã push; write commands chưa mở | `41920dc` / `origin/master` | Contract filters và legacy fee-category migration; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -533,6 +533,36 @@ implemented yet.
   Kubernetes backup.
 - Commit/push: `c13ef35` đã push thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: Benefits and Fees Report Read Parity
+
+- Independent review: read-only bounded slice được duyệt. Canonical report
+  totals giữ ledger metrics và thêm `totalServiceFee`,
+  `transactionCashbackActual`, monthly bank cashback expected/actual/rejected,
+  `totalPaidCardFees`, `actualNetBenefit`; grouped metrics không trộn semantics
+  benefits.
+- Changed write-set: shared `FinancialReportDto` runtime schema/type và fixture;
+  `FinancialReportService` batch-read `FinancialTransactionModel`,
+  `MonthlyCardCashbackModel`, `CardFeePaymentModel` theo workspace/range;
+  REST/MCP cùng service; frontend client runtime-parse và Reports/Dashboard dùng
+  shared type; MCP manifest mô tả benefit reconciliation.
+- Canonical formulas: service fee chỉ là
+  `EXPENSE + PAID_FOR_OTHER: max(amount - reimbursementExpected, 0)`; monthly
+  cashback expected cộng toàn bộ bucket giao range, actual chỉ `RECEIVED`,
+  rejected dùng expected; paid card fees chỉ gồm `ANNUAL_CARD_FEE`,
+  `MANAGEMENT_FEE`, `OTHER_FEE`; `actualNetBenefit = monthly actual - service
+  fee - paid card fees`; transaction cashback không cộng lần hai.
+- Acceptance evidence: shared validate pass (10 tests); backend typecheck và
+  focused financial-report tests pass (3 tests); frontend typecheck, lint và
+  full test pass (73 unit + 6 integration); `git diff --check` pass.
+- Residual risk: report endpoint vẫn chỉ nhận `from/to`; owner/card/year/month
+  filters, orphan card-source cleanup, fee-category migration và benefit
+  mutation command guard chưa mở. Monthly records là month buckets giao range,
+  không prorate theo ngày.
+- Database impact: chỉ đọc collection/index hiện có; không schema/index/
+  migration/data write, không cần Kubernetes backup.
+- Commit/push: feature `8f53b6d` và test-fix `41920dc` đã push thành công lên
+  `origin/master`.
 
 ### Execution rules
 

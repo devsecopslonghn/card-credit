@@ -97,6 +97,8 @@
 - Matching cards vẫn xuất hiện với zero totals nếu không có activity trong range.
 - KPI gồm service fee, transaction cashback đối chiếu, monthly bank cashback
   expected/actual/rejected, paid card fee và actual net benefit.
+- Runtime contract hiện đã cung cấp các KPI trên cho khoảng ngày `from/to`; owner,
+  card và calendar year/month filter là phần mở rộng chưa mở trong API hiện tại.
 - User có thể export JSON theo đúng filter đang chọn.
 - User có thể upsert/xóa note theo ngày; note rỗng được coi là delete.
 
@@ -203,4 +205,3 @@ actualNetBenefit = monthlyBankCashbackActual - totalServiceFee - totalPaidCardFe
 - Statement/payment/cashback/report fixtures chứng minh đúng các formula ở trên.
 - Production image chạy non-root, readiness failure được nhận diện và secret
   không xuất hiện trong log hoặc client bundle.
-

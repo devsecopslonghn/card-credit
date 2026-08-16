@@ -295,7 +295,7 @@ Hai nhóm cross-cutting:
 | FEE-01 | Card-specific fee API quản lý phí thẻ thực tế theo card: list/create/update/delete, positive integer VND, ngày hợp lệ, note tối đa 1000 ký tự. |
 | FEE-02 | Fee Center dùng cùng collection nhưng mở rộng category: `ANNUAL_CARD_FEE`, `MANAGEMENT_FEE`, `OTHER_FEE`, `BANK_CASHBACK`, `PARTNER_REFUND`. |
 | FEE-03 | Fee Center list hỗ trợ filter card/category và trả snapshot card phục vụ hiển thị. |
-| FEE-04 | Cashback/fee record không tự thay đổi statement debt. Việc đưa chúng vào báo cáo mới chưa được nối đầy đủ; xem rủi ro GAP-REP-01. |
+| FEE-04 | Cashback/fee record không tự thay đổi statement debt. Financial summary đọc các collection này qua canonical report service; `BANK_CASHBACK` và `PARTNER_REFUND` chỉ là compatibility categories, không tính vào paid card fees. |
 
 ### 5.6 Financial Planning
 
@@ -321,6 +321,8 @@ Hai nhóm cross-cutting:
 | REP-04 | Credit statement projection phải trả gross charges, payments, personal spending, outstanding receivable, count và outstanding debt. |
 | REP-05 | Monthly cash-flow compatibility endpoint phải đọc Financial Domain, group theo card và tháng, không đọc collection card transaction cũ. |
 | REP-06 | Dashboard tài chính hiển thị summary tháng hiện tại và tối đa sáu transaction gần nhất. Dashboard thẻ hiển thị debt/due, statement sắp đến và cash flow theo card. |
+| REP-07 | Financial summary totals phải có `totalServiceFee`, `transactionCashbackActual`, `monthlyBankCashbackExpected`, `monthlyBankCashbackActual`, `monthlyBankCashbackRejected`, `totalPaidCardFees` và `actualNetBenefit`. |
+| REP-08 | `actualNetBenefit = monthlyBankCashbackActual - totalServiceFee - totalPaidCardFees`; transaction cashback chỉ là KPI đối chiếu và không cộng lần hai. Monthly cashback tính theo tháng giao với range; `RECEIVED` mới tính actual, `REJECTED` dùng expected. |
 
 ### 5.8 Engagement & Communications
 
@@ -732,7 +734,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 | GAP-PAY-01 | Cao | Frontend payment chỉ gửi `action`, không cho chọn `repaymentAccountId`; payment có amount sẽ lỗi nếu thiếu `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |
 | GAP-PAY-02 | Cao | Payment route coi mọi action khác `REOPEN`/`CLOSED` là `PAID`; request thiếu/sai action có thể đánh dấu paid. `REOPEN` không reverse/xóa `STATEMENT_PAYMENT`, nên cashflow/debt có thể không phục hồi. |
 | GAP-STM-01 | Đã xử lý một phần | Statement Read v1, notification, private calendar feed, payment-reminder, one-off calendar-email và `creditStatements` report projections đã dùng shared `StatementDto`, `StatementQueryService` và persisted `creditDebt`/impact cho REST GET, MCP summary/upcoming, Frontend read, notifications, ICS, scheduled/one-off email và credit report; calendar feed vẫn giữ `lastAccessedAt` write hiện hữu nhưng không đổi schema; payment PATCH/state transition vẫn còn legacy mutation/formula cần slice riêng. |
-| GAP-REP-01 | Cao | Financial report mới không đọc `MonthlyCardCashbackModel` hoặc `CardFeePaymentModel`. Fee Center UI nói báo cáo đọc từ sổ phí nhưng source report hiện chỉ đọc Financial Transaction/Account/Statement. |
+| GAP-REP-01 | Đã xử lý một phần | `FinancialReportService` và shared `FinancialReportDto` đã đọc ledger transaction, `MonthlyCardCashbackModel` và `CardFeePaymentModel` theo workspace/range; REST, MCP `get_personal_finance_summary`, frontend client/report page dùng cùng DTO. Còn owner/card/year/month filters, orphan cleanup và legacy fee-category migration cần slice riêng; vì vậy chưa đóng hoàn toàn FR-08. |
 | GAP-OPS-01 | Cao | `server.ts` gọi `syncCatalogFromFile()` với apply=true mỗi lần start, trái với mô tả dry-run/operator-controlled trong `backend/README.md`; admin catalog changes trùng baseline có thể bị ghi đè khi restart. |
 | GAP-MCP-01 | Đã xử lý một phần | Preview token v1 hiện dùng dedicated `MCP_PREVIEW_SECRET`, TTL 300 giây, HMAC domain separation và bind operation, canonical payload hash, workspace/user/channel; token không chứa raw payload. Token vẫn stateless/replayable tới expiry, chưa bind resource version, chưa có one-time human approval, `McpMutationModel` vẫn chỉ là idempotency receipt chứ chưa phải append-only audit; cùng preview với key khác vẫn có thể lặp effect. |
 | GAP-ACC-01 | Trung bình | Create CREDIT account không kiểm tra `creditCardId` tồn tại, active và cùng workspace trước khi persist. |

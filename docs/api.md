@@ -159,6 +159,17 @@ from=2026-08-01
 to=2026-08-31
 ```
 
+`GET /financial-reports/summary` trả cùng `FinancialReportDto` cho REST, MCP và
+frontend. `totals` giữ ledger metrics và các KPI benefits:
+`totalServiceFee`, `transactionCashbackActual`,
+`monthlyBankCashbackExpected`, `monthlyBankCashbackActual`,
+`monthlyBankCashbackRejected`, `totalPaidCardFees`, `actualNetBenefit`.
+`actualNetBenefit` chỉ tính monthly bank cashback thực nhận trừ phí dịch vụ và
+phí thẻ thực tế; transaction cashback chỉ để đối chiếu. Monthly cashback là
+bucket theo tháng giao với `from/to`; chỉ `RECEIVED` dùng `actualAmount`, còn
+`REJECTED` dùng `expectedAmount`. Fee categories `BANK_CASHBACK` và
+`PARTNER_REFUND` không được cộng vào paid card fees.
+
 Owner/card/year/month filters và fee/cashback report parity chưa nằm trong
 runtime contract hiện tại; phải mở thành contract slice riêng trước khi thêm
 query parameters. `creditStatements` trả compatibility field names nhưng
