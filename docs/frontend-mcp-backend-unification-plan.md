@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar và reminder projection đã push | `f0e579b` / `origin/master` | Đối chiếu report/one-off calendar email còn compatibility |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder và one-off calendar email projections đã push | `c36ac95` / `origin/master` | Đối chiếu creditStatements report projection còn compatibility |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed và Payment Reminder statement projections đã push; write command/report/one-off email slices chưa mở | `f0e579b` / `origin/master` | Hợp nhất one-off calendar email/read report projection; giữ write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder và one-off Calendar Email statement projections đã push; report/write command slices chưa mở | `c36ac95` / `origin/master` | Hợp nhất `creditStatements` report projection; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -388,6 +388,28 @@ implemented yet.
   trên `ReminderDeliveryModel` vẫn giữ nguyên vì là delivery state, không tạo
   persistence mới và không cần Kubernetes backup.
 - Commit/push: `f0e579b` đã push thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: One-off Calendar Email Statement Projection
+
+- Independent review: bounded browser read/composition adapter; recipient
+  validation, masked logging, ICS serialization, mail error mapping và response
+  envelope giữ nguyên. Payment PATCH và legacy transaction serializer không nằm
+  trong write-set.
+- Changed write-set: calendar-email route dùng một lần trusted browser context,
+  `CardQueryService.get` và `StatementQueryService.get`; projection lấy card
+  metadata, effective status và `summary.outstandingAmount` canonical thay cho
+  direct model reads + legacy `summarize` formula. Tests mock service contracts,
+  không mock raw model cho slice này.
+- Compatibility: authoritative account email vẫn được đọc/revalidate một lần;
+  query/body recipient override và secret không được tin; subject, attachment,
+  filename, calendar content, masked recipient và safe provider errors giữ nguyên.
+- Acceptance evidence: backend `npm run validate` pass (90 tests, typecheck,
+  lint, build); focused tests xác nhận auth trước read, account read một lần,
+  canonical 250k amount, inaccessible card/statement và redacted mail failures.
+- Database impact: không schema/index/migration/data mutation mới; chỉ sử dụng
+  service read projection và không cần Kubernetes backup.
+- Commit/push: `c36ac95` đã push thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
 
 ### Execution rules
