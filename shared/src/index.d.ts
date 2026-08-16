@@ -164,6 +164,31 @@ export type CardDuplicateGroupDto = {
   reason: string;
   cards: CardDto[];
 };
+export declare const cashFlowCardSummarySchema: z.ZodObject<any>;
+export declare const monthlyCashFlowRowSchema: z.ZodObject<any>;
+export declare const monthlyCashFlowResponseSchema: z.ZodObject<any>;
+export type CashFlowCardSummaryDto = {
+  id: string;
+  providerName: string | null;
+  displayName: string | null;
+  owner: string | null;
+};
+export type MonthlyCashFlowRowDto = {
+  cardId: string;
+  period: string;
+  totalOut: number;
+  totalIn: number;
+  statementPayments: number;
+  actualFees: number;
+  partnerReturns: number;
+  bankCashbackActual: number;
+  netResult: number;
+  card: CashFlowCardSummaryDto | null;
+};
+export type MonthlyCashFlowResponseDto = {
+  data: MonthlyCashFlowRowDto[];
+  period: string;
+};
 export declare const financialTransactionTypeSchema: z.ZodEnum<any>;
 export declare const ownershipSchema: z.ZodEnum<any>;
 export declare const createFinancialTransactionInputSchema: z.ZodObject<any>;

@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "node --test tests/budgets.test.mjs tests/cardAccessibility.test.mjs tests/cardCatalog.test.mjs tests/cardDebt.test.mjs tests/cardFeePayments.test.mjs tests/cardUi.test.mjs tests/dashboardLoad.test.mjs tests/dueStatements.test.mjs tests/middleware.test.mjs tests/monthlyCashbacks.test.mjs tests/observability.test.mjs tests/reports.test.mjs tests/statementCalendarEmail.test.mjs tests/statementsContract.test.mjs tests/transactionStatement.test.mjs",
+    "test:unit": "node --test tests/budgets.test.mjs tests/cash-flow.test.mjs tests/cardAccessibility.test.mjs tests/cardCatalog.test.mjs tests/cardDebt.test.mjs tests/cardFeePayments.test.mjs tests/cardUi.test.mjs tests/dashboardLoad.test.mjs tests/dueStatements.test.mjs tests/middleware.test.mjs tests/monthlyCashbacks.test.mjs tests/observability.test.mjs tests/reports.test.mjs tests/statementCalendarEmail.test.mjs tests/statementsContract.test.mjs tests/transactionStatement.test.mjs",
     "test:integration": "node --test tests/cardCatalogApi.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

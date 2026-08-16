@@ -50,7 +50,7 @@ export const registerRuntimeRoutes = ({ app, auth, authRepository, catalogReposi
   registerCardFeePaymentRoutes(app, auth.secret, authRepository);
   registerNotificationRoutes(app, auth.secret, authRepository);
   registerFeeCenterRoutes(app, auth.secret, authRepository);
-  registerCashFlowRoutes(app, auth.secret);
+  registerCashFlowRoutes(app, auth.secret, authRepository);
   registerTransactionRoutes(app, auth.secret, { users: authRepository, mail: mailService });
   registerNotesRoutes(app, notesRepository, auth.secret, authRepository);
   registerMasterdataRoutes(app, masterdataRepository, auth.secret);
