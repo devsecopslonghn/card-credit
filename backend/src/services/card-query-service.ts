@@ -58,8 +58,8 @@ const validId = (id: string) => {
 };
 
 export class CardQueryService {
-  static async list(ctx: ServiceContext, options: { activeOnly?: boolean } = {}): Promise<CardDto[]> {
-    const query = { workspaceId: ctx.workspaceId, ...(options.activeOnly ? { active: { $ne: false } } : {}) };
+  static async list(ctx: ServiceContext, options: { activeOnly?: boolean; userId?: string } = {}): Promise<CardDto[]> {
+    const query = { workspaceId: ctx.workspaceId, ...(options.userId ? { userId: options.userId } : {}), ...(options.activeOnly ? { active: { $ne: false } } : {}) };
     const cards = await CreditCardModel.find(query).sort({ createdAt: -1 }).lean();
     return cards.map(cardDtoFromDocument);
   }

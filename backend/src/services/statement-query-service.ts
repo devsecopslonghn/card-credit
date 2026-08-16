@@ -8,7 +8,7 @@ import { ApiError } from "../errors.js";
 import { effectivePaymentStatus, idOf, plain, type Data } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 
-type StatementReadOptions = { cardId?: string; unpaidOnly?: boolean; limit?: number; order?: "statementDate" | "paymentDueDate" };
+type StatementReadOptions = { cardId?: string; cardIds?: string[]; unpaidOnly?: boolean; limit?: number; order?: "statementDate" | "paymentDueDate" };
 export type StatementReadRepository = {
   listStatements(workspaceId: string, options: StatementReadOptions): Promise<Data[]>;
   findStatementById(workspaceId: string, statementId: string): Promise<Data | null>;
@@ -32,6 +32,7 @@ const mongoRepository: StatementReadRepository = {
   async listStatements(workspaceId, options) {
     const query: Record<string, unknown> = { workspaceId };
     if (options.cardId) query.userCardId = options.cardId;
+    else if (options.cardIds?.length) query.userCardId = { $in: options.cardIds };
     if (options.unpaidOnly) query.paymentStatus = { $ne: "PAID" };
     let cursor = sorted(CardStatementModel.find(query), { [options.order === "paymentDueDate" ? "paymentDueDate" : "statementDate"]: options.order === "paymentDueDate" ? 1 : -1 }) as { limit?: (value: number) => unknown };
     if (options.limit && typeof cursor?.limit === "function") cursor = cursor.limit(Math.min(Math.max(options.limit, 1), 50)) as typeof cursor;
@@ -178,6 +179,12 @@ export class StatementQueryServiceImpl {
     const statements = await this.repository.listStatements(ctx.workspaceId, { unpaidOnly: false, limit: boundedLimit, order: "paymentDueDate" });
     // Notifications intentionally retain orphan statements for compatibility;
     // the adapter supplies the existing card-name fallback when no card exists.
+    return this.build(statements, ctx.workspaceId, false);
+  }
+
+  async listForCardIds(ctx: ServiceContext, cardIds: string[], options: { unpaidOnly?: boolean; order?: "statementDate" | "paymentDueDate" } = {}) {
+    if (!cardIds.length) return [];
+    const statements = await this.repository.listStatements(ctx.workspaceId, { cardIds, unpaidOnly: options.unpaidOnly, order: options.order ?? "statementDate" });
     return this.build(statements, ctx.workspaceId, false);
   }
 

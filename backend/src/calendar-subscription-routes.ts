@@ -2,13 +2,12 @@ import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { sessionFromRequest } from "./auth.js";
 import type { AuthRepository } from "./auth-repository.js";
+import { jobServiceContext } from "./context.js";
 import { ApiError } from "./errors.js";
 import { CalendarSubscriptionModel } from "./models/calendar-subscription.js";
-import { CreditCardModel } from "./models/credit-card.js";
-import { CardStatementModel } from "./models/card-statement.js";
-import { FinancialTransactionModel } from "./models/financial-transaction.js";
 import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel, serializePaymentDueFeed, validSubscriptionToken } from "./calendar-subscription.js";
-import { effectivePaymentStatus } from "./statement-domain.js";
+import { CardQueryService } from "./services/card-query-service.js";
+import { StatementQueryService } from "./services/statement-query-service.js";
 
 type Data = Record<string, unknown>;
 const safe = (doc: Data) => ({ id: String(doc._id), deviceLabel: doc.deviceLabel ?? null, createdAt: doc.createdAt, lastAccessedAt: doc.lastAccessedAt ?? null, revokedAt: doc.revokedAt ?? null });
@@ -40,16 +39,15 @@ export const registerCalendarSubscriptionRoutes = (app: FastifyInstance, users: 
     if (!subscription) return reply.code(404).send("Not found");
     const user = await users.findUserById(String(subscription.userId));
     if (!user || !user.active || user.lockedAt || user.workspaceId !== subscription.workspaceId) return reply.code(404).send("Not found");
-    const cards = await CreditCardModel.find({ workspaceId: subscription.workspaceId, userId: subscription.userId }).lean();
-    const cardById = new Map(cards.map((card) => [String(card._id), card as Data]));
-    const statements = cardById.size ? await CardStatementModel.find({ workspaceId: subscription.workspaceId, userCardId: { $in: [...cardById.keys()] }, paymentStatus: { $ne: "PAID" } }).sort({ paymentDueDate: 1 }).lean() : [];
-    const statementIds = statements.map((statement) => statement._id);
-    const totals = statementIds.length ? await FinancialTransactionModel.aggregate([
-      { $match: { workspaceId: subscription.workspaceId, statementId: { $in: statementIds }, transactionType: { $ne: "STATEMENT_PAYMENT" } } },
-      { $group: { _id: "$statementId", amount: { $sum: "$amount" } } },
-    ]) : [];
-    const amountByStatement = new Map(totals.map((total) => [String(total._id), Number(total.amount ?? 0)]));
-    const inputs = statements.map((statement) => { const item = statement as Data; const card = cardById.get(String(item.userCardId))!; return { identity: `${subscription.workspaceId}/${subscription.userId}/${String(item._id)}`, displayName: String(card.displayName ?? card.name ?? "Thẻ tín dụng"), providerName: String(card.providerName ?? card.bank ?? "Ngân hàng"), owner: String(card.owner ?? "Tôi"), periodStartDate: String(item.periodStartDate), periodEndDate: String(item.periodEndDate), statementDate: String(item.statementDate), paymentDueDate: String(item.paymentDueDate), totalAmountDue: amountByStatement.get(String(item._id)) ?? 0, effectivePaymentStatus: effectivePaymentStatus(item), timezone: String(card.reminderTimezone ?? "Asia/Ho_Chi_Minh") }; });
+    const context = jobServiceContext({ userId: user.id, workspaceId: user.workspaceId, role: user.role }, request.id);
+    const cards = await CardQueryService.list(context, { userId: context.userId });
+    const cardById = new Map(cards.map((card) => [card.id, card]));
+    const statements = await StatementQueryService.listForCardIds(context, cards.map((card) => card.id), { unpaidOnly: true, order: "paymentDueDate" });
+    const inputs = statements.flatMap((statement) => {
+      const card = cardById.get(statement.cardId);
+      if (!card) return [];
+      return [{ identity: `${context.workspaceId}/${context.userId}/${statement.id}`, displayName: card.displayName ?? "Thẻ tín dụng", providerName: card.providerName ?? "Ngân hàng", owner: card.owner, periodStartDate: statement.periodStartDate, periodEndDate: statement.periodEndDate, statementDate: statement.statementDate, paymentDueDate: statement.paymentDueDate, totalAmountDue: statement.summary.outstandingAmount, effectivePaymentStatus: statement.effectivePaymentStatus, timezone: card.reminderTimezone ?? "Asia/Ho_Chi_Minh" }];
+    });
     void CalendarSubscriptionModel.updateOne({ _id: subscription._id }, { $set: { lastAccessedAt: new Date() } }).catch(() => {});
     return reply.header("Content-Type", "text/calendar; charset=utf-8").header("Cache-Control", "private, no-store").header("Content-Disposition", 'inline; filename="card-credit-payment-due.ics"').send(serializePaymentDueFeed(inputs));
   });

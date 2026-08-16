@@ -61,7 +61,7 @@ test("subscription feed aggregates all statement amounts in one workspace-scoped
     modifiedCount: 1,
   }) as never);
   t.mock.method(CreditCardModel, "find", () => ({
-    lean: async () => [{
+    sort: () => ({ lean: async () => [{
       _id: cardId,
       workspaceId: "workspace-a",
       userId: "user-1",
@@ -69,20 +69,22 @@ test("subscription feed aggregates all statement amounts in one workspace-scoped
       providerName: "Bank A",
       owner: "Tôi",
       reminderTimezone: "Asia/Ho_Chi_Minh",
-    }],
+    }] }),
   }) as never);
   t.mock.method(CardStatementModel, "find", () => ({
     sort: () => ({
       lean: async () => [
-        { _id: statementA, workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-06-12", periodEndDate: "2026-07-11", statementDate: "2026-07-11", paymentDueDate: "2026-07-26", paymentStatus: "OPEN" },
-        { _id: statementB, workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-07-12", periodEndDate: "2026-08-11", statementDate: "2026-08-11", paymentDueDate: "2026-08-26", paymentStatus: "OPEN" },
+        { _id: statementA, workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-06-12", periodEndDate: "2026-07-11", statementDate: "2026-07-11", paymentDueDate: "2026-07-26", statementDaySnapshot: 11, paymentDueDaysSnapshot: 15, paymentStatus: "OPEN" },
+        { _id: statementB, workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-07-12", periodEndDate: "2026-08-11", statementDate: "2026-08-11", paymentDueDate: "2026-08-26", statementDaySnapshot: 11, paymentDueDaysSnapshot: 15, paymentStatus: "OPEN" },
       ],
     }),
   }) as never);
-  const aggregate = t.mock.method(FinancialTransactionModel, "aggregate", async () => [
-    { _id: statementA, amount: 500_000 },
-    { _id: statementB, amount: 750_000 },
-  ] as never);
+  const transactionFind = t.mock.method(FinancialTransactionModel, "find", () => ({
+    sort: () => ({ lean: async () => [
+      { _id: "507f1f77bcf86cd799439041", statementId: statementA, accountId: cardId, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 500_000, creditDebt: 500_000, personalSpending: 500_000, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionDate: "2026-07-01", note: "" },
+      { _id: "507f1f77bcf86cd799439042", statementId: statementB, accountId: cardId, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 750_000, creditDebt: 750_000, personalSpending: 750_000, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionDate: "2026-08-01", note: "" },
+    ] }),
+  }) as never);
   const users = {
     findUserById: async () => ({
       id: "user-1",
@@ -109,12 +111,7 @@ test("subscription feed aggregates all statement amounts in one workspace-scoped
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.includes("500.000"), true);
   assert.equal(response.body.includes("750.000"), true);
-  assert.equal(aggregate.mock.callCount(), 1);
-  assert.deepEqual(aggregate.mock.calls[0]?.arguments[0], [
-    {
-        $match: { workspaceId: "workspace-a", statementId: { $in: [statementA, statementB] }, transactionType: { $ne: "STATEMENT_PAYMENT" } },
-      },
-      { $group: { _id: "$statementId", amount: { $sum: "$amount" } } },
-  ]);
+  assert.equal(transactionFind.mock.callCount(), 1);
+  assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], { statementId: { $in: [statementA, statementB] }, workspaceId: "workspace-a" });
   await app.close();
 });
