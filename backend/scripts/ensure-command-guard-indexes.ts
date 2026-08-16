@@ -51,7 +51,15 @@ try {
     await previews.createIndex({ workspaceId: 1, tokenHash: 1 }, { name: "command_preview_token_unique", unique: true });
     await previews.createIndex({ workspaceId: 1, createdAt: -1 }, { name: "command_preview_workspace_created" });
     await previews.createIndex({ workspaceId: 1, status: 1, expiresAt: 1 }, { name: "command_preview_expiry" });
-    console.log(JSON.stringify({ applied: true }));
+    const required = new Set(["command_receipt_unique", "command_receipt_workspace_created", "command_audit_workspace_created", "command_audit_workspace_operation_created", "command_preview_unique", "command_preview_token_unique", "command_preview_workspace_created", "command_preview_expiry"]);
+    const verified = new Set([
+      ...(await receipts.indexes()).map((index) => index.name),
+      ...(await audits.indexes()).map((index) => index.name),
+      ...(await previews.indexes()).map((index) => index.name),
+    ]);
+    const missing = [...required].filter((name) => !verified.has(name));
+    if (missing.length) throw new Error(`Command guard index verification failed: ${missing.join(",")}`);
+    console.log(JSON.stringify({ applied: true, verified: [...required] }));
   }
 } finally {
   await mongoose.disconnect();
