@@ -147,8 +147,10 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
 
 - `/mcp` là Streamable HTTP + Bearer timing-safe; context user/workspace lấy từ
   server config và revalidate mỗi invocation.
-- `MCP_WRITER_MODE` mặc định `read`; chỉ `write` mới đăng ký preview/confirm
-  mutation tools.
+- `MCP_WRITER_MODE` mặc định `read`; manifest/helper trực tiếp cũng mặc định
+  read-only. `write` chỉ được phép khi operator đã fence old writer và đặt
+  `MCP_OLD_WRITER_FENCED=true`; khi đó mới đăng ký preview/confirm mutation
+  tools.
 - Flow bắt buộc: `preview → human confirmation → idempotent execute → audit`.
   Preview không ghi business data; token HMAC bind operation, actor/channel,
   workspace, canonical payload hash, preview id, contract version và TTL 300s.

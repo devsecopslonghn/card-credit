@@ -5,6 +5,8 @@ WORKDIR /workspace/frontend
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+COPY shared/package.json shared/package-lock.json /workspace/shared/
+RUN --mount=type=cache,id=card-credit-shared-npm,target=/root/.npm npm --prefix /workspace/shared ci --omit=dev
 COPY shared /workspace/shared
 COPY frontend/package.json frontend/package-lock.json ./
 # Tailwind/PostCSS uses lightningcss; Alpine requires its musl native optional
@@ -16,7 +18,7 @@ WORKDIR /workspace/frontend
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY shared /workspace/shared
+COPY --from=deps /workspace/shared /workspace/shared
 COPY --from=deps /workspace/frontend/node_modules ./node_modules
 COPY frontend/ .
 RUN npm run prepare:card-images

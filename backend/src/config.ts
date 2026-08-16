@@ -15,6 +15,7 @@ export type BackendConfig = {
   mcpHttpToken?: string;
   mcpPreviewSecret?: string;
   mcpWriterMode: "read" | "write";
+  mcpOldWriterFenced: boolean;
   sessionMaxAgeMs: number;
 };
 
@@ -55,6 +56,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
   if (mcpHttpToken && (!mcpPreviewSecret || mcpPreviewSecret.length < 32)) throw new Error("MCP_PREVIEW_SECRET must contain at least 32 characters when MCP is enabled");
   const mcpWriterMode = env.MCP_WRITER_MODE?.trim() || "read";
   if (mcpWriterMode !== "read" && mcpWriterMode !== "write") throw new Error("MCP_WRITER_MODE must be read or write");
+  const mcpOldWriterFenced = env.MCP_OLD_WRITER_FENCED?.trim() === "true";
+  if (mcpWriterMode === "write" && !mcpOldWriterFenced) throw new Error("MCP_WRITER_MODE=write requires MCP_OLD_WRITER_FENCED=true after the old writer is fenced");
   return {
     host: env.BACKEND_HOST?.trim() || "0.0.0.0",
     port: integer(env.BACKEND_PORT, 3001, "BACKEND_PORT"),
@@ -70,6 +73,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     mcpHttpToken,
     mcpPreviewSecret,
     mcpWriterMode,
+    mcpOldWriterFenced,
     sessionMaxAgeMs: sessionMaxAgeMs(env.AUTH_SESSION_MAX_AGE_MS),
   };
 };

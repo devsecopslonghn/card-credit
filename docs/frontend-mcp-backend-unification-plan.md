@@ -9,13 +9,46 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout, catalog startup write removal đã push | `c41d6ae` + catalog fix / `origin/master` | Fence old MCP writers; xác minh legacy portfolio dates trước application rollout |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout, catalog startup write removal, frontend clean linked-runtime image dependency fix và MCP read-default/fence acknowledgement guard đã code | `c41d6ae` + catalog fix / `origin/master` | Commit/push checkpoint này; sau đó fence/drain old MCP writers và xác minh legacy portfolio dates trước application rollout |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `b75fb28` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
-| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push | `87e7996` + DB rollout / `origin/master` | Fence old MCP writers trước production rollout; không bật new MCP writer khi pod cũ còn phục vụ |
-| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine và explicit operator mark-paid đã apply live; MCP payment preview/confirm đã code/parity-test; reversal còn mở | `1044636` / `origin/master` | Fence old writers; rollout MCP payment adapter sau candidate image, sau đó reversal/compensating transaction policy |
+| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push; direct MCP manifest default read và write fence acknowledgement đã code | `87e7996` + DB rollout / `origin/master` + pending checkpoint | Fence old MCP writers trước production rollout; không bật new MCP writer khi pod cũ còn phục vụ |
+| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine và explicit operator mark-paid đã apply live; MCP payment preview/confirm đã code/parity-test; MCP writer default/fence guard đã code; reversal còn mở | `1044636` / `origin/master` + pending checkpoint | Fence old writers; rollout MCP payment adapter sau candidate image, sau đó reversal/compensating transaction policy |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` / `origin/master` | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
+
+### Checkpoint: Clean frontend image dependency boundary và MCP writer fence guard (ready to commit)
+
+- Requirement/GAP: `GAP-CI-01` cần chứng minh frontend image build được trong
+  clean context; `GAP-MCP-01`/`GAP-PAY-01` vẫn cần old-writer fence/drain trước
+  production rollout.
+- Independent review: GO có điều kiện cho bounded code/config slice. Frontend
+  Docker builder cài runtime dependency của linked `shared/` package trong
+  `deps` stage và truyền cùng workspace sang `builder`; MCP manifest/helper
+  trực tiếp mặc định read-only, còn `MCP_WRITER_MODE=write` fail-closed nếu
+  thiếu `MCP_OLD_WRITER_FENCED=true`. Biến fence là operator acknowledgement,
+  không thay thế evidence fence/drain từ Kubernetes.
+- Changed write-set: `frontend/Dockerfile`, frontend Dockerfile regression
+  test/package script, MCP config/manifest tests, `docs/SRS.md`,
+  `docs/mcp-preview-rollout.md` và README. Không đổi service, model, schema,
+  index, migration, financial persistence hoặc cluster.
+- CI incident evidence: pasted Jenkins BuildKit log tại source SHA
+  `369142d347a692c6b777626e5c6cfbf2be91e023` fail ở `frontend` image
+  `next build` với 16 lỗi `shared/src/*: Can't resolve 'zod'`; local package
+  build trước đó pass vì workspace còn `shared/node_modules`.
+- Verification: shared `npm run validate` pass (25/25); backend targeted
+  config/MCP suite pass (7/7), typecheck/lint pass; frontend Dockerfile
+  regression + unit pass (85/85); clean temporary context chạy
+  `npm --prefix shared ci --omit=dev`, `npm --prefix frontend ci
+  --include=optional`, `npm --prefix frontend run build` pass. Docker daemon
+  local không truy cập được `/var/run/docker.sock`, nên chưa có native Docker
+  build evidence.
+- Rollout evidence: read-only `kubectl` context `k8s-admin-public`, namespace
+  `card-credit`; backend deployment `replicas=1`, pod Ready
+  `card-credit-backend-68ffb6578f-6tzvq` đang chạy image
+  `backend:a0e0b00a7515`, cũ hơn `HEAD`. Không scale/restart/patch và không
+  gọi database; production MCP write vẫn **NO-GO**, old writer chưa fenced.
+- Commit/push: pending; sau khi commit phải ghi SHA thực tế và push thành công.
 
 ### Completed checkpoint: Shared calendar-date validation for Catalog and Portfolio
 
@@ -139,6 +172,12 @@ test:unit --if-present`. Dependency runtime `zod` phải được resolve trực
 qua frontend/shared. Sau đó chạy backend validate và frontend
 typecheck/lint/integration/build theo mục 9 SRS. Nếu lỗi, sửa nguyên nhân nhỏ
 nhất, thêm regression test, cập nhật plan, independent review rồi commit/push.
+
+Frontend Dockerfile phải cài runtime dependencies của linked `shared/` package
+trong clean image context trước khi chạy Next build; không suy diễn từ
+`shared/node_modules` của workspace local. `MCP_WRITER_MODE` và các helper
+manifest mặc định `read`; `write` chỉ khởi động khi có
+`MCP_OLD_WRITER_FENCED=true` sau khi operator đã có evidence fence/drain.
 
 Khi Jenkins báo lỗi, ghi lại `GIT_COMMIT`/checkout SHA, SCM URL, branch, shared
 library revision và source directory đang chạy. Push vào application repository

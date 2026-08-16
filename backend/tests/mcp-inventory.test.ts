@@ -22,6 +22,8 @@ test("MCP inventory is unique and exposes only registered tool names", () => {
     assert.equal("role" in definition.inputSchema, false);
   }
   assert.deepEqual(mcpToolNamesForDocs("write"), MCP_TOOL_INVENTORY);
+  assert.deepEqual(mcpToolNamesForMode(), mcpToolNamesForDocs());
+  assert.equal(mcpToolNamesForMode().some((name) => name.startsWith("preview_") || name.startsWith("confirm_")), false);
 });
 
 test("MCP tools/list matches the canonical manifest", async () => {

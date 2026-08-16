@@ -42,10 +42,10 @@ export const mcpToolManifest = definitions;
 export const MCP_TOOL_INVENTORY = mcpToolManifest.map(({ name }) => name);
 export type McpToolName = (typeof mcpToolManifest)[number]["name"];
 
-export const mcpToolManifestForMode = (mode: McpWriterMode = "write") =>
+export const mcpToolManifestForMode = (mode: McpWriterMode = "read") =>
   mcpToolManifest.filter((definition) => mode === "write" || definition.kind === "query");
 
-export const mcpToolNamesForMode = (mode: McpWriterMode = "write") =>
+export const mcpToolNamesForMode = (mode: McpWriterMode = "read") =>
   mcpToolManifestForMode(mode).map(({ name }) => name);
 
 export const mcpToolMetadata = (name: McpToolName) => {
