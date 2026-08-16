@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { browserServiceContext } from "./context.js";
 import { FinancialTransactionService, type CreateFinancialTransactionInput } from "./services/financial-transaction-service.js";
 import type { AuthRepository } from "./auth-repository.js";
+import { createFinancialTransactionInputSchema } from "@card-credit/contracts";
+import { ApiError } from "./errors.js";
 
 type Body = Partial<CreateFinancialTransactionInput>;
 
@@ -11,9 +13,11 @@ export const registerFinancialTransactionRoutes = (app: FastifyInstance, secret:
   }));
 
   app.post<{ Body: Body }>("/api/financial-transactions", async (request, reply) => {
+    const parsed = createFinancialTransactionInputSchema.safeParse(request.body);
+    if (!parsed.success) throw new ApiError(400, "INVALID_TRANSACTION", "Dữ liệu giao dịch không hợp lệ.");
     const data = await FinancialTransactionService.create(
       await browserServiceContext(request, secret, users),
-      request.body as CreateFinancialTransactionInput,
+      parsed.data as CreateFinancialTransactionInput,
     );
     return reply.code(201).send({ data });
   });

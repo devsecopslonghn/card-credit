@@ -1,26 +1,7 @@
-import type { AccountDto } from "@card-credit/contracts";
+import { financialTransactionListSchema } from "@card-credit/contracts";
+import type { AccountDto, FinancialTransactionDto } from "@card-credit/contracts";
 
-export type FinancialImpact = {
-  personalSpending: number;
-  debitCashflow: number;
-  creditDebt: number;
-  outstandingReceivable: number;
-  reimbursementReceived?: number;
-};
-
-export type FinancialTransaction = {
-  id: string;
-  accountId: string;
-  statementId: string | null;
-  accountType: "DEBIT" | "CASH" | "E_WALLET" | "CREDIT";
-  transactionType: string;
-  ownership: "PERSONAL" | "PAID_FOR_OTHER";
-  amount: number;
-  categoryId: string;
-  transactionDate: string;
-  note: string;
-  impact: FinancialImpact;
-};
+export type FinancialTransaction = FinancialTransactionDto;
 
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(path, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -29,7 +10,7 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   return body.data;
 };
 
-export const listFinancialTransactions = (query = "") => request<FinancialTransaction[]>(`/api/financial-transactions${query}`);
+export const listFinancialTransactions = async (query = "") => financialTransactionListSchema.parse(await request<unknown>(`/api/financial-transactions${query}`)) as FinancialTransaction[];
 export const getFinancialSummary = (from: string, to: string) => request(`/api/financial-reports/summary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
 export const getCreditStatements = (from?: string, to?: string) => request(`/api/financial-reports/credit-statements${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`);
 export const getBudgetStatus = (month: string) => request(`/api/finance/budgets/status?month=${encodeURIComponent(month)}`);

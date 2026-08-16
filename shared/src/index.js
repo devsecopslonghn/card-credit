@@ -45,3 +45,12 @@ export {
   cardPortfolioCardSchema,
   cardPortfolioListSchema,
 } from "./portfolio-contracts.js";
+export {
+  financialTransactionTypeSchema,
+  ownershipSchema,
+  createFinancialTransactionInputSchema,
+  createFinancialTransactionBatchInputSchema,
+  financialImpactSchema,
+  financialTransactionSchema,
+  financialTransactionListSchema,
+} from "./transaction-contracts.js";

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import crypto from "node:crypto";
-import { calculateFinancialImpact, type AccountType, type FinancialTransactionType, type Ownership } from "../financial-domain.js";
+import { calculateFinancialImpact, type AccountType } from "../financial-domain.js";
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { AccountModel } from "../models/account.js";
 import { CreditCardModel } from "../models/credit-card.js";
@@ -9,27 +9,15 @@ import { ApiError } from "../errors.js";
 import { idOf, plain, statementPeriod, validDate } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { McpMutationModel } from "../models/mcp-mutation.js";
+import { financialTransactionListSchema, financialTransactionSchema } from "@card-credit/contracts";
+import type { CreateFinancialTransactionInput as SharedCreateFinancialTransactionInput, CreateFinancialTransactionBatchInput as SharedCreateFinancialTransactionBatchInput, FinancialTransactionDto } from "@card-credit/contracts";
 
-export type CreateFinancialTransactionInput = {
-  accountId: string;
-  transactionDate: string;
-  amount: number;
-  categoryId?: string;
-  transactionType?: FinancialTransactionType;
-  ownership?: Ownership;
-  reimbursementExpected?: number;
-  serviceFeeRate?: number;
-  refundReceived?: number;
-  cashbackReceived?: number;
-  note?: string;
-  statementId?: string;
-  reimbursementForTransactionId?: string;
-};
-export type CreateFinancialTransactionBatchInput = { items: CreateFinancialTransactionInput[] };
+export type CreateFinancialTransactionInput = SharedCreateFinancialTransactionInput;
+export type CreateFinancialTransactionBatchInput = SharedCreateFinancialTransactionBatchInput;
 
-const serialize = (value: unknown) => {
+const serialize = (value: unknown): FinancialTransactionDto => {
   const item = plain(value);
-  return {
+  return financialTransactionSchema.parse({
     id: idOf(item._id),
     accountId: idOf(item.accountId),
     statementId: item.statementId ? idOf(item.statementId) : null,
@@ -38,7 +26,7 @@ const serialize = (value: unknown) => {
     transactionType: item.transactionType,
     ownership: item.ownership,
     amount: item.amount,
-    serviceFeeRate: item.serviceFeeRate,
+    serviceFeeRate: typeof item.serviceFeeRate === "number" ? item.serviceFeeRate : null,
     categoryId: item.categoryId,
     transactionDate: item.transactionDate,
     note: item.note ?? "",
@@ -47,9 +35,9 @@ const serialize = (value: unknown) => {
       debitCashflow: item.debitCashflow,
       creditDebt: item.creditDebt,
       outstandingReceivable: item.outstandingReceivable,
-      reimbursementReceived: item.reimbursementReceived,
+      reimbursementReceived: typeof item.reimbursementReceived === "number" ? item.reimbursementReceived : 0,
     },
-  };
+  }) as FinancialTransactionDto;
 };
 
 const normalizedNote = (note: unknown) => {
@@ -225,6 +213,6 @@ export class FinancialTransactionService {
     if (filters.categoryId) query.categoryId = filters.categoryId;
     if (filters.from || filters.to) query.transactionDate = { ...(filters.from ? { $gte: filters.from } : {}), ...(filters.to ? { $lte: filters.to } : {}) };
     const items = await FinancialTransactionModel.find(query).sort({ transactionDate: -1, createdAt: -1 }).lean();
-    return items.map(serialize);
+    return financialTransactionListSchema.parse(items.map(serialize)) as FinancialTransactionDto[];
   }
 }
