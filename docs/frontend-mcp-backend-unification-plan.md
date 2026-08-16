@@ -9,9 +9,9 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest và Catalog read-contract đã push; Card Portfolio read service đang chờ commit/push | `b0a74da` / `origin/master` | Commit/push Card Portfolio read service, sau đó REST inventory drift gate |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog và Card Portfolio read contracts đã push; REST inventory còn thủ công | `c39ff5c` / `origin/master` | Xây REST route inventory/drift gate và tiếp tục transaction contract |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
-| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog read contract đã push; Card list/get/compare service đã validation | `d3bbf3d` / `origin/master` | Commit/push Card Portfolio read service; mutation/referential policy vẫn để slice sau |
+| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog và Card list/get/compare read service đã push; mutation/referential policy còn thiếu | `c39ff5c` / `origin/master` | Extract card mutation service và chốt referential policy trước delete/merge |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
@@ -141,8 +141,7 @@ implemented yet.
   migration/write, không cần Kubernetes backup.
 - Residual risk: card create/update/delete/duplicate merge vẫn trực tiếp ở route;
   referential policy và mutation command guard chưa mở trong slice này.
-- Commit/push: chờ commit feature sau khi checkpoint này được review trong
-  working tree.
+- Commit/push: `c39ff5c` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
