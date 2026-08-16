@@ -5,6 +5,9 @@ import { sessionFromRequest } from "./auth.js";
 import { CardProductModel } from "./models/card-product.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { normalizeReminderPreferences } from "./reminder-preferences.js";
+import { browserServiceContext } from "./context.js";
+import type { AuthRepository } from "./auth-repository.js";
+import { CardQueryService } from "./services/card-query-service.js";
 
 type Data = Record<string, unknown>;
 const Cards = CreditCardModel as unknown as mongoose.Model<Data>;
@@ -18,9 +21,40 @@ const readable = async (id: string, workspaceId: string) => { validId(id); const
 const optionalNumber = (value: unknown, field: string) => { if (typeof value !== "number" || !Number.isFinite(value)) throw new ApiError(400, "INVALID_REQUEST", "Request body không hợp lệ.", { [field]: `${field} phải là số.` }); return value; };
 const fingerprint = (card: Data) => typeof card.workspaceId === "string" && typeof card.presetId === "string" && typeof card.owner === "string" ? `${card.workspaceId}::${card.presetId}::${card.owner.trim().replace(/\s+/g, " ")}` : null;
 const mergeMonths = (target: unknown, source: unknown) => { const result = new Map<number, Data>(); for (const item of [...(Array.isArray(target) ? target : []), ...(Array.isArray(source) ? source : [])] as Data[]) { const month = Number(item.month); if (!Number.isInteger(month) || month < 1 || month > 12) continue; const current = result.get(month) ?? { month, spend: 0, cashback: 0, fee: 0, otherInterest: 0 }; for (const field of ["spend", "cashback", "fee", "otherInterest"]) current[field] = Number(current[field] ?? 0) + Number(item[field] ?? 0); result.set(month, current); } return [...result.values()].sort((a, b) => Number(a.month) - Number(b.month)); };
+export const legacyCardResponse = (card: Awaited<ReturnType<typeof CardQueryService.get>>) => ({
+  _id: card.id,
+  presetId: card.presetId,
+  providerCode: card.providerCode,
+  providerName: card.providerName,
+  displayName: card.displayName,
+  network: card.network,
+  legacy: card.legacy,
+  bank: card.providerCode,
+  name: card.displayName,
+  type: card.network,
+  owner: card.owner,
+  imageUrl: card.imageUrl,
+  annualFee: card.annualFee,
+  targetSpendForWaiver: card.targetSpendForWaiver,
+  annualFeeWaiverTarget: card.annualFeeWaiverTarget,
+  statementDay: card.statementDay,
+  paymentDueDays: card.paymentDueDays,
+  cashbackCapAmount: card.cashbackCapAmount,
+  cashbackCapPeriod: card.cashbackCapPeriod,
+  active: card.active,
+  reminderEnabled: card.reminderEnabled,
+  reminderDaysBefore: card.reminderDaysBefore,
+  reminderTimezone: card.reminderTimezone,
+  reminderTime: card.reminderTime,
+  statementDate: card.statementDate,
+  paymentDueDate: card.paymentDueDate,
+  amountDueThisMonth: card.amountDueThisMonth,
+  isPaidThisMonth: card.isPaidThisMonth,
+  monthlyData: card.monthlyData,
+});
 
-export const registerCardRoutes = (app: FastifyInstance, secret: string) => {
-  app.get("/api/cards", async (request) => { const session = sessionFromRequest(request, secret); return (await Cards.find({ workspaceId: session.workspaceId }).sort({ createdAt: -1 })).map(serialize); });
+export const registerCardRoutes = (app: FastifyInstance, secret: string, users?: AuthRepository) => {
+  app.get("/api/cards", async (request) => (await CardQueryService.list(await browserServiceContext(request, secret, users))).map(legacyCardResponse));
   app.post<{ Body: Data }>("/api/cards", async (request, reply) => {
     const session = sessionFromRequest(request, secret); const body = request.body ?? {};
     if (typeof body.presetId === "string") {
@@ -37,7 +71,7 @@ export const registerCardRoutes = (app: FastifyInstance, secret: string) => {
   });
   app.get("/api/cards/duplicates", async (request) => { const session = sessionFromRequest(request, secret); const cards = (await CreditCardModel.find({ workspaceId: session.workspaceId }).sort({ createdAt: 1 })).map((card) => plain(card)); const groups = new Map<string, Data[]>(); for (const card of cards) { const key = fingerprint(card); if (key) groups.set(key, [...(groups.get(key) ?? []), card]); } return { data: [...groups.entries()].filter(([, values]) => values.length > 1).map(([key, values]) => ({ fingerprint: key, workspaceId: session.workspaceId, presetId: values[0]?.presetId, normalizedOwner: String(values[0]?.owner ?? "").trim().replace(/\s+/g, " "), reason: "Same workspace, catalog preset and normalized owner.", cards: values.map(serialize) })) }; });
   app.post<{ Body: Data }>("/api/cards/duplicates", async (request) => { const session = sessionFromRequest(request, secret); const sourceId = request.body?.sourceCardId; const targetId = request.body?.targetCardId; if (typeof sourceId !== "string" || typeof targetId !== "string" || sourceId === targetId) throw new ApiError(400, "INVALID_MERGE_TARGET", "Không thể merge một thẻ vào chính nó."); const [sourceDoc, targetDoc] = await Promise.all([readable(sourceId, session.workspaceId), readable(targetId, session.workspaceId)]); const source = plain(sourceDoc); const target = plain(targetDoc); if (!fingerprint(source) || fingerprint(source) !== fingerprint(target)) throw new ApiError(409, "DUPLICATE_MISMATCH", "Hai thẻ không phải duplicate exact-match."); const updated = await CreditCardModel.findByIdAndUpdate(targetId, { $set: { monthlyData: mergeMonths(target.monthlyData, source.monthlyData) } }, { returnDocument: "after" }); await CreditCardModel.deleteOne({ _id: sourceId, workspaceId: session.workspaceId }); return { data: { targetCard: serialize(updated), deletedSourceId: sourceId, merge: { sourceCardId: sourceId, targetCardId: targetId, monthlyDataStrategy: "sum", reason: "Same workspace, catalog preset and normalized owner." } } }; });
-  app.get<{ Params: { id: string } }>("/api/cards/:id", async (request) => serialize(await readable(request.params.id, sessionFromRequest(request, secret).workspaceId)));
+  app.get<{ Params: { id: string } }>("/api/cards/:id", async (request) => legacyCardResponse(await CardQueryService.get(await browserServiceContext(request, secret, users), request.params.id)));
   app.put<{ Params: { id: string }; Body: Data }>("/api/cards/:id", async (request) => {
     const session = sessionFromRequest(request, secret); await readable(request.params.id, session.workspaceId); const body = request.body ?? {}; const update: Data = {};
     if ("owner" in body) update.owner = owner(body.owner);

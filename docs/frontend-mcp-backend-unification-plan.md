@@ -9,9 +9,9 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest và Catalog read-contract đã push; Card Portfolio read service còn thiếu | `b0a74da` / `origin/master` | Chuẩn hóa Card Portfolio list/get/compare service và compatibility adapters |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest và Catalog read-contract đã push; Card Portfolio read service đang chờ commit/push | `b0a74da` / `origin/master` | Commit/push Card Portfolio read service, sau đó REST inventory drift gate |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
-| Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
+| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog read contract đã push; Card list/get/compare service đã validation | `d3bbf3d` / `origin/master` | Commit/push Card Portfolio read service; mutation/referential policy vẫn để slice sau |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
@@ -122,6 +122,27 @@ implemented yet.
 - Residual risk: Card CRUD/`compare_cards` vẫn chưa dùng cùng Card DTO/service;
   catalog admin output còn compatibility aliases và startup sync risk GAP-OPS-01.
 - Commit/push: `b0a74da` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Card Portfolio read parity (ready to commit)
+
+- Independent review: list phải giữ inactive history; compare chỉ active-only;
+  không đổi REST envelope/`_id` public contract và không tự mở catalog MCP tool.
+- Changed write-set: shared `CardDto`/monthly card schemas; backend
+  `CardQueryService.list/get/compare`, REST GET adapters và trusted browser
+  context wiring; MCP `compare_cards` delegate; frontend card client runtime
+  parse + compatibility normalization.
+- Canonical behavior: mọi query scope theo `workspaceId`; REST list/get và MCP
+  compare dùng cùng normalized business fields; compatibility adapter giữ array,
+  `_id`, `bank/name/type` aliases cho consumer hiện hữu.
+- Acceptance evidence: backend `npm run validate` pass (73 tests, typecheck,
+  lint và build), targeted card DTO parity test pass; shared validate pass (5
+  tests); frontend typecheck, lint và test pass (70 unit + 6 integration).
+- Database impact: chỉ đọc `CreditCardModel` theo workspace, không schema/index/
+  migration/write, không cần Kubernetes backup.
+- Residual risk: card create/update/delete/duplicate merge vẫn trực tiếp ở route;
+  referential policy và mutation command guard chưa mở trong slice này.
+- Commit/push: chờ commit feature sau khi checkpoint này được review trong
+  working tree.
 
 ### Execution rules
 

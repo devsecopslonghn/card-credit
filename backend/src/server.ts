@@ -41,7 +41,7 @@ registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret,
 registerUserRoutes(app, authRepository, config.authSecret);
 registerWorkspaceRoutes(app, authRepository, config.authSecret);
 registerCalendarSubscriptionRoutes(app, authRepository, config.authSecret);
-registerCardRoutes(app, config.authSecret);
+registerCardRoutes(app, config.authSecret, authRepository);
 registerAccountRoutes(app, config.authSecret, authRepository);
 registerFinancialTransactionRoutes(app, config.authSecret, authRepository);
 registerFinancialReportRoutes(app, config.authSecret, authRepository);
