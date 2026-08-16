@@ -170,6 +170,9 @@ Financial MCP tools:
 - `list_fee_center`
 - `list_monthly_cashbacks`
 - `get_personal_finance_summary`
+
+`list_transactions` dùng query canonical `{from?, to?, accountId?, categoryId?}`
+với ngày inclusive; `date` singular là legacy input và bị reject.
 - `list_accounts`
 - `preview_create_account`
 - `confirm_create_account`

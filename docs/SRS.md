@@ -273,6 +273,7 @@ Hai nhóm cross-cutting:
 | FTX-11 | Mỗi financial impact phải được tính một lần trong domain service và persist để audit/reporting. |
 | FTX-12 | List hỗ trợ filter `accountId`, `categoryId`, `from`, `to`, sort ngày giảm dần rồi created time giảm dần. |
 | FTX-13 | MCP import batch phải chứa 1..50 item, chạy trong MongoDB transaction và dùng idempotency key tối thiểu 8 ký tự. |
+| FTX-14 | Query list transaction dùng shared strict contract cho `from`, `to`, `accountId`, `categoryId`; ngày phải là calendar date hợp lệ, range phải ordered, filter ngoài contract bị reject và REST/MCP/Frontend truyền cùng semantics inclusive. |
 
 ### 5.4 Credit Billing & Settlement
 
@@ -377,6 +378,7 @@ Hai nhóm cross-cutting:
 | MCP-05 | Preview token phải bind HMAC với operation, exact payload và expiry; confirm phải kiểm tra token trước khi ghi. |
 | MCP-06 | Confirm mutation phải có idempotency key; payload khác dùng cùng key phải trả conflict. |
 | MCP-07 | MCP response phải là text content chứa JSON DTO, không trả Mongoose document trực tiếp. |
+| MCP-08 | `list_transactions` nhận shared `{from?,to?,accountId?,categoryId?}` query; input legacy `date` không còn được chấp nhận và phải fail trước khi gọi service. |
 
 ### 5.10 Platform & Quality
 
