@@ -110,10 +110,10 @@ if (cards.length > 0) {
   info("card detail smoke skipped because cards list is empty");
 }
 
-const report = await expectJson("/api/reports/summary", "report summary");
-if (!report || typeof report !== "object" || !("cards" in report) || !("totals" in report)) {
+const report = await expectJson("/api/financial-reports/summary", "financial report summary");
+if (!report || typeof report !== "object" || !("range" in report) || !("totals" in report)) {
   fail("report summary shape is invalid");
 }
-pass("report summary returned cards and totals");
+pass("financial report summary returned range and totals");
 
 console.log("[smoke] deploy smoke test completed");
