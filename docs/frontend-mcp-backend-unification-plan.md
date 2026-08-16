@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1 và stateless MCP preview hardening đã push | `425bbec` / `origin/master` | Đối chiếu preview projection còn compatibility |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, stateless MCP preview hardening và SRS risk ledger đã push | `c7e4cb6` / `origin/master` | Đối chiếu preview projection còn compatibility |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
@@ -304,6 +304,15 @@ implemented yet.
   trước khi đổi persistence.
 - Commit/push: feature `425bbec` đã push thành công lên `origin/master`; ledger
   SHA sẽ được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: SRS risk ledger refresh
+
+- `GAP-STM-01`, `GAP-MCP-01`, `GAP-API-01` và `GAP-PERF-01` đã chuyển từ mô tả
+  stale sang trạng thái partial/residual đúng với các slice đã push; không claim
+  payment/calendar/reminder/report parity hoặc one-time audit đã hoàn tất.
+- Database impact: docs-only, không query/migration/index/write và không cần
+  Kubernetes backup.
+- Commit/push: `c7e4cb6` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
