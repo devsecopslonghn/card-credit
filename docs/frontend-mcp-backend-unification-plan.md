@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email và creditStatements projections đã push | `c3d22f7` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements và frontend private-surface guard đã push | `25a095a` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email và creditStatements statement projections đã push; fee/cashback report và write command slices chưa mở | `c3d22f7` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements và Frontend private-route guard đã push; fee/cashback report và write command slices chưa mở | `25a095a` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -451,6 +451,24 @@ implemented yet.
   (nếu cần), test fixture/reconciliation và commit riêng.
 - Current rollback: giữ nguyên payment compatibility path; các read projections
   đã push không thay đổi payment writes.
+
+### Completed checkpoint: Frontend Private Surface Guard
+
+- Independent review: frontend-only route-boundary slice; session middleware
+  bao phủ các application UI/API route hiện hữu, còn card-catalog/auth public
+  và calendar subscription feed token được giữ ngoài session guard có chủ đích.
+- Changed write-set: `frontend/middleware.ts` thêm private UI prefixes cho
+  dashboard/transactions/accounts/budgets/reports/payments/notifications/fees/
+  cashback/analytics và private finance API prefixes; `middleware.test.mjs`
+  kiểm tra matcher/policy; `package.json` đưa test vào unit inventory.
+- Compatibility: unauthenticated UI vẫn redirect `/login?next=...`; private API
+  trả envelope `401`; calendar `.ics` feed tiếp tục dùng subscription token,
+  không yêu cầu browser session.
+- Acceptance evidence: frontend `typecheck`, `lint`, `npm test` pass (74 unit +
+  6 integration) và `npm run build` pass; Next build chỉ cảnh báo convention
+  `middleware` deprecated, không phải lỗi slice này.
+- Database impact: không backend/model/schema/index/migration/data change, không
+  cần Kubernetes backup. Rollback bằng revert frontend commit.
 
 ### Execution rules
 
