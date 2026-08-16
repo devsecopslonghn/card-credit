@@ -33,7 +33,8 @@ import { registerApiDocs } from "./api-docs.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
-const app = buildApp(database, config.logLevel, new MongoCatalogRepository(), config.authSecret, writeCatalogAudit);
+const catalogRepository = new MongoCatalogRepository();
+const app = buildApp(database, config.logLevel, catalogRepository, config.authSecret, writeCatalogAudit);
 const authRepository = new MongoAuthRepository();
 if (config.mcpHttpToken) registerMcpHttp(app, fixedMcpContext(), config.mcpHttpToken, authRepository);
 if (process.env.API_DOCS_ENABLED !== "false") await registerApiDocs(app);
@@ -41,7 +42,7 @@ registerAuthRoutes(app, { repository: authRepository, secret: config.authSecret,
 registerUserRoutes(app, authRepository, config.authSecret);
 registerWorkspaceRoutes(app, authRepository, config.authSecret);
 registerCalendarSubscriptionRoutes(app, authRepository, config.authSecret);
-registerCardRoutes(app, config.authSecret, authRepository);
+registerCardRoutes(app, config.authSecret, authRepository, catalogRepository);
 registerAccountRoutes(app, config.authSecret, authRepository);
 registerFinancialTransactionRoutes(app, config.authSecret, authRepository);
 registerFinancialReportRoutes(app, config.authSecret, authRepository);

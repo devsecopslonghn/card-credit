@@ -9,9 +9,9 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog và Card Portfolio read contracts đã push; REST inventory còn thủ công | `c39ff5c` / `origin/master` | Xây REST route inventory/drift gate và tiếp tục transaction contract |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog và Card Portfolio read/write contracts đã validation; create/update slice đang chờ commit/push | `c39ff5c` / `origin/master` | Commit/push create/update command, sau đó REST inventory drift gate |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
-| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog và Card list/get/compare read service đã push; mutation/referential policy còn thiếu | `c39ff5c` / `origin/master` | Extract card mutation service và chốt referential policy trước delete/merge |
+| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog và Card read service đã push; create/update command đã validation; delete/merge policy còn thiếu | `c39ff5c` / `origin/master` | Commit/push create/update; dừng trước delete/merge để chốt RESTRICT/REASSIGN/CASCADE |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
@@ -142,6 +142,27 @@ implemented yet.
 - Residual risk: card create/update/delete/duplicate merge vẫn trực tiếp ở route;
   referential policy và mutation command guard chưa mở trong slice này.
 - Commit/push: `c39ff5c` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Card create/update command boundary (ready to commit)
+
+- Independent review: service hóa create/update trước; không đổi destructive
+  delete/merge semantics vì `GAP-DATA-01` còn orphan risk. Delete/merge phải
+  chờ quyết định RESTRICT/REASSIGN/CASCADE hoặc ghi nhận AS-IS riêng.
+- Changed write-set: `CardCommandService` với `ServiceContext` bắt buộc,
+  catalog/card repository seams và route adapters; create/update không còn gọi
+  Mongoose trực tiếp trong adapter. Legacy create giữ deprecation header và
+  canonical create snapshot vẫn lấy từ active catalog.
+- Acceptance evidence: backend `npm run validate` pass (76 tests, typecheck,
+  lint và build), gồm 3 command unit tests và card route compatibility tests;
+  canonical owner normalization, trusted workspace/user, operational allowlist
+  và cross-workspace 404 được kiểm tra.
+- Database impact: refactor code path cho existing card writes, không model/
+  index/migration change và không chạy mutation trên DB thật; không cần backup
+  Kubernetes cho commit này.
+- Residual risk/blocker: delete/merge vẫn là legacy direct-model path, merge có
+  hai write rời và chưa transaction/idempotency. Không mở card mutation qua MCP.
+- Commit/push: chờ commit feature sau khi checkpoint này được review trong
+  working tree.
 
 ### Execution rules
 
