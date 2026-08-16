@@ -3,11 +3,45 @@ import test from "node:test";
 import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel, serializePaymentDueFeed, validSubscriptionToken } from "../src/calendar-subscription.js";
 import { buildApp } from "../src/app.js";
 import { registerCalendarSubscriptionRoutes } from "../src/calendar-subscription-routes.js";
+import { CalendarSubscriptionService } from "../src/services/calendar-subscription-service.js";
 import type { AuthRepository } from "../src/auth-repository.js";
 import { CalendarSubscriptionModel } from "../src/models/calendar-subscription.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
+import { sessionCookie, signSession } from "../src/auth.js";
+import type { ServiceContext } from "../src/services/types/service-context.js";
+
+const secret = "01234567890123456789012345678901";
+const cookie = sessionCookie(signSession({ userId: "user-1", email: "user@example.test", role: "user", workspaceId: "workspace-a" }, secret));
+const activeUser = { findUserById: async () => ({ id: "user-1", email: "user@example.test", passwordHash: "", displayName: "User", role: "user" as const, workspaceId: "workspace-a", active: true, lockedAt: null }) } as unknown as AuthRepository;
+
+test("subscription write adapters use a revalidated browser context and preserve envelopes", async (t) => {
+  const create = t.mock.method(CalendarSubscriptionService, "create", async (context: ServiceContext, deviceLabel: unknown) => {
+    assert.equal(context.workspaceId, "workspace-a");
+    assert.equal(context.userId, "user-1");
+    assert.equal(context.channel, "browser");
+    assert.equal(deviceLabel, "Laptop");
+    return { id: "subscription-1", deviceLabel: "Laptop", createdAt: null, lastAccessedAt: null, revokedAt: null, subscriptionPath: "/api/calendar-subscriptions/feed/token.ics" };
+  });
+  const revoke = t.mock.method(CalendarSubscriptionService, "revoke", async (context: ServiceContext, id: string) => {
+    assert.equal(context.workspaceId, "workspace-a");
+    assert.equal(context.userId, "user-1");
+    assert.equal(id, "507f1f77bcf86cd799439011");
+    return { revoked: true };
+  });
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerCalendarSubscriptionRoutes(app, activeUser, secret);
+  const created = await app.inject({ method: "POST", url: "/api/calendar-subscriptions", headers: { cookie }, payload: { deviceLabel: "Laptop" } });
+  assert.equal(created.statusCode, 201);
+  assert.equal(created.json().data.subscriptionPath, "/api/calendar-subscriptions/feed/token.ics");
+  const deleted = await app.inject({ method: "DELETE", url: "/api/calendar-subscriptions/507f1f77bcf86cd799439011", headers: { cookie } });
+  assert.equal(deleted.statusCode, 200);
+  assert.deepEqual(deleted.json().data, { revoked: true });
+  assert.equal(create.mock.callCount(), 1);
+  assert.equal(revoke.mock.callCount(), 1);
+  await app.close();
+});
 
 test("subscription token is random, URL-safe and stored through a one-way hash", () => {
   const first = createSubscriptionToken(); const second = createSubscriptionToken();

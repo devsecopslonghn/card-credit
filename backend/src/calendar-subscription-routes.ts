@@ -1,37 +1,27 @@
-import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { sessionFromRequest } from "./auth.js";
 import type { AuthRepository } from "./auth-repository.js";
-import { jobServiceContext } from "./context.js";
-import { ApiError } from "./errors.js";
+import { browserServiceContext, jobServiceContext } from "./context.js";
 import { CalendarSubscriptionModel } from "./models/calendar-subscription.js";
-import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel, serializePaymentDueFeed, validSubscriptionToken } from "./calendar-subscription.js";
+import { hashSubscriptionToken, serializePaymentDueFeed, validSubscriptionToken } from "./calendar-subscription.js";
 import { CardQueryService } from "./services/card-query-service.js";
+import { CalendarSubscriptionService, safeCalendarSubscription } from "./services/calendar-subscription-service.js";
 import { StatementQueryService } from "./services/statement-query-service.js";
 
 type Data = Record<string, unknown>;
-const safe = (doc: Data) => ({ id: String(doc._id), deviceLabel: doc.deviceLabel ?? null, createdAt: doc.createdAt, lastAccessedAt: doc.lastAccessedAt ?? null, revokedAt: doc.revokedAt ?? null });
-const label = (value: unknown) => { try { return normalizeDeviceLabel(value); } catch { throw new ApiError(400, "INVALID_DEVICE_LABEL", "Nhãn thiết bị không hợp lệ.", { deviceLabel: "Nhãn tối đa 80 ký tự." }); } };
 
 export const registerCalendarSubscriptionRoutes = (app: FastifyInstance, users: AuthRepository, secret: string) => {
   app.get("/api/calendar-subscriptions", async (request) => {
     const session = sessionFromRequest(request, secret);
     const docs = await CalendarSubscriptionModel.find({ userId: session.userId, workspaceId: session.workspaceId }).sort({ createdAt: -1 }).lean();
-    return { data: docs.map((doc) => safe(doc as Data)) };
+    return { data: docs.map((doc) => safeCalendarSubscription(doc as Data)) };
   });
   app.post<{ Body: { deviceLabel?: unknown } }>("/api/calendar-subscriptions", async (request, reply) => {
-    const session = sessionFromRequest(request, secret); const user = await users.findUserById(session.userId);
-    if (!user || !user.active || user.lockedAt || user.workspaceId !== session.workspaceId) throw new ApiError(403, "ACCOUNT_UNAVAILABLE", "Tài khoản không thể tạo lịch đăng ký.");
-    const token = createSubscriptionToken();
-    const doc = await CalendarSubscriptionModel.create({ userId: session.userId, workspaceId: session.workspaceId, deviceLabel: label(request.body?.deviceLabel), tokenHash: hashSubscriptionToken(token) });
-    return reply.code(201).send({ data: { ...safe(doc.toObject() as Data), subscriptionPath: `/api/calendar-subscriptions/feed/${token}.ics` } });
+    const context = await browserServiceContext(request, secret, users);
+    return reply.code(201).send({ data: await CalendarSubscriptionService.create(context, request.body?.deviceLabel) });
   });
   app.delete<{ Params: { id: string } }>("/api/calendar-subscriptions/:id", async (request) => {
-    const session = sessionFromRequest(request, secret);
-    if (!mongoose.isValidObjectId(request.params.id)) throw new ApiError(404, "SUBSCRIPTION_NOT_FOUND", "Không tìm thấy lịch đăng ký.");
-    const result = await CalendarSubscriptionModel.updateOne({ _id: request.params.id, userId: session.userId, workspaceId: session.workspaceId, revokedAt: null }, { $set: { revokedAt: new Date() } });
-    if (!result.modifiedCount) throw new ApiError(404, "SUBSCRIPTION_NOT_FOUND", "Không tìm thấy lịch đăng ký.");
-    return { data: { revoked: true } };
+    return { data: await CalendarSubscriptionService.revoke(await browserServiceContext(request, secret, users), request.params.id) };
   });
   app.get<{ Params: { token: string } }>("/api/calendar-subscriptions/feed/:token.ics", { logLevel: "silent" }, async (request, reply) => {
     const token = request.params.token; if (!validSubscriptionToken(token)) return reply.code(404).send("Not found");
