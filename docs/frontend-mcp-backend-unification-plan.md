@@ -52,6 +52,21 @@ implemented yet.
 - Residual: operator vẫn phải review baseline trước import; delete/merge card
   policy và old MCP writer fence là các slice độc lập.
 
+### Completed checkpoint: Make frontend runtime-contract dependency explicit
+
+- Independent review: root cause của Jenkins `frontend/test:unit` failure là
+  linked package `@card-credit/contracts` import Zod runtime nhưng frontend
+  không khai báo Zod direct; khi CI không hoist dependency của linked `shared/`,
+  Node fail `ERR_MODULE_NOT_FOUND` trước khi chạy test.
+- Changed write-set: thêm `zod` vào `frontend` production dependencies và lock
+  file. Không xóa canonical runtime parsing hay hạ test coverage; đây là
+  dependency boundary tối thiểu để local, Jenkins và frontend image cùng resolve
+  `shared` runtime contracts.
+- Acceptance evidence: sau `npm ci --include=optional`,
+  `npm run test:unit --if-present` pass 84/84; không có source/database change.
+- Residual: Jenkins vẫn cần giữ source checkout gồm `shared/` vì frontend dùng
+  file dependency; Dockerfile đã copy shared trước `npm ci`.
+
 ### Completed checkpoint: Persistent one-time MCP preview confirmation
 
 - Independent review: GO cho bounded Account/Financial Transaction MCP command
