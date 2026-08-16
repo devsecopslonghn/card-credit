@@ -8,6 +8,7 @@ import {
   toLegacyCardPreset,
   validateCatalogProducts,
 } from "../lib/cardCatalogCore.mjs";
+import { parseDuplicateGroups } from "../lib/api/cardDuplicatesCore.mjs";
 
 test("catalog validation detects duplicate presetId", () => {
   const duplicate = [{ ...products[0] }, { ...products[0] }];
@@ -74,4 +75,46 @@ test("legacy compatibility adapter maps canonical fields", () => {
   assert.equal(legacy.bankName, product.providerName);
   assert.equal(legacy.name, product.displayName);
   assert.equal(legacy.type, product.network);
+});
+
+test("duplicate client parses canonical groups and maps card ids to the UI compatibility shape", () => {
+  const card = (id) => ({
+    _id: id,
+    presetId: "preset-a",
+    providerCode: "BANK",
+    providerName: "Bank",
+    displayName: "Card",
+    network: "Visa",
+    legacy: false,
+    owner: "Tôi",
+    imageUrl: null,
+    annualFee: null,
+    targetSpendForWaiver: null,
+    annualFeeWaiverTarget: null,
+    statementDay: null,
+    paymentDueDays: null,
+    cashbackCapAmount: null,
+    cashbackCapPeriod: null,
+    active: true,
+    reminderEnabled: true,
+    reminderDaysBefore: [],
+    reminderTimezone: null,
+    reminderTime: null,
+    statementDate: null,
+    paymentDueDate: null,
+    amountDueThisMonth: null,
+    isPaidThisMonth: null,
+    monthlyData: [],
+  });
+  const groups = parseDuplicateGroups([{
+    fingerprint: "workspace::preset-a::Tôi",
+    workspaceId: "must-not-leak",
+    presetId: "preset-a",
+    normalizedOwner: "Tôi",
+    reason: "Exact duplicate",
+    cards: [card("card-1"), card("card-2")],
+  }]);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].cards[0]._id, "card-1");
+  assert.equal("workspaceId" in groups[0], false);
 });

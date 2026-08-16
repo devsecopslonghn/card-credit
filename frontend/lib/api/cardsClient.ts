@@ -1,17 +1,12 @@
 import type { CreditCardView } from "@/components/cards/cardTypes";
 import { cardPortfolioCardSchema, cardPortfolioListSchema } from "@card-credit/contracts";
+import type { CardDuplicateGroupDto } from "@card-credit/contracts";
+import { parseDuplicateGroups } from "./cardDuplicatesCore.mjs";
 
-export type DuplicateCardGroup = {
-  fingerprint: string;
-  workspaceId: string;
-  presetId: string;
-  normalizedOwner: string;
-  reason: string;
-  cards: CreditCardView[];
-};
+export type DuplicateCardGroup = Omit<CardDuplicateGroupDto, "cards"> & { cards: CreditCardView[] };
 
 type DuplicateGroupsResponse = {
-  data?: DuplicateCardGroup[];
+  data?: unknown;
 };
 
 type DuplicateMergeResponse = {
@@ -116,9 +111,9 @@ export const deleteCard = async (cardId: string) => {
 
 export const fetchDuplicateCards = async (): Promise<DuplicateCardGroup[]> => {
   const response = await fetch(`/api/cards/duplicates?timestamp=${Date.now()}`, { cache: "no-store" });
-  if (!response.ok) throw new Error(await parseApiError(response, "Không thể kiểm tra thẻ trùng."));
-  const body = (await response.json()) as DuplicateGroupsResponse;
-  return body.data ?? [];
+ if (!response.ok) throw new Error(await parseApiError(response, "Không thể kiểm tra thẻ trùng."));
+ const body = (await response.json()) as DuplicateGroupsResponse;
+  return parseDuplicateGroups(body.data) as DuplicateCardGroup[];
 };
 
 export const mergeDuplicateCards = async (payload: {

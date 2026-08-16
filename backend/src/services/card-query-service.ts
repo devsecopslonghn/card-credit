@@ -1,9 +1,10 @@
 import mongoose from "mongoose";
-import { cardPortfolioCardSchema, type CardDto } from "@card-credit/contracts";
+import { cardDuplicateGroupListSchema, cardPortfolioCardSchema, type CardDto, type CardDuplicateGroupDto } from "@card-credit/contracts";
 import { ApiError } from "../errors.js";
 import { CreditCardModel } from "../models/credit-card.js";
 import { idOf, plain } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
+import { duplicateFingerprint, duplicateReason, normalizeDuplicateOwner } from "../card-duplicate.js";
 
 const numberOrNull = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : null;
 const stringOrNull = (value: unknown) => typeof value === "string" && value.trim() ? value : null;
@@ -71,7 +72,27 @@ export class CardQueryService {
     return cardDtoFromDocument(card);
   }
 
-  static async compare(ctx: ServiceContext): Promise<CardDto[]> {
-    return this.list(ctx, { activeOnly: true });
+ static async compare(ctx: ServiceContext): Promise<CardDto[]> {
+   return this.list(ctx, { activeOnly: true });
+ }
+
+  static async listDuplicates(ctx: ServiceContext): Promise<CardDuplicateGroupDto[]> {
+    const cards = await CreditCardModel.find({ workspaceId: ctx.workspaceId }).sort({ createdAt: 1 }).lean();
+    const groups = new Map<string, { fingerprint: string; presetId: string; normalizedOwner: string; reason: string; cards: CardDto[] }>();
+    for (const raw of cards) {
+      const fingerprint = duplicateFingerprint(raw as Record<string, unknown>);
+      const normalizedOwner = normalizeDuplicateOwner(raw.owner);
+      if (!fingerprint || typeof raw.presetId !== "string" || !normalizedOwner) continue;
+      const group = groups.get(fingerprint) ?? {
+        fingerprint,
+        presetId: raw.presetId,
+        normalizedOwner,
+        reason: duplicateReason,
+        cards: [],
+      };
+      group.cards.push(cardDtoFromDocument(raw));
+      groups.set(fingerprint, group);
+    }
+    return cardDuplicateGroupListSchema.parse([...groups.values()].filter((group) => group.cards.length > 1)) as CardDuplicateGroupDto[];
   }
 }

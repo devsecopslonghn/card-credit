@@ -83,3 +83,7 @@ export {
   monthlyCashbackSchema,
   monthlyCashbackListSchema,
 } from "./monthly-cashback-contracts.js";
+export {
+  cardDuplicateGroupSchema,
+  cardDuplicateGroupListSchema,
+} from "./duplicate-contracts.js";

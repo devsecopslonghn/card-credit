@@ -155,6 +155,15 @@ export type MonthlyCashbackDto = {
   receivedAt: string | null;
   note: string;
 };
+export declare const cardDuplicateGroupSchema: z.ZodObject<any>;
+export declare const cardDuplicateGroupListSchema: z.ZodArray<typeof cardDuplicateGroupSchema>;
+export type CardDuplicateGroupDto = {
+  fingerprint: string;
+  presetId: string;
+  normalizedOwner: string;
+  reason: string;
+  cards: CardDto[];
+};
 export declare const financialTransactionTypeSchema: z.ZodEnum<any>;
 export declare const ownershipSchema: z.ZodEnum<any>;
 export declare const createFinancialTransactionInputSchema: z.ZodObject<any>;
