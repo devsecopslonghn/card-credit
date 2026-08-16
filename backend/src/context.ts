@@ -35,14 +35,28 @@ export const browserServiceContext = async (
   secret: string,
   users?: Pick<AuthRepository, "findUserById">,
 ): Promise<ServiceContext> => {
+  if (!users) {
+    const session = sessionFromRequest(request, secret);
+    return serviceContextFromSession(session, "browser", request.id || randomUUID());
+  }
+  return (await browserActorContext(request, secret, users)).context;
+};
+
+export const browserActorContext = async (
+  request: FastifyRequest,
+  secret: string,
+  users: Pick<AuthRepository, "findUserById">,
+): Promise<{ context: ServiceContext; actor: Session }> => {
   const session = sessionFromRequest(request, secret);
-  if (!users) return serviceContextFromSession(session, "browser", request.id || randomUUID());
   let user;
   try { user = await users.findUserById(session.userId); } catch { user = null; }
   if (!user || !user.active || user.lockedAt || user.workspaceId !== session.workspaceId) {
     throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hợp lệ.");
   }
-  return serviceContextFromSession({ userId: user.id, workspaceId: user.workspaceId, role: user.role }, "browser", request.id || randomUUID());
+  return {
+    context: serviceContextFromSession({ userId: user.id, workspaceId: user.workspaceId, role: user.role }, "browser", request.id || randomUUID()),
+    actor: { userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId },
+  };
 };
 
 export const mcpServiceContext = (identity: Pick<Session, "workspaceId" | "userId" | "role">): ServiceContext =>

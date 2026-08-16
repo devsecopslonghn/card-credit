@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { browserServiceContext, jobServiceContext, mcpServiceContext, serviceContextFromSession } from "../src/context.js";
+import { browserActorContext, browserServiceContext, jobServiceContext, mcpServiceContext, serviceContextFromSession } from "../src/context.js";
 import { revalidateMcpContext } from "../src/mcp/context.js";
 import { sessionCookie, signSession } from "../src/auth.js";
 
@@ -32,6 +32,18 @@ test("browser context rejects an inactive or moved user when a repository is pro
   const request = { id: "request-1", headers: { cookie } } as never;
   const inactive = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: false, lockedAt: null }) };
   await assert.rejects(() => browserServiceContext(request, secret, inactive), /không còn hợp lệ/);
+});
+
+test("browser actor context returns one safe audit actor with the trusted service context", async () => {
+  const secret = "01234567890123456789012345678901";
+  const cookie = sessionCookie(signSession({ ...identity, email: "authoritative@example.test" }, secret));
+  const request = { id: "request-actor", headers: { cookie } } as never;
+  let lookups = 0;
+  const result = await browserActorContext(request, secret, { findUserById: async () => { lookups += 1; return { ...identity, id: identity.userId, email: "authoritative@example.test", passwordHash: "must-not-leak", displayName: "User", active: true, lockedAt: null }; } });
+  assert.equal(lookups, 1);
+  assert.deepEqual(result.actor, { userId: "user-1", email: "authoritative@example.test", role: "admin", workspaceId: "workspace-1" });
+  assert.deepEqual(result.context, { ...identity, channel: "browser", correlationId: "request-actor" });
+  assert.equal("passwordHash" in result.actor, false);
 });
 
 test("MCP context revalidates the fixed identity and workspace on each provider call", async () => {
