@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements và frontend private-surface guard đã push | `25a095a` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard và smoke report contract đã push | `8211e2f` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements và Frontend private-route guard đã push; fee/cashback report và write command slices chưa mở | `25a095a` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements và Frontend private-route guard đã push; fee/cashback report và write command slices chưa mở | `8211e2f` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -469,6 +469,21 @@ implemented yet.
   `middleware` deprecated, không phải lỗi slice này.
 - Database impact: không backend/model/schema/index/migration/data change, không
   cần Kubernetes backup. Rollback bằng revert frontend commit.
+
+### Completed checkpoint: Deployment Smoke Report Contract
+
+- Scope: smoke script drift correction; không thay đổi runtime route.
+- Changed write-set: `frontend/scripts/smoke-test.mjs` gọi
+  `/api/financial-reports/summary` và kiểm tra canonical `range/totals` thay cho
+  path/shape `/api/reports/summary` đã bị loại khỏi backend.
+- Acceptance evidence: `node --check scripts/smoke-test.mjs` pass; actual smoke
+  deployment vẫn cần chạy trong môi trường có backend/session/catalog.
+- Residual risk: `reportsCore` và một số docs legacy còn path cũ, được giữ trong
+  compatibility-removal gate `GAP-DOC-01`, chưa xóa trong slice này.
+- Database impact: docs/script-only, không query/migration/index/data write và
+  không cần Kubernetes backup.
+- Commit/push: `8211e2f` đã push thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
 
 ### Execution rules
 
