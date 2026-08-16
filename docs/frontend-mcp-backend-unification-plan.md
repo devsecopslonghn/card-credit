@@ -13,7 +13,7 @@ implemented yet.
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `b75fb28` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push | `87e7996` + DB rollout / `origin/master` | Fence old MCP writers trước production rollout; không bật new MCP writer khi pod cũ còn phục vụ |
-| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine code đang review; reversal và MCP payment mutation còn mở | `2dae679` / `origin/master` | Review rồi commit planner; backup + dry-run + quarantine case rollout, sau đó explicit mark-paid command nếu còn cần |
+| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine đã commit và apply live; reversal và MCP payment mutation còn mở | `352481b` / `origin/master` | Fence old writers; xây explicit operator mark-paid với case/source hash/precondition, sau đó MCP payment preview/confirm và reversal policy |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` / `origin/master` | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
@@ -95,6 +95,46 @@ implemented yet.
   liệu tài chính không cần thiết.
 - Rollback/impact: chưa có mutation nên không cần rollback/backup bổ sung.
   Không mở payment reversal hoặc tự đánh dấu PAID trước khi chốt policy.
+
+### Completed checkpoint: Legacy payment reconciliation planner and quarantine
+
+- Independent review: GO có điều kiện sau khi planner chuyển sang strict
+  eligibility/quarantine, target-set drift guard, source/plan hash và backup
+  verification. Planner chỉ xác định full settlement an toàn; không tự mark
+  `PAID`, không xóa hoặc reverse transaction. Review cũng xác nhận xóa script
+  `sync-paid-statements-to-finance` vì audit live không còn missing payment
+  transaction và script không có consumer khác.
+- Changed write-set: `finance-reconciliation.ts` là pure deterministic planner;
+  `reconcile-legacy-statement-payments.ts` hỗ trợ dry-run và explicit
+  `quarantine`; `FinancialReconciliationCaseModel` lưu case theo workspace và
+  transaction với unique index; mỗi case mới ghi `CommandAudit` trong cùng
+  Mongo transaction. Chỉ các target ObjectId hợp lệ được ghi; ambiguity bị
+  `QUARANTINE_REQUIRED` thay vì đoán.
+- Verification: backend `npm run validate` pass (176/176 tests, typecheck,
+  lint, build); focused reconciliation tests 4/4; plan dry-run trên workspace
+  `longhn0710-workspace` cho `candidateCount=2`, `quarantineCount=0`,
+  `sourceHash=70f6c43dce798ec8d520ab597e4ddb584b58b788c8ce50a1fd9ccc13b5b3df90`
+  và `planHash=7793be9d7241f47dd854af3e74f07e48f5bd44cc23b3e61dd484855d3da7eb71`.
+- Database/operations: context `k8s-admin-public`, namespace `card-credit`;
+  backup private mode 600 tại
+  `/tmp/card-credit-reconciliation-backup.3mBOnZ/finance-longhn0710-workspace-2026-08-16T16-16-22.540Z.json`,
+  SHA-256
+  `d82b133dd84635e309e03e2a47fc02cad36a2669984651c9da534b27770e8863`.
+  Plan artifact private mode 600 tại
+  `/tmp/card-credit-reconciliation-plan.3gj5eb/legacy-payment-plan.json`,
+  SHA-256
+  `8c52de4830a2bcef2bb0b962e1d938fee3cbf17b5b4cbb7d68dd3389cc0b7a70`.
+  Quarantine apply tạo đúng 2 `financialreconciliationcases` với
+  classification `ELIGIBLE_MARK_PAID` và 2 audit success; audit finance sau
+  apply vẫn là 11 statements, 45 financial transactions, 5 paid statements,
+  không có missing payment. Chạy lại cùng artifact/backup cho
+  `appliedCaseCount=0`, không duplicate audit.
+- Blast radius/rollback: chỉ thêm case/audit records và additive indexes;
+  statement, payment transaction và account business fields không đổi. Rerun
+  idempotent; rollback code là revert commit, rollback data chỉ xử lý case/audit
+  theo case ID sau review, không xóa ledger. Cần fence/drain old writer trước
+  explicit mark-paid vì planner đọc source trước transaction.
+- Commit/push: `352481b` đã push thành công lên `origin/master`.
 
 ### Completed checkpoint: Browser trusted payment confirmation
 
