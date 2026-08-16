@@ -74,7 +74,7 @@ export class FinancialReportService {
     totals.totalServiceFee = items.reduce((sum, item) => {
       const value = item as Record<string, unknown>;
       if (value.transactionType !== "EXPENSE" || value.ownership !== "PAID_FOR_OTHER") return sum;
-      return sum + Math.max(0, Number(value.amount ?? 0) - Number(value.reimbursementExpected ?? 0));
+      return sum + Math.max(0, Number(value.amount ?? 0) - Number(value.reimbursementExpected ?? 0) - Number(value.refundReceived ?? 0));
     }, 0);
     totals.transactionCashbackActual = items.reduce((sum, item) => sum + Math.max(0, Number((item as Record<string, unknown>).cashbackReceived ?? 0)), 0);
     totals.monthlyBankCashbackExpected = monthlyCashbacks.reduce((sum, item) => sum + Math.max(0, Number((item as Record<string, unknown>).expectedAmount ?? 0)), 0);

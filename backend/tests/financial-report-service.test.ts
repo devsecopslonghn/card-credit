@@ -25,7 +25,7 @@ const chain = <T>(value: T) => {
 test("summary reads benefit sources once, keeps ledger groups stable and avoids cashback double count", async (t) => {
   const transactions = [
     { _id: "tx-personal", accountId: "account-credit", accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "food", amount: 1_000, reimbursementExpected: 0, cashbackReceived: 10, personalSpending: 1_000, debitCashflow: 0, creditDebt: 1_000, outstandingReceivable: 0, reimbursementReceived: 0 },
-    { _id: "tx-fee", accountId: "account-credit", accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PAID_FOR_OTHER", categoryId: "other", amount: 500, reimbursementExpected: 450, cashbackReceived: 0, personalSpending: 50, debitCashflow: 0, creditDebt: 500, outstandingReceivable: 450, reimbursementReceived: 0 },
+    { _id: "tx-fee", accountId: "account-credit", accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PAID_FOR_OTHER", categoryId: "other", amount: 500, reimbursementExpected: 400, refundReceived: 25, cashbackReceived: 0, personalSpending: 75, debitCashflow: 0, creditDebt: 500, outstandingReceivable: 400, reimbursementReceived: 0 },
     { _id: "tx-payment", accountId: "account-debit", accountType: "DEBIT", transactionType: "STATEMENT_PAYMENT", ownership: "PERSONAL", categoryId: "OTHER", amount: 200, reimbursementExpected: 0, cashbackReceived: 0, personalSpending: 0, debitCashflow: -200, creditDebt: -200, outstandingReceivable: 0, reimbursementReceived: 0 },
   ];
   const transactionFind = t.mock.method(FinancialTransactionModel, "find", (query: Record<string, unknown>) => chain(query.transactionType === "REIMBURSEMENT" ? [{ amount: 100 }] : transactions) as never);
@@ -46,13 +46,13 @@ test("summary reads benefit sources once, keeps ledger groups stable and avoids 
 
   const result = await FinancialReportService.summary(context, { from: "2026-07-01", to: "2026-07-31" });
 
-  assert.equal(result.totals.totalServiceFee, 50);
+  assert.equal(result.totals.totalServiceFee, 75);
   assert.equal(result.totals.transactionCashbackActual, 10);
   assert.equal(result.totals.monthlyBankCashbackExpected, 600);
   assert.equal(result.totals.monthlyBankCashbackActual, 150);
   assert.equal(result.totals.monthlyBankCashbackRejected, 300);
   assert.equal(result.totals.totalPaidCardFees, 100);
-  assert.equal(result.totals.actualNetBenefit, 0);
+  assert.equal(result.totals.actualNetBenefit, -25);
   assert.equal(result.totals.creditDebt, 1_300);
   assert.equal(result.creditDebtBalance, 1_300);
   assert.equal(result.byAccount["account-credit"]?.transactionCount, 2);
