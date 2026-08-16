@@ -4,24 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { canManageUsers } from "@/lib/auth/rbac";
+import type { UserDto } from "@card-credit/contracts";
+import { parseUserListResponse, parseUserResponse } from "@/lib/api/userCore.mjs";
 
-type ManagedUser = {
-  id: string;
-  email: string;
-  role: "admin" | "user";
-  workspaceId: string;
-  displayName: string;
-  active: boolean;
-  lockedAt: string | null;
-};
-
-type ProfileResponse = {
-  user: ManagedUser;
-};
-
-type UsersResponse = {
-  users: ManagedUser[];
-};
+type ManagedUser = UserDto;
 
 type ApiErrorBody = {
   error?: {
@@ -47,14 +33,14 @@ export default function AdminUsersPage() {
   const fetchUsersData = async () => {
     const profileResponse = await fetch("/api/profile", { cache: "no-store" });
     if (!profileResponse.ok) throw new Error(await readError(profileResponse));
-    const profile = (await profileResponse.json()) as ProfileResponse;
+    const profile = parseUserResponse(await profileResponse.json());
     if (!canManageUsers(profile.user)) {
       return { profile: profile.user, users: [] };
     }
 
     const usersResponse = await fetch("/api/admin/users", { cache: "no-store" });
     if (!usersResponse.ok) throw new Error(await readError(usersResponse));
-    const body = (await usersResponse.json()) as UsersResponse;
+    const body = parseUserListResponse(await usersResponse.json());
     return { profile: profile.user, users: body.users };
   };
 
@@ -111,7 +97,7 @@ export default function AdminUsersPage() {
         body: JSON.stringify(drafts[userId]),
       });
       if (!response.ok) throw new Error(await readError(response));
-      const body = (await response.json()) as { user: ManagedUser };
+      const body = parseUserResponse(await response.json());
       setUsers((current) => current.map((user) => (user.id === userId ? body.user : user)));
       setDrafts((current) => ({
         ...current,

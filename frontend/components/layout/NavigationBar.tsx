@@ -5,8 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { canManageUsers } from "@/lib/auth/rbac";
+import { parseUserResponse } from "@/lib/api/userCore.mjs";
 
-type NavigationUser = { role: "admin" | "user"; displayName?: string; email: string };
+import type { UserDto } from "@card-credit/contracts";
+
+type NavigationUser = UserDto;
 type NavigationLink = { href: string; label: string; icon?: string };
 
 const userLinks: NavigationLink[] = [
@@ -38,7 +41,7 @@ export function NavigationBar() {
   useEffect(() => {
     let active = true;
     void fetch("/api/profile", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() as Promise<{ user: NavigationUser }> : null))
+      .then(async (response) => (response.ok ? parseUserResponse(await response.json()) : null))
       .then((body) => {
         if (active) setUser(body?.user ?? null);
       })

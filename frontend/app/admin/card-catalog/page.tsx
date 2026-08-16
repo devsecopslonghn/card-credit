@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { canManageCatalog } from "@/lib/auth/rbac";
+import { parseUserResponse } from "@/lib/api/userCore.mjs";
 
 type Product = { presetId: string; providerName: string; displayName: string; network: string; imageUrl: string | null };
 type User = { role: "admin" | "user" };
@@ -21,7 +22,7 @@ export default function AdminCardCatalogPage() {
 
   const load = async () => {
     const profile = await fetch("/api/profile", { cache: "no-store" });
-    const profileBody = (await profile.json()) as { user: User };
+    const profileBody = parseUserResponse(await profile.json());
     setUser(profileBody.user);
     if (!canManageCatalog(profileBody.user)) return;
     const response = await fetch("/api/admin/card-catalog/products", { cache: "no-store" });

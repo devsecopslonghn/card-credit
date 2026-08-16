@@ -103,3 +103,4 @@ export {
   masterCardTypeSchema,
   masterCardTypeListSchema,
 } from "./masterdata-contracts.js";
+export { userSchema, userListSchema } from "./user-contracts.js";

@@ -15,7 +15,7 @@ const cookie = (user: AuthUser, role: "admin" | "user" = user.role) => sessionCo
 
 test("admin user and audit routes use the revalidated admin context", async (t) => {
   const admin = makeUser();
-  const target = makeUser({ id: "user-1", email: "user@example.test", role: "user", displayName: "Target" });
+  const target = makeUser({ id: "user-1", email: "user@example.test", role: "user", displayName: "Target", lockedAt: new Date("2026-08-16T00:00:00.000Z") });
   let listCalls = 0;
   const updates: Array<{ id: string; update: object }> = [];
   const users = {
@@ -36,6 +36,7 @@ test("admin user and audit routes use the revalidated admin context", async (t) 
   const list = await app.inject({ url: "/api/admin/users", headers });
   assert.equal(list.statusCode, 200);
   assert.equal(list.json().users.length, 2);
+  assert.equal(list.json().users.find((user: { id: string }) => user.id === target.id).lockedAt, "2026-08-16T00:00:00.000Z");
   assert.equal(listCalls, 1);
   const updated = await app.inject({ method: "PATCH", url: "/api/admin/users/user-1", headers, payload: { displayName: "  New   Name ", role: "user", workspaceId: "  workspace-b " } });
   assert.equal(updated.statusCode, 200);

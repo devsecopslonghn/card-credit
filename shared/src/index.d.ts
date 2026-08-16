@@ -365,3 +365,14 @@ export type MasterCardTypeDto = {
   name: string;
   logo: string;
 };
+export declare const userSchema: z.ZodObject<any>;
+export declare const userListSchema: z.ZodArray<typeof userSchema>;
+export type UserDto = {
+  id: string;
+  email: string;
+  role: "admin" | "user";
+  workspaceId: string;
+  displayName: string;
+  active: boolean;
+  lockedAt: string | null;
+};

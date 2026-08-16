@@ -5,14 +5,8 @@ import Link from "next/link";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { canManageUsers } from "@/lib/auth/rbac";
 import { CalendarSubscriptionSettings } from "@/components/CalendarSubscriptionSettings";
-
-type ProfileUser = {
-  id: string;
-  email: string;
-  role: "admin" | "user";
-  workspaceId: string;
-  displayName: string;
-};
+import type { UserDto } from "@card-credit/contracts";
+import { parseUserResponse } from "@/lib/api/userCore.mjs";
 
 type ApiErrorBody = {
   error?: {
@@ -27,7 +21,7 @@ const readError = async (response: Response) => {
 };
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<ProfileUser | null>(null);
+  const [user, setUser] = useState<UserDto | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -39,7 +33,7 @@ export default function ProfilePage() {
     void fetch("/api/profile", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error(await readError(response));
-        return response.json() as Promise<{ user: ProfileUser }>;
+        return parseUserResponse(await response.json());
       })
       .then(({ user: nextUser }) => {
         if (!active) return;
@@ -69,7 +63,7 @@ export default function ProfilePage() {
         body: JSON.stringify({ displayName }),
       });
       if (!response.ok) throw new Error(await readError(response));
-      const body = (await response.json()) as { user: ProfileUser };
+      const body = parseUserResponse(await response.json());
       setUser(body.user);
       setDisplayName(body.user.displayName);
       setStatus("Đã cập nhật hồ sơ.");
