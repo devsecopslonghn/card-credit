@@ -9,10 +9,10 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write và REST docs inventory đã push; runtime route parity còn thiếu | `ad2f56e` / `origin/master` | Xây runtime route parity/drift gate, sau đó chuẩn hóa Financial Ledger contracts |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory và Financial Transaction contracts đã push; runtime route parity còn thiếu | `e2a6b9b` / `origin/master` | Xây runtime route parity/drift gate và đối chiếu preview projection còn compatibility |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
-| Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
+| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account và Financial Transaction input/output contracts đã push; generic command guard còn là decision gate | `e2a6b9b` / `origin/master` | Tách generic command guard thành decision gate vì có persistent idempotency/audit impact; tiếp tục query parity không-DB nếu phù hợp |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
@@ -179,6 +179,32 @@ implemented yet.
 - Database impact: none; không migration/index/write, không cần Kubernetes
   backup.
 - Commit/push: `ad2f56e` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Financial Transaction contract registry (ready to commit)
+
+- Independent review: bounded scope là canonical input/output cho Financial
+  Ledger REST/MCP/frontend; không claim statement projection parity và không mở
+  generic preview/confirm/audit redesign trong cùng slice.
+- Changed write-set: shared Zod schemas/DTO types và fixtures; REST transaction
+  input parse với stable `INVALID_TRANSACTION`; `FinancialTransactionService`
+  serialize/list runtime-parse bằng shared DTO; MCP preview/confirm schema dùng
+  cùng batch contract; frontend transaction client runtime-parse cùng list DTO.
+- Canonical coverage: `GET/POST /api/financial-transactions`, MCP
+  `list_transactions` và financial transaction preview/confirm payload. Preview
+  response hiện vẫn là compatibility projection (`previewImpact`/`serviceFee`),
+  chưa phải canonical preview envelope; statement dashboard projection thuộc
+  Credit Billing slice sau.
+- Acceptance evidence: shared `npm run validate` pass (7 tests, gồm safe
+  integer và batch bound), backend `npm run validate` pass (77 tests, typecheck,
+  lint và build), frontend `typecheck`, `lint` và `test` pass (70 unit + 6
+  integration).
+- Database impact: chỉ thay contract/parsing/serializer logic; không đổi
+  model/index/migration/collection/data, không cần Kubernetes backup.
+- Residual risk: REST POST vẫn đi qua service nhưng chưa có generic command
+  preview/confirm/idempotency/audit contract; service còn dùng receipt cũ và
+  `JSON.stringify` payload hash. Những thay đổi persistent này phải mở thành
+  decision gate và xin user trước khi chạm database.
+- Commit/push: `e2a6b9b` đã push thành công lên `origin/master`; ledger này sẽ được ghi nhận ở commit docs kế tiếp.
 
 ### Execution rules
 
