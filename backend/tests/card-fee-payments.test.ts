@@ -6,11 +6,13 @@ import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardFeePaymentModel } from "../src/models/card-fee-payment.js";
 import { registerCardFeePaymentRoutes } from "../src/card-fee-payment-routes.js";
 import { FeeQueryService } from "../src/services/fee-query-service.js";
+import { CardQueryService } from "../src/services/card-query-service.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const secret = "01234567890123456789012345678901";
 const cardId = "507f1f77bcf86cd799439011";
 const feePaymentId = "507f1f77bcf86cd799439012";
+const users = { findUserById: async (id: string) => id === "user-1" ? { id, email: "user@example.test", passwordHash: "", role: "user" as const, workspaceId: "workspace-a", displayName: "User", active: true, lockedAt: null } : null };
 const cookie = sessionCookie(
   signSession(
     {
@@ -25,7 +27,7 @@ const cookie = sessionCookie(
 
 const appWithRoutes = () => {
   const app = buildApp({ isReady: () => true }, "silent");
-  registerCardFeePaymentRoutes(app, secret);
+  registerCardFeePaymentRoutes(app, secret, users);
   return app;
 };
 
@@ -89,7 +91,7 @@ test("GET includes inactive card history and scopes and sorts the query", async 
 });
 
 test("POST validates and creates an actual paid fee in the session scope", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => ({ _id: cardId }));
+  t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   const create = t.mock.method(
     CardFeePaymentModel,
     "create",
@@ -120,7 +122,7 @@ test("POST validates and creates an actual paid fee in the session scope", async
 });
 
 test("POST rejects invalid calendar dates, non-positive amounts, and long notes", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => ({ _id: cardId }));
+  t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   const create = t.mock.method(CardFeePaymentModel, "create");
   const app = appWithRoutes();
   for (const payload of [
@@ -143,7 +145,7 @@ test("POST rejects invalid calendar dates, non-positive amounts, and long notes"
 });
 
 test("PUT and DELETE scope records by workspace, card, and entry id", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => ({ _id: cardId }));
+  t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   const update = t.mock.method(
     CardFeePaymentModel,
     "findOneAndUpdate",
@@ -187,7 +189,7 @@ test("PUT and DELETE scope records by workspace, card, and entry id", async (t) 
 });
 
 test("missing cards return not found before fee access", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => null);
+  t.mock.method(CreditCardModel, "findOne", () => ({ lean: async () => null }) as never);
   const update = t.mock.method(CardFeePaymentModel, "findOneAndUpdate");
   const app = appWithRoutes();
   const missingCard = await app.inject({
@@ -203,7 +205,7 @@ test("missing cards return not found before fee access", async (t) => {
 });
 
 test("missing or cross-workspace fee entries return not found", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => ({ _id: cardId }));
+  t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   t.mock.method(
     CardFeePaymentModel,
     "findOneAndUpdate",

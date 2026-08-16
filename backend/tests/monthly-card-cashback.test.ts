@@ -6,10 +6,12 @@ import { CreditCardModel } from "../src/models/credit-card.js";
 import { MonthlyCardCashbackModel } from "../src/models/monthly-card-cashback.js";
 import { registerMonthlyCardCashbackRoutes } from "../src/monthly-card-cashback-routes.js";
 import { MonthlyCashbackQueryService } from "../src/services/monthly-cashback-query-service.js";
+import { CardQueryService } from "../src/services/card-query-service.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const secret = "01234567890123456789012345678901";
 const cardId = "507f1f77bcf86cd799439011";
+const users = { findUserById: async (id: string) => id === "user-1" ? { id, email: "user@example.test", passwordHash: "", role: "user" as const, workspaceId: "workspace-a", displayName: "User", active: true, lockedAt: null } : null };
 const cookie = sessionCookie(
   signSession(
     {
@@ -24,7 +26,7 @@ const cookie = sessionCookie(
 
 const appWithRoutes = () => {
   const app = buildApp({ isReady: () => true }, "silent");
-  registerMonthlyCardCashbackRoutes(app, secret);
+  registerMonthlyCardCashbackRoutes(app, secret, users);
   return app;
 };
 
@@ -108,10 +110,7 @@ test("GET validates year and scopes card and cashback queries to workspace", asy
 });
 
 test("PUT validates payload and performs a workspace-scoped idempotent upsert", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => ({
-    _id: cardId,
-    workspaceId: "workspace-a",
-  }));
+  t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   const existingFind = t.mock.method(
     MonthlyCardCashbackModel,
     "findOne",
@@ -170,10 +169,7 @@ test("PUT validates payload and performs a workspace-scoped idempotent upsert", 
 
 test("RECEIVED requires actual amount and preserves receivedAt on repeated PUT", async (t) => {
   const receivedAt = new Date("2026-07-20T01:02:03.000Z");
-  t.mock.method(CreditCardModel, "findOne", async () => ({
-    _id: cardId,
-    workspaceId: "workspace-a",
-  }));
+  t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   t.mock.method(MonthlyCardCashbackModel, "findOne", async () => ({
     status: "RECEIVED",
     receivedAt,
@@ -219,10 +215,7 @@ test("RECEIVED requires actual amount and preserves receivedAt on repeated PUT",
 });
 
 test("PUT rejects invalid period, status, and non-integer or negative VND", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => ({
-    _id: cardId,
-    workspaceId: "workspace-a",
-  }));
+  t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   const app = appWithRoutes();
   const cases = [
     {
@@ -275,10 +268,7 @@ test("missing or cross-workspace cards return CARD_NOT_FOUND before record acces
 });
 
 test("DELETE scopes the mutation to workspace, card, and period", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => ({
-    _id: cardId,
-    workspaceId: "workspace-a",
-  }));
+  t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   const remove = t.mock.method(
     MonthlyCardCashbackModel,
     "deleteOne",
