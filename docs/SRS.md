@@ -350,6 +350,7 @@ Hai nhóm cross-cutting:
 | CAL-05 | Feed chỉ gồm unpaid statement của card gắn trực tiếp với `subscription.userId` trong workspace. |
 | CAL-06 | Mỗi event bắt đầu 00:00 trước due date ba ngày, kết thúc 17:00 due date và có ba display alarm theo serializer hiện tại. |
 | CAL-07 | REST create/revoke calendar subscription phải đi qua service với trusted browser context; raw token không được log hoặc lưu plaintext, còn feed `lastAccessedAt` là compatibility write riêng. |
+| CAL-08 | One-off calendar email phải dùng trusted browser actor context để revalidate active/locked/workspace identity trước card/statement query và mail side effect; recipient lấy từ authoritative account email, không từ request. |
 | REM-01 | Card reminder cho phép enable, 1..10 offset duy nhất trong 0..60 ngày, IANA timezone hợp lệ và giờ `HH:mm`. |
 | REM-02 | Scheduler phải scan theo local date/time của card, không chạy chồng một scan trong cùng process và chỉ xét active card/unpaid statement. |
 | REM-03 | Delivery phải unique theo workspace, statement và days-before; claim hết hạn được reclaim theo timeout. |
@@ -740,7 +741,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 
 | ID | Mức độ | Hiện trạng và tác động |
 |---|---|---|
-| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter, private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes`, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata routes, Admin users/audit routes và Catalog admin routes revalidate user active/locked/workspace (và role cho admin mutation/read). Còn thiếu session version/revocation tức thời, atomic role/version guard và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
+| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter, private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes`, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata routes, Admin users/audit routes, Catalog admin routes và one-off calendar email revalidate user active/locked/workspace (và role cho admin mutation/read). Còn thiếu session version/revocation tức thời, atomic role/version guard và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
 | GAP-SEC-02 | Cao | Public register chấp nhận `workspaceId` do client truyền. Người biết workspace ID có thể tự đăng ký vào workspace đó nếu không có policy bổ sung ngoài source. |
 | GAP-DATA-01 | Cao | Delete card và duplicate merge không cascade/relink account, statement, transaction, cashback, fee, reminder. Có thể tạo orphan hoặc xóa source trong khi dữ liệu tài chính vẫn tham chiếu source card. |
 | GAP-PAY-01 | Cao | Frontend payment chỉ gửi `action`, không cho chọn `repaymentAccountId`; payment có amount sẽ lỗi nếu thiếu `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |
