@@ -21,6 +21,7 @@ test("calendar subscription create stores only a hash and returns the one-time f
   assert.equal(typeof input.tokenHash, "string");
   assert.equal(input.tokenHash, hashSubscriptionToken(token ?? ""));
   assert.equal("tokenHash" in result, false);
+  assert.equal(result.createdAt, "2026-08-16T00:00:00.000Z");
   assert.match(String(result.subscriptionPath), /^\/api\/calendar-subscriptions\/feed\/[A-Za-z0-9_-]{43}\.ics$/);
 });
 

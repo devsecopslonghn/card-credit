@@ -336,3 +336,15 @@ export type FeeCardSummaryDto = {
   owner: string;
 };
 export type FeeCenterRecordDto = FeePaymentDto & { card: FeeCardSummaryDto | null };
+
+export declare const calendarSubscriptionSchema: z.ZodObject<any>;
+export declare const calendarSubscriptionListSchema: z.ZodArray<typeof calendarSubscriptionSchema>;
+export declare const calendarSubscriptionCreateSchema: z.ZodObject<any>;
+export type CalendarSubscriptionDto = {
+  id: string;
+  deviceLabel: string | null;
+  createdAt: string;
+  lastAccessedAt: string | null;
+  revokedAt: string | null;
+};
+export type CalendarSubscriptionCreateDto = CalendarSubscriptionDto & { subscriptionPath: string };

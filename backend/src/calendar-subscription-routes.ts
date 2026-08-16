@@ -6,14 +6,15 @@ import { hashSubscriptionToken, serializePaymentDueFeed, validSubscriptionToken 
 import { CardQueryService } from "./services/card-query-service.js";
 import { CalendarSubscriptionService } from "./services/calendar-subscription-service.js";
 import { StatementQueryService } from "./services/statement-query-service.js";
+import { calendarSubscriptionCreateSchema, calendarSubscriptionListSchema } from "@card-credit/contracts";
 
 type Data = Record<string, unknown>;
 
 export const registerCalendarSubscriptionRoutes = (app: FastifyInstance, users: AuthRepository, secret: string) => {
-  app.get("/api/calendar-subscriptions", async (request) => ({ data: await CalendarSubscriptionService.list(await browserServiceContext(request, secret, users)) }));
+  app.get("/api/calendar-subscriptions", async (request) => ({ data: calendarSubscriptionListSchema.parse(await CalendarSubscriptionService.list(await browserServiceContext(request, secret, users))) }));
   app.post<{ Body: { deviceLabel?: unknown } }>("/api/calendar-subscriptions", async (request, reply) => {
     const context = await browserServiceContext(request, secret, users);
-    return reply.code(201).send({ data: await CalendarSubscriptionService.create(context, request.body?.deviceLabel) });
+    return reply.code(201).send({ data: calendarSubscriptionCreateSchema.parse(await CalendarSubscriptionService.create(context, request.body?.deviceLabel)) });
   });
   app.delete<{ Params: { id: string } }>("/api/calendar-subscriptions/:id", async (request) => {
     return { data: await CalendarSubscriptionService.revoke(await browserServiceContext(request, secret, users), request.params.id) };

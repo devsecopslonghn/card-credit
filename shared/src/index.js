@@ -92,3 +92,8 @@ export {
   monthlyCashFlowRowSchema,
   monthlyCashFlowResponseSchema,
 } from "./cash-flow-contracts.js";
+export {
+  calendarSubscriptionSchema,
+  calendarSubscriptionListSchema,
+  calendarSubscriptionCreateSchema,
+} from "./calendar-subscription-contracts.js";

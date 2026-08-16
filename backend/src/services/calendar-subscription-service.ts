@@ -9,9 +9,9 @@ type Data = Record<string, unknown>;
 export const safeCalendarSubscription = (doc: Data) => ({
   id: String(doc._id),
   deviceLabel: doc.deviceLabel ?? null,
-  createdAt: doc.createdAt,
-  lastAccessedAt: doc.lastAccessedAt ?? null,
-  revokedAt: doc.revokedAt ?? null,
+  createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : String(doc.createdAt),
+  lastAccessedAt: doc.lastAccessedAt instanceof Date ? doc.lastAccessedAt.toISOString() : doc.lastAccessedAt ?? null,
+  revokedAt: doc.revokedAt instanceof Date ? doc.revokedAt.toISOString() : doc.revokedAt ?? null,
 });
 
 const label = (value: unknown) => {

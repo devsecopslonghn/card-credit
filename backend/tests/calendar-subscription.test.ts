@@ -21,14 +21,14 @@ test("subscription write adapters use a revalidated browser context and preserve
     assert.equal(context.workspaceId, "workspace-a");
     assert.equal(context.userId, "user-1");
     assert.equal(context.channel, "browser");
-    return [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: null, lastAccessedAt: null, revokedAt: null }];
+    return [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-16T00:00:00.000Z", lastAccessedAt: null, revokedAt: null }];
   });
   const create = t.mock.method(CalendarSubscriptionService, "create", async (context: ServiceContext, deviceLabel: unknown) => {
     assert.equal(context.workspaceId, "workspace-a");
     assert.equal(context.userId, "user-1");
     assert.equal(context.channel, "browser");
     assert.equal(deviceLabel, "Laptop");
-    return { id: "subscription-1", deviceLabel: "Laptop", createdAt: null, lastAccessedAt: null, revokedAt: null, subscriptionPath: "/api/calendar-subscriptions/feed/token.ics" };
+    return { id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-16T00:00:00.000Z", lastAccessedAt: null, revokedAt: null, subscriptionPath: `/api/calendar-subscriptions/feed/${"a".repeat(43)}.ics` };
   });
   const revoke = t.mock.method(CalendarSubscriptionService, "revoke", async (context: ServiceContext, id: string) => {
     assert.equal(context.workspaceId, "workspace-a");
@@ -40,10 +40,10 @@ test("subscription write adapters use a revalidated browser context and preserve
   registerCalendarSubscriptionRoutes(app, activeUser, secret);
   const listed = await app.inject({ url: "/api/calendar-subscriptions", headers: { cookie } });
   assert.equal(listed.statusCode, 200);
-  assert.deepEqual(listed.json().data, [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: null, lastAccessedAt: null, revokedAt: null }]);
+  assert.deepEqual(listed.json().data, [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-16T00:00:00.000Z", lastAccessedAt: null, revokedAt: null }]);
   const created = await app.inject({ method: "POST", url: "/api/calendar-subscriptions", headers: { cookie }, payload: { deviceLabel: "Laptop" } });
   assert.equal(created.statusCode, 201);
-  assert.equal(created.json().data.subscriptionPath, "/api/calendar-subscriptions/feed/token.ics");
+  assert.match(created.json().data.subscriptionPath, /^\/api\/calendar-subscriptions\/feed\/[a-z]{43}\.ics$/);
   const deleted = await app.inject({ method: "DELETE", url: "/api/calendar-subscriptions/507f1f77bcf86cd799439011", headers: { cookie } });
   assert.equal(deleted.statusCode, 200);
   assert.deepEqual(deleted.json().data, { revoked: true });
