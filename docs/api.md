@@ -153,7 +153,7 @@ Summary response nên có:
 | `PUT /cards/:cardId/fee-payments/:feePaymentId` | Session | Sửa actual fee. |
 | `DELETE /cards/:cardId/fee-payments/:feePaymentId` | Session | Xóa fee. |
 | `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Financial report theo khoảng ngày; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category. |
-| `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Credit statement projection dùng canonical `StatementQueryService`; `from/to` tùy chọn. |
+| `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Credit statement projection dùng canonical `StatementQueryService` và shared `CreditStatementReportDto[]`; `from/to` tùy chọn, thiếu một đầu vẫn all-time. |
 | `GET /cash-flow/monthly?period=YYYY-MM&cardId=` | Session | Financial Domain cash-flow theo card/tháng; output `{data,period}`. |
 | `GET /notes` | Session | List note workspace. |
 | `POST /notes` | Session | `{date,content}`; content rỗng là delete. |
