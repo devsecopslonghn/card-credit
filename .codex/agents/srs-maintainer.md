@@ -12,3 +12,6 @@
   second normative description of a use case outside its capability section.
 - Record compatibility owner/removal milestone, migration/rollback and residual
   risk whenever a slice changes persisted data or public behavior.
+- Keep the resumable copy/paste prompt in the execution plan synchronized with
+  `AGENTS.md`, `Jenkinsfile`, the external CI/CD boundary and the current GAP
+  checkpoint. Do not put a second conflicting handoff prompt in another doc.

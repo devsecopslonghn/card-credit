@@ -10,3 +10,6 @@
   one canonical service/contract and adapter tasks that consume it.
 - Escalate unresolved choices that change stored data, authorization, public
   contract or financial result.
+- Map CI/CD ownership explicitly: application `Jenkinsfile` declares intent,
+  `ci-platform` validates/builds/publishes, and `cd-platform` updates external
+  GitOps. A source push alone is not deployment evidence.

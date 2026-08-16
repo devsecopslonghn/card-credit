@@ -12,6 +12,10 @@ Use these maintained documents as the planning baseline:
 - `docs/frontend-mcp-backend-unification-plan.md`: dependency-ordered delivery plan.
 - `docs/finance-source-of-truth.md`: authoritative financial collections.
 
+The resumable handoff prompt is maintained in the execution plan under
+`Session handoff prompt (copy/paste)`. Keep it aligned with this file, the SRS
+and the current CI/CD entry points.
+
 Always distinguish `AS-IS`, `TARGET`, `GAP`, `DEPRECATED` and `DECISION`. Never
 describe target behavior as implemented without code and test evidence.
 
@@ -28,6 +32,27 @@ describe target behavior as implemented without code and test evidence.
   source of truth as temporary convenience.
 - Preserve compatibility only through an explicit adapter with owner, tests,
   telemetry or consumer evidence, and a removal milestone.
+
+## CI/CD boundaries
+
+- The application entry point is `/home/longhn0710/workspace/card-credit/Jenkinsfile`.
+  It declares project intent only: npm/container build, source paths, images,
+  security opt-ins and the GitOps deployment profile.
+- `ci-platform` is the CI shared library. Its `ciPipeline` checks out the
+  application SCM and runs, per `sourceDirectories`, `npm ci --include=optional`,
+  catalog validation, typecheck, lint, unit/integration tests and `npm test`
+  before image build/scan/publish. Current order is `shared`, `frontend`,
+  `backend`; the linked shared contract must therefore have its own lockfile
+  and runtime dependencies.
+- `cd-platform` is a separate CD shared library. It consumes the immutable
+  `IMAGE_TAG` and updates the configured external GitOps repository; a push to
+  this application repository is not proof of deployment or Kubernetes rollout.
+- When diagnosing CI, first compare the Jenkins checkout SHA/SCM URL/branch with
+  `git ls-remote origin master`. A failure showing the old dependency graph is
+  an old checkout/library configuration issue, not a reason to delete tests.
+- Do not edit `ci-platform` or `cd-platform` from this repository. Platform-wide
+  behavior belongs in those repositories and requires their own review/commit;
+  application-specific source paths and package scripts belong here.
 
 ## Capability ownership
 

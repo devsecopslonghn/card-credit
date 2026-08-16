@@ -5,7 +5,10 @@ ciPipeline(
     application: 'card-credit',
     language: 'javascript',
     buildSystem: 'npm',
-    sourceDirectories: ['frontend', 'backend'],
+    // ci-platform validates each package independently. Keep shared first so
+    // the linked @card-credit/contracts package is installed and checked
+    // before frontend/backend consumers.
+    sourceDirectories: ['shared', 'frontend', 'backend'],
     sonarSources: ['frontend', 'backend', 'shared'],
     securityScans: [
         sonar: true,

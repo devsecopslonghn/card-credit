@@ -15,3 +15,13 @@
 - Recheck workspace/parent isolation, financial invariants, no double count,
   Frontend server-value rendering and stale refresh after mutation.
 - Return exact commands, results, failures, untested risks and release blockers.
+
+## CI/CD boundary checks
+
+- Treat the application `Jenkinsfile`, external `ci-platform` and external
+  `cd-platform` as separate versioned components. Verify the application
+  `sourceDirectories` and package lockfiles against the commands the shared
+  library actually runs.
+- For this repository, expect CI validation order `shared` → `frontend` →
+  `backend`; do not infer image publication or Kubernetes rollout from a Git
+  push. Require checkout SHA/SCM/branch evidence for pipeline claims.

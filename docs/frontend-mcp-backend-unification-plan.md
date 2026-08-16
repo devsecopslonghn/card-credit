@@ -102,6 +102,26 @@ implemented yet.
 - Database/rollout impact: docs-only, không cần backup hay Kubernetes mutation.
 - Commit/push: ghi SHA ngay sau khi commit và push thành công.
 
+### Completed checkpoint: Align application Jenkinsfile with shared-contract CI
+
+- Independent review: GO có điều kiện; `ci-platform` iterate tuần tự từng
+  `sourceDirectory`, nên thêm `shared` trước consumer không tạo duplicate
+  validation và không đổi Sonar inventory. Không sửa `ci-platform`/`cd-platform`
+  vì đó là shared-library repositories độc lập.
+- Changed write-set: `Jenkinsfile` đổi thành
+  `sourceDirectories: ['shared', 'frontend', 'backend']`; `shared/package.json`
+  thêm script `typecheck` chạy contract compiler hiện có. Cập nhật
+  `AGENTS.md`, `README.md`, `docs/README.md`, `docs/SRS.md`,
+  `docs/architecture.md` và `docs/implementation-plan.md` để phân biệt
+  application intent, CI shared library và CD GitOps adapter.
+- Acceptance evidence: local `shared npm ci && npm run typecheck && npm test`
+  pass; frontend 84 unit + 6 integration, typecheck/lint/build pass; backend
+  validate 182/182 pass. Chưa có Jenkins runtime execution evidence; sau push
+  phải đối chiếu checkout SHA/SCM URL/branch.
+- Database/rollout impact: package/pipeline/docs only; không schema/index/data
+  write, không trigger Jenkins, không Kubernetes mutation.
+- Commit/push: ghi SHA ngay sau khi commit và push thành công.
+
 ### Session handoff prompt (copy/paste)
 
 ```text
@@ -112,11 +132,18 @@ slice, không chia riêng frontend/backend/MCP. SRS là nguồn yêu cầu; exec
 plan là nhật ký resumable. Không lặp lại commit đã push và không claim target là
 đã đạt nếu chưa có source/test evidence.
 
-Việc đầu tiên: chạy `cd frontend && npm ci --include=optional && npm run
-test:unit --if-present`; dependency runtime `zod` phải được resolve trực tiếp
-qua frontend/shared. Sau đó chạy shared validate, backend validate, frontend
+Việc đầu tiên: kiểm tra Jenkinsfile có sourceDirectories
+`shared,frontend,backend`, sau đó chạy `cd shared && npm ci && npm run typecheck
+&& npm test`; tiếp tục `cd frontend && npm ci --include=optional && npm run
+test:unit --if-present`. Dependency runtime `zod` phải được resolve trực tiếp
+qua frontend/shared. Sau đó chạy backend validate và frontend
 typecheck/lint/integration/build theo mục 9 SRS. Nếu lỗi, sửa nguyên nhân nhỏ
 nhất, thêm regression test, cập nhật plan, independent review rồi commit/push.
+
+Khi Jenkins báo lỗi, ghi lại `GIT_COMMIT`/checkout SHA, SCM URL, branch, shared
+library revision và source directory đang chạy. Push vào application repository
+chỉ chứng minh source đã publish; image/Nexus/GitOps/Kubernetes cần evidence từ
+CI/CD stages riêng.
 
 Tiếp tục từ GAP P0 hiện tại: old MCP statement-payment writers vẫn chưa được
 fence/drain; production rollout đang NO-GO nếu chưa có candidate image. Không

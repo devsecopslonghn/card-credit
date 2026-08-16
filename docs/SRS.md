@@ -168,9 +168,12 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
   cần dry-run, backup/recovery, rollback và DECISION riêng.
 - `/health` là liveness; `/ready` chỉ 200 khi Mongo connected. Logger redact
   authorization, cookie, password, token và URI. SIGTERM dừng job/server/DB sạch.
-- Production image chạy non-root; Jenkins build frontend/backend từ cùng SHA,
-  source checkout phải chứa `shared/`, và dependency runtime phải được khai báo
-  trực tiếp ở package dùng nó.
+- Production image chạy non-root; Jenkins dùng `Jenkinsfile` và `ci-platform`
+  để validate `shared` → `frontend` → `backend` từ cùng SHA. Source checkout
+  phải chứa `shared/`, mỗi package có lockfile, và dependency runtime phải được
+  khai báo trực tiếp ở package dùng nó.
+- `cd-platform` là CD adapter riêng: nhận immutable image tag và sửa external
+  GitOps repository; push source không đồng nghĩa image đã publish/rollout.
 - MCP writer rollout phải bắt đầu bằng candidate `read`, fence/drain old writers,
   kiểm tra smoke/receipt/index rồi mới bật `write`; không chạy mixed writers.
 
@@ -179,12 +182,16 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
 Baseline commands:
 
 ```bash
-cd shared && npm ci && npm run validate
+cd shared && npm ci && npm run typecheck && npm test
 cd ../backend && npm ci && npm run validate
 cd ../frontend && npm ci --include=optional && npm run typecheck && npm run lint
 cd ../frontend && npm run test:unit --if-present && npm run test:integration
 cd ../frontend && npm run build
 ```
+
+Jenkins thực thi cùng phạm vi qua `sourceDirectories: ['shared', 'frontend',
+'backend']`. Khi CI báo `ERR_MODULE_NOT_FOUND` cho `zod`, kiểm tra checkout
+SHA/SCM URL/branch và lockfile trước; không bỏ bớt unit test để che lỗi.
 
 Một vertical slice chỉ hoàn tất khi có contract + service/domain + adapter áp
 dụng (REST/MCP/UI/job) + persistence/migration nếu cần + workspace/financial/
@@ -195,6 +202,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 
 | Priority | GAP ID | Hiện trạng | Điều kiện đóng |
 |---|---|---|---|
+| P0 | `GAP-CI-01` | Đã sửa contract dependency; Jenkins app config nay validate `shared` → `frontend` → `backend` | Jenkins runtime phải xác nhận đúng checkout SHA/SCM/branch và pass source stages |
 | P0 | `GAP-SEC-01`, `GAP-SEC-02` | Một phần; session version và register workspace policy còn thiếu | Revalidate/revoke/version guard và policy membership rõ ràng |
 | P0 | `GAP-MCP-01`, `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | Preview/receipt/payment parity đã có; old writer, HITL/resource binding và reversal còn mở | Candidate image, fence/drain, resource/HITL policy và reversal decision |
 | P0 | `GAP-OPS-01` | Đã xử lý: startup không còn silent catalog write | Giữ CLI dry-run/apply guard và regression test |

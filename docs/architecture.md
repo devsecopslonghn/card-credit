@@ -136,7 +136,7 @@ cho phép scale/rollback hai image độc lập và giữ public contract ổn �
 | Email | Nodemailer + SMTP relay | Không khóa provider; credentials chỉ runtime backend; phù hợp reminder và reset. |
 | Test | Node test runner, TypeScript tests, Playwright | Unit/domain, API/integration và critical browser journey. |
 | Container | Multi-stage Docker, non-root runtime | Image nhỏ hơn, dependency/runtime tách biệt, giảm blast radius. |
-| CI/CD | Jenkins + Nexus + GitOps/Argo CD | Pipeline hiện tại hỗ trợ npm validation, Sonar/Trivy/CodeQL và deploy immutable tag. |
+| CI/CD | Jenkins + `ci-platform` + Nexus + `cd-platform`/GitOps/Argo CD | Repository `Jenkinsfile` khai báo intent; CI validate `shared` → `frontend` → `backend`, publish immutable images; CD chỉ cập nhật external GitOps repo. |
 
 Các lựa chọn không dùng: PostgreSQL/ORM relational sẽ phù hợp khi cần ledger,
 transactional reporting phức tạp hơn; hiện tại MongoDB giảm migration friction và
@@ -190,4 +190,3 @@ tài chính; công thức phải nằm trong pure/domain module và được tes
   cần aggregate/index discipline và transaction boundary rõ ràng.
 - **In-process reminder scheduler**: đơn giản cho deployment nhỏ; khi scale lớn
   cần tách worker/queue nhưng vẫn giữ `ReminderDelivery` idempotency.
-

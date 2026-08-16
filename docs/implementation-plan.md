@@ -196,12 +196,17 @@ outside this repository if applicable, `README.md`, runbooks and release docs.
 Mỗi milestone phải chạy phạm vi hẹp trước rồi mới full suite:
 
 ```text
-shared:   npm ci && npm test
+shared:   npm ci && npm run typecheck && npm test
 backend:  npm run typecheck && npm run lint && npm test
 frontend: npm run typecheck && npm run lint && npm test
 critical: npm run build && targeted Playwright E2E
 release:  docker build + image scan + staging smoke
 ```
+
+The application `Jenkinsfile` passes `sourceDirectories: ['shared', 'frontend',
+'backend']` to the external `ci-platform` shared library. `cd-platform` updates
+the external GitOps repository after image publication; neither behavior is
+represented by a source push alone.
 
 Không dùng production MongoDB cho test/seed/import/migration. Không trigger hoặc
 rerun CI/CD, deploy hoặc approve pipeline khi chưa có yêu cầu rõ ràng.

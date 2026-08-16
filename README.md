@@ -143,10 +143,18 @@ Do not use production credentials for local tests.
 ## Validation
 
 ```bash
-cd shared && npm ci && npm test
+cd shared && npm ci && npm run typecheck && npm test
 cd ../backend && npm ci && npm run validate
-cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm run build
+cd ../frontend && npm ci --include=optional && npm run typecheck && npm run lint && npm test && npm run build
 ```
+
+Jenkins chạy cùng các bước qua `ci-platform` theo thứ tự `shared` → `frontend`
+→ `backend`, được khai báo trong `Jenkinsfile`. `shared` có lockfile và runtime
+`zod` riêng; frontend cũng khai báo `zod` trực tiếp vì package linked
+`@card-credit/contracts` import Zod lúc runtime. Không xóa unit test để né lỗi
+dependency. `cd-platform` là pipeline riêng, chỉ cập nhật external GitOps repo
+với immutable `IMAGE_TAG`; push vào repository này chưa đồng nghĩa deployment đã
+rollout.
 
 ## MCP remote server
 
@@ -267,10 +275,12 @@ Swagger UI is available at `/docs`; the OpenAPI JSON is available at
 `/docs/json`. The document covers REST endpoints and MCP tools. Set
 `API_DOCS_ENABLED=false` to disable it.
 
-Jenkins dùng Kubernetes agent và rootless BuildKit, build cả frontend/backend
-image với cùng immutable Git SHA, push lên Nexus và cập nhật image tag trong repo
-GitOps. Hai Dockerfile thực thi validation tương ứng trong build stages. Jenkins
-không deploy trực tiếp; Argo CD đọc Helm chart và reconcile Kubernetes.
+Jenkins dùng Kubernetes agent và rootless BuildKit, validate `shared`, build cả
+frontend/backend image với cùng immutable Git SHA, push lên Nexus và cập nhật
+image tag trong repo GitOps qua `cd-platform`. Hai Dockerfile thực thi validation
+tương ứng trong build stages. Jenkins không deploy trực tiếp; Argo CD đọc Helm
+chart và reconcile Kubernetes. Khi điều tra pipeline, đối chiếu checkout SHA,
+SCM URL và branch trước khi kết luận commit bị mất.
 
 ## Catalog import
 
