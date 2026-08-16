@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract và MCP manifest slices đã push; REST/Frontend inventory còn thủ công | `7291138` / `origin/master` | Hoàn thiện REST/Frontend inventory và drift gates |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest và Catalog read-contract đã validation; Catalog slice đang chờ commit/push | `7291138` / `origin/master` | Commit/push Catalog contract, sau đó Card Portfolio read service |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
@@ -101,6 +101,28 @@ implemented yet.
 - Residual risk: REST endpoint inventory vẫn còn khai báo thủ công; generic
   preview/confirm/idempotency/audit guard chưa được chuẩn hóa.
 - Commit/push: `7291138` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Catalog read contract (ready to commit)
+
+- Independent review: public catalog read là bounded scope; giữ Mongo
+  `CatalogRepository` làm runtime authority, không mở catalog MCP tool và không
+  đụng admin mutation/startup sync.
+- Changed write-set: shared Zod/runtime schemas và DTO types cho
+  `CatalogProductDto`/`CatalogProviderDto`, backend public catalog response
+  parsing, frontend catalog types/client runtime parsing và shared contract
+  fixture.
+- Compatibility retained: `GET /api/card-catalog/providers` và products vẫn
+  bọc `{data}`, normalize provider uppercase, chỉ trả active product và trả
+  `404 PROVIDER_NOT_FOUND`; frontend picker tiếp tục nhận cùng canonical DTO.
+- Acceptance evidence: shared `npm run validate` pass (4 tests), backend
+  `npm run validate` pass (72 tests, typecheck, lint, build), frontend
+  `npm run typecheck`, `npm run lint`, `npm test` pass (70 unit + 6 integration).
+- Database impact: chỉ đọc repository trong request; không schema/index/migration
+  hoặc write, không cần Kubernetes backup.
+- Residual risk: Card CRUD/`compare_cards` vẫn chưa dùng cùng Card DTO/service;
+  catalog admin output còn compatibility aliases và startup sync risk GAP-OPS-01.
+- Commit/push: chờ commit feature sau khi checkpoint này được review trong
+  working tree.
 
 ### Execution rules
 

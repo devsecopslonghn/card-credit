@@ -1,34 +1,7 @@
-export type CardCatalogProduct = {
-  /**
-   * Globally unique, stable product identifier.
-   * Target convention: lowercase kebab-case.
-   */
-  presetId: string;
-  providerCode: string;
-  providerName: string;
-  displayName: string;
-  network: string;
-  segment?: string;
-  annualFee: number | null;
-  targetSpendForWaiver?: number | null;
-  imageUrl: string;
-  sourceUrl?: string;
-  sourceCheckedAt?: string;
-  active: boolean;
-  sortOrder?: number;
-  benefits?: string[];
-  theme?: {
-    background: string;
-    accent: string;
-  };
-};
+import type { CatalogProductDto, CatalogProviderDto } from "@card-credit/contracts";
 
-export type CardCatalogProvider = {
-  providerCode: string;
-  providerName: string;
-  logoUrl?: string;
-  products: CardCatalogProduct[];
-};
+export type CardCatalogProduct = CatalogProductDto;
+export type CardCatalogProvider = CatalogProviderDto;
 
 export type CardCatalogApiResponse<T> = {
   data: T;

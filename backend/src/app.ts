@@ -5,6 +5,7 @@ import { InMemoryCatalogRepository, invalidCatalogError, normalizeCatalogProduct
 import { requireAdmin, type Session } from "./auth.js";
 import type { CatalogAuditWriter } from "./catalog-audit.js";
 import { installBrowserSecurity } from "./browser-security.js";
+import { catalogProductListSchema, catalogProductSchema, catalogProviderListSchema } from "@card-credit/contracts";
 
 const updateFields = new Set(["providerCode", "providerName", "displayName", "network", "segment", "annualFee", "targetSpendForWaiver", "imageUrl", "benefits", "sourceUrl", "sourceCheckedAt", "active", "sortOrder", "theme"]);
 const auditFor = (session: Session) => ({ updatedBy: session.email, updatedByUserId: session.userId, updatedAt: new Date().toISOString(), storage: "mongodb:cardproducts" });
@@ -21,9 +22,9 @@ export const buildApp = (database: Pick<DatabaseLifecycle, "isReady">, logLevel 
   installBrowserSecurity(app);
   app.get("/health", async () => ({ status: "ok" }));
   app.get("/ready", async (_request, reply) => database.isReady() ? { status: "ready" } : reply.status(503).send({ status: "not_ready" }));
-  app.get("/api/card-catalog/providers", async () => ({ data: await catalog.listActiveProviders() }));
-  app.get<{ Querystring: { provider?: string } }>("/api/card-catalog/products", async (request) => { const provider = request.query.provider?.trim().toUpperCase(); const products = await catalog.listActiveProducts(provider); if (provider && products.length === 0) throw new ApiError(404, "PROVIDER_NOT_FOUND", "Không tìm thấy provider đang hoạt động.", { provider }); return { data: products }; });
-  app.get<{ Params: { presetId: string } }>("/api/card-catalog/products/:presetId", async (request) => { const product = await catalog.getActiveProduct(request.params.presetId); if (!product) throw new ApiError(404, "PRESET_NOT_FOUND", "Không tìm thấy Card Product."); return { data: product }; });
+  app.get("/api/card-catalog/providers", async () => ({ data: catalogProviderListSchema.parse(await catalog.listActiveProviders()) }));
+  app.get<{ Querystring: { provider?: string } }>("/api/card-catalog/products", async (request) => { const provider = request.query.provider?.trim().toUpperCase(); const products = await catalog.listActiveProducts(provider); if (provider && products.length === 0) throw new ApiError(404, "PROVIDER_NOT_FOUND", "Không tìm thấy provider đang hoạt động.", { provider }); return { data: catalogProductListSchema.parse(products) }; });
+  app.get<{ Params: { presetId: string } }>("/api/card-catalog/products/:presetId", async (request) => { const product = await catalog.getActiveProduct(request.params.presetId); if (!product) throw new ApiError(404, "PRESET_NOT_FOUND", "Không tìm thấy Card Product."); return { data: catalogProductSchema.parse(product) }; });
   const admin = (request: FastifyRequest) => requireAdmin(request, authSecret);
   app.get("/api/admin/card-catalog/products", async (request) => { const session = admin(request); const products = await catalog.listAllProducts(); return { data: products.map(withLegacyAliases), audit: auditFor(session) }; });
   app.post<{ Body: Record<string, unknown> }>("/api/admin/card-catalog/products", async (request, reply) => { const session = admin(request); const product = normalizeCatalogProduct(request.body ?? {}); await validateWholeCatalog(catalog, product); const created = await catalog.createProduct(product); await writeAudit({ event: "CATALOG_PRODUCT_CREATED", actor: session, request, resource: { type: "catalog_product", id: created.presetId, providerCode: created.providerCode } }); return reply.status(201).send({ data: withLegacyAliases(created), audit: auditFor(session) }); });

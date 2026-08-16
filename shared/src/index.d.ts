@@ -62,3 +62,39 @@ export declare const createAccountInputSchema: z.ZodObject<any>;
 export declare const createRealMoneyAccountInputSchema: z.ZodObject<any>;
 export declare const accountSchema: z.ZodObject<any>;
 export declare const accountListSchema: z.ZodArray<typeof accountSchema>;
+
+export declare const catalogNetworkSchema: z.ZodEnum<{
+  Visa: "Visa";
+  Mastercard: "Mastercard";
+  JCB: "JCB";
+  "American Express": "American Express";
+  UnionPay: "UnionPay";
+  Napas: "Napas";
+}>;
+export declare const catalogThemeSchema: z.ZodObject<any>;
+export declare const catalogProductSchema: z.ZodObject<any>;
+export declare const catalogProviderSchema: z.ZodObject<any>;
+export declare const catalogProductListSchema: z.ZodArray<typeof catalogProductSchema>;
+export declare const catalogProviderListSchema: z.ZodArray<typeof catalogProviderSchema>;
+export type CatalogProductDto = {
+  presetId: string;
+  providerCode: string;
+  providerName: string;
+  displayName: string;
+  network: "Visa" | "Mastercard" | "JCB" | "American Express" | "UnionPay" | "Napas";
+  segment: string;
+  annualFee: number | null;
+  targetSpendForWaiver: number | null;
+  imageUrl: string | null;
+  benefits: string[];
+  sourceUrl: string;
+  sourceCheckedAt: string;
+  active: boolean;
+  sortOrder: number;
+  theme: { background: string; accent: string };
+};
+export type CatalogProviderDto = {
+  providerCode: string;
+  providerName: string;
+  products: CatalogProductDto[];
+};

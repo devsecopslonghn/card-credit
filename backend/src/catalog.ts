@@ -1,29 +1,16 @@
 import { ApiError } from "./errors.js";
+import type { CatalogProductDto, CatalogProviderDto } from "@card-credit/contracts";
 
 export const CATALOG_NETWORKS = ["Visa", "Mastercard", "JCB", "American Express", "UnionPay", "Napas"] as const;
 
-export type CatalogProduct = {
-  presetId: string;
-  providerCode: string;
-  providerName: string;
-  displayName: string;
-  network: string;
-  segment: string;
-  annualFee: number | null;
-  targetSpendForWaiver: number | null;
-  imageUrl: string | null;
-  benefits: string[];
-  sourceUrl: string;
-  sourceCheckedAt: string;
-  active: boolean;
-  sortOrder: number;
-  theme: { background: string; accent: string };
-};
+export type CatalogProduct = CatalogProductDto;
+export type CatalogProvider = CatalogProviderDto;
+type CatalogProductCandidate = Omit<CatalogProduct, "network"> & { network: string };
 
 export type CatalogIssue = { presetId: string; field: string; code: string };
 
 export interface CatalogRepository {
-  listActiveProviders(): Promise<Array<{ providerCode: string; providerName: string; products: CatalogProduct[] }>>;
+  listActiveProviders(): Promise<CatalogProvider[]>;
   listActiveProducts(providerCode?: string): Promise<CatalogProduct[]>;
   getActiveProduct(presetId: string): Promise<CatalogProduct | null>;
   listAllProducts(): Promise<CatalogProduct[]>;
@@ -36,11 +23,11 @@ const httpUrl = (value: string) => {
   try { return ["http:", "https:"].includes(new URL(value).protocol); } catch { return false; }
 };
 
-export const validateCatalogProducts = (products: CatalogProduct[]): CatalogIssue[] => {
+export const validateCatalogProducts = (products: CatalogProductCandidate[]): CatalogIssue[] => {
   const issues: CatalogIssue[] = [];
   const ids = new Set<string>();
   const orders = new Set<number>();
-  const issue = (product: Partial<CatalogProduct>, field: string, code: string) =>
+  const issue = (product: Partial<CatalogProductCandidate>, field: string, code: string) =>
     issues.push({ presetId: product.presetId || "unknown", field, code });
   for (const product of products) {
     if (!product.presetId || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(product.presetId)) issue(product, "presetId", "INVALID_PRESET_ID");
@@ -68,7 +55,7 @@ export const normalizeCatalogProduct = (input: Record<string, unknown>): Catalog
   providerCode: typeof input.providerCode === "string" ? input.providerCode.trim().toUpperCase() : "",
   providerName: typeof input.providerName === "string" ? input.providerName.trim() : "",
   displayName: typeof input.displayName === "string" ? input.displayName.trim() : "",
-  network: typeof input.network === "string" ? input.network.trim() : "",
+  network: (typeof input.network === "string" ? input.network.trim() : "") as CatalogProduct["network"],
   segment: typeof input.segment === "string" ? input.segment.trim() : "",
   annualFee: typeof input.annualFee === "number" ? input.annualFee : null,
   targetSpendForWaiver: typeof input.targetSpendForWaiver === "number" ? input.targetSpendForWaiver : null,

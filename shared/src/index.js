@@ -32,3 +32,11 @@ export {
   accountSchema,
   accountListSchema,
 } from "./account-contracts.js";
+export {
+  catalogNetworkSchema,
+  catalogThemeSchema,
+  catalogProductSchema,
+  catalogProviderSchema,
+  catalogProductListSchema,
+  catalogProviderListSchema,
+} from "./catalog-contracts.js";
