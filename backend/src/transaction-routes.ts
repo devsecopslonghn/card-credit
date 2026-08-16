@@ -2,14 +2,12 @@ import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
 import { sessionFromRequest, type Session } from "./auth.js";
-import { browserServiceContext } from "./context.js";
+import { browserServiceContext, serviceContextFromSession } from "./context.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { CardStatementModel } from "./models/card-statement.js";
 import {
-  effectivePaymentStatus,
   idOf,
   plain,
-  summarize,
   type Data,
 } from "./statement-domain.js";
 import type { AuthRepository } from "./auth-repository.js";
@@ -20,6 +18,7 @@ import { TransactionService } from "./services/transaction-service.js";
 import { FinancialTransactionModel } from "./models/financial-transaction.js";
 import { FinancialTransactionService } from "./services/financial-transaction-service.js";
 import { StatementQueryService } from "./services/statement-query-service.js";
+import { CardQueryService } from "./services/card-query-service.js";
 
 const Cards = CreditCardModel as mongoose.Model<Data>;
 const Statements = CardStatementModel;
@@ -156,22 +155,21 @@ export const registerTransactionRoutes = (
     if (!user || !user.active || user.lockedAt || user.workspaceId !== session.workspaceId || !usableEmail)
       throw new ApiError(400, "ACCOUNT_EMAIL_UNAVAILABLE", "Email tài khoản không khả dụng.");
 
-    const card = plain(await cardFor(request.params.id, session));
-    const statement = plain(await statementFor(request.params.id, request.params.statementId, session));
-    const transactions = (await FinancialTransactionModel.find({ statementId: request.params.statementId, workspaceId: session.workspaceId, transactionType: { $ne: "STATEMENT_PAYMENT" } })).map((item) => financialView(plain(item), card));
-    const summary = summarize(transactions, card.cashbackCapAmount);
-    const displayName = String(card.displayName ?? card.name ?? "Thẻ tín dụng");
+    const context = serviceContextFromSession({ userId: user.id, workspaceId: user.workspaceId, role: user.role }, "browser", request.id);
+    const card = await CardQueryService.get(context, request.params.id);
+    const statement = await StatementQueryService.get(context, request.params.id, request.params.statementId);
+    const displayName = card.displayName ?? "Thẻ tín dụng";
     const projection = {
-      identity: `${session.workspaceId}:${request.params.id}:${request.params.statementId}`,
+      identity: `${context.workspaceId}:${request.params.id}:${request.params.statementId}`,
       displayName,
-      providerName: String(card.providerName ?? card.bank ?? ""),
-      owner: String(card.owner ?? "Tôi"),
-      periodStartDate: String(statement.periodStartDate),
-      periodEndDate: String(statement.periodEndDate),
-      statementDate: String(statement.statementDate),
-      paymentDueDate: String(statement.paymentDueDate),
-      totalAmountDue: summary.totalAmountDue,
-      effectivePaymentStatus: effectivePaymentStatus(statement),
+      providerName: card.providerName ?? "",
+      owner: card.owner,
+      periodStartDate: statement.periodStartDate,
+      periodEndDate: statement.periodEndDate,
+      statementDate: statement.statementDate,
+      paymentDueDate: statement.paymentDueDate,
+      totalAmountDue: statement.summary.outstandingAmount,
+      effectivePaymentStatus: statement.effectivePaymentStatus,
     };
     const maskedRecipient = maskEmail(recipient);
     request.log.info({ event: "STATEMENT_CALENDAR_EMAIL_STARTED", recipient: maskedRecipient });

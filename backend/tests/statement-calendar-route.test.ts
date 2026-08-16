@@ -3,10 +3,11 @@ import test from "node:test";
 import { buildApp } from "../src/app.js";
 import { sessionCookie, signSession } from "../src/auth.js";
 import type { AuthRepository, AuthUser } from "../src/auth-repository.js";
+import { ApiError } from "../src/errors.js";
 import { MailDeliveryError, MailUnavailableError, type MailService } from "../src/mail-service.js";
-import { CreditCardModel } from "../src/models/credit-card.js";
-import { CardStatementModel } from "../src/models/card-statement.js";
-import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
+import type { CardDto } from "@card-credit/contracts";
+import { CardQueryService } from "../src/services/card-query-service.js";
+import { StatementQueryService } from "../src/services/statement-query-service.js";
 import type { ComposedEmail } from "../src/statement-calendar-email.js";
 import { registerTransactionRoutes } from "../src/transaction-routes.js";
 
@@ -32,20 +33,33 @@ const users = (user: AuthUser | null): AuthRepository => ({
 });
 
 const installModels = (options: { card?: object | null; statement?: object | null } = {}) => {
-  const originals = {
-    card: Object.getOwnPropertyDescriptor(CreditCardModel, "findOne"),
-    statement: Object.getOwnPropertyDescriptor(CardStatementModel, "findOne"),
-    transactions: Object.getOwnPropertyDescriptor(FinancialTransactionModel, "find"),
-  };
   const card = options.card === undefined ? { _id: cardId, workspaceId: "workspace-a", displayName: "Platinum", providerName: "Bank", owner: "Tôi", cashbackCapAmount: null } : options.card;
   const statement = options.statement === undefined ? { _id: statementId, workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-07-01", periodEndDate: "2026-07-31", statementDate: "2026-07-31", paymentDueDate: "2026-08-15", paymentStatus: "OPEN" } : options.statement;
-  Object.defineProperty(CreditCardModel, "findOne", { configurable: true, value: async () => card });
-  Object.defineProperty(CardStatementModel, "findOne", { configurable: true, value: async () => statement });
-  Object.defineProperty(FinancialTransactionModel, "find", { configurable: true, value: async () => [{ amount: 250_000, reimbursementExpected: 0, serviceFeeRate: 0, cashbackReceived: 0, transactionDate: "2026-07-10", note: "" }] });
+  const originalCardGet = CardQueryService.get;
+  const originalStatementGet = StatementQueryService.get;
+  CardQueryService.get = async () => {
+    if (!card) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
+    return {
+      id: cardId, presetId: null, providerCode: null, providerName: "Bank", displayName: "Platinum", network: null,
+      legacy: true, owner: "Tôi", imageUrl: null, annualFee: null, targetSpendForWaiver: null, annualFeeWaiverTarget: null,
+      statementDay: null, paymentDueDays: null, cashbackCapAmount: null, cashbackCapPeriod: null, active: true,
+      reminderEnabled: true, reminderDaysBefore: [], reminderTimezone: "Asia/Ho_Chi_Minh", reminderTime: "08:00",
+      statementDate: null, paymentDueDate: null, amountDueThisMonth: null, isPaidThisMonth: null, monthlyData: [],
+    } satisfies CardDto;
+  };
+  StatementQueryService.get = async () => {
+    if (!statement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
+    return {
+      id: statementId, cardId, periodStartDate: "2026-07-01", periodEndDate: "2026-07-31", statementDate: "2026-07-31",
+      paymentDueDate: "2026-08-15", statementDaySnapshot: 31, paymentDueDaysSnapshot: 15, paymentStatus: "OPEN",
+      effectivePaymentStatus: "OPEN", paidAt: null, paidAmount: null,
+      summary: { statementAmount: 250_000, paymentAmount: 0, outstandingAmount: 250_000, personalSpending: 250_000, outstandingReceivable: 0, reimbursementReceived: 0, transactionCount: 1 },
+      transactions: [],
+    };
+  };
   return () => {
-    if (originals.card) Object.defineProperty(CreditCardModel, "findOne", originals.card);
-    if (originals.statement) Object.defineProperty(CardStatementModel, "findOne", originals.statement);
-    if (originals.transactions) Object.defineProperty(FinancialTransactionModel, "find", originals.transactions);
+    CardQueryService.get = originalCardGet;
+    StatementQueryService.get = originalStatementGet;
   };
 };
 
@@ -69,7 +83,10 @@ test("calendar email route requires authentication before account or database ac
 test("calendar email uses normalized authoritative account email once and ignores browser overrides", async () => {
   const restore = installModels();
   const delivered: ComposedEmail[] = [];
-  const app = createApp(users(authoritativeUser), { sendStatementCalendarEmail: async (email) => { delivered.push(email); } });
+  const repository = users(authoritativeUser);
+  let accountReads = 0;
+  repository.findUserById = async () => { accountReads += 1; return authoritativeUser; };
+  const app = createApp(repository, { sendStatementCalendarEmail: async (email) => { delivered.push(email); } });
   try {
     const response = await app.inject({
       method: "POST",
@@ -81,6 +98,8 @@ test("calendar email uses normalized authoritative account email once and ignore
     assert.deepEqual(response.json(), { data: { sent: true, recipient: "o***@example.test" } });
     assert.equal(delivered.length, 1);
     assert.equal(delivered[0]!.to, "owner@example.test");
+    assert.match(delivered[0]!.text, /250\.000/);
+    assert.equal(accountReads, 1);
     assert.equal(JSON.stringify(response.json()).includes("browser-secret"), false);
   } finally {
     restore();
