@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest và Catalog read-contract đã validation; Catalog slice đang chờ commit/push | `7291138` / `origin/master` | Commit/push Catalog contract, sau đó Card Portfolio read service |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest và Catalog read-contract đã push; Card Portfolio read service còn thiếu | `b0a74da` / `origin/master` | Chuẩn hóa Card Portfolio list/get/compare service và compatibility adapters |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
@@ -121,8 +121,7 @@ implemented yet.
   hoặc write, không cần Kubernetes backup.
 - Residual risk: Card CRUD/`compare_cards` vẫn chưa dùng cùng Card DTO/service;
   catalog admin output còn compatibility aliases và startup sync risk GAP-OPS-01.
-- Commit/push: chờ commit feature sau khi checkpoint này được review trong
-  working tree.
+- Commit/push: `b0a74da` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
