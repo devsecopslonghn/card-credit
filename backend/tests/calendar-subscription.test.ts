@@ -43,7 +43,25 @@ test("management requires a session and malformed feed tokens return opaque 404"
   await app.close();
 });
 
-test("subscription feed aggregates all statement amounts in one workspace-scoped query", async (t) => {
+test("feed returns opaque 404 before card reads when the subscription owner moved workspaces", async (t) => {
+  const token = createSubscriptionToken();
+  t.mock.method(CalendarSubscriptionModel, "findOne", () => ({
+    select: () => ({
+      lean: async () => ({ _id: "507f1f77bcf86cd799439031", userId: "user-1", workspaceId: "workspace-a" }),
+    }),
+  }) as never);
+  const cardFind = t.mock.method(CreditCardModel, "find", () => { throw new Error("card read must not happen"); });
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerCalendarSubscriptionRoutes(app, {
+    findUserById: async () => ({ id: "user-1", email: "user@example.test", displayName: "User", role: "user", workspaceId: "workspace-b", active: true, lockedAt: null }),
+  } as unknown as AuthRepository, "01234567890123456789012345678901");
+  const response = await app.inject({ method: "GET", url: `/api/calendar-subscriptions/feed/${token}.ics` });
+  assert.equal(response.statusCode, 404);
+  assert.equal(cardFind.mock.callCount(), 0);
+  await app.close();
+});
+
+test("subscription feed batch-loads canonical statement amounts in one workspace scope", async (t) => {
   const token = createSubscriptionToken();
   const cardId = "507f1f77bcf86cd799439011";
   const statementA = "507f1f77bcf86cd799439021";
@@ -71,17 +89,19 @@ test("subscription feed aggregates all statement amounts in one workspace-scoped
       reminderTimezone: "Asia/Ho_Chi_Minh",
     }] }),
   }) as never);
-  t.mock.method(CardStatementModel, "find", () => ({
+  t.mock.method(CardStatementModel, "find", (query: Record<string, unknown>) => ({
     sort: () => ({
       lean: async () => [
         { _id: statementA, workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-06-12", periodEndDate: "2026-07-11", statementDate: "2026-07-11", paymentDueDate: "2026-07-26", statementDaySnapshot: 11, paymentDueDaysSnapshot: 15, paymentStatus: "OPEN" },
         { _id: statementB, workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-07-12", periodEndDate: "2026-08-11", statementDate: "2026-08-11", paymentDueDate: "2026-08-26", statementDaySnapshot: 11, paymentDueDaysSnapshot: 15, paymentStatus: "OPEN" },
+        ...(query.paymentStatus ? [] : [{ _id: "507f1f77bcf86cd799439023", workspaceId: "workspace-a", userCardId: cardId, periodStartDate: "2026-05-12", periodEndDate: "2026-06-11", statementDate: "2026-06-11", paymentDueDate: "2026-06-26", statementDaySnapshot: 11, paymentDueDaysSnapshot: 15, paymentStatus: "PAID" }]),
       ],
     }),
   }) as never);
   const transactionFind = t.mock.method(FinancialTransactionModel, "find", () => ({
     sort: () => ({ lean: async () => [
-      { _id: "507f1f77bcf86cd799439041", statementId: statementA, accountId: cardId, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 500_000, creditDebt: 500_000, personalSpending: 500_000, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionDate: "2026-07-01", note: "" },
+      { _id: "507f1f77bcf86cd799439041", statementId: statementA, accountId: cardId, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 600_000, creditDebt: 600_000, personalSpending: 600_000, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionDate: "2026-07-01", note: "" },
+      { _id: "507f1f77bcf86cd799439043", statementId: statementA, accountId: cardId, accountType: "DEBIT", transactionType: "STATEMENT_PAYMENT", ownership: "PERSONAL", categoryId: "OTHER", amount: 100_000, creditDebt: -100_000, personalSpending: 0, debitCashflow: -100_000, outstandingReceivable: 0, reimbursementReceived: 0, transactionDate: "2026-07-05", note: "" },
       { _id: "507f1f77bcf86cd799439042", statementId: statementB, accountId: cardId, accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PERSONAL", categoryId: "OTHER", amount: 750_000, creditDebt: 750_000, personalSpending: 750_000, debitCashflow: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionDate: "2026-08-01", note: "" },
     ] }),
   }) as never);
@@ -111,6 +131,7 @@ test("subscription feed aggregates all statement amounts in one workspace-scoped
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.includes("500.000"), true);
   assert.equal(response.body.includes("750.000"), true);
+  assert.equal(response.body.includes("900.000"), false);
   assert.equal(transactionFind.mock.callCount(), 1);
   assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], { statementId: { $in: [statementA, statementB] }, workspaceId: "workspace-a" });
   await app.close();

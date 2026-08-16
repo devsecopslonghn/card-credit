@@ -184,7 +184,10 @@ export class StatementQueryServiceImpl {
 
   async listForCardIds(ctx: ServiceContext, cardIds: string[], options: { unpaidOnly?: boolean; order?: "statementDate" | "paymentDueDate" } = {}) {
     if (!cardIds.length) return [];
-    const statements = await this.repository.listStatements(ctx.workspaceId, { cardIds, unpaidOnly: options.unpaidOnly, order: options.order ?? "statementDate" });
+    const ownedCards = await this.repository.listCards(ctx.workspaceId, [...new Set(cardIds)]);
+    const ownedCardIds = [...new Set(ownedCards.map((card) => idOf(card._id)))];
+    if (!ownedCardIds.length) return [];
+    const statements = await this.repository.listStatements(ctx.workspaceId, { cardIds: ownedCardIds, unpaidOnly: options.unpaidOnly, order: options.order ?? "statementDate" });
     return this.build(statements, ctx.workspaceId, false);
   }
 
