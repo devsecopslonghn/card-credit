@@ -9,10 +9,10 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1 và stateless MCP preview hardening đã validate | `PENDING` / working tree | Commit/push preview hardening; sau đó đối chiếu preview projection còn compatibility |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1 và stateless MCP preview hardening đã push | `425bbec` / `origin/master` | Đối chiếu preview projection còn compatibility |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
-| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts đã push; stateless preview token hardening đã validate; generic persistent command guard còn là decision gate | `PENDING` / working tree | Commit/push preview hardening; sau đó lập decision/backup plan trước idempotency/audit DB |
+| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 đã hoàn tất review, validation và push; payment state transition vẫn legacy | `177b347` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget read parity đã push; write command chưa mở | `cc4d333` / `origin/master` | Giữ PUT/upsert và Planning write contract cho slice riêng; tiếp tục runtime REST parity không-DB |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
@@ -302,7 +302,8 @@ implemented yet.
 - Residual risk: cùng token có thể replay và idempotency receipt hiện tại chưa
   phải audit; cần decision gate riêng, backup/recovery plan và user approval
   trước khi đổi persistence.
-- Commit/push: pending until feature commit and ledger commit are pushed.
+- Commit/push: feature `425bbec` đã push thành công lên `origin/master`; ledger
+  SHA sẽ được ghi ở commit docs kế tiếp.
 
 ### Execution rules
 
