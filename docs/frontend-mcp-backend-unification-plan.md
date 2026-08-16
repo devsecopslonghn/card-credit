@@ -73,6 +73,14 @@ implemented yet.
 - Rollout impact: candidate backend image phải build lại từ commit này; không
   rollout hoặc restart pod trong checkpoint này. Sau publish vẫn phải xác nhận
   runtime log không còn `ERR_MODULE_NOT_FOUND` trước MCP fence/drain.
+- Live candidate evidence: read-only `kubectl` trên context `k8s-admin-public`,
+  namespace `card-credit` xác nhận deployment backend/frontend cùng image
+  `d07eda20251f`, backend `replicas=1`, `Ready=true`, restart `0`;
+  `/health=200`, `/ready=200`, log có `SERVER_LISTENING` và không có
+  `ERR_MODULE_NOT_FOUND`. Process không đặt `MCP_WRITER_MODE` nên dùng default
+  `read`; `/docs/json` trả `writerMode=read`, mutation tools `[]`. Đây là
+  startup/read-only evidence, chưa phải write rollout hoặc proof old-writer
+  fence ngoài deployment này.
 - Commit/push: `7c4ae7d` đã push thành công lên `origin/master`.
 
 ### Completed checkpoint: Shared calendar-date validation for Catalog and Portfolio
