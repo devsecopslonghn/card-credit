@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract slice đã hoàn tất và remote đã nhận; trusted context vẫn là checkpoint kế tiếp | `a54f09e` / `origin/master` | Bổ sung `ServiceContext.channel` + `correlationId` và context factories |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract và MCP manifest slices đã validation; manifest đang chờ commit/push | `a54f09e` / `origin/master` | Commit/push canonical MCP manifest, sau đó hoàn thiện REST/Frontend inventory |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
@@ -82,6 +82,26 @@ implemented yet.
 - Residual risk: chưa có session version/revocation tức thời và một số private
   direct-model route chưa qua service context.
 - Commit/push: `26fc471` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Canonical MCP tool manifest (ready to commit)
+
+- Independent review: bounded scope chỉ xử lý MCP inventory drift; có 10 tool
+  thực tế và loại 4 tên stale khỏi `x-mcp`, không mở rộng sang REST inventory.
+- Changed write-set: metadata-only `backend/src/mcp/manifest.ts`, MCP
+  registration metadata, OpenAPI `x-mcp` projection và manifest tests; không
+  import model/database, không đổi business handler behavior.
+- Manifest ghi tên, description, `query|preview|confirm`, operation và Zod
+  input schema; preview/confirm pairs được kiểm tra cùng operation, schema không
+  nhận `userId`, `workspaceId` hoặc `role`.
+- Acceptance evidence: backend `npm run validate` pass (72 tests, typecheck,
+  lint và build); InMemoryTransport `tools/list` khớp chính xác manifest và
+  docs projection dùng cùng source.
+- Database impact: không schema/index/migration/write, không cần Kubernetes
+  backup.
+- Residual risk: REST endpoint inventory vẫn còn khai báo thủ công; generic
+  preview/confirm/idempotency/audit guard chưa được chuẩn hóa.
+- Commit/push: chờ commit feature sau khi checkpoint này được review trong
+  working tree.
 
 ### Execution rules
 
