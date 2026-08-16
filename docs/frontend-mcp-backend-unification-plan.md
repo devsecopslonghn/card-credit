@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory và Financial Transaction contracts đã push; runtime route parity còn thiếu | `e2a6b9b` / `origin/master` | Xây runtime route parity/drift gate và đối chiếu preview projection còn compatibility |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory và runtime REST parity gate đã push; preview projection còn compatibility | `de69c2c` / `origin/master` | Đối chiếu preview projection và tiếp tục contract drift ở Statement/Billing slice |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account và Financial Transaction input/output contracts đã push; generic command guard còn là decision gate | `e2a6b9b` / `origin/master` | Tách generic command guard thành decision gate vì có persistent idempotency/audit impact; tiếp tục query parity không-DB nếu phù hợp |
@@ -179,6 +179,29 @@ implemented yet.
 - Database impact: none; không migration/index/write, không cần Kubernetes
   backup.
 - Commit/push: `ad2f56e` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Runtime REST route parity gate (ready to commit)
+
+- Independent review: Fastify public `printRoutes()` là nguồn runtime inventory
+  phù hợp; không dùng private router internals và không import `server.ts` trong
+  test vì file này connect DB/listen/scheduler. Route registration được tách ra
+  thành composition helper dùng chung production/test.
+- Changed write-set: `backend/src/runtime-routes.ts`, production `server.ts`
+  gọi helper giữ nguyên thứ tự, export type auth options, parser inventory và
+  runtime parity test; REST manifest bổ sung đủ admin/masterdata/fee/cashback/
+  workspace/calendar routes.
+- Acceptance evidence: backend `npm run validate` pass (80 tests, typecheck,
+  lint và build); parser chỉ normalize parameter names, không che static path;
+  production profile có 75 method/path và `missingInDocs/docsOnly` đều rỗng.
+  Test không gọi handler, không connect Mongo, không ghi DB.
+- Compatibility/risk: `/mcp`, `/docs` và Swagger không nằm trong REST business
+  inventory; security metadata hiện vẫn là transport-level `public/session/
+  bearer`, auth policy chi tiết (admin/bootstrap/feed token) là follow-up docs
+  refinement. Route ordering static-before-parameter được giữ nguyên.
+- Database impact: registration/docs/test-only, không schema/index/migration/
+  data/write, không cần Kubernetes backup.
+- Commit/push: `de69c2c` đã push thành công lên `origin/master`; ledger này sẽ
+  được ghi nhận ở commit docs kế tiếp.
 
 ### Completed checkpoint: Financial Transaction contract registry (ready to commit)
 
