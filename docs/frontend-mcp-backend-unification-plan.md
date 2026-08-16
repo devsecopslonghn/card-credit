@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report và honest MCP audit metadata đã push | `ba851a3` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report và report UI cleanup đã push | `23a294d` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening và honest MCP audit metadata đã push; generic persistent command guard còn là decision gate | `ba851a3` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements và Frontend private-route guard đã push; fee/cashback report và write command slices chưa mở | `8211e2f` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard và report UI cleanup đã push; fee/cashback report và write command slices chưa mở | `23a294d` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -497,6 +497,25 @@ implemented yet.
 - Database impact: không model/schema/index/migration/data write; không cần
   Kubernetes backup.
 - Commit/push: `ba851a3` đã push thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: Report UI Compatibility Removal
+
+- Scope: frontend compatibility cleanup after backend report route became
+  canonical; no backend API change.
+- Changed write-set: removed unused `frontend/lib/api/reportsCore.mjs` and type
+  declaration; Cards page report link no longer sends unsupported owner filter,
+  and “Xuất JSON” points to `/api/financial-reports/summary` for the current
+  month with an explicit workspace-wide label; tests now assert canonical path.
+- Acceptance evidence: frontend `typecheck`, `lint`, `npm test` pass (73 unit +
+  6 integration), `npm run build` pass; `rg` confirms no production consumer of
+  `reportsCore` remains.
+- Compatibility/removal: old `/api/reports/summary` browser helper is deleted;
+  owner/card/year/month filtering remains a future report-contract slice because
+  current backend summary only accepts `from/to`.
+- Database impact: frontend-only, no model/schema/index/migration/data write and
+  no Kubernetes backup required.
+- Commit/push: `23a294d` đã push thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
 
 ### Execution rules
