@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder và one-off calendar email projections đã push | `c36ac95` / `origin/master` | Đối chiếu creditStatements report projection còn compatibility |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email và creditStatements projections đã push | `1f954a4` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder và one-off Calendar Email statement projections đã push; report/write command slices chưa mở | `c36ac95` / `origin/master` | Hợp nhất `creditStatements` report projection; giữ payment/write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email và creditStatements statement projections đã push; fee/cashback report và write command slices chưa mở | `1f954a4` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -410,6 +410,28 @@ implemented yet.
 - Database impact: không schema/index/migration/data mutation mới; chỉ sử dụng
   service read projection và không cần Kubernetes backup.
 - Commit/push: `c36ac95` đã push thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: Credit Statement Report Projection
+
+- Independent review: bounded report read adapter; output field names và route
+  envelope giữ nguyên, chỉ thay nguồn dữ liệu và công thức bằng canonical
+  `StatementDto.summary`. Không mở rộng sang financial summary, fee/cashback
+  writes hoặc payment state transition.
+- Changed write-set: `StatementReadOptions.statementDateFrom/To` được áp dụng ở
+  workspace-scoped Mongo repository; `FinancialReportService.creditStatements`
+  gọi `StatementQueryService.list` một lần với `paymentDueDate` ordering và map
+  `statementAmount/paymentAmount/outstandingAmount` sang compatibility fields
+  `grossCharges/payments/outstandingDebt`.
+- Compatibility: `statementId`, dates, `paymentStatus`, gross/payments,
+  personalSpending, receivable và transactionCount vẫn có; amount lấy persisted
+  `creditDebt`, payment/reimbursement semantics không còn tự cộng `amount`.
+- Acceptance evidence: backend `npm run validate` pass (92 tests, typecheck,
+  lint, build); dedicated report tests cover bounded date range, no-range query,
+  canonical partial payment 600k - 100k = 500k và output mapping.
+- Database impact: chỉ read query/service refactor, không schema/index/migration/
+  data write và không cần Kubernetes backup.
+- Commit/push: `1f954a4` đã push thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
 
 ### Execution rules
