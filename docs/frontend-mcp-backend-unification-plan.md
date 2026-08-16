@@ -13,7 +13,7 @@ implemented yet.
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `b75fb28` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push | `87e7996` + DB rollout / `origin/master` | Fence old MCP writers trước production rollout; không bật new MCP writer khi pod cũ còn phục vụ |
-| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine và explicit operator mark-paid đã apply live; reversal và MCP payment mutation còn mở | `2f1feef` / `origin/master` | Fence old writers; thiết kế MCP payment preview/confirm qua canonical service, sau đó reversal/compensating transaction policy |
+| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine và explicit operator mark-paid đã apply live; MCP payment preview/confirm đã code/parity-test; reversal còn mở | `1044636` / `origin/master` | Fence old writers; rollout MCP payment adapter sau candidate image, sau đó reversal/compensating transaction policy |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` / `origin/master` | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
@@ -177,6 +177,35 @@ implemented yet.
   commit không dùng `REOPEN`, không xóa payment transaction. Code commits
   `ce35604`, `c1c9f8a`, `2f1feef` đã push lên `origin/master`. Còn phải fence
   old writer trước rollout image và mở reversal/MCP mutation theo slice riêng.
+
+### Completed checkpoint: Canonical MCP statement payment preview/confirm
+
+- Independent review: GO có điều kiện với các invariant: payload helper dùng
+  chung REST/MCP, preview normalize theo `preview.version`, token bind
+  workspace/user/channel/operation, confirm qua persistent guard và không direct
+  model; production vẫn NO-GO cho tới khi fence/drain old MCP writer.
+- Changed write-set: `payment-contract.ts` sở hữu `PAYMENT_OPERATION` và
+  `paymentPreviewPayload({cardId, statementId, input})`, được REST payment route
+  và MCP dùng chung. Manifest thêm `preview_pay_statement`/
+  `confirm_pay_statement` với strict shared `StatementPaymentInput`, token,
+  previewId và idempotency key. MCP preview gọi
+  `StatementPaymentCommandService.preview`, issue hash-only `commandpreviews`
+  metadata; confirm verify MCP HMAC token rồi gọi
+  `StatementPaymentCommandService.execute` + `CommandGuardService`, sau đó đọc
+  lại `StatementDto`. Không có MCP direct model, ledger formula, reverse hoặc
+  payment transaction riêng.
+- Verification: backend `npm run validate` pass (179/179 tests, typecheck,
+  lint, build); focused MCP adapter/inventory 5/5; REST/MCP statement payment
+  preview parity 4/4. Tests assert normalized `expectedVersion`, exact
+  `previewPayloadHash`, preview metadata, operation inventory và canonical DTO.
+- Database/operations: không migration/index/data write ngoài preview
+  `commandpreviews` hiện hữu; preview không ghi statement/transaction/account.
+  Confirm dùng receipt/audit/one-time preview guard cùng transaction theo service
+  hiện có. Chưa deploy/rollout pod cũ.
+- Residual/rollout: old MCP writer/token-v1 pod vẫn phải fence/drain trước
+  candidate image; resource-version binding, trusted HITL receipt, failure-audit
+  policy và reversal/compensating transaction vẫn là follow-up. Commit/push
+  `7b0a042`, `3dafb9f`, `1044636` đã lên `origin/master`.
 
 ### Completed checkpoint: Browser trusted payment confirmation
 
