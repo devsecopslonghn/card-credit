@@ -171,7 +171,11 @@ Financial MCP tools:
 - `preview_import_financial_transaction`
 - `confirm_import_financial_transaction`
 
-Mutation luôn theo luồng `preview -> human confirm -> idempotent confirm`.
+Preview token hiện có TTL 300 giây, ký bằng `MCP_PREVIEW_SECRET` riêng và bind
+operation, payload hash cùng fixed context. Luồng mutation vẫn là `preview ->
+human confirm -> idempotent confirm`; token stateless chưa tự chứng minh human
+approval/one-time consume, còn generic idempotency và append-only audit là phần
+đang triển khai tiếp theo.
 MCP không tự chọn user/workspace, tự tính quota, tự tính statement hoặc truy cập
 MongoDB trực tiếp.
 

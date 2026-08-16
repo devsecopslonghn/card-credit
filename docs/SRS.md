@@ -111,6 +111,12 @@ Next.js frontend :3000 ---- internal rewrite ----> Fastify backend :3001
   là `YYYY-MM`.
 - Các operation dùng MongoDB transaction cần MongoDB deployment hỗ trợ session/
   transaction, thông thường là replica set hoặc managed cluster tương thích.
+- Khi MCP remote được bật, `MCP_PREVIEW_SECRET` riêng (tối thiểu 32 ký tự) là bắt
+  buộc; không fallback sang `AUTH_SECRET`. Preview token v1 là HMAC stateless,
+  TTL canonical 300 giây, chỉ chứa hash payload/context và bind operation,
+  workspace, actor và channel. Token chưa phải one-time human approval; generic
+  idempotency reservation, audit append-only và replay prevention vẫn là GAP
+  của command infrastructure.
 
 ### 4.2 Kiến trúc tích hợp mục tiêu
 

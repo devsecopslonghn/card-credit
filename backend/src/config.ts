@@ -13,6 +13,7 @@ export type BackendConfig = {
   reminderScanIntervalMs: number;
   reminderClaimTimeoutMs: number;
   mcpHttpToken?: string;
+  mcpPreviewSecret?: string;
   sessionMaxAgeMs: number;
 };
 
@@ -48,6 +49,9 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     if (!Array.isArray(parsed)) throw new Error("AUTH_USERS_JSON must be an array");
     configuredUsers = parsed as Array<Record<string, unknown>>;
   }
+  const mcpHttpToken = env.MCP_HTTP_TOKEN?.trim() || undefined;
+  const mcpPreviewSecret = env.MCP_PREVIEW_SECRET?.trim() || undefined;
+  if (mcpHttpToken && (!mcpPreviewSecret || mcpPreviewSecret.length < 32)) throw new Error("MCP_PREVIEW_SECRET must contain at least 32 characters when MCP is enabled");
   return {
     host: env.BACKEND_HOST?.trim() || "0.0.0.0",
     port: integer(env.BACKEND_PORT, 3001, "BACKEND_PORT"),
@@ -60,7 +64,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     returnResetToken: env.PASSWORD_RESET_RETURN_TOKEN === "true",
     reminderScanIntervalMs: env.NODE_ENV === "test" ? 0 : integer(env.REMINDER_SCAN_INTERVAL_MS, 60000, "REMINDER_SCAN_INTERVAL_MS"),
     reminderClaimTimeoutMs: duration(env.REMINDER_CLAIM_TIMEOUT_MS, 300000, "REMINDER_CLAIM_TIMEOUT_MS"),
-    mcpHttpToken: env.MCP_HTTP_TOKEN?.trim() || undefined,
+    mcpHttpToken,
+    mcpPreviewSecret,
     sessionMaxAgeMs: sessionMaxAgeMs(env.AUTH_SESSION_MAX_AGE_MS),
   };
 };

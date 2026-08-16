@@ -1,17 +1,75 @@
 import crypto from "node:crypto";
 
-const secret = () => process.env.MCP_PREVIEW_SECRET?.trim() || process.env.AUTH_SECRET || "";
+export const MCP_PREVIEW_TTL_MS = 300_000;
+export const MCP_PREVIEW_TTL_SECONDS = MCP_PREVIEW_TTL_MS / 1000;
+const PREVIEW_SCHEMA_VERSION = "preview.v1";
+
+export type PreviewBinding = { workspaceId: string; userId: string; channel: string };
+type PreviewClaims = { version: string; operation: string; payloadHash: string; contextHash: string; issuedAt: number; expiresAt: number };
+
+const normalizeJson = (value: unknown, seen = new Set<object>()): unknown => {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("Invalid preview payload");
+    return Object.is(value, -0) ? 0 : value;
+  }
+  if (Array.isArray(value)) {
+    if (seen.has(value)) throw new Error("Invalid preview payload");
+    seen.add(value); const result = value.map((item) => normalizeJson(item, seen)); seen.delete(value); return result;
+  }
+  if (typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    const object = value as Record<string, unknown>;
+    if (seen.has(object)) throw new Error("Invalid preview payload");
+    seen.add(object); const result = Object.fromEntries(Object.keys(object).sort().map((key) => [key, normalizeJson(object[key], seen)])); seen.delete(object); return result;
+  }
+  throw new Error("Invalid preview payload");
+};
+
+const hash = (value: unknown) => crypto.createHash("sha256").update(JSON.stringify(normalizeJson(value))).digest("hex");
+export const canonicalPayloadHash = (payload: unknown) => hash(payload);
+const normalizedBinding = (binding: PreviewBinding): PreviewBinding => {
+  const value = { workspaceId: binding.workspaceId?.trim(), userId: binding.userId?.trim(), channel: binding.channel?.trim() };
+  if (Object.values(value).some((item) => !item)) throw new Error("Invalid preview context");
+  return value;
+};
+const contextHash = (binding: PreviewBinding) => hash(normalizedBinding(binding));
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
-export const createPreviewToken = (operation: string, payload: unknown) => {
-  const body = encode({ operation, payload, expiresAt: Date.now() + 30 * 60_000 });
-  const signature = crypto.createHmac("sha256", secret()).update(body).digest("base64url");
-  return `${body}.${signature}`;
+const safeEqual = (left: string, right: string) => { const a = Buffer.from(left, "utf8"); const b = Buffer.from(right, "utf8"); return a.length === b.length && crypto.timingSafeEqual(a, b); };
+const sign = (secret: string, body: string) => crypto.createHmac("sha256", secret).update(`card-credit:mcp-preview:v1:${body}`).digest("base64url");
+
+export type PreviewTokenCodec = {
+  ttlSeconds: number;
+  issue(operation: string, payload: unknown, binding: PreviewBinding): { confirmationToken: string; expiresAt: number; expiresInSeconds: number };
+  verify(token: string, operation: string, payload: unknown, binding: PreviewBinding): void;
 };
-export const consumePreviewToken = (token: string, operation: string, payload: unknown) => {
-  const [body, signature] = token.split(".");
-  if (!body || !signature) throw new Error("Invalid confirmation token");
-  const expected = crypto.createHmac("sha256", secret()).update(body).digest("base64url");
-  if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) throw new Error("Invalid confirmation token");
-  const value = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as { operation: string; payload: unknown; expiresAt: number };
-  if (value.operation !== operation || value.expiresAt < Date.now() || JSON.stringify(value.payload) !== JSON.stringify(payload)) throw new Error("Expired or mismatched confirmation token");
+
+export const createPreviewTokenCodec = (options: { secret: string; now?: () => number; ttlMs?: number }): PreviewTokenCodec => {
+  const secret = options.secret.trim();
+  if (secret.length < 32) throw new Error("MCP_PREVIEW_SECRET must contain at least 32 characters");
+  const ttlMs = options.ttlMs ?? MCP_PREVIEW_TTL_MS;
+  if (!Number.isInteger(ttlMs) || ttlMs < 1_000 || ttlMs > 1_800_000) throw new Error("Preview TTL must be between 1000 and 1800000 milliseconds");
+  const now = options.now ?? Date.now;
+  return {
+    ttlSeconds: Math.floor(ttlMs / 1000),
+    issue(operation, payload, binding) {
+      const issuedAt = now();
+      const claims: PreviewClaims = { version: PREVIEW_SCHEMA_VERSION, operation: operation.trim(), payloadHash: canonicalPayloadHash(payload), contextHash: contextHash(binding), issuedAt, expiresAt: issuedAt + ttlMs };
+      const body = encode(claims);
+      return { confirmationToken: `${body}.${sign(secret, body)}`, expiresAt: claims.expiresAt, expiresInSeconds: Math.floor(ttlMs / 1000) };
+    },
+    verify(token, operation, payload, binding) {
+      const [body, providedSignature, ...extra] = token.split(".");
+      if (!body || !providedSignature || extra.length || !safeEqual(providedSignature, sign(secret, body))) throw new Error("Invalid confirmation token");
+      let claims: PreviewClaims;
+      try { claims = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as PreviewClaims; } catch { throw new Error("Invalid confirmation token"); }
+      const current = now();
+      if (claims.version !== PREVIEW_SCHEMA_VERSION || claims.operation !== operation.trim() || !Number.isFinite(claims.issuedAt) || !Number.isFinite(claims.expiresAt) || claims.issuedAt > current + 60_000 || claims.expiresAt <= current || claims.expiresAt - claims.issuedAt !== ttlMs || !safeEqual(claims.payloadHash, canonicalPayloadHash(payload)) || !safeEqual(claims.contextHash, contextHash(binding))) throw new Error("Expired or mismatched confirmation token");
+    },
+  };
 };
+
+const environmentCodec = () => createPreviewTokenCodec({ secret: process.env.MCP_PREVIEW_SECRET?.trim() ?? "" });
+export const createPreviewToken = (operation: string, payload: unknown, binding: PreviewBinding) => environmentCodec().issue(operation, payload, binding);
+export const verifyPreviewToken = (token: string, operation: string, payload: unknown, binding: PreviewBinding) => environmentCodec().verify(token, operation, payload, binding);
+/** @deprecated Use verifyPreviewToken; stateless tokens remain replayable until expiry. */
+export const consumePreviewToken = verifyPreviewToken;

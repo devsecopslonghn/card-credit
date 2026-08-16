@@ -13,13 +13,14 @@ import { registerMcpHttp } from "./mcp/http.js";
 import { fixedMcpContext } from "./mcp/context.js";
 import { registerApiDocs } from "./api-docs.js";
 import { registerRuntimeRoutes } from "./runtime-routes.js";
+import { createPreviewTokenCodec } from "./mcp/preview.js";
 
 const config = loadConfig();
 const database = new DatabaseLifecycle();
 const catalogRepository = new MongoCatalogRepository();
 const app = buildApp(database, config.logLevel, catalogRepository, config.authSecret, writeCatalogAudit);
 const authRepository = new MongoAuthRepository();
-if (config.mcpHttpToken) registerMcpHttp(app, fixedMcpContext(), config.mcpHttpToken, authRepository);
+if (config.mcpHttpToken) registerMcpHttp(app, fixedMcpContext(), config.mcpHttpToken, authRepository, createPreviewTokenCodec({ secret: config.mcpPreviewSecret ?? "" }));
 if (process.env.API_DOCS_ENABLED !== "false") await registerApiDocs(app);
 const mailService = new SmtpMailService();
 const reminderScheduler = new ReminderScheduler(authRepository, mailService, config.reminderScanIntervalMs, config.reminderClaimTimeoutMs, app.log);

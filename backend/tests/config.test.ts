@@ -17,3 +17,11 @@ test("rejects missing or short secrets", () => {
   assert.throws(() => loadConfig({ MONGODB_URI: "mongodb://127.0.0.1/test", AUTH_SECRET: "short" }), /at least 32/);
   assert.throws(() => loadConfig({ MONGODB_URI: "mongodb://127.0.0.1/test", AUTH_SECRET: "01234567890123456789012345678901", AUTH_SESSION_MAX_AGE_MS: "1000" }), /AUTH_SESSION_MAX_AGE_MS/);
 });
+
+test("MCP requires a dedicated preview secret only when remote MCP is enabled", () => {
+  const base = { MONGODB_URI: "mongodb://127.0.0.1/test", AUTH_SECRET: "01234567890123456789012345678901", MCP_HTTP_TOKEN: "http-token" };
+  assert.throws(() => loadConfig(base), /MCP_PREVIEW_SECRET/);
+  assert.throws(() => loadConfig({ ...base, MCP_PREVIEW_SECRET: "short" }), /MCP_PREVIEW_SECRET/);
+  assert.equal(loadConfig({ ...base, MCP_PREVIEW_SECRET: "01234567890123456789012345678902" }).mcpPreviewSecret, "01234567890123456789012345678902");
+  assert.equal(loadConfig({ MONGODB_URI: base.MONGODB_URI, AUTH_SECRET: base.AUTH_SECRET }).mcpPreviewSecret, undefined);
+});
