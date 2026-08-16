@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | SRS/AGENTS đã cập nhật; account contract slice đã review độc lập và validation pass, đang chờ commit | `38570d3` / `origin/master` | Commit/push account contract slice, sau đó bổ sung trusted context |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract slice đã hoàn tất và remote đã nhận; trusted context vẫn là checkpoint kế tiếp | `a54f09e` / `origin/master` | Bổ sung `ServiceContext.channel` + `correlationId` và context factories |
 | Phase 1 — Access & Tenancy + contract foundation | `PENDING` | Chưa bắt đầu | — | Xây trusted `ServiceContext` và shared primitives |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
@@ -17,7 +17,7 @@ implemented yet.
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
-### Completed checkpoint: Account contract registry (ready to commit)
+### Completed checkpoint: Account contract registry
 
 - Independent review: bounded scope được duyệt là `Ledger Account Read Contract +
   REST/MCP/Frontend parity`; không migration, không mở rộng mutation/audit.
@@ -31,8 +31,7 @@ implemented yet.
   replay/audit/context binding thuộc generic command guard, chưa được mở trong
   slice này. Cross-workspace service integration test cần bổ sung cùng trusted
   context foundation.
-- Commit/push: pending; không đánh dấu Phase 0 hoàn tất cho tới khi SHA remote
-  được ghi ở checkpoint kế tiếp.
+- Commit/push: `a54f09e` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
