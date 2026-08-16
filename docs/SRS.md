@@ -297,6 +297,7 @@ Hai nhóm cross-cutting:
 | STM-08 | Request phải dùng strict input `{action, repaymentAccountId?}`; không còn fallback mặc định từ `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |
 | STM-09 | Action `REOPEN` chỉ mở lại kỳ chưa `PAID` về `OPEN`; kỳ `PAID` bị khóa. Không xóa/reverse payment transaction trong slice này; reversal là command/transaction type riêng. |
 | STM-10 | Statement read và payment response dùng canonical `StatementDto`; Frontend chỉ map alias tương thích, không tự tính lại amount, fee, cashback hoặc payment state. |
+| STM-11 | Legacy payment reconciliation mặc định là dry-run/quarantine; chỉ được mark statement `PAID` sau operator approval với exact statement/transaction target, backup private và conditional precondition. Không xóa payment transaction để sửa state. |
 
 ### 5.5 Benefits & Fees
 
