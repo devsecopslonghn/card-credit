@@ -192,6 +192,7 @@ Hai nhóm cross-cutting:
 | AUTH-09 | Reset password phải kiểm tra token chưa dùng/còn hạn, cập nhật password hash, consume mọi reset token còn mở của user và xóa session hiện tại. |
 | AUTH-10 | Bootstrap user chỉ hoạt động khi có `AUTH_BOOTSTRAP_TOKEN` và `AUTH_USERS_JSON`; request phải mang Bearer token hoặc `x-bootstrap-token`. |
 | AUTH-11 | Auth event và catalog admin mutation phải ghi audit metadata nhưng không ghi password, cookie hoặc raw token. |
+| AUTH-12 | Login, register, `GET /api/auth/me` và bootstrap phải dùng shared strict auth-session DTO tương ứng `{user}`/`{users}` chỉ gồm `email`, `role`, `workspaceId`; không lộ identity/secret field khác và Frontend parser phải dùng cùng contract. |
 
 #### 5.1.2 Workspace, profile và RBAC
 
