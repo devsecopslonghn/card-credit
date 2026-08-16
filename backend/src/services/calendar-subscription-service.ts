@@ -23,6 +23,11 @@ const label = (value: unknown) => {
 };
 
 export class CalendarSubscriptionService {
+  static async list(ctx: ServiceContext) {
+    const docs = await CalendarSubscriptionModel.find({ userId: ctx.userId, workspaceId: ctx.workspaceId }).sort({ createdAt: -1 }).lean();
+    return docs.map((doc) => safeCalendarSubscription(doc as Data));
+  }
+
   static async create(ctx: ServiceContext, deviceLabel: unknown) {
     const token = createSubscriptionToken();
     const doc = await CalendarSubscriptionModel.create({

@@ -1,21 +1,16 @@
 import type { FastifyInstance } from "fastify";
-import { sessionFromRequest } from "./auth.js";
 import type { AuthRepository } from "./auth-repository.js";
 import { browserServiceContext, jobServiceContext } from "./context.js";
 import { CalendarSubscriptionModel } from "./models/calendar-subscription.js";
 import { hashSubscriptionToken, serializePaymentDueFeed, validSubscriptionToken } from "./calendar-subscription.js";
 import { CardQueryService } from "./services/card-query-service.js";
-import { CalendarSubscriptionService, safeCalendarSubscription } from "./services/calendar-subscription-service.js";
+import { CalendarSubscriptionService } from "./services/calendar-subscription-service.js";
 import { StatementQueryService } from "./services/statement-query-service.js";
 
 type Data = Record<string, unknown>;
 
 export const registerCalendarSubscriptionRoutes = (app: FastifyInstance, users: AuthRepository, secret: string) => {
-  app.get("/api/calendar-subscriptions", async (request) => {
-    const session = sessionFromRequest(request, secret);
-    const docs = await CalendarSubscriptionModel.find({ userId: session.userId, workspaceId: session.workspaceId }).sort({ createdAt: -1 }).lean();
-    return { data: docs.map((doc) => safeCalendarSubscription(doc as Data)) };
-  });
+  app.get("/api/calendar-subscriptions", async (request) => ({ data: await CalendarSubscriptionService.list(await browserServiceContext(request, secret, users)) }));
   app.post<{ Body: { deviceLabel?: unknown } }>("/api/calendar-subscriptions", async (request, reply) => {
     const context = await browserServiceContext(request, secret, users);
     return reply.code(201).send({ data: await CalendarSubscriptionService.create(context, request.body?.deviceLabel) });

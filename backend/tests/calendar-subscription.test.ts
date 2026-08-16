@@ -17,6 +17,12 @@ const cookie = sessionCookie(signSession({ userId: "user-1", email: "user@exampl
 const activeUser = { findUserById: async () => ({ id: "user-1", email: "user@example.test", passwordHash: "", displayName: "User", role: "user" as const, workspaceId: "workspace-a", active: true, lockedAt: null }) } as unknown as AuthRepository;
 
 test("subscription write adapters use a revalidated browser context and preserve envelopes", async (t) => {
+  const list = t.mock.method(CalendarSubscriptionService, "list", async (context: ServiceContext) => {
+    assert.equal(context.workspaceId, "workspace-a");
+    assert.equal(context.userId, "user-1");
+    assert.equal(context.channel, "browser");
+    return [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: null, lastAccessedAt: null, revokedAt: null }];
+  });
   const create = t.mock.method(CalendarSubscriptionService, "create", async (context: ServiceContext, deviceLabel: unknown) => {
     assert.equal(context.workspaceId, "workspace-a");
     assert.equal(context.userId, "user-1");
@@ -32,6 +38,9 @@ test("subscription write adapters use a revalidated browser context and preserve
   });
   const app = buildApp({ isReady: () => true }, "silent");
   registerCalendarSubscriptionRoutes(app, activeUser, secret);
+  const listed = await app.inject({ url: "/api/calendar-subscriptions", headers: { cookie } });
+  assert.equal(listed.statusCode, 200);
+  assert.deepEqual(listed.json().data, [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: null, lastAccessedAt: null, revokedAt: null }]);
   const created = await app.inject({ method: "POST", url: "/api/calendar-subscriptions", headers: { cookie }, payload: { deviceLabel: "Laptop" } });
   assert.equal(created.statusCode, 201);
   assert.equal(created.json().data.subscriptionPath, "/api/calendar-subscriptions/feed/token.ics");
@@ -40,7 +49,23 @@ test("subscription write adapters use a revalidated browser context and preserve
   assert.deepEqual(deleted.json().data, { revoked: true });
   assert.equal(create.mock.callCount(), 1);
   assert.equal(revoke.mock.callCount(), 1);
+  assert.equal(list.mock.callCount(), 1);
   await app.close();
+});
+
+test("subscription list scopes trusted user/workspace and maps safe fields", async (t) => {
+  const find = t.mock.method(CalendarSubscriptionModel, "find", ((query: Record<string, unknown>) => {
+    assert.deepEqual(query, { userId: "user-1", workspaceId: "workspace-a" });
+    return {
+      sort: (sort: Record<string, unknown>) => {
+        assert.deepEqual(sort, { createdAt: -1 });
+        return { lean: async () => [{ _id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-01", lastAccessedAt: null, revokedAt: "2026-08-02", tokenHash: "must-not-leak" }] };
+      },
+    } as never;
+  }) as never);
+  const listed = await CalendarSubscriptionService.list({ userId: "user-1", workspaceId: "workspace-a", role: "user", channel: "browser", correlationId: "request-1" });
+  assert.deepEqual(listed, [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-01", lastAccessedAt: null, revokedAt: "2026-08-02" }]);
+  assert.equal(find.mock.callCount(), 1);
 });
 
 test("subscription token is random, URL-safe and stored through a one-way hash", () => {
