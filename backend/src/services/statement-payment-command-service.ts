@@ -56,6 +56,11 @@ const repaymentAccount = async (ctx: ServiceContext, repaymentAccountId: string,
   return { account, accountType };
 };
 
+const versionOf = (value: unknown) => {
+  const date = value instanceof Date ? value : typeof value === "string" ? new Date(value) : null;
+  return date && Number.isFinite(date.valueOf()) ? date.toISOString() : null;
+};
+
 /** Stored state transition; effective OVERDUE is represented by OPEN at rest. */
 export const nextPaymentState = (current: string, action: StatementPaymentAction) => {
   const parsedAction = statementPaymentActionSchema.safeParse(action);
@@ -107,6 +112,7 @@ export class StatementPaymentCommandService {
       outstandingAmount: totals.outstandingAmount,
       amountToPay,
       repaymentAccountId: command.repaymentAccountId ?? null,
+      version: versionOf(statement.updatedAt),
       requiresRepaymentAccount,
       warnings,
     }) as StatementPaymentPreviewDto;
@@ -127,9 +133,10 @@ export class StatementPaymentCommandService {
       previewId: invocation.previewId,
       resource: { type: "statement", cardId, statementId },
     } as const;
+    const expectedVersion = command.expectedVersion ? new Date(command.expectedVersion) : undefined;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        return await commandGuardService.execute(ctx, spec, (session) => this.executeOnce(ctx, cardId, statementId, command, paidAt, session));
+        return await commandGuardService.execute(ctx, spec, (session) => this.executeOnce(ctx, cardId, statementId, command, paidAt, session, expectedVersion));
       } catch (error) {
         if (attempt === 0 && isPaymentUniqueConflict(error)) continue;
         throw error;
@@ -138,9 +145,10 @@ export class StatementPaymentCommandService {
     throw new ApiError(409, "PAYMENT_CONFLICT", "Thanh toán sao kê đang được xử lý.");
   }
 
-  private static async executeOnce(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput, paidAt: Date, session: mongoose.ClientSession): Promise<Data> {
+  private static async executeOnce(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput, paidAt: Date, session: mongoose.ClientSession, expectedVersion?: Date): Promise<Data> {
         const statement = await CardStatementModel.findOne({ _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId }).session(session).lean() as Data | null;
         if (!statement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
+        if (expectedVersion && versionOf(statement.updatedAt) !== expectedVersion.toISOString()) throw new ApiError(409, "PAYMENT_PREVIEW_STALE", "Preview thanh toán đã cũ; hãy tải lại và xác nhận lại.");
         const transactions = await FinancialTransactionModel.find({ statementId, workspaceId: ctx.workspaceId }).session(session).lean() as Data[];
         const paymentTransactions = transactions.filter((item) => String(item.transactionType) === "STATEMENT_PAYMENT");
         if (paymentTransactions.length > 1) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê có nhiều giao dịch thanh toán.");
@@ -162,7 +170,7 @@ export class StatementPaymentCommandService {
         }
         if (input.action !== "PAID") {
           const result = await CardStatementModel.findOneAndUpdate(
-            { _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId, paymentStatus: { $ne: "PAID" } },
+            { _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId, paymentStatus: { $ne: "PAID" }, ...(expectedVersion ? { updatedAt: expectedVersion } : {}) },
             { $set: { paymentStatus: next, paidAt: null, paidAmount: null } },
             { returnDocument: "after", session },
           ).lean() as Data | null;
@@ -178,7 +186,7 @@ export class StatementPaymentCommandService {
           paidTotal += totals.outstandingAmount;
         }
         const result = await CardStatementModel.findOneAndUpdate(
-          { _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId, paymentStatus: { $ne: "PAID" } },
+          { _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId, paymentStatus: { $ne: "PAID" }, ...(expectedVersion ? { updatedAt: expectedVersion } : {}) },
           { $set: { paymentStatus: "PAID", paidAt, paidAmount: paidTotal } },
           { returnDocument: "after", session },
         ).lean() as Data | null;

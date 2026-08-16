@@ -23,7 +23,7 @@ test("statement read DTO keeps persisted-impact totals and nested transactions",
 });
 
 test("statement payment input is strict and never defaults an unknown action", () => {
-  assert.deepEqual(statementPaymentInputSchema.parse({ action: "PAID", repaymentAccountId: " account-1 " }), { action: "PAID", repaymentAccountId: "account-1" });
+  assert.deepEqual(statementPaymentInputSchema.parse({ action: "PAID", repaymentAccountId: " account-1 ", expectedVersion: "2026-08-16T00:00:00.000Z" }), { action: "PAID", repaymentAccountId: "account-1", expectedVersion: "2026-08-16T00:00:00.000Z" });
   assert.throws(() => statementPaymentInputSchema.parse({}));
   assert.throws(() => statementPaymentInputSchema.parse({ action: "INVALID" }));
   assert.throws(() => statementPaymentInputSchema.parse({ action: "PAID", unexpected: true }));
@@ -42,6 +42,7 @@ test("statement payment preview is canonical and exposes exact persisted impact"
     outstandingAmount: 750_000,
     amountToPay: 750_000,
     repaymentAccountId: "account-1",
+    version: "2026-08-16T00:00:00.000Z",
     requiresRepaymentAccount: false,
     warnings: [],
   };

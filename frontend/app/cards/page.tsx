@@ -186,7 +186,7 @@ export default function CardsPage() {
       if (!window.confirm(confirmation)) return;
       const commandKey = paymentCommandKeysRef.current.get(key) ?? createStatementPaymentKey();
       paymentCommandKeysRef.current.set(key, commandKey);
-      const updated = await updateStatementPayment(statement.userCardId, statement._id, action, repaymentAccountId || undefined, commandKey);
+      const updated = await updateStatementPayment(statement.userCardId, statement._id, action, repaymentAccountId || undefined, commandKey, preview.version ?? undefined);
       setStatements((current) => current.map((item) => (item._id === updated._id ? updated : item)));
       paymentCommandKeysRef.current.delete(key);
       showToast(action === "CLOSED" ? "Đã chốt kỳ sao kê." : "Đã đánh dấu thanh toán.");

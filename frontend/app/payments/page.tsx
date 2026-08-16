@@ -96,7 +96,7 @@ export default function PaymentsPage() {
       if (!window.confirm(`Xác nhận thanh toán ${formatVnd(preview.amountToPay)} cho kỳ sao kê này?`)) return;
       const commandKey = paymentCommandKeysRef.current.get(row._id) ?? createStatementPaymentKey();
       paymentCommandKeysRef.current.set(row._id, commandKey);
-      const next = await updateStatementPayment(row.userCardId, row._id, "PAID", repaymentAccountId || undefined, commandKey);
+      const next = await updateStatementPayment(row.userCardId, row._id, "PAID", repaymentAccountId || undefined, commandKey, preview.version ?? undefined);
       setRows((current) => current.map((item) => item._id === next._id ? next : item));
       paymentCommandKeysRef.current.delete(row._id);
     } catch (e) {

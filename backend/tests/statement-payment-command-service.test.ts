@@ -70,7 +70,7 @@ test("canonical payment service rejects invalid runtime actions before database 
 });
 
 test("payment preview reads the ledger without writing and flags missing repayment account", async (t) => {
-  const statement = { _id: statementId, userCardId: cardId, workspaceId: user.workspaceId, paymentStatus: "OPEN" };
+  const statement = { _id: statementId, userCardId: cardId, workspaceId: user.workspaceId, paymentStatus: "OPEN", updatedAt: new Date("2026-08-16T00:00:00.000Z") };
   const transactions = [{ transactionType: "EXPENSE", amount: 1_000, creditDebt: 1_000 }];
   t.mock.method(CardStatementModel, "findOne", () => ({ lean: async () => statement }) as never);
   t.mock.method(FinancialTransactionModel, "find", () => ({ lean: async () => transactions }) as never);
@@ -92,9 +92,25 @@ test("payment preview reads the ledger without writing and flags missing repayme
     outstandingAmount: 1_000,
     amountToPay: 1_000,
     repaymentAccountId: null,
+    version: "2026-08-16T00:00:00.000Z",
     requiresRepaymentAccount: true,
     warnings: ["REPAYMENT_ACCOUNT_REQUIRED"],
   });
+});
+
+test("payment execute rejects a stale preview version before ledger work", async (t) => {
+  t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, _spec: CommandGuardSpec, work: (session: never) => Promise<unknown>) => work({} as never));
+  t.mock.method(CardStatementModel, "findOne", () => ({ session: () => ({ lean: async () => ({ _id: statementId, userCardId: cardId, workspaceId: user.workspaceId, paymentStatus: "OPEN", updatedAt: new Date("2026-08-16T00:00:00.000Z") }) }) }) as never);
+  await assert.rejects(
+    StatementPaymentCommandService.execute(
+      { userId: user.id, workspaceId: user.workspaceId, role: user.role, channel: "browser", correlationId: "payment-stale-test" },
+      cardId,
+      statementId,
+      { action: "PAID", expectedVersion: "2026-08-15T00:00:00.000Z" },
+      { idempotencyKey: "payment-stale-1", endpointOrTool: "test.payment" },
+    ),
+    (error: unknown) => error instanceof Error && "code" in error && error.code === "PAYMENT_PREVIEW_STALE",
+  );
 });
 
 test("payment command binds statement identity and safe result metadata to the generic guard", async (t) => {

@@ -9,6 +9,7 @@ export const statementPaymentActionSchema = z.enum(["CLOSED", "PAID", "REOPEN"])
 export const statementPaymentInputSchema = z.object({
   action: statementPaymentActionSchema,
   repaymentAccountId: z.string().trim().min(1).optional(),
+  expectedVersion: z.iso.datetime().optional(),
 }).strict();
 export const statementPaymentPreviewWarningSchema = z.enum(["ALREADY_SETTLED", "NO_OUTSTANDING_BALANCE", "REPAYMENT_ACCOUNT_REQUIRED"]);
 export const statementPaymentPreviewSchema = z.object({
@@ -23,6 +24,7 @@ export const statementPaymentPreviewSchema = z.object({
   outstandingAmount: safeNonNegativeInteger,
   amountToPay: safeNonNegativeInteger,
   repaymentAccountId: z.string().nullable(),
+  version: z.iso.datetime().nullable(),
   requiresRepaymentAccount: z.boolean(),
   warnings: z.array(statementPaymentPreviewWarningSchema).max(8),
 }).strict();

@@ -293,7 +293,7 @@ export type StatementDto = {
   transactions?: FinancialTransactionDto[];
 };
 export type StatementPaymentAction = "CLOSED" | "PAID" | "REOPEN";
-export type StatementPaymentInput = { action: StatementPaymentAction; repaymentAccountId?: string };
+export type StatementPaymentInput = { action: StatementPaymentAction; repaymentAccountId?: string; expectedVersion?: string };
 export type StatementPaymentPreviewWarning = "ALREADY_SETTLED" | "NO_OUTSTANDING_BALANCE" | "REPAYMENT_ACCOUNT_REQUIRED";
 export type StatementPaymentPreviewDto = {
   operation: "pay_statement";
@@ -307,6 +307,7 @@ export type StatementPaymentPreviewDto = {
   outstandingAmount: number;
   amountToPay: number;
   repaymentAccountId: string | null;
+  version: string | null;
   requiresRepaymentAccount: boolean;
   warnings: StatementPaymentPreviewWarning[];
 };
