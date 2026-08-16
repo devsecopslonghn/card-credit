@@ -9,9 +9,9 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity và MCP benefits read tools đã push | `d0b2823` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools và duplicate read parity đã push | `9c8f6e3` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
-| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
+| Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command và canonical duplicate read đã push; delete/merge policy còn thiếu | `9c8f6e3` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata và CREDIT account-card validation đã push; generic persistent command guard còn là decision gate | `d0d2c9b` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity và MCP benefits read tools đã push; write commands chưa mở | `d0b2823` / `origin/master` | Chờ chốt contract filters và legacy fee-category migration; giữ payment/write contract riêng |
@@ -179,6 +179,25 @@ implemented yet.
 - Residual risk/blocker: delete/merge vẫn là legacy direct-model path, merge có
   hai write rời và chưa transaction/idempotency. Không mở card mutation qua MCP.
 - Commit/push: `514e6e9` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Card Duplicate Read Contract Parity
+
+- Independent review: chỉ mở GET duplicate detection; giữ nguyên merge/delete
+  direct-model behavior và defer `RESTRICT/REASSIGN/CASCADE` lifecycle policy.
+- Scope: shared `CardDuplicateGroupDto` canonicalizes grouped cards; pure
+  duplicate fingerprint/owner normalization dùng chung với merge guard;
+  `CardQueryService.listDuplicates` scopes workspace, giữ inactive history và
+ sort oldest-first; REST/frontend adapters chỉ map legacy card aliases.
+- Acceptance evidence: shared validate pass (13 tests); backend full
+  `npm run validate` pass (106 tests + build); frontend typecheck/lint/full
+  tests pass (74 unit + 6 integration) và production build pass; duplicate
+  service/REST/parser tests cover workspace, ordering, inactive card và
+  normalized owner.
+- Database impact: chỉ đọc `CreditCardModel` theo workspace; không schema/
+  index/migration/data write, không cần Kubernetes backup.
+- Residual risk: toàn workspace scan/in-memory grouping chưa pagination; merge
+  và delete vẫn hai write/legacy path, chưa transaction/idempotency/cascade.
+- Commit/push: `9c8f6e3` đã push thành công lên `origin/master`.
 
 ### Completed checkpoint: REST documentation inventory (ready to commit)
 
@@ -1283,3 +1302,17 @@ Một slice chỉ hoàn tất khi:
 - compatibility cũ đã xóa hoặc có owner/removal milestone;
 - SRS, OpenAPI, MCP inventory và runbook đã đồng bộ;
 - validation evidence và untested risks được ghi trong handoff.
+- Scope: shared `CardDuplicateGroupDto` canonicalizes grouped cards; pure
+  duplicate fingerprint/owner normalization dùng chung với merge guard;
+  `CardQueryService.listDuplicates` scopes workspace, giữ inactive history và
+  sort oldest-first; REST/frontend adapters chỉ map legacy card aliases.
+- Acceptance evidence: shared validate pass (13 tests); backend full
+  `npm run validate` pass (106 tests + build); frontend typecheck/lint/full
+  tests pass (74 unit + 6 integration) và production build pass; duplicate
+  service/REST/parser tests cover workspace, ordering, inactive card và
+  normalized owner.
+- Database impact: chỉ đọc `CreditCardModel` theo workspace; không schema/
+  index/migration/data write, không cần Kubernetes backup.
+- Residual risk: toàn workspace scan/in-memory grouping chưa pagination; merge
+  và delete vẫn hai write/legacy path, chưa transaction/idempotency/cascade.
+- Commit/push: `9c8f6e3` đã push thành công lên `origin/master`.

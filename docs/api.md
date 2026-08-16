@@ -96,6 +96,11 @@ Catalog create/update request phải chứa các field canonical như `presetId`
 | `PUT /cards/:id` | Session | Chỉ operational fields; snapshot identity read-only. |
 | `DELETE /cards/:id` | Session | Xóa theo policy; response message/data. |
 | `GET /cards/duplicates` | Session | Exact duplicate groups, không mutate. |
+
+`GET /cards/duplicates` groups cards bằng canonical `CardDuplicateGroupDto`
+(fingerprint, presetId, normalizedOwner, reason và canonical card list). REST
+giữ `_id`, `bank/name/type` chỉ ở compatibility adapter; `workspaceId` và
+`userId` không nằm trong duplicate group response.
 | `POST /cards/duplicates` | Session | `{sourceCardId,targetCardId}`; merge có chủ đích, trả target + deleted source id. |
 
 Resource không tồn tại hoặc ngoài workspace đều xử lý như `404 CARD_NOT_FOUND`

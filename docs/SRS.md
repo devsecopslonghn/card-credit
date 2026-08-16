@@ -230,6 +230,7 @@ Hai nhóm cross-cutting:
 | CARD-05 | Update chỉ cho phép operational fields: owner, waiver target, statement day, due days, cashback cap/period, active và reminder preferences. Catalog snapshot không được sửa qua user endpoint. |
 | CARD-06 | `statementDay` phải từ 1..31; `paymentDueDays` là integer dương; cashback period là `STATEMENT` hoặc `CALENDAR_MONTH`. |
 | CARD-07 | Hệ thống phải phát hiện exact duplicate theo `workspaceId + presetId + normalizedOwner`. |
+| CARD-10 | Duplicate read phải dùng canonical `CardDuplicateGroupDto` với `id` card và không expose `workspaceId`/`userId`; REST/frontend chỉ giữ aliases ở compatibility boundary. |
 | CARD-08 | Merge duplicate AS-IS chỉ cộng `monthlyData` theo tháng vào target rồi xóa source. Không có cascade/relink các entity mới; xem rủi ro GAP-DATA-01. |
 | CARD-09 | Delete AS-IS chỉ xóa document card theo workspace; không cascade statement/account/cashback/fee. |
 
