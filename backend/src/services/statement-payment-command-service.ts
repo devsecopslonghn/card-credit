@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { statementPaymentActionSchema, statementPaymentInputSchema, type StatementPaymentAction, type StatementPaymentInput } from "@card-credit/contracts";
+import { statementPaymentActionSchema, statementPaymentInputSchema, statementPaymentPreviewSchema, type StatementPaymentAction, type StatementPaymentInput, type StatementPaymentPreviewDto } from "@card-credit/contracts";
 import { calculateFinancialImpact, type AccountType } from "../financial-domain.js";
 import { ApiError } from "../errors.js";
 import { AccountModel } from "../models/account.js";
@@ -47,6 +47,15 @@ const isPaymentUniqueConflict = (error: unknown) => {
   return value.index === "statement_payment_unique" || (value.keyPattern?.transactionType !== undefined && value.keyPattern?.statementId !== undefined) || value.message?.includes("statement_payment_unique") === true;
 };
 
+const repaymentAccount = async (ctx: ServiceContext, repaymentAccountId: string, session?: mongoose.ClientSession) => {
+  if (!mongoose.isValidObjectId(repaymentAccountId)) throw new ApiError(400, "INVALID_PAYMENT_REFERENCE", "Tham chiếu tài khoản trả nợ không hợp lệ.");
+  const query = AccountModel.findOne({ _id: repaymentAccountId, workspaceId: ctx.workspaceId, active: { $ne: false } });
+  const account = await (session ? query.session(session) : query).lean() as Data | null;
+  const accountType = String(account?.type ?? "") as AccountType;
+  if (!account || !["DEBIT", "CASH", "E_WALLET"].includes(accountType)) throw new ApiError(400, "INVALID_REPAYMENT_ACCOUNT", "Tài khoản trả nợ phải là DEBIT, CASH hoặc E_WALLET đang hoạt động.");
+  return { account, accountType };
+};
+
 /** Stored state transition; effective OVERDUE is represented by OPEN at rest. */
 export const nextPaymentState = (current: string, action: StatementPaymentAction) => {
   const parsedAction = statementPaymentActionSchema.safeParse(action);
@@ -57,6 +66,52 @@ export const nextPaymentState = (current: string, action: StatementPaymentAction
 };
 
 export class StatementPaymentCommandService {
+  static async preview(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput): Promise<StatementPaymentPreviewDto> {
+    const parsed = statementPaymentInputSchema.safeParse(input);
+    if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
+    const command = parsed.data as StatementPaymentInput;
+    if (!mongoose.isValidObjectId(cardId) || !mongoose.isValidObjectId(statementId)) throw new ApiError(400, "INVALID_STATEMENT_ID", "Tham chiếu sao kê không hợp lệ.");
+    const statement = await CardStatementModel.findOne({ _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId }).lean() as Data | null;
+    if (!statement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
+    const transactions = await FinancialTransactionModel.find({ statementId, workspaceId: ctx.workspaceId }).lean() as Data[];
+    const paymentTransactions = transactions.filter((item) => String(item.transactionType) === "STATEMENT_PAYMENT");
+    if (paymentTransactions.length > 1) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê có nhiều giao dịch thanh toán.");
+    const paymentStatus = String(statement.paymentStatus ?? "OPEN") as StatementPaymentPreviewDto["paymentStatus"];
+    const nextPaymentStatus = nextPaymentState(paymentStatus, command.action);
+    const totals = paymentTotals(transactions);
+    if (command.action === "PAID" && paymentStatus === "PAID") {
+      if (!paidLedgerIsConsistent(statement, transactions)) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Trạng thái paid không khớp với ledger sao kê.");
+      if (paymentTransactions.length === 1) {
+        const existingAccount = await AccountModel.findOne({ _id: paymentTransactions[0]?.accountId, workspaceId: ctx.workspaceId }).lean() as Data | null;
+        if (!existingAccount) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Tài khoản của giao dịch thanh toán không còn thuộc workspace.");
+        if (command.repaymentAccountId && String(existingAccount._id) !== command.repaymentAccountId) throw new ApiError(409, "STATEMENT_ALREADY_SETTLED", "Kỳ sao kê đã được thanh toán bằng tài khoản khác.");
+      }
+    }
+    if (command.action === "PAID" && paymentStatus !== "PAID" && paymentTransactions.length === 1) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê đã có giao dịch thanh toán nhưng trạng thái chưa được đồng bộ.");
+    const amountToPay = command.action === "PAID" && paymentStatus !== "PAID" ? totals.outstandingAmount : 0;
+    const requiresRepaymentAccount = amountToPay > 0 && !command.repaymentAccountId;
+    if (amountToPay > 0 && command.repaymentAccountId) await repaymentAccount(ctx, command.repaymentAccountId);
+    const warnings: StatementPaymentPreviewDto["warnings"] = [];
+    if (command.action === "PAID" && paymentStatus === "PAID") warnings.push("ALREADY_SETTLED");
+    else if (command.action === "PAID" && amountToPay === 0) warnings.push("NO_OUTSTANDING_BALANCE");
+    else if (requiresRepaymentAccount) warnings.push("REPAYMENT_ACCOUNT_REQUIRED");
+    return statementPaymentPreviewSchema.parse({
+      operation: "pay_statement",
+      cardId,
+      statementId,
+      action: command.action,
+      paymentStatus,
+      nextPaymentStatus,
+      statementAmount: totals.statementAmount,
+      paymentAmount: totals.paymentAmount,
+      outstandingAmount: totals.outstandingAmount,
+      amountToPay,
+      repaymentAccountId: command.repaymentAccountId ?? null,
+      requiresRepaymentAccount,
+      warnings,
+    }) as StatementPaymentPreviewDto;
+  }
+
   static async execute(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput, invocation: CommandInvocation, paidAt = new Date()): Promise<Data> {
     const parsed = statementPaymentInputSchema.safeParse(input);
     if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
@@ -133,10 +188,7 @@ export class StatementPaymentCommandService {
   }
 
   private static async createPaymentTransaction(ctx: ServiceContext, statementId: string, repaymentAccountId: string, amount: number, paidAt: Date, session: mongoose.ClientSession) {
-    if (!mongoose.isValidObjectId(repaymentAccountId)) throw new ApiError(400, "INVALID_PAYMENT_REFERENCE", "Tham chiếu tài khoản trả nợ không hợp lệ.");
-    const account = await AccountModel.findOne({ _id: repaymentAccountId, workspaceId: ctx.workspaceId, active: { $ne: false } }).session(session).lean() as Data | null;
-    const accountType = String(account?.type ?? "") as AccountType;
-    if (!account || !["DEBIT", "CASH", "E_WALLET"].includes(accountType)) throw new ApiError(400, "INVALID_REPAYMENT_ACCOUNT", "Tài khoản trả nợ phải là DEBIT, CASH hoặc E_WALLET đang hoạt động.");
+    const { account, accountType } = await repaymentAccount(ctx, repaymentAccountId, session);
     const impact = calculateFinancialImpact({ accountType, transactionType: "STATEMENT_PAYMENT", amount });
     await FinancialTransactionModel.create([{
       userId: ctx.userId,

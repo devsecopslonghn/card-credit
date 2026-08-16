@@ -24,6 +24,7 @@ import { listFinanceAccounts, type FinanceAccount } from "@/lib/api/financeClien
 import {
   fetchAllCardStatements,
   createStatementPaymentKey,
+  previewStatementPayment,
   updateStatementPayment,
   type CardStatementView,
 } from "@/lib/api/statementsClient";
@@ -171,17 +172,20 @@ export default function CardsPage() {
   const handlePaymentAction = async (statement: NonNullable<DueStatementRow["statement"]>, action: "CLOSED" | "PAID") => {
     const key = paymentActionKey(statement._id, action);
     if (pendingPaymentActionsRef.current.has(key)) return;
-    if (action === "CLOSED" && !window.confirm("Chốt kỳ sao kê này? Sau khi chốt, sửa/xóa giao dịch vẫn được phép nhưng sẽ có cảnh báo tính lại số liệu.")) return;
-    if (action === "PAID" && Number((statement.summary as { outstandingAmount?: number } | undefined)?.outstandingAmount ?? 0) > 0 && !repaymentAccountId) {
-      showToast("Hãy chọn tài khoản DEBIT/CASH/E_WALLET để trả sao kê.", "error");
-      return;
-    }
-
     pendingPaymentActionsRef.current.add(key);
-    const commandKey = paymentCommandKeysRef.current.get(key) ?? createStatementPaymentKey();
-    paymentCommandKeysRef.current.set(key, commandKey);
     setPendingPaymentActions(new Set(pendingPaymentActionsRef.current));
     try {
+      const preview = await previewStatementPayment(statement.userCardId, statement._id, action, repaymentAccountId || undefined);
+      if (preview.requiresRepaymentAccount) {
+        showToast("Hãy chọn tài khoản DEBIT/CASH/E_WALLET để trả sao kê.", "error");
+        return;
+      }
+      const confirmation = action === "CLOSED"
+        ? `Chốt kỳ sao kê này? Số dư hiện tại ${formatVnd(preview.outstandingAmount)}.`
+        : `Xác nhận thanh toán ${formatVnd(preview.amountToPay)} cho kỳ sao kê này?`;
+      if (!window.confirm(confirmation)) return;
+      const commandKey = paymentCommandKeysRef.current.get(key) ?? createStatementPaymentKey();
+      paymentCommandKeysRef.current.set(key, commandKey);
       const updated = await updateStatementPayment(statement.userCardId, statement._id, action, repaymentAccountId || undefined, commandKey);
       setStatements((current) => current.map((item) => (item._id === updated._id ? updated : item)));
       paymentCommandKeysRef.current.delete(key);

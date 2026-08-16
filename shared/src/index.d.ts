@@ -265,6 +265,8 @@ export declare const statementListSchema: z.ZodArray<typeof statementSchema>;
 export declare const statementPaymentStatusSchema: z.ZodEnum<any>;
 export declare const statementPaymentActionSchema: z.ZodEnum<any>;
 export declare const statementPaymentInputSchema: z.ZodObject<any>;
+export declare const statementPaymentPreviewWarningSchema: z.ZodEnum<any>;
+export declare const statementPaymentPreviewSchema: z.ZodObject<any>;
 export type StatementSummaryDto = {
   statementAmount: number;
   paymentAmount: number;
@@ -292,6 +294,22 @@ export type StatementDto = {
 };
 export type StatementPaymentAction = "CLOSED" | "PAID" | "REOPEN";
 export type StatementPaymentInput = { action: StatementPaymentAction; repaymentAccountId?: string };
+export type StatementPaymentPreviewWarning = "ALREADY_SETTLED" | "NO_OUTSTANDING_BALANCE" | "REPAYMENT_ACCOUNT_REQUIRED";
+export type StatementPaymentPreviewDto = {
+  operation: "pay_statement";
+  cardId: string;
+  statementId: string;
+  action: StatementPaymentAction;
+  paymentStatus: "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
+  nextPaymentStatus: "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
+  statementAmount: number;
+  paymentAmount: number;
+  outstandingAmount: number;
+  amountToPay: number;
+  repaymentAccountId: string | null;
+  requiresRepaymentAccount: boolean;
+  warnings: StatementPaymentPreviewWarning[];
+};
 
 export declare const financialReportMetricSchema: z.ZodObject<any>;
 export declare const financialReportTotalsSchema: z.ZodObject<any>;

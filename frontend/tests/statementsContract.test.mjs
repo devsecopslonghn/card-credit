@@ -13,5 +13,7 @@ test("statement client parses canonical DTOs and keeps payment compatibility iso
   assert.match(cardsPage, /summary\?\.outstandingAmount/);
   assert.match(paymentsPage, /summary\?\.outstandingAmount/);
   assert.match(client, /updateStatementPayment/);
+  assert.match(client, /previewStatementPayment/);
+  assert.match(client, /payment\/preview/);
   assert.match(client, /"Idempotency-Key": idempotencyKey/);
 });

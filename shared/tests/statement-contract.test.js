@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { statementListSchema, statementPaymentInputSchema } from "../src/index.js";
+import { statementListSchema, statementPaymentInputSchema, statementPaymentPreviewSchema } from "../src/index.js";
 
 const transaction = {
   id: "tx-1", accountId: "account-1", statementId: "statement-1", reimbursementForTransactionId: null,
@@ -27,4 +27,25 @@ test("statement payment input is strict and never defaults an unknown action", (
   assert.throws(() => statementPaymentInputSchema.parse({}));
   assert.throws(() => statementPaymentInputSchema.parse({ action: "INVALID" }));
   assert.throws(() => statementPaymentInputSchema.parse({ action: "PAID", unexpected: true }));
+});
+
+test("statement payment preview is canonical and exposes exact persisted impact", () => {
+  const preview = {
+    operation: "pay_statement",
+    cardId: "card-1",
+    statementId: "statement-1",
+    action: "PAID",
+    paymentStatus: "OPEN",
+    nextPaymentStatus: "PAID",
+    statementAmount: 1_000_000,
+    paymentAmount: 250_000,
+    outstandingAmount: 750_000,
+    amountToPay: 750_000,
+    repaymentAccountId: "account-1",
+    requiresRepaymentAccount: false,
+    warnings: [],
+  };
+  assert.deepEqual(statementPaymentPreviewSchema.parse(preview), preview);
+  assert.throws(() => statementPaymentPreviewSchema.parse({ ...preview, amountToPay: -1 }));
+  assert.throws(() => statementPaymentPreviewSchema.parse({ ...preview, unexpected: true }));
 });

@@ -7,6 +7,7 @@ import { listFinanceAccounts, type FinanceAccount } from "@/lib/api/financeClien
 import {
   fetchAllCardStatements,
   createStatementPaymentKey,
+  previewStatementPayment,
   updateStatementPayment,
   type CardStatementView,
 } from "@/lib/api/statementsClient";
@@ -84,16 +85,17 @@ export default function PaymentsPage() {
   }, { total: 0, paid: 0, unpaid: 0, overdue: 0 }), [enriched]);
 
   const pay = async (row: CardStatementView) => {
-    if (!window.confirm("Đánh dấu kỳ sao kê này là đã thanh toán?")) return;
-    if (Number(row.summary?.outstandingAmount ?? 0) > 0 && !repaymentAccountId) {
-      setError("Hãy chọn tài khoản DEBIT/CASH/E_WALLET để trả sao kê.");
-      return;
-    }
     setBusy(row._id);
     setError("");
-    const commandKey = paymentCommandKeysRef.current.get(row._id) ?? createStatementPaymentKey();
-    paymentCommandKeysRef.current.set(row._id, commandKey);
     try {
+      const preview = await previewStatementPayment(row.userCardId, row._id, "PAID", repaymentAccountId || undefined);
+      if (preview.requiresRepaymentAccount) {
+        setError("Hãy chọn tài khoản DEBIT/CASH/E_WALLET để trả sao kê.");
+        return;
+      }
+      if (!window.confirm(`Xác nhận thanh toán ${formatVnd(preview.amountToPay)} cho kỳ sao kê này?`)) return;
+      const commandKey = paymentCommandKeysRef.current.get(row._id) ?? createStatementPaymentKey();
+      paymentCommandKeysRef.current.set(row._id, commandKey);
       const next = await updateStatementPayment(row.userCardId, row._id, "PAID", repaymentAccountId || undefined, commandKey);
       setRows((current) => current.map((item) => item._id === next._id ? next : item));
       paymentCommandKeysRef.current.delete(row._id);

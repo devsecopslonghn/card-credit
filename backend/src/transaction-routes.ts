@@ -30,6 +30,15 @@ export const registerTransactionRoutes = (
       return { data: await StatementQueryService.get(await browserServiceContext(request, secret, calendarEmail?.users), request.params.id, request.params.statementId) };
     },
   );
+  app.post<{ Params: { id: string; statementId: string }; Body: Record<string, unknown> }>(
+    "/api/cards/:id/statements/:statementId/payment/preview",
+    async (request) => {
+      const parsed = statementPaymentInputSchema.safeParse(request.body);
+      if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
+      const context = await browserServiceContext(request, secret, calendarEmail?.users);
+      return { data: await StatementPaymentCommandService.preview(context, request.params.id, request.params.statementId, parsed.data as StatementPaymentInput) };
+    },
+  );
   app.patch<{ Params: { id: string; statementId: string }; Body: Record<string, unknown> }>(
     "/api/cards/:id/statements/:statementId/payment",
     async (request) => {

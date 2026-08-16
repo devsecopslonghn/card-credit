@@ -29,6 +29,7 @@ export const REST_ENDPOINTS: readonly RestEndpointDefinition[] = [
   { method: "get", path: "/api/card-statements", summary: "List statements", security: "session" },
   { method: "get", path: "/api/cards/{id}/statements", summary: "List card statements", security: "session" },
   { method: "get", path: "/api/cards/{id}/statements/{statementId}", summary: "Get statement detail", security: "session" },
+  { method: "post", path: "/api/cards/{id}/statements/{statementId}/payment/preview", summary: "Preview statement payment", security: "session" },
   { method: "patch", path: "/api/cards/{id}/statements/{statementId}/payment", summary: "Change statement payment status", security: "session" },
   { method: "post", path: "/api/cards/{id}/statements/{statementId}/calendar-email", summary: "Send statement calendar", security: "session" },
   { method: "get", path: "/api/cash-flow/monthly", summary: "Get monthly cash flow", security: "session" },

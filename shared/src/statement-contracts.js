@@ -10,6 +10,22 @@ export const statementPaymentInputSchema = z.object({
   action: statementPaymentActionSchema,
   repaymentAccountId: z.string().trim().min(1).optional(),
 }).strict();
+export const statementPaymentPreviewWarningSchema = z.enum(["ALREADY_SETTLED", "NO_OUTSTANDING_BALANCE", "REPAYMENT_ACCOUNT_REQUIRED"]);
+export const statementPaymentPreviewSchema = z.object({
+  operation: z.literal("pay_statement"),
+  cardId: z.string().min(1),
+  statementId: z.string().min(1),
+  action: statementPaymentActionSchema,
+  paymentStatus: statementPaymentStatusSchema,
+  nextPaymentStatus: statementPaymentStatusSchema,
+  statementAmount: safeNonNegativeInteger,
+  paymentAmount: safeNonNegativeInteger,
+  outstandingAmount: safeNonNegativeInteger,
+  amountToPay: safeNonNegativeInteger,
+  repaymentAccountId: z.string().nullable(),
+  requiresRepaymentAccount: z.boolean(),
+  warnings: z.array(statementPaymentPreviewWarningSchema).max(8),
+}).strict();
 
 export const statementSummarySchema = z.object({
   statementAmount: safeNonNegativeInteger,

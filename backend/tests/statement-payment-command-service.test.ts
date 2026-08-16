@@ -8,6 +8,7 @@ import { StatementPaymentCommandService, nextPaymentState, paidLedgerIsConsisten
 import { FinancialTransactionService } from "../src/services/financial-transaction-service.js";
 import { StatementQueryService } from "../src/services/statement-query-service.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
+import { CardStatementModel } from "../src/models/card-statement.js";
 import { commandGuardService, type CommandGuardSpec } from "../src/services/command-guard-service.js";
 import { canonicalPayloadHash } from "../src/command-hash.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
@@ -68,6 +69,34 @@ test("canonical payment service rejects invalid runtime actions before database 
   assert.throws(() => nextPaymentState("OPEN", "UNKNOWN" as never), (error: unknown) => error instanceof Error && "code" in error && error.code === "INVALID_PAYMENT_ACTION");
 });
 
+test("payment preview reads the ledger without writing and flags missing repayment account", async (t) => {
+  const statement = { _id: statementId, userCardId: cardId, workspaceId: user.workspaceId, paymentStatus: "OPEN" };
+  const transactions = [{ transactionType: "EXPENSE", amount: 1_000, creditDebt: 1_000 }];
+  t.mock.method(CardStatementModel, "findOne", () => ({ lean: async () => statement }) as never);
+  t.mock.method(FinancialTransactionModel, "find", () => ({ lean: async () => transactions }) as never);
+  const preview = await StatementPaymentCommandService.preview(
+    { userId: user.id, workspaceId: user.workspaceId, role: user.role, channel: "browser", correlationId: "payment-preview-test" },
+    cardId,
+    statementId,
+    { action: "PAID" },
+  );
+  assert.deepEqual(preview, {
+    operation: "pay_statement",
+    cardId,
+    statementId,
+    action: "PAID",
+    paymentStatus: "OPEN",
+    nextPaymentStatus: "PAID",
+    statementAmount: 1_000,
+    paymentAmount: 0,
+    outstandingAmount: 1_000,
+    amountToPay: 1_000,
+    repaymentAccountId: null,
+    requiresRepaymentAccount: true,
+    warnings: ["REPAYMENT_ACCOUNT_REQUIRED"],
+  });
+});
+
 test("payment command binds statement identity and safe result metadata to the generic guard", async (t) => {
   let observed: CommandGuardSpec | undefined;
   t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, spec: CommandGuardSpec) => {
@@ -104,6 +133,11 @@ test("payment REST adapter rejects missing/unknown action and delegates canonica
     observed.push({ context, cardId: requestedCardId, statementId: requestedStatementId, input, invocation });
     return { _id: statementId, userCardId: cardId };
   });
+  t.mock.method(StatementPaymentCommandService, "preview", async () => ({
+    operation: "pay_statement", cardId, statementId, action: "PAID", paymentStatus: "OPEN", nextPaymentStatus: "PAID",
+    statementAmount: 1_000, paymentAmount: 0, outstandingAmount: 1_000, amountToPay: 1_000,
+    repaymentAccountId: null, requiresRepaymentAccount: false, warnings: [],
+  }));
   t.mock.method(StatementQueryService, "get", async () => ({
     id: statementId, cardId, periodStartDate: "2026-07-12", periodEndDate: "2026-08-11", statementDate: "2026-08-11", paymentDueDate: "2026-08-26", statementDaySnapshot: 11, paymentDueDaysSnapshot: 15,
     paymentStatus: "PAID", effectivePaymentStatus: "PAID", paidAt: "2026-08-16T00:00:00.000Z", paidAmount: 600,
@@ -127,6 +161,10 @@ test("payment REST adapter rejects missing/unknown action and delegates canonica
   assert.deepEqual(observed[0]?.input, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" });
   assert.deepEqual(observed[0]?.invocation, { idempotencyKey: "payment-command-1", endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment" });
   assert.equal(observed[0]?.context.workspaceId, user.workspaceId);
+
+  const previewResponse = await app.inject({ method: "POST", url: `/api/cards/${cardId}/statements/${statementId}/payment/preview`, headers: { cookie }, payload: { action: "PAID" } });
+  assert.equal(previewResponse.statusCode, 200);
+  assert.equal(previewResponse.json().data.operation, "pay_statement");
 
   const genericPayment = await app.inject({
     method: "POST",
