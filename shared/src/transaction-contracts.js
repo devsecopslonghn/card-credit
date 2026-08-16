@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isoDateSchema } from "./date-contracts.js";
 
 export const financialTransactionTypeSchema = z.enum(["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT"]);
 export const ownershipSchema = z.enum(["PERSONAL", "PAID_FOR_OTHER"]);
@@ -6,7 +7,7 @@ const safePositiveInteger = z.number().int().positive().refine(Number.isSafeInte
 const safeNonNegativeInteger = z.number().int().nonnegative().refine(Number.isSafeInteger, "Must be a safe integer");
 export const createFinancialTransactionInputSchema = z.object({
   accountId: z.string().trim().min(1),
-  transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  transactionDate: isoDateSchema,
   amount: safePositiveInteger,
   categoryId: z.string().trim().min(1).optional(),
   transactionType: financialTransactionTypeSchema.optional(),
@@ -38,7 +39,7 @@ export const financialTransactionSchema = z.object({
   amount: z.number().int(),
   serviceFeeRate: z.number().nullable(),
   categoryId: z.string(),
-  transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  transactionDate: isoDateSchema,
   note: z.string(),
   impact: financialImpactSchema,
 });

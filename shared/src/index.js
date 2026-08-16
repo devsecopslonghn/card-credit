@@ -23,6 +23,8 @@ export const isApiErrorBody = (value) => Boolean(
   typeof value.error.message === "string",
 );
 
+export { isoDateSchema } from "./date-contracts.js";
+
 export {
   accountTypeSchema,
   realMoneyAccountTypeSchema,

@@ -15,6 +15,7 @@ export declare const createApiErrorBody: (
 ) => ApiErrorBody;
 
 export declare const isApiErrorBody: (value: unknown) => value is ApiErrorBody;
+export declare const isoDateSchema: z.ZodString;
 
 export declare const accountTypeSchema: z.ZodEnum<{
   DEBIT: "DEBIT";
