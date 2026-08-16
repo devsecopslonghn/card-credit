@@ -203,6 +203,7 @@ Hai nhóm cross-cutting:
 | WSP-04 | Admin được list toàn bộ user và sửa allowlist `displayName`, `role`, `workspaceId`. |
 | WSP-05 | Admin được cấu hình `ownerUserId` của workspace nếu user đích active, không khóa và thuộc cùng workspace. |
 | WSP-06 | UI middleware chỉ là UX guard; backend session/RBAC là authority cuối cùng. |
+| WSP-10 | Profile và admin-user REST response phải dùng shared strict `UserDto`; `lockedAt` là ISO UTC hoặc `null`, không lộ `passwordHash`/session metadata, frontend dùng cùng runtime parser cho `{user}` và `{users}`. |
 | WSP-07 | Profile mutation phải revalidate signed session với user repository qua trusted browser context trước khi cập nhật `displayName`; workspace/user không được lấy từ body. |
 | WSP-08 | Workspace owner mutation phải revalidate current admin role/workspace qua trusted browser context trước khi upsert; target owner phải active, unlocked và cùng workspace. |
 | WSP-09 | Admin user list/update và audit-log read phải revalidate current user active/locked/workspace và current `admin` role qua trusted browser context trước downstream access; các surface này giữ global admin semantics, không tự thêm workspace filter. |
