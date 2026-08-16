@@ -352,6 +352,7 @@ Hai nhóm cross-cutting:
 | CAL-07 | REST create/revoke calendar subscription phải đi qua service với trusted browser context; raw token không được log hoặc lưu plaintext, còn feed `lastAccessedAt` là compatibility write riêng. |
 | CAL-08 | One-off calendar email phải dùng trusted browser actor context để revalidate active/locked/workspace identity trước card/statement query và mail side effect; recipient lấy từ authoritative account email, không từ request. |
 | CAL-09 | Calendar subscription management GET phải dùng `CalendarSubscriptionService.list` với trusted user/workspace scope, giữ revoked history và safe DTO; không trả tokenHash/raw token. |
+| CAL-10 | Calendar subscription list/create REST và frontend client phải parse cùng shared runtime schemas/types; timestamps là ISO UTC, create path hợp lệ và unknown secret fields phải bị reject. |
 | REM-01 | Card reminder cho phép enable, 1..10 offset duy nhất trong 0..60 ngày, IANA timezone hợp lệ và giờ `HH:mm`. |
 | REM-02 | Scheduler phải scan theo local date/time của card, không chạy chồng một scan trong cùng process và chỉ xét active card/unpaid statement. |
 | REM-03 | Delivery phải unique theo workspace, statement và days-before; claim hết hạn được reclaim theo timeout. |
