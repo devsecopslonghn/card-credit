@@ -163,8 +163,9 @@ Fee read responses are canonical and shared across backend/frontend:
   `expectedAmount`, `actualAmount`, `status`, `receivedAt`, and
   `note`; `receivedAt` is an ISO string or `null`.
 - The REST `{data}` envelope and existing mutation response aliases are
-  transport/compatibility adapters only; fee/cashback write routes remain
-  legacy and are not yet exposed as MCP commands.
+  transport/compatibility adapters only. Read MCP tools are listed in the
+  runtime manifest; fee/cashback write routes remain legacy and are not
+  exposed as MCP commands.
 
 Report query hiện tại:
 

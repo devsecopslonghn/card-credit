@@ -164,6 +164,9 @@ Financial MCP tools:
 - `list_transactions`
 - `list_upcoming_statements`
 - `compare_cards`
+- `list_card_fee_payments`
+- `list_fee_center`
+- `list_monthly_cashbacks`
 - `get_personal_finance_summary`
 - `list_accounts`
 - `preview_create_account`
