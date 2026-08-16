@@ -184,3 +184,18 @@ export type FinancialTransactionDto = {
   note: string;
   impact: FinancialImpactDto;
 };
+export declare const budgetMonthSchema: z.ZodString;
+export declare const budgetStatusSchema: z.ZodEnum<any>;
+export declare const budgetStatusSchemaDto: z.ZodObject<any>;
+export declare const budgetStatusListSchema: z.ZodArray<typeof budgetStatusSchemaDto>;
+export type BudgetStatus = "SAFE" | "WARNING" | "EXCEEDED";
+export type BudgetStatusDto = {
+  id: string;
+  month: string;
+  categoryId: string;
+  limitAmount: number;
+  usedAmount: number;
+  remainingAmount: number;
+  usagePercent: number;
+  status: BudgetStatus;
+};

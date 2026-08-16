@@ -4,10 +4,27 @@ import { ApiError } from "../errors.js";
 import { idOf } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 import mongoose from "mongoose";
+import { budgetStatusListSchema, budgetStatusSchemaDto } from "@card-credit/contracts";
 
 const Budgets = FinanceBudgetModel as unknown as mongoose.Model<Record<string, unknown>>;
 
 const monthRange = (month: string) => ({ from: `${month}-01`, to: `${month}-31` });
+
+export const toBudgetStatusDto = (budget: Record<string, unknown> & { _id: unknown }, month: string, usedAmount: number) => {
+  const limitAmount = Number(budget.limitAmount);
+  const amount = Number(usedAmount);
+  const usagePercent = limitAmount ? (amount / limitAmount) * 100 : 0;
+  return budgetStatusSchemaDto.parse({
+    id: idOf(budget._id),
+    month,
+    categoryId: String(budget.categoryId),
+    limitAmount,
+    usedAmount: amount,
+    remainingAmount: Math.max(limitAmount - amount, 0),
+    usagePercent,
+    status: usagePercent >= 100 ? "EXCEEDED" : usagePercent >= Number(budget.warningPercent ?? 80) ? "WARNING" : "SAFE",
+  });
+};
 
 export class FinanceBudgetService {
   static async upsert(ctx: ServiceContext, input: { month: string; categoryId: string; limitAmount: number; warningPercent?: number }) {
@@ -28,10 +45,6 @@ export class FinanceBudgetService {
       { $group: { _id: "$categoryId", amount: { $sum: "$personalSpending" } } },
     ]);
     const used = new Map(totals.map((item) => [String(item._id), Number(item.amount ?? 0)]));
-    return budgets.map((budget) => {
-      const amount = used.get(String(budget.categoryId)) ?? 0;
-      const percent = Number(budget.limitAmount) ? (amount / Number(budget.limitAmount)) * 100 : 0;
-      return { id: idOf(budget._id), month, categoryId: budget.categoryId, limitAmount: budget.limitAmount, usedAmount: amount, usagePercent: percent, status: percent >= 100 ? "EXCEEDED" : percent >= Number(budget.warningPercent ?? 80) ? "WARNING" : "SAFE" };
-    });
+    return budgetStatusListSchema.parse(budgets.map((budget) => toBudgetStatusDto(budget, month, used.get(String(budget.categoryId)) ?? 0)));
   }
 }
