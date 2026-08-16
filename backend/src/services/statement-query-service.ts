@@ -150,6 +150,7 @@ export class StatementQueryServiceImpl {
 
   async get(ctx: ServiceContext, cardId: string, statementId: string) {
     await this.requireCard(ctx, cardId);
+    if (!mongoose.isValidObjectId(statementId)) throw new ApiError(400, "INVALID_STATEMENT_ID", "Statement id không hợp lệ.");
     const statement = await this.repository.findStatement(ctx.workspaceId, cardId, statementId);
     if (!statement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy sao kê.");
     const [result] = await this.build([statement], ctx.workspaceId, true);
@@ -157,9 +158,11 @@ export class StatementQueryServiceImpl {
   }
 
   async getById(ctx: ServiceContext, statementId: string) {
+    if (!mongoose.isValidObjectId(statementId)) return null;
     const statement = await this.repository.findStatementById(ctx.workspaceId, statementId);
     if (!statement) return null;
-    if (!(await this.repository.findCard(ctx.workspaceId, idOf(statement.userCardId)))) return null;
+    const cardId = idOf(statement.userCardId);
+    if (!mongoose.isValidObjectId(cardId) || !(await this.repository.findCard(ctx.workspaceId, cardId))) return null;
     const [result] = await this.build([statement], ctx.workspaceId, true);
     return result ?? null;
   }

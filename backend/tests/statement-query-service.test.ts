@@ -45,3 +45,9 @@ test("upcoming statements use one batch transaction query and bounded limit", as
   assert.equal(result[0]?.summary.outstandingAmount, 600_000);
   assert.deepEqual(calls, ["listStatements:workspace-a:paymentDueDate:true", "listCards", "listTransactions"]);
 });
+
+test("statement detail fails closed for malformed identifiers", async () => {
+  const service = createStatementQueryService(repository([]));
+  assert.equal(await service.getById(ctx, "not-an-object-id"), null);
+  await assert.rejects(() => service.get(ctx, cardId, "not-an-object-id"), (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "INVALID_STATEMENT_ID");
+});
