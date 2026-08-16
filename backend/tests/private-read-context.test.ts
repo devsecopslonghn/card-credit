@@ -11,7 +11,7 @@ const secret = "01234567890123456789012345678901";
 const user: AuthUser = { id: "u1", email: "u@example.test", passwordHash: "", role: "user", workspaceId: "workspace-a", displayName: "User", active: true, lockedAt: null };
 let profileUpdates = 0;
 const users = { findUserById: async (id: string) => id === user.id ? user : null, updateUser: async (_id: string, update: { displayName?: string }) => { profileUpdates += 1; return { ...user, ...update }; } } as unknown as AuthRepository;
-const cookie = () => sessionCookie(signSession({ userId: user.id, email: user.email, role: user.role, workspaceId: "workspace-a" }, secret));
+const cookie = (role: "user" | "admin" = "user", userId = user.id) => sessionCookie(signSession({ userId, email: user.email, role, workspaceId: "workspace-a" }, secret));
 
 test("private profile and workspace reads revalidate active identity before downstream reads", async (t) => {
   const workspaceFind = t.mock.method(WorkspaceModel, "findOne", async (filter: Record<string, unknown>) => {
@@ -42,5 +42,32 @@ test("private profile and workspace reads revalidate active identity before down
   assert.equal(profileUpdates, 1);
   assert.equal(workspaceFind.mock.callCount(), 1);
   user.workspaceId = "workspace-a";
+  await app.close();
+});
+
+test("workspace owner mutation revalidates admin role and target ownership", async (t) => {
+  const admin: AuthUser = { id: "admin-1", email: "admin@example.test", passwordHash: "", role: "admin", workspaceId: "workspace-a", displayName: "Admin", active: true, lockedAt: null };
+  const target: AuthUser = { id: "owner-1", email: "owner@example.test", passwordHash: "", role: "user", workspaceId: "workspace-a", displayName: "Owner", active: true, lockedAt: null };
+  const update = t.mock.method(WorkspaceModel, "updateOne", async (filter: Record<string, unknown>, value: unknown, options: unknown) => {
+    assert.deepEqual(filter, { workspaceId: "workspace-a" });
+    assert.deepEqual((value as { $set: object }).$set, { ownerUserId: "owner-1", updatedAt: (value as { $set: { updatedAt: Date } }).$set.updatedAt });
+    assert.ok((value as { $set: { updatedAt: unknown } }).$set.updatedAt instanceof Date);
+    assert.deepEqual((value as { $setOnInsert: object }).$setOnInsert, { createdAt: (value as { $setOnInsert: { createdAt: Date } }).$setOnInsert.createdAt });
+    assert.ok((value as { $setOnInsert: { createdAt: unknown } }).$setOnInsert.createdAt instanceof Date);
+    assert.deepEqual(options, { upsert: true });
+    return { acknowledged: true, modifiedCount: 1 } as never;
+  });
+  const users = { findUserById: async (id: string) => id === admin.id ? admin : id === target.id ? target : null } as unknown as AuthRepository;
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerWorkspaceRoutes(app, users, secret);
+  const response = await app.inject({ method: "PUT", url: "/api/workspace/owner", headers: { cookie: cookie("admin", admin.id) }, payload: { ownerUserId: target.id } });
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { data: { configured: true } });
+  assert.equal(update.mock.callCount(), 1);
+
+  admin.role = "user" as never;
+  const demoted = await app.inject({ method: "PUT", url: "/api/workspace/owner", headers: { cookie: cookie("admin", admin.id) }, payload: { ownerUserId: target.id } });
+  assert.equal(demoted.statusCode, 403);
+  assert.equal(update.mock.callCount(), 1);
   await app.close();
 });
