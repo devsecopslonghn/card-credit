@@ -4,7 +4,7 @@ import { CardFeePaymentModel } from "../models/card-fee-payment.js";
 import { MonthlyCardCashbackModel } from "../models/monthly-card-cashback.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { StatementQueryService } from "./statement-query-service.js";
-import { financialReportSchema } from "@card-credit/contracts";
+import { financialReportSchema, reportDateRangeSchema } from "@card-credit/contracts";
 import type { FinancialReportDto } from "@card-credit/contracts";
 
 type Range = { from: string; to: string };
@@ -40,6 +40,7 @@ export class FinancialReportService {
   }
 
   static async summary(ctx: ServiceContext, range: Range) {
+    range = reportDateRangeSchema.parse(range) as Range;
     const [items, accounts, monthlyCashbacks, feePayments] = await Promise.all([
       FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionDate: { $gte: range.from, $lte: range.to } }).lean(),
       AccountModel.find({ workspaceId: ctx.workspaceId, active: { $ne: false } }).lean(),

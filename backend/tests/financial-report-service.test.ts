@@ -93,3 +93,8 @@ test("credit statement report reads all canonical statements when no range is su
   assert.deepEqual(await FinancialReportService.creditStatements(context), []);
   assert.equal(query.mock.callCount(), 1);
 });
+
+test("summary rejects malformed and reversed date ranges before reading models", async () => {
+  await assert.rejects(() => FinancialReportService.summary(context, { from: "2026-02-30", to: "2026-03-01" }));
+  await assert.rejects(() => FinancialReportService.summary(context, { from: "2026-09-01", to: "2026-08-31" }));
+});

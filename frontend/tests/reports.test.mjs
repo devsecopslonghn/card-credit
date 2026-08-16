@@ -6,6 +6,7 @@ test("finance client uses the canonical financial report endpoint", () => {
   const client = readFileSync(new URL("../lib/api/financeClient.ts", import.meta.url), "utf8");
   assert.match(client, /\/api\/financial-reports\/summary\?from=/);
   assert.match(client, /financialReportSchema\.parse/);
+  assert.match(client, /reportDateRangeSchema\.parse/);
   assert.doesNotMatch(client, /\/api\/reports\/summary/);
 });
 

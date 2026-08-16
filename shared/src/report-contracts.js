@@ -2,10 +2,28 @@ import { z } from "zod";
 
 const safeInteger = z.number().int().refine(Number.isSafeInteger, "Must be a safe integer");
 const safeNonNegativeInteger = safeInteger.nonnegative();
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+export const reportDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }, "Must be a valid calendar date");
+
+export const reportDateRangeSchema = z.strictObject({
+  from: reportDateSchema,
+  to: reportDateSchema,
+}).superRefine((range, context) => {
+  if (range.from > range.to) context.addIssue({ code: "custom", path: ["to"], message: "The report range must be ordered from earliest to latest date" });
+});
+
+/** Resolve the REST-compatible current-month-to-today default without transport concerns. */
+export const resolveReportDateRange = (input = {}, today = new Date()) => {
+  const todayValue = today instanceof Date && !Number.isNaN(today.valueOf())
+    ? today.toISOString().slice(0, 10)
+    : reportDateSchema.parse(today);
+  return reportDateRangeSchema.parse({
+    from: input.from ?? `${todayValue.slice(0, 7)}-01`,
+    to: input.to ?? todayValue,
+  });
+};
 
 /** Ledger metrics are intentionally shared by totals and each grouping. */
 export const financialReportMetricSchema = z.object({
@@ -34,7 +52,7 @@ export const financialReportTotalsSchema = financialReportMetricSchema.extend({
 const accountMetricSchema = financialReportMetricSchema.extend({ name: z.string() });
 
 export const financialReportSchema = z.object({
-  range: z.object({ from: isoDate, to: isoDate }),
+  range: reportDateRangeSchema,
   totals: financialReportTotalsSchema,
   netAssets: safeInteger,
   creditDebtBalance: safeInteger,

@@ -66,6 +66,9 @@ export {
   statementListSchema,
 } from "./statement-contracts.js";
 export {
+  reportDateSchema,
+  reportDateRangeSchema,
+  resolveReportDateRange,
   financialReportMetricSchema,
   financialReportTotalsSchema,
   financialReportSchema,

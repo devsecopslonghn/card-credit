@@ -283,6 +283,12 @@ export type StatementDto = {
 export declare const financialReportMetricSchema: z.ZodObject<any>;
 export declare const financialReportTotalsSchema: z.ZodObject<any>;
 export declare const financialReportSchema: z.ZodObject<any>;
+export declare const reportDateSchema: z.ZodString;
+export declare const reportDateRangeSchema: z.ZodObject<any>;
+export declare const resolveReportDateRange: (
+  input?: { from?: string; to?: string },
+  today?: Date,
+) => { from: string; to: string };
 export type FinancialReportMetricDto = {
   personalSpending: number;
   debitCashflow: number;
