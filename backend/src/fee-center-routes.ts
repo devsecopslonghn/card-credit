@@ -24,10 +24,11 @@ const card = async (cardId: string, workspaceId: string) => { if (!mongoose.isVa
 export const registerFeeCenterRoutes = (app: FastifyInstance, secret: string, users?: Pick<AuthRepository, "findUserById">) => {
   app.get<{ Querystring: { cardId?: string; category?: string } }>("/api/fee-center", async (request) => {
     const context = await browserServiceContext(request, secret, users);
-    return { data: await FeeQueryService.listCenter(context, {
-      cardId: request.query.cardId,
-      category: request.query.category ? category(request.query.category) : undefined,
-    }) };
+    const options = {
+      ...(request.query.cardId ? { cardId: request.query.cardId } : {}),
+      ...(request.query.category ? { category: category(request.query.category) } : {}),
+    };
+    return { data: await FeeQueryService.listCenter(context, options) };
   });
   app.post<{ Body: Data }>("/api/fee-center", async (request, reply) => {
     const session = sessionFromRequest(request, secret); const body = request.body ?? {};
