@@ -29,7 +29,7 @@ test("summary reads benefit sources once, keeps ledger groups stable and avoids 
     { _id: "tx-payment", accountId: "account-debit", accountType: "DEBIT", transactionType: "STATEMENT_PAYMENT", ownership: "PERSONAL", categoryId: "OTHER", amount: 200, reimbursementExpected: 0, cashbackReceived: 0, personalSpending: 0, debitCashflow: -200, creditDebt: -200, outstandingReceivable: 0, reimbursementReceived: 0 },
   ];
   const transactionFind = t.mock.method(FinancialTransactionModel, "find", (query: Record<string, unknown>) => chain(query.transactionType === "REIMBURSEMENT" ? [{ amount: 100 }] : transactions) as never);
-  const accountFind = t.mock.method(AccountModel, "find", () => chain([
+  t.mock.method(AccountModel, "find", () => chain([
     { _id: "account-credit", name: "Credit", type: "CREDIT", openingBalance: 0 },
     { _id: "account-debit", name: "Debit", type: "DEBIT", openingBalance: 0 },
   ]) as never);
