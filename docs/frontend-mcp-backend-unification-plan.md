@@ -79,6 +79,8 @@ implemented yet.
   indexes/collection mới sau preflight; không xóa receipt/audit khi đã có writer.
 - Next gate: fence/drain pod cũ dùng token v1 trước khi deploy image có
   persistent preview writer; chưa mở MCP mutation mới hoặc rollout application.
+- Runbook: `docs/mcp-preview-rollout.md`; hiện chưa scale/restart vì chưa có
+  candidate image được user phê duyệt để thay pod cũ.
 
 ### Completed checkpoint: Account contract registry
 
