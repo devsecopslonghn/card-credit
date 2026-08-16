@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout, catalog startup write removal, frontend clean linked-runtime image dependency fix và MCP read-default/fence acknowledgement guard đã push | `c41d6ae` + catalog fix + `ee05cc9` / `origin/master` | Fence/drain old MCP writers và xác minh legacy portfolio dates trước application rollout |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout, catalog startup write removal, frontend/backend clean linked-runtime image fixes và MCP read-default/fence acknowledgement guard đã push | `c41d6ae` + catalog fix + `ee05cc9` / `origin/master` + pending checkpoint | Fence/drain old MCP writers và xác minh legacy portfolio dates trước application rollout |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `b75fb28` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push; direct MCP manifest default read và write fence acknowledgement đã push | `87e7996` + DB rollout + `ee05cc9` / `origin/master` | Fence old MCP writers trước production rollout; không bật new MCP writer khi pod cũ còn phục vụ |
@@ -49,6 +49,31 @@ implemented yet.
   `backend:a0e0b00a7515`, cũ hơn `HEAD`. Không scale/restart/patch và không
   gọi database; production MCP write vẫn **NO-GO**, old writer chưa fenced.
 - Commit/push: `ee05cc9` đã push thành công lên `origin/master`.
+
+### Checkpoint: Backend runtime linked shared dependency boundary (ready to commit)
+
+- Requirement/GAP: `GAP-CI-01` cần image runtime khởi động được trong clean
+  context; log mới cho thấy backend runner fail trước startup với
+  `ERR_MODULE_NOT_FOUND: Cannot find package 'zod' imported from
+  /shared/src/date-contracts.js`.
+- Independent review: GO có điều kiện cho bounded Docker/runtime fix. Root
+  cause là `backend/node_modules` ở `/app` không nằm trên ESM ancestor path của
+  linked package `/shared`; cài `zod` trực tiếp ở backend không đủ cho runtime
+  source path này.
+- Changed write-set: `backend/Dockerfile` cài `shared` production dependencies
+  ở `deps` và `runner`, truyền `/shared` đã cài sang `builder`; thêm
+  `backend/tests/dockerfile.test.ts`. Không đổi application service, schema,
+  index, migration, financial persistence, database hoặc Kubernetes.
+- Verification: backend targeted Dockerfile test pass; clean context chạy
+  shared production install, backend `npm ci`, backend build và import
+  `/shared/src/date-contracts.js` + compiled MCP manifest pass. Full shared
+  `npm run validate` pass (25/25); backend `npm run validate` pass (183/183,
+  typecheck, lint, build); frontend typecheck/lint/integration (6/6)/build
+  pass. Native Docker daemon chưa truy cập được `/var/run/docker.sock`.
+- Rollout impact: candidate backend image phải build lại từ commit này; không
+  rollout hoặc restart pod trong checkpoint này. Sau publish vẫn phải xác nhận
+  runtime log không còn `ERR_MODULE_NOT_FOUND` trước MCP fence/drain.
+- Commit/push: pending; sau khi commit phải ghi SHA thực tế và push thành công.
 
 ### Completed checkpoint: Shared calendar-date validation for Catalog and Portfolio
 
@@ -173,10 +198,10 @@ qua frontend/shared. Sau đó chạy backend validate và frontend
 typecheck/lint/integration/build theo mục 9 SRS. Nếu lỗi, sửa nguyên nhân nhỏ
 nhất, thêm regression test, cập nhật plan, independent review rồi commit/push.
 
-Frontend Dockerfile phải cài runtime dependencies của linked `shared/` package
-trong clean image context trước khi chạy Next build; không suy diễn từ
-`shared/node_modules` của workspace local. `MCP_WRITER_MODE` và các helper
-manifest mặc định `read`; `write` chỉ khởi động khi có
+Frontend và backend Dockerfile phải cài runtime dependencies của linked
+`shared/` package trong clean image context trước khi build/start; không suy
+diễn từ `shared/node_modules` của workspace local. `MCP_WRITER_MODE` và các
+helper manifest mặc định `read`; `write` chỉ khởi động khi có
 `MCP_OLD_WRITER_FENCED=true` sau khi operator đã có evidence fence/drain.
 
 Khi Jenkins báo lỗi, ghi lại `GIT_COMMIT`/checkout SHA, SCM URL, branch, shared
