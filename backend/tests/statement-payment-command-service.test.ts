@@ -4,13 +4,12 @@ import { buildApp } from "../src/app.js";
 import { signSession, sessionCookie } from "../src/auth.js";
 import { registerTransactionRoutes } from "../src/transaction-routes.js";
 import { registerFinancialTransactionRoutes } from "../src/financial-transaction-routes.js";
-import { StatementPaymentCommandService, nextPaymentState, paidLedgerIsConsistent, paymentTotals } from "../src/services/statement-payment-command-service.js";
+import { StatementPaymentCommandService, nextPaymentState, paidLedgerIsConsistent, paymentCommandPayloadHash, paymentTotals } from "../src/services/statement-payment-command-service.js";
 import { FinancialTransactionService } from "../src/services/financial-transaction-service.js";
 import { StatementQueryService } from "../src/services/statement-query-service.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
 import { commandGuardService, type CommandGuardSpec } from "../src/services/command-guard-service.js";
-import { canonicalPayloadHash } from "../src/command-hash.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const secret = "01234567890123456789012345678901";
@@ -130,7 +129,20 @@ test("payment command binds statement identity and safe result metadata to the g
   assert.deepEqual(result, { statementId, action: "CLOSED", paymentStatus: "STATEMENT_CLOSED", paidAt: null, paidAmount: 0 });
   assert.equal(observed?.operation, "pay_statement");
   assert.deepEqual(observed?.resource, { type: "statement", cardId, statementId });
-  assert.equal(observed?.payloadHash, canonicalPayloadHash({ cardId, statementId, input }));
+  assert.equal(observed?.payloadHash, paymentCommandPayloadHash(cardId, statementId, input));
+});
+
+test("payment retry keeps the idempotency hash stable when only the preview version changes", async (t) => {
+  const observed: CommandGuardSpec[] = [];
+  t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, spec: CommandGuardSpec) => {
+    observed.push(spec);
+    return { statementId, action: "PAID", paymentStatus: "PAID", paidAt: null, paidAmount: 100 };
+  });
+  const context = { userId: user.id, workspaceId: user.workspaceId, role: user.role, channel: "browser" as const, correlationId: "payment-retry-hash" };
+  await StatementPaymentCommandService.execute(context, cardId, statementId, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: "2026-08-16T00:00:00.000Z" }, { idempotencyKey: "payment-retry-hash-1", endpointOrTool: "test.payment" });
+  await StatementPaymentCommandService.execute(context, cardId, statementId, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: "2026-08-16T00:01:00.000Z" }, { idempotencyKey: "payment-retry-hash-1", endpointOrTool: "test.payment" });
+  assert.equal(observed[0]?.payloadHash, observed[1]?.payloadHash);
+  assert.notEqual(observed[0]?.payloadHash, paymentCommandPayloadHash(cardId, statementId, { action: "CLOSED" }));
 });
 
 test("generic transaction preview rejects statement payment instead of advertising an executable command", async () => {

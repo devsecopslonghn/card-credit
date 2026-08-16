@@ -739,15 +739,18 @@ implemented yet.
   Mongo transaction. Sai version trả `PAYMENT_PREVIEW_STALE`; Cards/Payments
   truyền đúng version preview khi PATCH.
 - Safety: không có version thì compatibility command cũ vẫn chạy; có version thì
-  stale preview bị fail-closed, không tạo payment transaction. Đây chưa phải
-  one-time confirmation/token consume và không mở MCP payment.
-- Acceptance evidence: focused backend payment suite pass (10 tests), backend
+  stale preview bị fail-closed, không tạo payment transaction. `expectedVersion`
+  là precondition riêng, không nằm trong business payload hash, nên retry cùng
+  idempotency key sau response loss vẫn replay safe dù preview version đổi; đổi
+  action/account vẫn mismatch. Đây chưa phải one-time confirmation/token consume
+  và không mở MCP payment.
+- Acceptance evidence: focused backend payment suite pass (11 tests), backend
   typecheck/lint/build pass; shared validate pass (25 tests); frontend
   typecheck/lint/unit/integration pass (84 + 6). Full release validation sẽ chạy
   lại trước commit nếu code tiếp tục mở rộng.
 - Database impact: chỉ đọc/conditional update trên collection hiện có; không
   migration, index mới hay backup.
-- Commit/push: `a191815` đã push lên `origin/master`.
+- Commit/push: CAS compatibility fix đang chờ full validation và commit.
 
 ### Decision gate: Payment State Machine and Persistent Command Guard
 

@@ -61,6 +61,15 @@ const versionOf = (value: unknown) => {
   return date && Number.isFinite(date.valueOf()) ? date.toISOString() : null;
 };
 
+export const paymentCommandPayloadHash = (cardId: string, statementId: string, input: StatementPaymentInput) => canonicalPayloadHash({
+  cardId,
+  statementId,
+  input: {
+    action: input.action,
+    ...(input.repaymentAccountId ? { repaymentAccountId: input.repaymentAccountId } : {}),
+  },
+});
+
 /** Stored state transition; effective OVERDUE is represented by OPEN at rest. */
 export const nextPaymentState = (current: string, action: StatementPaymentAction) => {
   const parsedAction = statementPaymentActionSchema.safeParse(action);
@@ -124,7 +133,7 @@ export class StatementPaymentCommandService {
     const command = parsed.data as StatementPaymentInput;
     if (!mongoose.isValidObjectId(cardId) || !mongoose.isValidObjectId(statementId)) throw new ApiError(400, "INVALID_STATEMENT_ID", "Tham chiếu sao kê không hợp lệ.");
     if (!(paidAt instanceof Date) || Number.isNaN(paidAt.valueOf())) throw new ApiError(400, "INVALID_PAYMENT_DATE", "Ngày thanh toán không hợp lệ.");
-    const payloadHash = canonicalPayloadHash({ cardId, statementId, input: command });
+    const payloadHash = paymentCommandPayloadHash(cardId, statementId, command);
     const spec = {
       operation: "pay_statement",
       idempotencyKey: invocation.idempotencyKey,
