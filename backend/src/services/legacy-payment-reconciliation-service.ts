@@ -49,7 +49,7 @@ export const markLegacyStatementPaymentPaid = async (
   if (!mongoose.isValidObjectId(input.caseId)) reject("INVALID_RECONCILIATION_CASE", "Reconciliation case id is invalid.", 400);
   if (![input.sourceHash, input.planHash, input.currentSourceHash, input.currentPlanHash].every((value) => hashPattern.test(value))) reject("INVALID_RECONCILIATION_REVIEW", "Reviewed reconciliation hashes are invalid.", 400);
   if (ctx.channel !== "job" || ctx.role !== "admin" || !ctx.userId.trim()) reject("INVALID_RECONCILIATION_OPERATOR", "A trusted admin job operator is required.", 403);
-  const payloadHash = canonicalPayloadHash({ caseId: input.caseId, sourceHash: input.sourceHash, planHash: input.planHash, currentSourceHash: input.currentSourceHash, currentPlanHash: input.currentPlanHash, expectedStatus: input.expectedStatus });
+  const payloadHash = canonicalPayloadHash({ caseId: input.caseId, sourceHash: input.sourceHash, planHash: input.planHash, ...(input.currentSourceHash !== input.sourceHash || input.currentPlanHash !== input.planHash ? { currentSourceHash: input.currentSourceHash, currentPlanHash: input.currentPlanHash } : {}), expectedStatus: input.expectedStatus });
   return commandGuardService.execute(ctx, {
     operation: "mark_legacy_statement_payment_paid",
     idempotencyKey: input.idempotencyKey,
