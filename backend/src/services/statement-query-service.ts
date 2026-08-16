@@ -8,7 +8,7 @@ import { ApiError } from "../errors.js";
 import { effectivePaymentStatus, idOf, plain, type Data } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 
-type StatementReadOptions = { cardId?: string; cardIds?: string[]; unpaidOnly?: boolean; limit?: number; order?: "statementDate" | "paymentDueDate" };
+type StatementReadOptions = { cardId?: string; cardIds?: string[]; unpaidOnly?: boolean; paymentDueDates?: string[]; limit?: number; order?: "statementDate" | "paymentDueDate" };
 export type StatementReadRepository = {
   listStatements(workspaceId: string, options: StatementReadOptions): Promise<Data[]>;
   findStatementById(workspaceId: string, statementId: string): Promise<Data | null>;
@@ -34,6 +34,7 @@ const mongoRepository: StatementReadRepository = {
     if (options.cardId) query.userCardId = options.cardId;
     else if (options.cardIds?.length) query.userCardId = { $in: options.cardIds };
     if (options.unpaidOnly) query.paymentStatus = { $ne: "PAID" };
+    if (options.paymentDueDates?.length) query.paymentDueDate = { $in: options.paymentDueDates };
     let cursor = sorted(CardStatementModel.find(query), { [options.order === "paymentDueDate" ? "paymentDueDate" : "statementDate"]: options.order === "paymentDueDate" ? 1 : -1 }) as { limit?: (value: number) => unknown };
     if (options.limit && typeof cursor?.limit === "function") cursor = cursor.limit(Math.min(Math.max(options.limit, 1), 50)) as typeof cursor;
     return execute<Data[]>(cursor);
@@ -182,12 +183,12 @@ export class StatementQueryServiceImpl {
     return this.build(statements, ctx.workspaceId, false);
   }
 
-  async listForCardIds(ctx: ServiceContext, cardIds: string[], options: { unpaidOnly?: boolean; order?: "statementDate" | "paymentDueDate" } = {}) {
+  async listForCardIds(ctx: ServiceContext, cardIds: string[], options: { unpaidOnly?: boolean; paymentDueDates?: string[]; order?: "statementDate" | "paymentDueDate" } = {}) {
     if (!cardIds.length) return [];
     const ownedCards = await this.repository.listCards(ctx.workspaceId, [...new Set(cardIds)]);
     const ownedCardIds = [...new Set(ownedCards.map((card) => idOf(card._id)))];
     if (!ownedCardIds.length) return [];
-    const statements = await this.repository.listStatements(ctx.workspaceId, { cardIds: ownedCardIds, unpaidOnly: options.unpaidOnly, order: options.order ?? "statementDate" });
+    const statements = await this.repository.listStatements(ctx.workspaceId, { cardIds: ownedCardIds, unpaidOnly: options.unpaidOnly, ...(options.paymentDueDates ? { paymentDueDates: options.paymentDueDates } : {}), order: options.order ?? "statementDate" });
     return this.build(statements, ctx.workspaceId, false);
   }
 

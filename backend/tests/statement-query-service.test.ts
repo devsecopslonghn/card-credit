@@ -63,11 +63,11 @@ test("card-scoped statement reads discard card ids outside the workspace", async
       return transactions;
     },
   });
-  const result = await service.listForCardIds(ctx, [cardId, "507f1f77bcf86cd799439099"], { unpaidOnly: true, order: "paymentDueDate" });
+  const result = await service.listForCardIds(ctx, [cardId, "507f1f77bcf86cd799439099"], { unpaidOnly: true, paymentDueDates: ["2026-08-26"], order: "paymentDueDate" });
   assert.equal(result.length, 1);
   assert.deepEqual(calls, [
     { name: "listCards", value: { workspaceId: "workspace-a", cardIds: [cardId, "507f1f77bcf86cd799439099"] } },
-    { name: "listStatements", value: { workspaceId: "workspace-a", options: { cardIds: [cardId], unpaidOnly: true, order: "paymentDueDate" } } },
+    { name: "listStatements", value: { workspaceId: "workspace-a", options: { cardIds: [cardId], unpaidOnly: true, paymentDueDates: ["2026-08-26"], order: "paymentDueDate" } } },
     { name: "listTransactions", value: { workspaceId: "workspace-a", statementIds: [statementId] } },
   ]);
 });

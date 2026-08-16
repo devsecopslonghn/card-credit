@@ -5,10 +5,9 @@ import { normalizeReminderPreferences, validTimezone } from "../src/reminder-pre
 import { composePaymentReminder, reminderDueDate, reminderIsDue, retryAt } from "../src/payment-reminder.js";
 import { ReminderScheduler } from "../src/reminder-scheduler.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
-import { CardStatementModel } from "../src/models/card-statement.js";
-import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 import { ReminderDeliveryModel } from "../src/models/reminder-delivery.js";
 import { WorkspaceModel } from "../src/models/workspace.js";
+import { StatementQueryService } from "../src/services/statement-query-service.js";
 import type { AuthRepository, AuthUser } from "../src/auth-repository.js";
 import type { ReminderEmail } from "../src/payment-reminder.js";
 
@@ -32,7 +31,7 @@ test("retry backoff is bounded and reminder is Vietnamese without sensitive pers
   assert.match(composePaymentReminder({ to: "user@example.com", cardName: "Visa", statementDate: "2026-01-01", dueDate: "2026-01-08", amount: 100000, daysBefore: 7 }).text, /kiểm tra trạng thái hiện tại/);
 });
 
-test("scheduler scans exact due dates and batch-loads statements, totals, and users", async (t) => {
+test("scheduler scans exact due dates and uses canonical statement amounts", async (t) => {
   const userId = "507f1f77bcf86cd799439041";
   const cardA = "507f1f77bcf86cd799439011";
   const cardB = "507f1f77bcf86cd799439012";
@@ -42,16 +41,12 @@ test("scheduler scans exact due dates and batch-loads statements, totals, and us
     { toObject: () => ({ _id: cardA, workspaceId: "workspace-a", userId, displayName: "Card A", reminderDaysBefore: [7, 3], reminderTimezone: "Asia/Ho_Chi_Minh", reminderTime: "08:00" }) },
     { toObject: () => ({ _id: cardB, workspaceId: "workspace-a", userId: null, displayName: "Card B", reminderDaysBefore: [7], reminderTimezone: "Asia/Ho_Chi_Minh", reminderTime: "08:00" }) },
   ] as never);
-  const statementFind = t.mock.method(CardStatementModel, "find", async () => [
-    { toObject: () => ({ _id: statementA, workspaceId: "workspace-a", userCardId: cardA, statementDate: "2026-07-05", paymentDueDate: "2026-07-19", paymentStatus: "OPEN" }) },
-    { toObject: () => ({ _id: statementB, workspaceId: "workspace-a", userCardId: cardB, statementDate: "2026-07-05", paymentDueDate: "2026-07-19", paymentStatus: "OPEN" }) },
-  ] as never);
   const workspaceFind = t.mock.method(WorkspaceModel, "find", async () => [{
     get: (field: string) => field === "workspaceId" ? "workspace-a" : userId,
   }] as never);
-  const aggregate = t.mock.method(FinancialTransactionModel, "aggregate", async () => [
-    { _id: statementA, amount: 100_000 },
-    { _id: statementB, amount: 200_000 },
+  const statementList = t.mock.method(StatementQueryService, "listForCardIds", async () => [
+    { id: statementA, cardId: cardA, periodStartDate: "2026-06-06", periodEndDate: "2026-07-05", statementDate: "2026-07-05", paymentDueDate: "2026-07-19", statementDaySnapshot: 5, paymentDueDaysSnapshot: 14, paymentStatus: "OPEN", effectivePaymentStatus: "OPEN", paidAt: null, paidAmount: null, summary: { statementAmount: 150_000, paymentAmount: 50_000, outstandingAmount: 100_000, personalSpending: 150_000, outstandingReceivable: 0, reimbursementReceived: 0, transactionCount: 1 } },
+    { id: statementB, cardId: cardB, periodStartDate: "2026-06-06", periodEndDate: "2026-07-05", statementDate: "2026-07-05", paymentDueDate: "2026-07-19", statementDaySnapshot: 5, paymentDueDaysSnapshot: 14, paymentStatus: "OPEN", effectivePaymentStatus: "OPEN", paidAt: null, paidAmount: null, summary: { statementAmount: 200_000, paymentAmount: 0, outstandingAmount: 200_000, personalSpending: 200_000, outstandingReceivable: 0, reimbursementReceived: 0, transactionCount: 1 } },
   ] as never);
   const claim = t.mock.method(ReminderDeliveryModel, "findOneAndUpdate", async () => ({
     _id: `delivery-${claim.mock.callCount()}`,
@@ -73,20 +68,17 @@ test("scheduler scans exact due dates and batch-loads statements, totals, and us
 
   await scheduler.scan();
 
-  assert.equal(statementFind.mock.callCount(), 1);
-  assert.deepEqual(statementFind.mock.calls[0]?.arguments[0], {
-    workspaceId: { $in: ["workspace-a"] },
-    userCardId: { $in: [cardA, cardB] },
-    paymentStatus: { $ne: "PAID" },
-    paymentDueDate: { $in: ["2026-07-19", "2026-07-15"] },
-  });
+  assert.equal(statementList.mock.callCount(), 1);
+  assert.equal((statementList.mock.calls[0]?.arguments[0] as { workspaceId?: string } | undefined)?.workspaceId, "workspace-a");
+  assert.deepEqual(statementList.mock.calls[0]?.arguments[1], [cardA, cardB]);
+  assert.deepEqual(statementList.mock.calls[0]?.arguments[2], { unpaidOnly: true, paymentDueDates: ["2026-07-19", "2026-07-15"], order: "paymentDueDate" });
   assert.equal(workspaceFind.mock.callCount(), 1);
   assert.deepEqual(workspaceFind.mock.calls[0]?.arguments[0], {
     workspaceId: { $in: ["workspace-a"] },
   });
-  assert.equal(aggregate.mock.callCount(), 1);
   assert.equal(userReads, 1);
   assert.equal(claim.mock.callCount(), 2);
   assert.equal(deliveryUpdate.mock.callCount(), 2);
   assert.deepEqual(messages.map((message) => message.text.includes("200.000")), [false, true]);
+  assert.equal(messages[0]?.text.includes("100.000"), true);
 });
