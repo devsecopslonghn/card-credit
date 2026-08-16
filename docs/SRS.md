@@ -336,6 +336,7 @@ Hai nhóm cross-cutting:
 | ID | Yêu cầu |
 |---|---|
 | NOTE-01 | Note được list theo workspace; POST với content khác rỗng là upsert theo date, content rỗng là delete. |
+| NOTE-02 | Private Notes POST phải tạo trusted browser context đã revalidate user/workspace trước khi gọi repository; client không được quyết định workspace. |
 | NOTIF-01 | Notification API phải project statement trong workspace thành `success`, `warning` hoặc `alert`, giới hạn 1..100 item và không tạo nguồn payment authority mới. |
 | CAL-01 | User có thể yêu cầu gửi một file `.ics` cho statement; recipient phải được đọc lại từ account server-side và request không được chọn email nhận. |
 | CAL-02 | Calendar email phải mask recipient trong response/log, map lỗi cấu hình SMTP thành 503 và lỗi delivery thành 502 mà không lộ provider detail. |
@@ -734,7 +735,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 
 | ID | Mức độ | Hiện trạng và tác động |
 |---|---|---|
-| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter và private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes` revalidate user active/locked/workspace. Còn thiếu session version/revocation tức thời và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
+| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter, private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes` và Notes POST revalidate user active/locked/workspace. Còn thiếu session version/revocation tức thời và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
 | GAP-SEC-02 | Cao | Public register chấp nhận `workspaceId` do client truyền. Người biết workspace ID có thể tự đăng ký vào workspace đó nếu không có policy bổ sung ngoài source. |
 | GAP-DATA-01 | Cao | Delete card và duplicate merge không cascade/relink account, statement, transaction, cashback, fee, reminder. Có thể tạo orphan hoặc xóa source trong khi dữ liệu tài chính vẫn tham chiếu source card. |
 | GAP-PAY-01 | Cao | Frontend payment chỉ gửi `action`, không cho chọn `repaymentAccountId`; payment có amount sẽ lỗi nếu thiếu `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |

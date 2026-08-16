@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary và Calendar Subscription command boundary đã push | `8701e02` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary và Notes trusted mutation context đã push | `4bdea9e` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry và private read adapter revalidation đã push; session version và các direct mutation routes còn thiếu | `8a75e3c` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata và CREDIT account-card validation đã push; generic persistent command guard còn là decision gate | `d0d2c9b` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services và Calendar Subscription command boundary đã push; MCP mutation guard và legacy category migration chưa mở | `8701e02` / `origin/master` | Chờ chốt contract filters, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary và Notes trusted mutation context đã push; MCP mutation guard và legacy category migration chưa mở | `4bdea9e` / `origin/master` | Chờ chốt contract filters, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -846,6 +846,26 @@ implemented yet.
   feed giữ fire-and-forget `lastAccessedAt`; session version/revocation và
   generic mutation idempotency/audit chưa mở.
 - Commit/push: `8701e02` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Notes trusted mutation context
+
+- Independent review: low-risk identity-boundary slice được duyệt; chỉ đổi
+  POST `/api/notes`, giữ nguyên date/content validation, workspace upsert/remove
+  semantics và response. GET đã dùng trusted context từ slice trước.
+- Changed write-set: notes POST tạo `browserServiceContext` một lần trước khi
+  validate/write, dùng `context.workspaceId`; loại bỏ `sessionFromRequest` khỏi
+  mutation adapter. `NotesRepository` vẫn là persistence seam hiện hữu, không
+  thêm Notes MCP command hay DTO mới.
+- Acceptance evidence: notes/context focused tests pass; backend
+  `npm run validate` pass (124 tests, typecheck, lint và build); moved-workspace
+  user bị `401` trước repository write; `git diff --check` pass.
+- Database impact: chỉ thêm user revalidation lookup; notes upsert/remove giữ
+  nguyên persistence, không schema/index/migration/data write và không cần
+  Kubernetes backup.
+- Residual risk: NotesRepository vẫn là compatibility repository gọi trực tiếp
+  từ route; malformed non-empty date tiếp tục AS-IS. Các profile/workspace/card/
+  payment mutations còn gate riêng.
+- Commit/push: `4bdea9e` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
