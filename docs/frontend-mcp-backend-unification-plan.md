@@ -13,7 +13,7 @@ implemented yet.
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
-| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 đã hoàn tất review, validation và push; payment state transition vẫn legacy | `177b347` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
+| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget read parity đã push; write command chưa mở | `cc4d333` / `origin/master` | Giữ PUT/upsert và Planning write contract cho slice riêng; tiếp tục runtime REST parity không-DB |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
@@ -313,6 +313,15 @@ implemented yet.
 - Database impact: docs-only, không query/migration/index/write và không cần
   Kubernetes backup.
 - Commit/push: `c7e4cb6` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Statement malformed-id fail-closed correction
+
+- `StatementQueryService.getById` trả `null` cho identifier không hợp lệ để MCP
+  không làm lộ CastError; REST detail trả `INVALID_STATEMENT_ID` trước khi query
+  statement. Parent card id cũng được kiểm tra trước batch/read projection.
+- Acceptance evidence: focused StatementQuery/REST tests pass (9 tests); không
+  thay đổi model/index/migration hoặc dữ liệu.
+- Commit/push: `9ef5d33` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
