@@ -10,7 +10,7 @@ implemented yet.
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
 | Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract slice đã hoàn tất và remote đã nhận; trusted context vẫn là checkpoint kế tiếp | `a54f09e` / `origin/master` | Bổ sung `ServiceContext.channel` + `correlationId` và context factories |
-| Phase 1 — Access & Tenancy + contract foundation | `PENDING` | Chưa bắt đầu | — | Xây trusted `ServiceContext` và shared primitives |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context factory đã validation pass, đang chờ commit | — | Commit/push context foundation rồi rà session expiry/revalidation |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
@@ -32,6 +32,22 @@ implemented yet.
   slice này. Cross-workspace service integration test cần bổ sung cùng trusted
   context foundation.
 - Commit/push: `a54f09e` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Trusted ServiceContext (ready to commit)
+
+- Independent review: `channel` và `correlationId` phải là required fields; MCP
+  cần correlation ID mới cho từng invocation, không dùng một ID startup.
+- Changed write-set: `backend/src/context.ts`, `ServiceContext` types, browser
+  service route adapters, MCP context/tool invocation provider và context tests.
+- Acceptance evidence: role/channel/correlation validation, browser signed
+  session derivation, job factory và MCP correlation uniqueness đều có test;
+  backend `validate` pass (67 tests và build), không còn service route truyền
+  trực tiếp `sessionFromRequest`.
+- Residual risk: session chưa revalidate user active/role/workspace mỗi request;
+  MCP fixed identity chưa kiểm tra active user/workspace từ repository. Đây là
+  checkpoint kế tiếp của Access & Tenancy, chưa phải security completion.
+- Commit/push: pending; không đánh dấu Phase 1 hoàn tất cho tới khi SHA remote
+  được ghi ở checkpoint kế tiếp.
 
 ### Execution rules
 

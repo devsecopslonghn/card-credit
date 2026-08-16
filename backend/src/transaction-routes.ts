@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
 import { sessionFromRequest, type Session } from "./auth.js";
+import { browserServiceContext } from "./context.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { CardStatementModel } from "./models/card-statement.js";
 import {
@@ -219,7 +220,7 @@ export const registerTransactionRoutes = (
           : process.env.FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID?.trim();
         if (paidAmount > 0 && !repaymentAccountId) throw new ApiError(400, "REPAYMENT_ACCOUNT_REQUIRED", "Cần chọn tài khoản DEBIT/CASH/E_WALLET dùng để trả sao kê.");
         const paidStatement = paidAmount > 0 && repaymentAccountId
-          ? await FinancialTransactionService.payStatement(session, request.params.statementId, repaymentAccountId, paidAmount, new Date())
+          ? await FinancialTransactionService.payStatement(browserServiceContext(request, secret), request.params.statementId, repaymentAccountId, paidAmount, new Date())
           : await Statements.findOneAndUpdate({ _id: request.params.statementId, workspaceId: session.workspaceId }, { $set: update }, { returnDocument: "after" });
         if (!paidStatement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
         return { data: TransactionService.serializeStatement(paidStatement, transactions.map((item) => financialView(item as Data, card)), card) };
