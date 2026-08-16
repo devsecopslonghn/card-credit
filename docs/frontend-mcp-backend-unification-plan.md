@@ -13,7 +13,7 @@ implemented yet.
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
-| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
+| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email và creditStatements statement projections đã push; fee/cashback report và write command slices chưa mở | `1f954a4` / `origin/master` | Đối chiếu fee/cashback report parity; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
@@ -433,6 +433,24 @@ implemented yet.
   data write và không cần Kubernetes backup.
 - Commit/push: `1f954a4` đã push thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
+
+### Decision gate: Payment State Machine and Persistent Command Guard
+
+- Chưa triển khai: `PATCH /api/cards/:id/statements/:statementId/payment` vẫn
+  giữ compatibility path; các lỗi đã ghi trong `GAP-PAY-01/02` gồm action
+  fallback thành `PAID`, thiếu `repaymentAccountId`, và `REOPEN` không reverse
+  `STATEMENT_PAYMENT`/cashflow.
+- Không tự ý sửa trong read-parity workstream: state transition sẽ ghi
+  `CardStatement` và có thể tạo/đụng `FinancialTransaction`; generic
+  idempotency/one-time confirmation/audit cũng cần persistence/concurrency
+  decision. Đây là financial/data-impacting change, không thể rollback chỉ bằng
+  đổi adapter nếu đã phát sinh dữ liệu mới.
+- Cần user chốt trước khi mở implementation: repayment/reversal policy,
+  allowed transition matrix, idempotency/audit retention, transaction/CAS
+  boundary và backup/recovery target. Sau khi chốt sẽ lập migration/backup plan
+  (nếu cần), test fixture/reconciliation và commit riêng.
+- Current rollback: giữ nguyên payment compatibility path; các read projections
+  đã push không thay đổi payment writes.
 
 ### Execution rules
 
