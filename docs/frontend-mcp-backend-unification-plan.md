@@ -79,11 +79,52 @@ implemented yet.
   explicit `write` only after old-writer fence.
 - Acceptance evidence: typecheck/lint pass; focused config/MCP/parity suite
   14/14 pass, including explicit write inventory and default read-only inventory.
-  Full backend validation is required before commit/push.
+  Full backend `npm run validate` pass (182/182 tests, typecheck, lint, build).
+  Commit/push: `cff4ef2`.
 - Database/rollout impact: no schema/index/data write and no Kubernetes mutation.
   Existing old pod remains enabled until a separately approved fence/drain;
   this switch protects candidate/new images and does not by itself fence the
   old image.
+
+### Completed checkpoint: Compress SRS without losing traceability
+
+- Independent review: GO có điều kiện; giữ stable requirement/GAP IDs, capability
+  map, source-of-truth, canonical invariants, rollout gates và verification; đưa
+  field-level inventory/implementation history về `docs/api.md`, shared schemas
+  và execution plan thay vì lặp lại trong SRS.
+- Changed write-set: `docs/SRS.md` rút từ 810 xuống 218 dòng, giữ 8 business
+  capabilities, Integration/Platform cross-cutting rules, financial formulas,
+  MCP command safety, GAP IDs và requirement ID index. Không đổi code, schema,
+  index, migration hoặc database.
+- Acceptance evidence: `git diff --check` pass; SRS links tới execution plan,
+  `docs/api.md` và `shared/src`; frontend unit evidence vẫn 84/84 từ checkpoint
+  dependency trước đó.
+- Database/rollout impact: docs-only, không cần backup hay Kubernetes mutation.
+- Commit/push: ghi SHA ngay sau khi commit và push thành công.
+
+### Session handoff prompt (copy/paste)
+
+```text
+Bạn đang tiếp tục refactor repository /home/longhn0710/workspace/card-credit.
+Đọc AGENTS.md, docs/SRS.md (baseline ngắn), docs/frontend-mcp-backend-
+unification-plan.md và git status/log trước khi sửa. Làm theo capability vertical
+slice, không chia riêng frontend/backend/MCP. SRS là nguồn yêu cầu; execution
+plan là nhật ký resumable. Không lặp lại commit đã push và không claim target là
+đã đạt nếu chưa có source/test evidence.
+
+Việc đầu tiên: chạy `cd frontend && npm ci --include=optional && npm run
+test:unit --if-present`; dependency runtime `zod` phải được resolve trực tiếp
+qua frontend/shared. Sau đó chạy shared validate, backend validate, frontend
+typecheck/lint/integration/build theo mục 9 SRS. Nếu lỗi, sửa nguyên nhân nhỏ
+nhất, thêm regression test, cập nhật plan, independent review rồi commit/push.
+
+Tiếp tục từ GAP P0 hiện tại: old MCP statement-payment writers vẫn chưa được
+fence/drain; production rollout đang NO-GO nếu chưa có candidate image. Không
+scale/restart/patch Kubernetes và không sửa DB. Với reversal/compensating
+transaction, dừng xin DECISION người dùng trước mọi persistence change; nếu chỉ
+đọc/review thì ghi evidence vào plan. Mỗi feature hoàn tất phải cập nhật plan,
+chạy validation, commit và push ngay.
+```
 
 ### Completed checkpoint: Persistent one-time MCP preview confirmation
 
