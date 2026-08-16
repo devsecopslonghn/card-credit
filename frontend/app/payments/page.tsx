@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchCards } from "@/lib/api/cardsClient";
 import { listFinanceAccounts, type FinanceAccount } from "@/lib/api/financeClient";
 import {
   fetchAllCardStatements,
+  createStatementPaymentKey,
   updateStatementPayment,
   type CardStatementView,
 } from "@/lib/api/statementsClient";
@@ -45,6 +46,7 @@ export default function PaymentsPage() {
   const [toDate, setToDate] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const paymentCommandKeysRef = useRef(new Map<string, string>());
 
   useEffect(() => {
     void Promise.all([fetchAllCardStatements(), fetchCards(), listFinanceAccounts()])
@@ -89,9 +91,12 @@ export default function PaymentsPage() {
     }
     setBusy(row._id);
     setError("");
+    const commandKey = paymentCommandKeysRef.current.get(row._id) ?? createStatementPaymentKey();
+    paymentCommandKeysRef.current.set(row._id, commandKey);
     try {
-      const next = await updateStatementPayment(row.userCardId, row._id, "PAID", repaymentAccountId || undefined);
+      const next = await updateStatementPayment(row.userCardId, row._id, "PAID", repaymentAccountId || undefined, commandKey);
       setRows((current) => current.map((item) => item._id === next._id ? next : item));
+      paymentCommandKeysRef.current.delete(row._id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thể cập nhật thanh toán.");
     } finally {

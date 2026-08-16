@@ -23,6 +23,7 @@ import { fetchMonthlyCashFlow, type MonthlyCashFlow } from "@/lib/api/cashFlowCl
 import { listFinanceAccounts, type FinanceAccount } from "@/lib/api/financeClient";
 import {
   fetchAllCardStatements,
+  createStatementPaymentKey,
   updateStatementPayment,
   type CardStatementView,
 } from "@/lib/api/statementsClient";
@@ -47,6 +48,7 @@ export default function CardsPage() {
   const [pendingPaymentActions, setPendingPaymentActions] = useState<Set<string>>(() => new Set());
   const [monthlyCashFlow, setMonthlyCashFlow] = useState<MonthlyCashFlow[]>([]);
   const pendingPaymentActionsRef = useRef(new Set<string>());
+  const paymentCommandKeysRef = useRef(new Map<string, string>());
   const [calendarPeriod] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -176,10 +178,13 @@ export default function CardsPage() {
     }
 
     pendingPaymentActionsRef.current.add(key);
+    const commandKey = paymentCommandKeysRef.current.get(key) ?? createStatementPaymentKey();
+    paymentCommandKeysRef.current.set(key, commandKey);
     setPendingPaymentActions(new Set(pendingPaymentActionsRef.current));
     try {
-      const updated = await updateStatementPayment(statement.userCardId, statement._id, action, repaymentAccountId || undefined);
+      const updated = await updateStatementPayment(statement.userCardId, statement._id, action, repaymentAccountId || undefined, commandKey);
       setStatements((current) => current.map((item) => (item._id === updated._id ? updated : item)));
+      paymentCommandKeysRef.current.delete(key);
       showToast(action === "CLOSED" ? "Đã chốt kỳ sao kê." : "Đã đánh dấu thanh toán.");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Không thể cập nhật kỳ sao kê.", "error");

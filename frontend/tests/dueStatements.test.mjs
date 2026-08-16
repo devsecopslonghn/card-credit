@@ -204,7 +204,8 @@ test("cards page sends persisted card and statement ids and replaces successful 
   assert.match(source, /setStatements\(result\.statements\)/);
   assert.match(source, /setStatementsError\(result\.statementsError\)/);
   assert.equal(source.includes("loadedCards.map((card) => fetchCardStatements"), false);
-  assert.match(source, /updateStatementPayment\(statement\.userCardId, statement\._id, action, repaymentAccountId \|\| undefined\)/);
+  assert.match(source, /updateStatementPayment\(statement\.userCardId, statement\._id, action, repaymentAccountId \|\| undefined, commandKey\)/);
+  assert.match(source, /paymentCommandKeysRef/);
   assert.match(source, /item\._id === updated\._id \? updated : item/);
   assert.match(source, /pendingPaymentActionsRef\.current\.has\(key\)/);
   assert.match(source, /showToast\(error instanceof Error \? error\.message/);

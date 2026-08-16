@@ -35,8 +35,17 @@ export const registerTransactionRoutes = (
     async (request) => {
       const parsed = statementPaymentInputSchema.safeParse(request.body);
       if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
+      const rawIdempotencyKey = request.headers["idempotency-key"];
+      if (typeof rawIdempotencyKey !== "string" || rawIdempotencyKey.trim().length < 8) throw new ApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Thanh toán sao kê cần Idempotency-Key tối thiểu 8 ký tự.");
       const context = await browserServiceContext(request, secret, calendarEmail?.users);
-      await StatementPaymentCommandService.execute(context, request.params.id, request.params.statementId, parsed.data as StatementPaymentInput, new Date());
+      await StatementPaymentCommandService.execute(
+        context,
+        request.params.id,
+        request.params.statementId,
+        parsed.data as StatementPaymentInput,
+        { idempotencyKey: rawIdempotencyKey.trim(), endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment" },
+        new Date(),
+      );
       return { data: await StatementQueryService.get(context, request.params.id, request.params.statementId) };
     },
   );

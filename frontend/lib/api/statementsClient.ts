@@ -64,10 +64,11 @@ const toLegacyStatement = (value: StatementDto): CardStatementView => ({
 });
 const parseStatementList = (value: unknown) => (statementListSchema.parse(value) as StatementDto[]).map(toLegacyStatement);
 const parseStatement = (value: unknown) => toLegacyStatement(statementSchema.parse(value) as StatementDto);
+export const createStatementPaymentKey = () => `statement-payment-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 export const fetchCardStatements = async (cardId: string) => parseStatementList(await request<unknown>(`/api/cards/${cardId}/statements?timestamp=${Date.now()}`, { cache: "no-store" }));
 export const fetchAllCardStatements = async () => parseStatementList(await request<unknown>(`/api/card-statements?timestamp=${Date.now()}`, { cache: "no-store" }));
 export const fetchStatementDetail = async (cardId: string, statementId: string) => parseStatement(await request<unknown>(`/api/cards/${cardId}/statements/${statementId}?timestamp=${Date.now()}`, { cache: "no-store" }));
-export const updateStatementPayment = async (cardId: string, statementId: string, action: StatementPaymentAction, repaymentAccountId?: string) => {
+export const updateStatementPayment = async (cardId: string, statementId: string, action: StatementPaymentAction, repaymentAccountId?: string, idempotencyKey = createStatementPaymentKey()) => {
   const payload = statementPaymentInputSchema.parse({ action, ...(repaymentAccountId ? { repaymentAccountId } : {}) });
-  return toLegacyStatement(statementSchema.parse(await request<unknown>(`/api/cards/${cardId}/statements/${statementId}/payment`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })) as StatementDto);
+  return toLegacyStatement(statementSchema.parse(await request<unknown>(`/api/cards/${cardId}/statements/${statementId}/payment`, { method: "PATCH", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, body: JSON.stringify(payload) })) as StatementDto);
 };

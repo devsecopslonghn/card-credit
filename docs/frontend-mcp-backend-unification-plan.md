@@ -9,11 +9,11 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, financial transaction list query parity, statement payment command boundary và Account/Financial Transaction command guard wiring đã push | `bd1a8ae` / `origin/master` | Tiếp tục owner/card/year/month filter semantics; deferred Catalog/Portfolio date hardening pending persisted-data audit |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, financial transaction list query parity, statement payment command boundary, Account/Financial Transaction command guard wiring và Payment REST/Frontend command guard đã push | `bd1a8ae` / `origin/master` (payment checkpoint pending SHA) | Tiếp tục owner/card/year/month filter semantics; deferred Catalog/Portfolio date hardening pending persisted-data audit |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `b75fb28` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
-| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push | `bd1a8ae` / `origin/master` | Triển khai với old-writer fence trước khi làm browser preview/UI; sau đó mở Payment command guard |
-| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction và REST/Frontend payment command boundary đã hoàn tất; strict action, persisted-impact totals, real-money account selection, PAID lock, generic STATEMENT_PAYMENT rejection và unique payment guard đã code. Preview/confirm, generic idempotency/audit, reversal và MCP payment mutation còn mở | `0dc20e7` / `origin/master` | Thiết kế preview/confirm/reversal; reconcile 2 legacy payment records đang chưa PAID trước khi mở MCP payment mutation |
+| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push | `bd1a8ae` / `origin/master` | Lập và thực hiện old-writer fence trước production rollout; sau đó tiếp tục browser preview/execute |
+| Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary và Payment REST/Frontend generic command guard đã hoàn tất; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction và stable frontend retry key đã code. Preview/confirm one-time, reversal và MCP payment mutation còn mở | `payment commit pending` | Lập old-writer fence; sau đó thiết kế browser preview/execute và reconcile 2 legacy payment records trước khi mở MCP payment mutation |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` / `origin/master` | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
@@ -682,6 +682,32 @@ implemented yet.
 - Commit/push: feature code đã push tại 0dc20e7; thay đổi DB/index đã verify
   trên cluster, không chứa backup trong git. Docs checkpoint này sẽ được push
   trong commit kế tiếp.
+
+### Completed checkpoint: Payment Command Guard (REST + Frontend)
+
+- Independent review: payment command được duyệt sau khi đóng hai blocker: hash
+  phải bind cả `cardId`/`statementId` và duplicate retry chỉ được giới hạn cho
+  unique payment index, không retry mù mọi business error.
+- Changed write-set: `StatementPaymentCommandService.execute` nhận
+  `CommandInvocation` bắt buộc, tạo canonical payload hash chứa resource identity,
+  chạy `CommandGuardService` cùng Mongo session và chỉ lưu safe result metadata
+  (`statementId`, action, payment status, paidAt, paidAmount) trong receipt/audit.
+  REST PATCH yêu cầu `Idempotency-Key` tối thiểu 8 ký tự; Cards/Payments giữ một
+  key cho mỗi user action để retry không tạo command mới và xóa key sau success.
+- Safety: bounded retry tối đa một lần chỉ khi `statement_payment_unique` tranh
+  chấp; mọi command khác fail-closed. Không mở MCP payment tool, preview/confirm
+  hoặc thay đổi state-machine/reversal trong slice này.
+- Acceptance evidence: backend `npm run validate` pass (165 tests,
+  typecheck/lint/build); shared `npm run validate` pass (24 tests); frontend
+  typecheck/lint/test pass (84 unit + 6 integration) và production build pass.
+- Database impact: không migration, không index mới và không ghi dữ liệu; dùng
+  bốn command-guard indexes đã rollout ở checkpoint trước. Vì vậy không cần
+  backup DB cho slice này.
+- Rollout gate: pod cũ vẫn có thể ghi payment ngoài `CommandReceipt`; phải
+  fence/drain old writers hoặc hoàn tất dual-write transition trước deploy code
+  mới lên môi trường dùng chung.
+- Commit/push: cập nhật ngay sau khi commit feature; SHA sẽ được ghi ở checkpoint
+  ledger kế tiếp.
 
 ### Decision gate: Payment State Machine and Persistent Command Guard
 

@@ -6,6 +6,8 @@ import { AccountModel } from "../models/account.js";
 import { CardStatementModel } from "../models/card-statement.js";
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import type { ServiceContext } from "./types/service-context.js";
+import { canonicalPayloadHash } from "../command-hash.js";
+import { commandGuardService, type CommandInvocation } from "./command-guard-service.js";
 
 type Data = Record<string, unknown>;
 type PaymentTotals = { statementAmount: number; paymentAmount: number; outstandingAmount: number };
@@ -31,6 +33,20 @@ export const paidLedgerIsConsistent = (statement: Data, transactions: Data[]) =>
   return totals.outstandingAmount === 0 && numberValue(statement.paidAmount) === totals.paymentAmount;
 };
 
+const paymentReceiptResult = (statement: Data, statementId: string, action: StatementPaymentAction): Data => ({
+  statementId,
+  action,
+  paymentStatus: statement.paymentStatus ?? null,
+  paidAt: statement.paidAt ?? null,
+  paidAmount: numberValue(statement.paidAmount),
+});
+
+const isPaymentUniqueConflict = (error: unknown) => {
+  if (!error || typeof error !== "object" || !("code" in error) || error.code !== 11000) return false;
+  const value = error as { index?: string; keyPattern?: Record<string, unknown>; message?: string };
+  return value.index === "statement_payment_unique" || (value.keyPattern?.transactionType !== undefined && value.keyPattern?.statementId !== undefined) || value.message?.includes("statement_payment_unique") === true;
+};
+
 /** Stored state transition; effective OVERDUE is represented by OPEN at rest. */
 export const nextPaymentState = (current: string, action: StatementPaymentAction) => {
   const parsedAction = statementPaymentActionSchema.safeParse(action);
@@ -40,31 +56,34 @@ export const nextPaymentState = (current: string, action: StatementPaymentAction
   return parsedAction.data === "CLOSED" ? "STATEMENT_CLOSED" as const : "OPEN" as const;
 };
 
-const duplicateKey = (error: unknown) => Boolean(error && typeof error === "object" && "code" in error && error.code === 11000);
-
 export class StatementPaymentCommandService {
-  static async execute(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput, paidAt = new Date()): Promise<Data> {
+  static async execute(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput, invocation: CommandInvocation, paidAt = new Date()): Promise<Data> {
     const parsed = statementPaymentInputSchema.safeParse(input);
     if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
     const command = parsed.data as StatementPaymentInput;
     if (!mongoose.isValidObjectId(cardId) || !mongoose.isValidObjectId(statementId)) throw new ApiError(400, "INVALID_STATEMENT_ID", "Tham chiếu sao kê không hợp lệ.");
     if (!(paidAt instanceof Date) || Number.isNaN(paidAt.valueOf())) throw new ApiError(400, "INVALID_PAYMENT_DATE", "Ngày thanh toán không hợp lệ.");
+    const payloadHash = canonicalPayloadHash({ cardId, statementId, input: command });
+    const spec = {
+      operation: "pay_statement",
+      idempotencyKey: invocation.idempotencyKey,
+      payloadHash,
+      endpointOrTool: invocation.endpointOrTool,
+      previewId: invocation.previewId,
+      resource: { type: "statement", cardId, statementId },
+    } as const;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        return await this.executeOnce(ctx, cardId, statementId, command, paidAt);
+        return await commandGuardService.execute(ctx, spec, (session) => this.executeOnce(ctx, cardId, statementId, command, paidAt, session));
       } catch (error) {
-        if (command.action === "PAID" && attempt === 0 && duplicateKey(error)) continue;
+        if (attempt === 0 && isPaymentUniqueConflict(error)) continue;
         throw error;
       }
     }
     throw new ApiError(409, "PAYMENT_CONFLICT", "Thanh toán sao kê đang được xử lý.");
   }
 
-  private static async executeOnce(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput, paidAt: Date): Promise<Data> {
-    const session = await mongoose.startSession();
-    try {
-      let output: Data | undefined;
-      await session.withTransaction(async () => {
+  private static async executeOnce(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput, paidAt: Date, session: mongoose.ClientSession): Promise<Data> {
         const statement = await CardStatementModel.findOne({ _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId }).session(session).lean() as Data | null;
         if (!statement) throw new ApiError(404, "STATEMENT_NOT_FOUND", "Không tìm thấy kỳ sao kê.");
         const transactions = await FinancialTransactionModel.find({ statementId, workspaceId: ctx.workspaceId }).session(session).lean() as Data[];
@@ -76,15 +95,13 @@ export class StatementPaymentCommandService {
         if (input.action === "PAID" && String(statement.paymentStatus) === "PAID") {
           if (!paidLedgerIsConsistent(statement, transactions)) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Trạng thái paid không khớp với ledger sao kê.");
           if (paymentTransactions.length === 0 && totals.paymentAmount === 0) {
-            output = statement;
-            return;
+            return paymentReceiptResult(statement, statementId, input.action);
           }
           if (paymentTransactions.length === 1) {
             const account = await AccountModel.findOne({ _id: paymentTransactions[0]?.accountId, workspaceId: ctx.workspaceId }).session(session).lean();
             if (!account) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Tài khoản của giao dịch thanh toán không còn thuộc workspace.");
             if (input.repaymentAccountId && String(paymentTransactions[0]?.accountId) !== input.repaymentAccountId) throw new ApiError(409, "STATEMENT_ALREADY_SETTLED", "Kỳ sao kê đã được thanh toán bằng tài khoản khác.");
-            output = statement;
-            return;
+            return paymentReceiptResult(statement, statementId, input.action);
           }
           throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê đã paid nhưng thiếu giao dịch thanh toán.");
         }
@@ -95,8 +112,7 @@ export class StatementPaymentCommandService {
             { returnDocument: "after", session },
           ).lean() as Data | null;
           if (!result) throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Kỳ sao kê đã thanh toán. Hãy dùng quy trình hoàn tác riêng.");
-          output = result;
-          return;
+          return paymentReceiptResult(result, statementId, input.action);
         }
 
         if (paymentTransactions.length === 1) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê đã có giao dịch thanh toán nhưng trạng thái chưa được đồng bộ.");
@@ -112,12 +128,8 @@ export class StatementPaymentCommandService {
           { returnDocument: "after", session },
         ).lean() as Data | null;
         if (!result) throw new ApiError(409, "PAYMENT_CONFLICT", "Kỳ sao kê vừa được thanh toán bởi yêu cầu khác.");
-        output = result;
-      });
-      return output!;
-    } finally {
-      await session.endSession();
-    }
+        const output = paymentReceiptResult(result, statementId, input.action);
+      return output;
   }
 
   private static async createPaymentTransaction(ctx: ServiceContext, statementId: string, repaymentAccountId: string, amount: number, paidAt: Date, session: mongoose.ClientSession) {

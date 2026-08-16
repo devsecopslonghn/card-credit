@@ -8,6 +8,8 @@ import { StatementPaymentCommandService, nextPaymentState, paidLedgerIsConsisten
 import { FinancialTransactionService } from "../src/services/financial-transaction-service.js";
 import { StatementQueryService } from "../src/services/statement-query-service.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
+import { commandGuardService, type CommandGuardSpec } from "../src/services/command-guard-service.js";
+import { canonicalPayloadHash } from "../src/command-hash.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const secret = "01234567890123456789012345678901";
@@ -59,10 +61,31 @@ test("canonical payment service rejects invalid runtime actions before database 
       cardId,
       statementId,
       { action: "UNKNOWN" } as never,
+      { idempotencyKey: "payment-invalid-1", endpointOrTool: "test.payment" },
     ),
     (error: unknown) => error instanceof Error && "code" in error && error.code === "INVALID_PAYMENT_ACTION",
   );
   assert.throws(() => nextPaymentState("OPEN", "UNKNOWN" as never), (error: unknown) => error instanceof Error && "code" in error && error.code === "INVALID_PAYMENT_ACTION");
+});
+
+test("payment command binds statement identity and safe result metadata to the generic guard", async (t) => {
+  let observed: CommandGuardSpec | undefined;
+  t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, spec: CommandGuardSpec) => {
+    observed = spec;
+    return { statementId, action: "CLOSED", paymentStatus: "STATEMENT_CLOSED", paidAt: null, paidAmount: 0 };
+  });
+  const input = { action: "CLOSED" as const };
+  const result = await StatementPaymentCommandService.execute(
+    { userId: user.id, workspaceId: user.workspaceId, role: user.role, channel: "browser", correlationId: "payment-guard-test" },
+    cardId,
+    statementId,
+    input,
+    { idempotencyKey: "payment-command-1", endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment" },
+  );
+  assert.deepEqual(result, { statementId, action: "CLOSED", paymentStatus: "STATEMENT_CLOSED", paidAt: null, paidAmount: 0 });
+  assert.equal(observed?.operation, "pay_statement");
+  assert.deepEqual(observed?.resource, { type: "statement", cardId, statementId });
+  assert.equal(observed?.payloadHash, canonicalPayloadHash({ cardId, statementId, input }));
 });
 
 test("generic transaction preview rejects statement payment instead of advertising an executable command", async () => {
@@ -76,9 +99,9 @@ test("generic transaction preview rejects statement payment instead of advertisi
 });
 
 test("payment REST adapter rejects missing/unknown action and delegates canonical payload", async (t) => {
-  const observed: Array<{ context: ServiceContext; cardId: string; statementId: string; input: unknown }> = [];
-  t.mock.method(StatementPaymentCommandService, "execute", async (context: ServiceContext, requestedCardId: string, requestedStatementId: string, input: unknown) => {
-    observed.push({ context, cardId: requestedCardId, statementId: requestedStatementId, input });
+  const observed: Array<{ context: ServiceContext; cardId: string; statementId: string; input: unknown; invocation: unknown }> = [];
+  t.mock.method(StatementPaymentCommandService, "execute", async (context: ServiceContext, requestedCardId: string, requestedStatementId: string, input: unknown, invocation: unknown) => {
+    observed.push({ context, cardId: requestedCardId, statementId: requestedStatementId, input, invocation });
     return { _id: statementId, userCardId: cardId };
   });
   t.mock.method(StatementQueryService, "get", async () => ({
@@ -94,11 +117,15 @@ test("payment REST adapter rejects missing/unknown action and delegates canonica
     assert.equal(response.statusCode, 400);
     assert.equal(response.json().error.code, "INVALID_PAYMENT_ACTION");
   }
-  const response = await app.inject({ method: "PATCH", url: `/api/cards/${cardId}/statements/${statementId}/payment`, headers: { cookie }, payload: { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" } });
+  const missingKey = await app.inject({ method: "PATCH", url: `/api/cards/${cardId}/statements/${statementId}/payment`, headers: { cookie }, payload: { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" } });
+  assert.equal(missingKey.statusCode, 400);
+  assert.equal(missingKey.json().error.code, "IDEMPOTENCY_KEY_REQUIRED");
+  const response = await app.inject({ method: "PATCH", url: `/api/cards/${cardId}/statements/${statementId}/payment`, headers: { cookie, "idempotency-key": " payment-command-1 " }, payload: { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" } });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().data.id, statementId);
   assert.equal(observed.length, 1);
   assert.deepEqual(observed[0]?.input, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" });
+  assert.deepEqual(observed[0]?.invocation, { idempotencyKey: "payment-command-1", endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment" });
   assert.equal(observed[0]?.context.workspaceId, user.workspaceId);
 
   const genericPayment = await app.inject({

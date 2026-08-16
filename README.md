@@ -196,8 +196,9 @@ Account types:
 
 Các MCP tool transaction/payment legacy đã được loại bỏ. MCP chỉ ghi giao dịch
 qua Financial Domain; dữ liệu credit cũ chỉ được giữ cho migration. REST payment
-đã dùng strict shared command và `StatementPaymentCommandService`; MCP payment
-mutation vẫn chưa expose cho tới khi hoàn tất preview/confirm/idempotency/audit.
+đã dùng strict shared command, `StatementPaymentCommandService` và generic
+receipt/audit guard qua `Idempotency-Key`; MCP payment mutation vẫn chưa expose
+cho tới khi hoàn tất preview/confirm one-time và resource-version guard.
 
 ## Financial API nhanh
 
@@ -206,6 +207,7 @@ GET  /api/accounts
 POST /api/accounts                 # requires Idempotency-Key (8+ chars)
 GET  /api/financial-transactions
 POST /api/financial-transactions   # requires Idempotency-Key (8+ chars)
+PATCH /api/cards/:id/statements/:statementId/payment  # requires Idempotency-Key (8+ chars)
 GET  /api/financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
 GET  /api/financial-reports/credit-statements
 GET  /api/finance/categories

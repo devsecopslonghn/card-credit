@@ -115,7 +115,7 @@ Resource không tồn tại hoặc ngoài workspace đều xử lý như `404 CA
 | `GET /card-statements` | Session | Statements của tất cả card trong workspace. |
 | `GET /cards/:id/statements` | Session | Statements của card. |
 | `GET /cards/:id/statements/:statementId` | Session | Statement + transactions + summary. |
-| `PATCH /cards/:id/statements/:statementId/payment` | Session | Strict `{action:"CLOSED"|"PAID"|"REOPEN",repaymentAccountId?}`; command service enforces card/workspace scope, persisted-impact totals, PAID lock and one payment transaction; returns canonical `StatementDto`. |
+| `PATCH /cards/:id/statements/:statementId/payment` | Session + `Idempotency-Key` (8+ chars) | Strict `{action:"CLOSED"|"PAID"|"REOPEN",repaymentAccountId?}`; command service enforces card/workspace scope, persisted-impact totals, PAID lock, one payment transaction and generic receipt/audit guard; returns canonical `StatementDto`. |
 | `POST /cards/:id/statements/:statementId/calendar-email` | Session | Không nhận recipient; server gửi tới email user hiện tại. |
 
 Summary response nên có:
