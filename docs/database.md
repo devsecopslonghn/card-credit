@@ -101,6 +101,23 @@ repository implementation.
 `event`, actor user/email/workspace nếu có, request id, resource type/id, result
 code và timestamps. Không ghi password, cookie, token hay secret.
 
+### CommandReceipt (`commandreceipts`)
+
+Generic idempotency receipt cho command mới; không dùng tên MCP và không thay thế
+`mcpmutations` trong slice migration đầu tiên. Fields gồm `workspaceId`, `userId`,
+`channel`, `operation`, `idempotencyKey`, canonical `payloadHash`, status
+(`PENDING|COMPLETED|FAILED`), optional result/errorCode và completion timestamp.
+Receipt chỉ được reserve/complete trong cùng Mongo transaction với business write
+khi command đã được tích hợp; không lưu raw payload, token hoặc secret.
+
+### CommandAudit (`commandaudits`)
+
+Append-only success audit cho command guard, gồm actor/channel, workspace,
+correlationId, operation, endpoint/tool, optional previewId, safe resource IDs,
+outcome và errorCode. Slice foundation chỉ ghi `SUCCESS` sau completed receipt;
+failed-attempt policy sẽ được chốt khi tích hợp adapter. Không expose update/delete
+service và không coi `McpMutation` receipt là audit.
+
 ### Legacy masterdata (`banks`, `cardtypes`)
 
 Duy trì để tương thích UI/API cũ. Catalog mới là authority cho provider/network;
@@ -154,6 +171,10 @@ workspace trước mutation, đặc biệt `userCardId`, `statementId` và feed 
 | reminderdeliveries | `{ status: 1, nextAttemptAt: 1, claimedAt: 1 }` | Worker claim/recovery. |
 | notes | `{ workspaceId: 1, date: 1 }` unique | Calendar note upsert. |
 | authauditlogs | `{ createdAt: -1 }`, event/resource filters | Admin investigation. |
+| commandreceipts | `{ workspaceId: 1, operation: 1, idempotencyKey: 1 }` unique | Generic idempotency reservation/replay. |
+| commandreceipts | `{ workspaceId: 1, createdAt: -1 }` | Workspace retention/investigation. |
+| commandaudits | `{ workspaceId: 1, createdAt: -1 }` | Append-only command audit feed. |
+| commandaudits | `{ workspaceId: 1, operation: 1, createdAt: -1 }` | Operation-specific audit query. |
 
 Index choices phải được kiểm tra bằng `explain()` trên dataset representative;
 không thêm index tùy tiện trên high-write collections nếu không có query owner.
@@ -184,6 +205,18 @@ không thêm index tùy tiện trên high-write collections nếu không có que
    lịch sử từ `monthlyData`.
 3. Nếu không đủ dữ liệu, giữ card legacy và yêu cầu user nhập transaction mới.
 4. Validate counts/sums trước và sau, chạy read-only reconciliation.
+
+### Generic command guard rollout
+
+1. `backend/scripts/ensure-command-guard-indexes.ts` mặc định chạy dry-run; chỉ
+   tạo collection/index khi `COMMAND_GUARD_INDEX_APPLY=true`.
+2. Trước apply phải backup metadata/collection ở cluster đích và kiểm tra
+   duplicate receipt key; script fail-closed nếu duplicate tồn tại.
+3. Foundation không migrate/xóa `mcpmutations`; adapter integration từng command
+   là slice riêng và phải ghi migration note/retention policy.
+4. Nếu chưa có writer, rollback bằng revert code và drop chính xác named indexes
+   mới chỉ khi collections rỗng. Khi đã có receipt/audit, giữ dữ liệu và revert
+   adapter code, không xóa receipt để chạy lại command.
 
 ### Rollback
 

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createHash } from "node:crypto";
 import { AccountService } from "../src/services/account-service.js";
 import { AccountModel } from "../src/models/account.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { McpMutationModel } from "../src/models/mcp-mutation.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
+import { canonicalPayloadHash, legacyPayloadHash } from "../src/command-hash.js";
 
 const context: ServiceContext = {
   workspaceId: "workspace-a",
@@ -57,13 +57,25 @@ test("non-CREDIT card link remains a boundary error without card lookup", async 
 });
 
 test("idempotent account replay returns the stored result before card validation", async (t) => {
-  const hash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+  const hash = canonicalPayloadHash(input);
   const replayCardFind = t.mock.method(CreditCardModel, "findOne");
   const replayCreate = t.mock.method(AccountModel, "create");
   const stored = { id: "account-existing", name: input.name, type: "CREDIT", group: "DEBT", currency: "VND", active: true, creditCardId: cardId, openingBalance: 0, currentBalance: 0, currentDebt: 0 };
   t.mock.method(McpMutationModel, "findOne", () => query({ payloadHash: hash, result: stored }) as never);
 
   const result = await AccountService.create(context, input, "idempotency-1");
+  assert.deepEqual(result, stored);
+  assert.equal(replayCardFind.mock.callCount(), 0);
+  assert.equal(replayCreate.mock.callCount(), 0);
+});
+
+test("idempotent account replay accepts a legacy McpMutation payload hash", async (t) => {
+  const replayCardFind = t.mock.method(CreditCardModel, "findOne");
+  const replayCreate = t.mock.method(AccountModel, "create");
+  const stored = { id: "account-legacy", name: input.name, type: "CREDIT", group: "DEBT", currency: "VND", active: true, creditCardId: cardId, openingBalance: 0, currentBalance: 0, currentDebt: 0 };
+  t.mock.method(McpMutationModel, "findOne", () => query({ payloadHash: legacyPayloadHash(input), result: stored }) as never);
+
+  const result = await AccountService.create(context, input, "legacy-key");
   assert.deepEqual(result, stored);
   assert.equal(replayCardFind.mock.callCount(), 0);
   assert.equal(replayCreate.mock.callCount(), 0);

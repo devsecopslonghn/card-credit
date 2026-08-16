@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import crypto from "node:crypto";
 import { calculateFinancialImpact, type AccountType } from "../financial-domain.js";
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { AccountModel } from "../models/account.js";
@@ -11,6 +10,7 @@ import type { ServiceContext } from "./types/service-context.js";
 import { McpMutationModel } from "../models/mcp-mutation.js";
 import { financialTransactionListSchema, financialTransactionSchema } from "@card-credit/contracts";
 import type { CreateFinancialTransactionInput as SharedCreateFinancialTransactionInput, CreateFinancialTransactionBatchInput as SharedCreateFinancialTransactionBatchInput, FinancialTransactionDto } from "@card-credit/contracts";
+import { canonicalPayloadHash, legacyPayloadHash, payloadHashMatches } from "../command-hash.js";
 
 export type CreateFinancialTransactionInput = SharedCreateFinancialTransactionInput;
 export type CreateFinancialTransactionBatchInput = SharedCreateFinancialTransactionBatchInput;
@@ -77,10 +77,11 @@ export class FinancialTransactionService {
       let output: unknown;
       await session.withTransaction(async () => {
         const operation = "import_financial_transaction_batch";
-        const payloadHash = crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
+        const payloadHash = canonicalPayloadHash(input);
+        const legacyHash = legacyPayloadHash(input);
         const existing = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();
         if (existing) {
-          if (existing.payloadHash !== payloadHash) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
+          if (!payloadHashMatches(existing.payloadHash, payloadHash, legacyHash)) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
           output = existing.result;
           return;
         }
@@ -101,10 +102,11 @@ export class FinancialTransactionService {
       let output: Record<string, unknown> | undefined;
       await session.withTransaction(async () => {
         const operation = "import_financial_transaction";
-        const payloadHash = crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
+        const payloadHash = canonicalPayloadHash(input);
+        const legacyHash = legacyPayloadHash(input);
         const existing = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();
         if (existing) {
-          if (existing.payloadHash !== payloadHash) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
+          if (!payloadHashMatches(existing.payloadHash, payloadHash, legacyHash)) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
           output = existing.result as Record<string, unknown>;
           return;
         }

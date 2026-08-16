@@ -6,10 +6,10 @@ import { idOf, plain } from "../statement-domain.js";
 import { accountGroup, type AccountType } from "../financial-domain.js";
 import { CardStatementModel } from "../models/card-statement.js";
 import type { ServiceContext } from "./types/service-context.js";
-import crypto from "node:crypto";
 import { McpMutationModel } from "../models/mcp-mutation.js";
 import type { AccountDto, CreateAccountInput } from "@card-credit/contracts";
 import mongoose from "mongoose";
+import { canonicalPayloadHash, legacyPayloadHash, payloadHashMatches } from "../command-hash.js";
 
 const serialize = (value: unknown): AccountDto => {
   const item = plain(value) as Record<string, unknown>;
@@ -72,11 +72,12 @@ export class AccountService {
       throw new ApiError(400, "INVALID_ACCOUNT", "Chỉ tài khoản CREDIT mới được liên kết thẻ.");
     }
     const operation = "create_account";
-    const payloadHash = crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    const payloadHash = canonicalPayloadHash(input);
+    const legacyHash = legacyPayloadHash(input);
     if (idempotencyKey) {
       const existingMutation = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).lean();
       if (existingMutation) {
-        if (existingMutation.payloadHash !== payloadHash) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
+        if (!payloadHashMatches(existingMutation.payloadHash, payloadHash, legacyHash)) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
         return existingMutation.result as AccountDto;
       }
     }

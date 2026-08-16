@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import { canonicalPayloadHash } from "../command-hash.js";
+export { canonicalPayloadHash } from "../command-hash.js";
 
 export const MCP_PREVIEW_TTL_MS = 300_000;
 export const MCP_PREVIEW_TTL_SECONDS = MCP_PREVIEW_TTL_MS / 1000;
@@ -7,32 +9,15 @@ const PREVIEW_SCHEMA_VERSION = "preview.v1";
 export type PreviewBinding = { workspaceId: string; userId: string; channel: string };
 type PreviewClaims = { version: string; operation: string; payloadHash: string; contextHash: string; issuedAt: number; expiresAt: number };
 
-const normalizeJson = (value: unknown, seen = new Set<object>()): unknown => {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error("Invalid preview payload");
-    return Object.is(value, -0) ? 0 : value;
-  }
-  if (Array.isArray(value)) {
-    if (seen.has(value)) throw new Error("Invalid preview payload");
-    seen.add(value); const result = value.map((item) => normalizeJson(item, seen)); seen.delete(value); return result;
-  }
-  if (typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
-    const object = value as Record<string, unknown>;
-    if (seen.has(object)) throw new Error("Invalid preview payload");
-    seen.add(object); const result = Object.fromEntries(Object.keys(object).sort().map((key) => [key, normalizeJson(object[key], seen)])); seen.delete(object); return result;
-  }
-  throw new Error("Invalid preview payload");
-};
-
-const hash = (value: unknown) => crypto.createHash("sha256").update(JSON.stringify(normalizeJson(value))).digest("hex");
-export const canonicalPayloadHash = (payload: unknown) => hash(payload);
 const normalizedBinding = (binding: PreviewBinding): PreviewBinding => {
   const value = { workspaceId: binding.workspaceId?.trim(), userId: binding.userId?.trim(), channel: binding.channel?.trim() };
   if (Object.values(value).some((item) => !item)) throw new Error("Invalid preview context");
   return value;
 };
-const contextHash = (binding: PreviewBinding) => hash(normalizedBinding(binding));
+const previewPayloadHash = (payload: unknown) => {
+  try { return canonicalPayloadHash(payload); } catch { throw new Error("Invalid preview payload"); }
+};
+const contextHash = (binding: PreviewBinding) => canonicalPayloadHash(normalizedBinding(binding));
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
 const safeEqual = (left: string, right: string) => { const a = Buffer.from(left, "utf8"); const b = Buffer.from(right, "utf8"); return a.length === b.length && crypto.timingSafeEqual(a, b); };
 const sign = (secret: string, body: string) => crypto.createHmac("sha256", secret).update(`card-credit:mcp-preview:v1:${body}`).digest("base64url");
@@ -53,7 +38,7 @@ export const createPreviewTokenCodec = (options: { secret: string; now?: () => n
     ttlSeconds: Math.floor(ttlMs / 1000),
     issue(operation, payload, binding) {
       const issuedAt = now();
-      const claims: PreviewClaims = { version: PREVIEW_SCHEMA_VERSION, operation: operation.trim(), payloadHash: canonicalPayloadHash(payload), contextHash: contextHash(binding), issuedAt, expiresAt: issuedAt + ttlMs };
+      const claims: PreviewClaims = { version: PREVIEW_SCHEMA_VERSION, operation: operation.trim(), payloadHash: previewPayloadHash(payload), contextHash: contextHash(binding), issuedAt, expiresAt: issuedAt + ttlMs };
       const body = encode(claims);
       return { confirmationToken: `${body}.${sign(secret, body)}`, expiresAt: claims.expiresAt, expiresInSeconds: Math.floor(ttlMs / 1000) };
     },
@@ -63,7 +48,7 @@ export const createPreviewTokenCodec = (options: { secret: string; now?: () => n
       let claims: PreviewClaims;
       try { claims = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as PreviewClaims; } catch { throw new Error("Invalid confirmation token"); }
       const current = now();
-      if (claims.version !== PREVIEW_SCHEMA_VERSION || claims.operation !== operation.trim() || !Number.isFinite(claims.issuedAt) || !Number.isFinite(claims.expiresAt) || claims.issuedAt > current + 60_000 || claims.expiresAt <= current || claims.expiresAt - claims.issuedAt !== ttlMs || !safeEqual(claims.payloadHash, canonicalPayloadHash(payload)) || !safeEqual(claims.contextHash, contextHash(binding))) throw new Error("Expired or mismatched confirmation token");
+      if (claims.version !== PREVIEW_SCHEMA_VERSION || claims.operation !== operation.trim() || !Number.isFinite(claims.issuedAt) || !Number.isFinite(claims.expiresAt) || claims.issuedAt > current + 60_000 || claims.expiresAt <= current || claims.expiresAt - claims.issuedAt !== ttlMs || !safeEqual(claims.payloadHash, previewPayloadHash(payload)) || !safeEqual(claims.contextHash, contextHash(binding))) throw new Error("Expired or mismatched confirmation token");
     },
   };
 };
