@@ -104,7 +104,7 @@ test("payment REST adapter rejects missing/unknown action and delegates canonica
   const genericPayment = await app.inject({
     method: "POST",
     url: "/api/financial-transactions",
-    headers: { cookie },
+    headers: { cookie, "idempotency-key": "statement-generic-1" },
     payload: { accountId: cardId, statementId, transactionDate: "2026-08-16", amount: 100, transactionType: "STATEMENT_PAYMENT" },
   });
   assert.equal(genericPayment.statusCode, 409);

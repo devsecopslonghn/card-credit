@@ -10,5 +10,8 @@
 - Mutation requires backend preview, trusted one-time human confirmation,
   generic idempotent execute and append-only audit. Test replay, expiry,
   mismatch and concurrent retry.
+- Pass the fixed `CommandInvocation` endpoint/tool metadata to the application
+  service after token verification; legacy receipt compatibility belongs inside
+  the same guard transaction, not in a transport-side shortcut.
 - Keep actual registered tool inventory and docs generated/checked from the same
   registry; remove stale advertised tools.

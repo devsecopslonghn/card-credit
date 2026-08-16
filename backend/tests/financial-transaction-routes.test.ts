@@ -72,3 +72,24 @@ test("MCP transaction list rejects the legacy singular date filter", async (t) =
   assert.equal(response.result.isError, true);
   assert.equal(list.mock.callCount(), 0);
 });
+
+test("REST transaction command requires and forwards the idempotency boundary", async (t) => {
+  const create = t.mock.method(FinancialTransactionService, "create", async (_context: ServiceContext, _input: Record<string, unknown>, invocation: { idempotencyKey: string; endpointOrTool: string }) => {
+    assert.deepEqual(invocation, { idempotencyKey: "transaction-command-1", endpointOrTool: "POST /api/financial-transactions" });
+    return { id: "transaction-1" } as never;
+  });
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerFinancialTransactionRoutes(app, secret, users);
+  const body = { accountId: "account-1", transactionDate: "2026-08-16", amount: 1000 };
+  const missing = await app.inject({ method: "POST", url: "/api/financial-transactions", headers: { cookie }, payload: body });
+  assert.equal(missing.statusCode, 400);
+  assert.equal(missing.json().error.code, "IDEMPOTENCY_KEY_REQUIRED");
+  const short = await app.inject({ method: "POST", url: "/api/financial-transactions", headers: { cookie, "idempotency-key": "short" }, payload: body });
+  assert.equal(short.statusCode, 400);
+  assert.equal(short.json().error.code, "IDEMPOTENCY_KEY_REQUIRED");
+  const response = await app.inject({ method: "POST", url: "/api/financial-transactions", headers: { cookie, "idempotency-key": " transaction-command-1 " }, payload: body });
+  assert.equal(response.statusCode, 201);
+  assert.deepEqual(response.json().data, { id: "transaction-1" });
+  assert.equal(create.mock.callCount(), 1);
+  await app.close();
+});

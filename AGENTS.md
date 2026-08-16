@@ -105,6 +105,13 @@ Job -----> Job adapter -----+
 - Idempotency is generic infrastructure, not MCP-specific. Reserve keys
   atomically, reject payload mismatch and keep business write/result receipt in
   one transaction when possible.
+- Every REST command mutation must require an explicit `Idempotency-Key` and
+  pass a fixed `CommandInvocation` (`idempotencyKey`, endpoint/tool, optional
+  preview ID); do not silently bypass the guard or generate a key server-side.
+- When replacing legacy `McpMutationModel` writers, read legacy receipts inside
+  the same command transaction and fence/drain old command-writer pods before
+  enabling new `CommandReceipt` writers. Do not run old/new receipt systems
+  concurrently without an approved dual-write transition.
 - Audit is separate from idempotency. Record actor/channel, workspace,
   operation, endpoint/tool, correlation/preview ID, resources, outcome and safe
   error code; never raw secrets or sensitive payloads.

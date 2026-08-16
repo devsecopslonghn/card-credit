@@ -111,7 +111,7 @@ Resource không tồn tại hoặc ngoài workspace đều xử lý như `404 CA
 | Method/path | Auth | Request/response |
 |---|---|---|
 | `GET /financial-transactions?accountId=&categoryId=&from=&to=` | Session | Unified transactions scoped to workspace; shared strict query rejects invalid calendar dates, reversed ranges and unknown filters. |
-| `POST /financial-transactions` | Session | Creates a Financial Domain transaction through the service layer. |
+| `POST /financial-transactions` | Session | Creates a Financial Domain transaction through the canonical command service. Requires `Idempotency-Key` (8+ chars); REST/MCP use the same receipt/audit guard and payload hash. |
 | `GET /card-statements` | Session | Statements của tất cả card trong workspace. |
 | `GET /cards/:id/statements` | Session | Statements của card. |
 | `GET /cards/:id/statements/:statementId` | Session | Statement + transactions + summary. |

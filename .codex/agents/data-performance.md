@@ -6,6 +6,9 @@
   unique/partial indexes, optimistic CAS, atomic claims and transaction scope.
 - Verify generic idempotency reservation states/TTL/retention and that business
   write plus completion receipt are atomic when required.
+- Before enabling a new receipt writer, verify old command-writer pods are
+  drained/fenced or an approved dual-write transition exists; otherwise report
+  split-brain idempotency as a release blocker.
 - Check pagination, bounded output, N+1 queries, report range/as-of semantics,
   timeouts and multi-replica behavior.
 - For delete/merge/migration, require read-only inventory, dry-run, backup,

@@ -182,8 +182,10 @@ với ngày inclusive; `date` singular là legacy input và bị reject.
 Preview token hiện có TTL 300 giây, ký bằng `MCP_PREVIEW_SECRET` riêng và bind
 operation, payload hash cùng fixed context. Luồng mutation vẫn là `preview ->
 human confirm -> idempotent confirm`; token stateless chưa tự chứng minh human
-approval/one-time consume, còn generic idempotency và append-only audit là phần
-đang triển khai tiếp theo.
+approval/one-time consume. Account và Financial Transaction đã dùng generic
+receipt/audit guard chung qua REST `Idempotency-Key` và MCP confirm; failure
+receipt/audit policy, payment mutation và old-writer rollout fence vẫn là phần
+tiếp theo.
 MCP không tự chọn user/workspace, tự tính quota, tự tính statement hoặc truy cập
 MongoDB trực tiếp.
 
@@ -201,9 +203,9 @@ mutation vẫn chưa expose cho tới khi hoàn tất preview/confirm/idempotenc
 
 ```text
 GET  /api/accounts
-POST /api/accounts
+POST /api/accounts                 # requires Idempotency-Key (8+ chars)
 GET  /api/financial-transactions
-POST /api/financial-transactions
+POST /api/financial-transactions   # requires Idempotency-Key (8+ chars)
 GET  /api/financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
 GET  /api/financial-reports/credit-statements
 GET  /api/finance/categories

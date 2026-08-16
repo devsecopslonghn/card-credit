@@ -13,6 +13,12 @@ export type CommandGuardSpec = {
   resource?: Record<string, unknown>;
 };
 
+export type CommandInvocation = {
+  idempotencyKey: string;
+  endpointOrTool: string;
+  previewId?: string;
+};
+
 export type CommandGuardRepository = {
   startSession: () => Promise<mongoose.ClientSession>;
   findReceipt: (filter: Record<string, unknown>, session: mongoose.ClientSession) => Promise<CommandReceiptDocument | null>;

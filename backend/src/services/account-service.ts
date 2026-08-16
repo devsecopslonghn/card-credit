@@ -10,6 +10,7 @@ import { McpMutationModel } from "../models/mcp-mutation.js";
 import type { AccountDto, CreateAccountInput } from "@card-credit/contracts";
 import mongoose from "mongoose";
 import { canonicalPayloadHash, legacyPayloadHash, payloadHashMatches } from "../command-hash.js";
+import { commandGuardService, type CommandInvocation } from "./command-guard-service.js";
 
 const serialize = (value: unknown): AccountDto => {
   const item = plain(value) as Record<string, unknown>;
@@ -60,7 +61,7 @@ export class AccountService {
     });
   }
 
-  static async create(ctx: ServiceContext, input: CreateAccountInput, idempotencyKey?: string): Promise<AccountDto> {
+  private static async createInternal(ctx: ServiceContext, input: CreateAccountInput, session?: mongoose.ClientSession): Promise<AccountDto> {
     const name = input.name.trim();
     if (!name || name.length > 120) {
       throw new ApiError(400, "INVALID_ACCOUNT", "Tên tài khoản không hợp lệ.");
@@ -71,52 +72,73 @@ export class AccountService {
     if (input.type !== "CREDIT" && input.creditCardId) {
       throw new ApiError(400, "INVALID_ACCOUNT", "Chỉ tài khoản CREDIT mới được liên kết thẻ.");
     }
-    const operation = "create_account";
-    const payloadHash = canonicalPayloadHash(input);
-    const legacyHash = legacyPayloadHash(input);
-    if (idempotencyKey) {
-      const existingMutation = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).lean();
-      if (existingMutation) {
-        if (!payloadHashMatches(existingMutation.payloadHash, payloadHash, legacyHash)) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
-        return existingMutation.result as AccountDto;
-      }
-    }
     if (input.type === "CREDIT" && input.creditCardId) {
       if (!mongoose.isValidObjectId(input.creditCardId)) {
         throw new ApiError(400, "INVALID_CARD_ID", "Tham chiếu thẻ không hợp lệ.");
       }
-      const card = await CreditCardModel.findOne({
+      const cardQuery = CreditCardModel.findOne({
         _id: input.creditCardId,
         workspaceId: ctx.workspaceId,
         active: { $ne: false },
-      }).lean();
+      });
+      const card = await (session ? cardQuery.session(session) : cardQuery).lean();
       if (!card) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
     }
+    const record = {
+      userId: ctx.userId,
+      workspaceId: ctx.workspaceId,
+      name,
+      type: input.type,
+      creditCardId: input.creditCardId ?? null,
+      openingBalance: input.openingBalance ?? 0,
+    };
     try {
-      const account = await AccountModel.create({
-        userId: ctx.userId,
-        workspaceId: ctx.workspaceId,
-        name,
-        type: input.type,
-        creditCardId: input.creditCardId ?? null,
-        openingBalance: input.openingBalance ?? 0,
-      });
+      const account = session
+        ? (await AccountModel.create([record], { session }))[0]
+        : await AccountModel.create(record);
+      if (!account) throw new Error("Account was not created");
       const result = serialize(account);
-      if (idempotencyKey) await McpMutationModel.create({ workspaceId: ctx.workspaceId, userId: ctx.userId, operation, idempotencyKey, payloadHash, result });
       return result;
     } catch (error) {
+      if (session) {
+        if ((error as { code?: number }).code === 11000) throw new ApiError(409, "ACCOUNT_EXISTS", "Tài khoản đã tồn tại trong workspace.");
+        throw error;
+      }
       if ((error as { code?: number }).code === 11000) {
         const existing = await AccountModel.findOne({ workspaceId: ctx.workspaceId, name, type: input.type, active: { $ne: false } }).lean();
         if (existing) {
           const result = serialize(existing);
-          if (idempotencyKey) {
-            try { await McpMutationModel.create({ workspaceId: ctx.workspaceId, userId: ctx.userId, operation, idempotencyKey, payloadHash, result }); } catch (mutationError) { if ((mutationError as { code?: number }).code !== 11000) throw mutationError; }
-          }
           return result;
         }
         throw new ApiError(409, "ACCOUNT_EXISTS", "Tài khoản đã tồn tại trong workspace.");
       }
       throw error;
     }
+  }
+
+  static async create(ctx: ServiceContext, input: CreateAccountInput, invocation: CommandInvocation): Promise<AccountDto> {
+    const name = input.name.trim();
+    if (!name || name.length > 120) throw new ApiError(400, "INVALID_ACCOUNT", "Tên tài khoản không hợp lệ.");
+    if (!Number.isSafeInteger(input.openingBalance ?? 0) || (input.openingBalance ?? 0) < 0) throw new ApiError(400, "INVALID_ACCOUNT", "Số dư ban đầu không hợp lệ.");
+    if (input.type !== "CREDIT" && input.creditCardId) throw new ApiError(400, "INVALID_ACCOUNT", "Chỉ tài khoản CREDIT mới được liên kết thẻ.");
+    const operation = "create_account";
+    const payloadHash = canonicalPayloadHash(input);
+    const legacyHash = legacyPayloadHash(input);
+    const idempotencyKey = invocation.idempotencyKey.trim();
+    return commandGuardService.execute(ctx, {
+      operation,
+      idempotencyKey,
+      payloadHash,
+      endpointOrTool: invocation.endpointOrTool,
+      previewId: invocation.previewId,
+      resource: { type: "account" },
+    }, async (session) => {
+      const existingMutation = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();
+      if (existingMutation) {
+        if (!payloadHashMatches(existingMutation.payloadHash, payloadHash, legacyHash)) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
+        return existingMutation.result as AccountDto;
+      }
+      return this.createInternal(ctx, input, session);
+    });
   }
 }

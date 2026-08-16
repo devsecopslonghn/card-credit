@@ -22,9 +22,13 @@ export const registerFinancialTransactionRoutes = (app: FastifyInstance, secret:
   app.post<{ Body: Body }>("/api/financial-transactions", async (request, reply) => {
     const parsed = createFinancialTransactionInputSchema.safeParse(request.body);
     if (!parsed.success) throw new ApiError(400, "INVALID_TRANSACTION", "Dữ liệu giao dịch không hợp lệ.");
+    const rawIdempotencyKey = request.headers["idempotency-key"];
+    if (typeof rawIdempotencyKey !== "string" || rawIdempotencyKey.trim().length < 8) throw new ApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Tạo giao dịch cần Idempotency-Key tối thiểu 8 ký tự.");
+    const idempotencyKey = rawIdempotencyKey.trim();
     const data = await FinancialTransactionService.create(
       await browserServiceContext(request, secret, users),
       parsed.data as CreateFinancialTransactionInput,
+      { idempotencyKey, endpointOrTool: "POST /api/financial-transactions" },
     );
     return reply.code(201).send({ data });
   });
