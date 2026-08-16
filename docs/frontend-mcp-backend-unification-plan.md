@@ -9,10 +9,10 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard và command-previews rollout script đã push | `a41eae1` / `origin/master` | Backup + dry-run/apply preview indexes; xác minh legacy portfolio dates trước rollout |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout đã push | `87e7996` + DB rollout / `origin/master` | Fence old MCP writers; xác minh legacy portfolio dates trước application rollout |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `b75fb28` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
-| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push | `a41eae1` / `origin/master` | Backup + dry-run/apply commandpreviews indexes; fence old MCP writers trước production rollout |
+| Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push | `87e7996` + DB rollout / `origin/master` | Fence old MCP writers trước production rollout; không bật new MCP writer khi pod cũ còn phục vụ |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, Payment REST/Frontend generic command guard, browser read-only payment preview parity và preview-version CAS đã hoàn tất; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview impact, stale-version rejection và retry-safe hash đã code. Generic one-time guard foundation đã push; payment one-time confirmation, reversal và MCP payment mutation còn mở | `a41eae1` / `origin/master` | Reconcile 2 legacy payment records, bổ sung browser trusted confirmation, rồi mới mở MCP payment mutation |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` / `origin/master` | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
@@ -53,13 +53,32 @@ implemented yet.
   apply + verify indexes, rồi fence old MCP writers/pods dùng token v1.
 - Verification: backend `npm run validate` pass (171 tests, typecheck, lint,
   build); focused preview/guard tests pass; `git diff --check` sạch.
-- Database impact: thêm model/index code cho `commandpreviews`, nhưng chưa
-  mutation live trên cluster; backup/apply là release gate riêng. Expiry là
+- Database impact: thêm model/index code cho `commandpreviews`. Backup/apply đã
+  được thực hiện sau independent review; expiry là
   derived từ `expiresAt`, không ghi trạng thái EXPIRED trong command transaction.
 - Residual: chưa có Mongo replica-set race test hai key, preview retention job,
   resource-version binding, trusted HITL receipt, failure-audit policy, browser
   one-time confirmation, reversal hoặc MCP payment mutation.
 - Commit/push: `a41eae1` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Command preview index rollout
+
+- Target verified read-only trước mutation: context k8s-admin-public, namespace
+  card-credit, backend pod card-credit-backend-68ffb6578f-6tzvq, image cũ
+  a0e0b00a7515; không rollout/deploy pod trong bước này.
+- Backup: workspace longhn0710-workspace được backup trước apply tại
+  /tmp/card-credit-command-preview-backup/finance-longhn0710-workspace-2026-08-16T15-46-59.209Z.json,
+  mode 600; counts commandreceipts=0, commandaudits=0.
+- Dry-run preflight: duplicate receipt groups=0, duplicate preview groups=0,
+  duplicate preview token groups=0; trước apply commandpreviews chưa tồn tại.
+- Apply/post-verify: tạo và verify đủ 8 named indexes cho receipts, audits và
+  previews; commandpreviews hiện tồn tại, bốn preview indexes đã được verify;
+  duplicate counts sau apply vẫn bằng 0.
+- Blast radius/rollback: chỉ additive collection/index metadata, không rewrite
+  business rows. Nếu cần rollback trước khi có preview writer, drop đúng named
+  indexes/collection mới sau preflight; không xóa receipt/audit khi đã có writer.
+- Next gate: fence/drain pod cũ dùng token v1 trước khi deploy image có
+  persistent preview writer; chưa mở MCP mutation mới hoặc rollout application.
 
 ### Completed checkpoint: Account contract registry
 
