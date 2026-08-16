@@ -82,6 +82,20 @@ implemented yet.
 - Runbook: `docs/mcp-preview-rollout.md`; hiện chưa scale/restart vì chưa có
   candidate image được user phê duyệt để thay pod cũ.
 
+### Completed checkpoint: Legacy payment reconciliation inventory (read-only)
+
+- Audit target: workspace longhn0710-workspace trên cùng cluster context; không
+  có write, migration, index hoặc data rewrite.
+- Evidence: 11 statements, 45 financial transactions, 7
+  `STATEMENT_PAYMENT` transactions; 5 payment transactions khớp statement PAID
+  và paidAmount, không có paid statement thiếu payment transaction.
+- Mismatch cần user/database decision: 2 payment transactions còn trỏ tới
+  statement `STATEMENT_CLOSED` hoặc `OPEN`, paidAmount=0. IDs và amounts đã
+  được kiểm tra trong read-only audit nhưng chưa đưa vào docs để tránh lưu dữ
+  liệu tài chính không cần thiết.
+- Rollback/impact: chưa có mutation nên không cần rollback/backup bổ sung.
+  Không mở payment reversal hoặc tự đánh dấu PAID trước khi chốt policy.
+
 ### Completed checkpoint: Account contract registry
 
 - Independent review: bounded scope được duyệt là `Ledger Account Read Contract +
