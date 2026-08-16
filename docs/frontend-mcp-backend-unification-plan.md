@@ -1,0 +1,602 @@
+# Plan hợp nhất Frontend, MCP và Backend
+
+## 1. Kết quả cần đạt
+
+Mục tiêu là một modular monolith có một nguồn business logic duy nhất ở backend.
+Frontend và MCP là hai adapter ngang hàng:
+
+- Frontend cung cấp UX, lấy browser session và gọi REST.
+- MCP parse ý định, dùng fixed trusted context và gọi tool.
+- REST route và MCP tool không tự tính nghiệp vụ; cả hai gọi cùng application
+  service, dùng cùng contract và nhận cùng business DTO.
+- MongoDB chỉ được truy cập qua repository/model phía backend.
+- Một capability chỉ được coi là hoàn tất khi Backend, Frontend, MCP nếu
+  applicable, test, migration và tài liệu đã đồng bộ.
+
+Plan này triển khai các yêu cầu TO-BE `INT-01..INT-10` trong
+[SRS](SRS.md#42-kiến-trúc-tích-hợp-mục-tiêu) và xử lý các `GAP-*` đã phát hiện.
+
+## 2. Quyết định kiến trúc
+
+### 2.1 Một use case, một service
+
+```text
+HTTP route ----+
+MCP tool ------+--> canonical input --> application service --> domain/repository
+Job -----------+                           |
+                                            +--> canonical DTO / domain error
+```
+
+Route/tool/job chỉ được làm năm việc:
+
+1. Xác thực transport.
+2. Tạo trusted `ServiceContext`.
+3. Parse canonical input.
+4. Gọi application service.
+5. Map canonical result/error sang transport envelope.
+
+Không được query Mongoose hoặc lặp lại formula/state transition trong adapter.
+
+### 2.2 Contract source of truth
+
+`shared/` sẽ sở hữu các contract framework-neutral theo capability:
+
+```text
+shared/src/
+  common/          error codes, pagination, ISO date, safe VND primitives
+  access/          profile/session DTO
+  portfolio/       catalog/card DTO and commands
+  ledger/          account/transaction DTO and commands
+  credit/          statement/payment DTO and commands
+  benefits/        cashback/fee DTO and commands
+  insights/        budget/report/query DTO
+  engagement/      notification/calendar DTO
+```
+
+Contract runtime dùng Zod 4 trong package `shared` để backend REST, MCP và
+frontend response parsing import cùng schema; TypeScript type được infer hoặc
+export từ chính schema đó. Business DTO không chứa REST envelope hoặc MCP
+`content`.
+
+Mỗi contract phải có:
+
+- input/query/command type;
+- output DTO;
+- enum và error code;
+- runtime validator hoặc schema framework-neutral;
+- contract version khi cần compatibility;
+- fixture dùng chung cho backend, browser client và MCP schema test.
+
+Không tạo một type gần giống trong `frontend/types`, `frontend/lib/api` hoặc
+`backend/src/mcp`. Adapter được phép có view model cục bộ nhưng view model phải
+được map từ canonical DTO và không chứa business calculation.
+
+### 2.3 Query và command
+
+- Query là read-only, idempotent và trả canonical DTO.
+- Command thay đổi state phải định nghĩa validation, authorization, concurrency,
+  audit và idempotency.
+- MCP command luôn dùng `preview -> explicit human confirmation -> execute`.
+- Browser command rủi ro cao như payment, merge, delete hoặc import phải gọi cùng
+  preview/execute service. Browser có thể dùng REST endpoint riêng cho UX nhưng
+  không được có business path riêng.
+- Preview không ghi business data/side effect, resolve resource trong workspace
+  và trả `previewId`, normalized input, affected resources, before/after
+  projection, warning, contract version và expiry.
+- Preview/confirmation phải bind operation, actor/channel, workspace, canonical
+  payload hash, resource ID/version, nonce và expiry; không ký raw
+  `JSON.stringify` thiếu canonicalization.
+- AI echo lại confirmation token không tự động được coi là human confirmation.
+  MCP host/UI phải tạo one-time confirmation receipt sau hành động rõ ràng của
+  người dùng.
+- Execute phải reauthorize, revalidate/recalculate, kiểm tra resource version,
+  consume confirmation một lần, reserve idempotency key và ghi result ổn định
+  khi retry.
+- Idempotency record là infrastructure dùng chung, không mang tên MCP; unique
+  theo workspace/operation/key, có state `PENDING|COMPLETED|FAILED` và payload
+  hash. Business write và completed receipt phải cùng transaction khi có thể.
+- Audit là append-only record riêng, gồm actor/channel, workspace, operation,
+  endpoint/tool, correlation/preview ID, resource, outcome và error code. Không
+  coi idempotency receipt là audit và không lưu raw secret/sensitive payload.
+
+### 2.4 Trusted context
+
+```ts
+type ServiceContext = {
+  userId: string;
+  workspaceId: string;
+  role: "admin" | "user";
+  channel: "browser" | "mcp" | "job";
+  correlationId: string;
+};
+```
+
+- Browser context được tạo từ session đã kiểm tra expiry và reload user state.
+- MCP context được tạo từ server configuration, không có tenant/user argument.
+- Job context dùng identity cố định và scope rõ ràng.
+- Service không nhận Fastify request/reply, cookie, Bearer token hoặc raw AI
+  arguments ngoài canonical input.
+
+### 2.5 Source of truth tài chính
+
+- `Account` + `FinancialTransaction`: balance, personal spending, real-money
+  cash flow, debt impact, receivable và repayment.
+- `CardStatement`: statement period và lifecycle.
+- `MonthlyCardCashback`: cashback ngân hàng theo tháng.
+- `CardFeePayment`: phí thẻ thực tế. Category cashback/refund không tiếp tục
+  được ghi vào fee collection sau khi migration policy được duyệt.
+- `CreditCard`: card snapshot và operational configuration.
+
+Derived read model được phép cache/materialize nhưng không trở thành write
+authority thứ hai.
+
+## 3. Mô hình delivery theo vertical slice
+
+Mọi task implementation phải dùng cùng template:
+
+| Bước | Deliverable bắt buộc |
+|---|---|
+| 1. Contract | Canonical input/output/error, examples và compatibility decision |
+| 2. Domain | Invariant/formula/state transition thuần và unit test |
+| 3. Application | Query/command service nhận `ServiceContext` và canonical input |
+| 4. Persistence | Workspace/parent scope, index, atomicity, migration và rollback |
+| 5. REST | Thin adapter, session context, canonical validation/envelope |
+| 6. MCP | Thin tool, fixed context, same service; preview/confirm cho mutation |
+| 7. Frontend | Typed client + UI states; không tự tính authoritative value |
+| 8. Verification | Contract, parity, workspace, integration và E2E test |
+| 9. Documentation | SRS, OpenAPI/MCP inventory, compatibility/removal ledger |
+
+Không merge một slice ở trạng thái “backend done, UI/MCP làm sau” trừ khi
+capability được đánh dấu API-only có lý do và acceptance cụ thể.
+
+## 4. Roadmap phụ thuộc
+
+```text
+Phase 0 Contract freeze
+    |
+Phase 1 Access + contract foundation
+    |
+Phase 2 Card Portfolio integrity
+    |
+Phase 3 Financial Ledger
+    |
+Phase 4 Credit Billing & Settlement
+    |
+Phase 5 Benefits & Fees
+    |
+Phase 6 Financial Planning
+    |
+Phase 7 Reporting & Insights
+    |
+Phase 8 Engagement
+    |
+Phase 9 Compatibility removal + contract automation
+    |
+Phase 10 Release validation
+```
+
+Card Portfolio đi trước Credit Billing & Settlement vì CREDIT account và statement cần
+card parent đáng tin cậy. Financial Ledger đi trước payment/report vì mọi adapter
+phải đọc cùng transaction source.
+
+## 5. Kế hoạch thực hiện
+
+### Phase 0 — Freeze contract và lập compatibility ledger
+
+**Mục tiêu**: biết chính xác use case nào canonical, use case nào legacy và điều
+kiện xóa compatibility path.
+
+**Công việc**:
+
+- Duyệt SRS theo tám business capability và hai nhóm cross-cutting; gắn owner
+  cho từng requirement/GAP.
+- Lập inventory `UI route -> browser client -> HTTP route -> service -> model ->
+  MCP tool -> tests`.
+- Đánh dấu contract canonical, compatibility hoặc dead cho từng path.
+- Chốt envelope `{data, meta?}` và stable error envelope.
+- Chốt schema strategy trong `shared/` và naming cho query/command/DTO.
+- Lập ADR cho session policy, workspace join policy, card delete/merge policy,
+  payment reversal và cashback/fee source of truth.
+
+**Exit criteria**:
+
+- 100% private runtime route và MCP tool nằm trong inventory.
+- Mỗi compatibility path có owner, consumer, telemetry/test và removal phase.
+- Không còn quyết định P0/P1 chưa có owner trước khi sửa data path.
+
+**Rollback**: documentation-only; revert inventory/ADR nếu chưa được duyệt.
+
+### Phase 1 — Access & Tenancy và contract foundation
+
+**Mục tiêu**: mọi adapter nhận trusted context và dùng shared contract.
+
+**Backend**:
+
+- Thêm session expiry/version và revalidate user active/locked/role/workspace.
+- Không cho public register tự join workspace tùy ý; áp dụng create-workspace hoặc
+  invite/approved join policy theo ADR.
+- Tạo context factory riêng cho browser, MCP và job.
+- Tạo shared primitives: ISO date, safe integer VND, pagination, error envelope,
+  actor/channel và idempotency metadata.
+- Thiết kế generic preview/confirmation, idempotency reservation và append-only
+  audit contracts; không tiếp tục coi `McpMutationModel` là audit log.
+- Chuẩn hóa error mapping mà không phá client hiện tại; compatibility mapper có
+  deprecation test.
+
+**Frontend**:
+
+- Mở rộng middleware guard cho toàn bộ private UI.
+- Dùng một auth/profile client và xử lý 401/403 thống nhất.
+- Không suy quyền từ cookie payload cho authorization; UI role chỉ dùng để ẩn/
+  hiện control.
+
+**MCP**:
+
+- Validate MCP configured user còn active và đúng workspace trước tool execution.
+- Tạo `ServiceContext.channel="mcp"`; không nhận user/workspace trong schema.
+
+**Verification**:
+
+- Session expiry, lock/revoke và stale role/workspace tests.
+- Register/join workspace authorization tests.
+- Contract fixtures chạy ở shared/backend/frontend/MCP.
+- Cross-workspace tests cho cả browser và MCP context.
+
+**Exit criteria**:
+
+- Đóng `GAP-SEC-01`, `GAP-SEC-02`, `GAP-WEB-01`.
+- Không adapter nào tự dựng trusted identity từ request payload.
+
+### Phase 2 — Card Portfolio integrity
+
+**Mục tiêu**: card/catalog có service canonical và mutation không tạo orphan.
+
+**Backend**:
+
+- Extract `CatalogQueryService`, `CardQueryService`, `CardCommandService`.
+- Card DTO canonical thay thế alias mapping rải rác.
+- Chọn và implement `RESTRICT`, `CASCADE` hoặc `REASSIGN` cho card delete.
+- Duplicate merge phải preview toàn bộ affected account/statement/transaction/
+  cashback/fee/reminder và execute atomic theo policy.
+- Validate CREDIT account link cùng workspace/card active.
+- Đưa catalog startup sync về explicit operator-controlled policy; readiness chỉ
+  báo tình trạng, không silent write baseline.
+
+**Frontend**:
+
+- Card list/create/update/delete/merge dùng typed canonical client.
+- Delete/merge UI hiển thị preview và affected resource count.
+- Loại view fallback dựa trên `monthlyData` khỏi authoritative debt view.
+
+**MCP**:
+
+- `compare_cards` gọi `CardQueryService` và trả cùng Card DTO.
+- Chưa mở card mutation cho MCP cho tới khi preview/execute service và audit đạt
+  exit criteria.
+
+**Data/migration**:
+
+- Audit orphan và duplicate hiện có trước apply.
+- Migration có backup, dry-run, deterministic mapping và reconciliation count.
+
+**Exit criteria**:
+
+- Đóng `GAP-DATA-01`, `GAP-ACC-01`, `GAP-OPS-01`.
+- Frontend/REST/MCP card query parity test pass.
+
+### Phase 3 — Financial Ledger
+
+**Mục tiêu**: account/transaction là một vertical slice dùng được từ UI và MCP.
+
+**Backend**:
+
+- Canonicalize Account/Transaction query và command contracts.
+- Route chỉ gọi `AccountService`/`FinancialTransactionService`; không manual DTO.
+- Validate category/account/reimbursement parent trong workspace.
+- Chốt policy `TRANSFER`: implement paired atomic entries hoặc loại khỏi public
+  contract cho tới phase riêng.
+- Implement generic `CommandPreview`, one-time confirmation,
+  idempotency reservation và append-only audit trước khi nối write adapter.
+- Browser và MCP create/import dùng cùng canonicalization, payload hash,
+  command service và transaction boundary; adapter không tự tính preview.
+
+**Frontend**:
+
+- Thêm create account flow.
+- Thay `AiTransactionModal` placeholder bằng transaction form/preview thật; AI
+  entry nếu dùng phải gọi backend/MCP preview, không parse/tính locally.
+- Dùng backend `impact` để render personal spending/cashflow/debt/receivable.
+- Loading/error/empty/success và refresh sau mutation dùng chung client policy.
+
+**MCP**:
+
+- `list_accounts`, `list_transactions`, summary tools dùng canonical query DTO.
+- Account/transaction preview-confirm gọi cùng command service với REST.
+- Preview trả normalized input, backend-calculated impact, warnings và exact
+  confirmation payload.
+
+**Verification**:
+
+- REST/MCP same-input parity fixtures.
+- Preview không ghi; confirm retry không duplicate; mismatched payload conflict.
+- Financial impact unit tests và transaction commit/abort integration tests.
+
+**Exit criteria**:
+
+- Accounts và Transactions UI không còn read-only/placeholder.
+- Không còn duplicate account/transaction types ở Frontend/MCP.
+- Đóng `GAP-MCP-01`: replay, đổi idempotency key, payload mismatch và concurrent
+  confirm đều không thể tạo business effect lần hai; success/failure có audit.
+
+### Phase 4 — Credit Billing & Settlement
+
+**Mục tiêu**: một statement DTO và một state machine cho Dashboard, Payments,
+REST, MCP, calendar và reminder.
+
+**Backend**:
+
+- Tạo `StatementQueryService` và `StatementPaymentCommandService`.
+- Xóa legacy projection dùng `serviceFeeRate` như cashback rate; summary phải đọc
+  persisted financial impacts theo semantics chuẩn.
+- Validate action enum fail-closed; không default action lạ thành `PAID`.
+- Payment preview phải trả statement balance, repayment account, affected
+  cashflow/debt và current version.
+- Execute dùng optimistic state guard + Mongo transaction + idempotency.
+- Chốt reopen policy: compensating/reversal transaction hoặc cấm reopen sau khi
+  payment đã settle; không để payment transaction tồn tại âm thầm.
+- Dùng một outstanding amount definition cho account, statement, dashboard,
+  notification, calendar và MCP.
+
+**Frontend**:
+
+- Payments/Card dashboard cho chọn real-money repayment account.
+- Dùng payment preview trước confirmation; refresh statement/account/dashboard
+  từ server result.
+- Card detail hoặc statement detail canonical thay redirect nếu use case cần;
+  không khôi phục legacy editor.
+
+**MCP**:
+
+- Read tools dùng `StatementQueryService`.
+- Chỉ thêm preview/confirm payment tool sau khi browser flow và state-machine
+  tests đạt exit criteria.
+
+**Exit criteria**:
+
+- Đóng `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01`.
+- Month-end, overdue, paid, retry, concurrent payment và reopen fixtures pass qua
+  REST và direct service/MCP adapter.
+
+### Phase 5 — Benefits & Fees
+
+**Mục tiêu**: cashback, refund, reimbursement và fee có source/model/report
+semantics duy nhất.
+
+**Backend**:
+
+- Giữ rõ bốn loại: transaction cashback, monthly bank cashback, refund/
+  reimbursement và actual card fee.
+- Ngừng ghi `BANK_CASHBACK`/`PARTNER_REFUND` vào `CardFeePayment`; migrate theo
+  ADR nếu có record hiện hữu.
+- Tạo `BenefitQueryService`/`BenefitCommandService` và `FeeCommandService`.
+- Report actual net benefit phải dùng:
+
+  ```text
+  monthlyBankCashbackActual - transactionServiceFees - actualPaidCardFees
+  ```
+
+- Không dùng transaction cashback để cộng lần hai; chỉ hiển thị reconciliation.
+
+**Frontend**:
+
+- Cashback và Fee Center dùng canonical DTO/status/category.
+- Copy UI phải phản ánh đúng collection/report source; bỏ claim không đúng.
+- Đưa Cashback vào navigation nếu capability được duyệt là user-facing.
+
+**MCP**:
+
+- Read summary dùng cùng Benefit/Report service.
+- Mutation cashback/fee chỉ mở sau preview-confirm + audit; không có generic
+  database mutation.
+
+**Exit criteria**:
+
+- Đóng `GAP-REP-01`.
+- Report fixtures chứng minh không double count và khớp UI/MCP.
+
+### Phase 6 — Financial Planning
+
+**Mục tiêu**: category, budget và recurring trở thành vertical slice có write
+flow hoàn chỉnh, không phụ thuộc report DTO.
+
+**Backend**:
+
+- Chuẩn hóa Budget DTO: `limitAmount`, `usedAmount`, `remainingAmount`,
+  `usagePercent`, `status`.
+- Category create/default seed, budget upsert/status và recurring lifecycle dùng
+  canonical contract/service.
+- Hoàn thiện recurring update/delete/generation policy hoặc ghi rõ API-only scope
+  với owner và acceptance riêng.
+
+**Frontend**:
+
+- Fix Budget DTO và thêm create/update flow.
+- Category/recurring UI được triển khai hoặc loại khỏi navigation/scope rõ ràng.
+
+**MCP**:
+
+- Chỉ expose planning query/command có use case được duyệt; mutation vẫn dùng
+  generic preview-confirm infrastructure.
+
+**Exit criteria**:
+
+- Đóng `GAP-UI-01` và phần planning của `GAP-UI-03`.
+- Budget/category/recurring DTO không còn shadow type ở Frontend/MCP.
+
+### Phase 7 — Reporting & Insights
+
+**Mục tiêu**: dashboard, report, cash-flow và export dùng cùng canonical read
+model/filter, không sở hữu write collection riêng.
+
+**Backend**:
+
+- Chốt distinction giữa activity-in-range và balance-as-of; net assets/debt phải
+  tính tới as-of date thay vì chỉ cộng transaction trong range.
+- Tạo report filter canonical cho date range, owner, card, account, category.
+- JSON export gọi cùng query service, không tạo report path riêng.
+- Dashboard, Cards, reports và MCP summary dùng cùng Account/Statement/Benefit
+  projections đã chuẩn hóa ở các phase trước.
+
+**Frontend**:
+
+- Reports đọc URL filter, hỗ trợ owner/card/date và export canonical JSON.
+- Dashboard, Cards và Reports dùng cùng query/filter primitives.
+- Không giữ `reportsCore` hoặc path `/api/reports/summary` cũ sau compatibility
+  window.
+
+**MCP**:
+
+- Personal finance summary nhận cùng canonical range/filter.
+- Không tự suy date range hoặc recalculate totals ngoài backend.
+
+**Exit criteria**:
+
+- Đóng `GAP-REP-02`, `GAP-UI-02` và phần report của `GAP-UI-03`.
+- REST/MCP/report export trả cùng totals cho cùng filter fixture.
+
+### Phase 8 — Engagement
+
+**Mục tiêu**: notification, calendar và reminder dùng một upcoming-statement
+projection.
+
+**Backend**:
+
+- Tạo query canonical cho unpaid/upcoming statement; notification, calendar,
+  email và scheduler cùng tái sử dụng.
+- Forgot-password tích hợp MailService hoặc provider-neutral delivery service;
+  generic response vẫn giữ chống enumeration.
+- Calendar/reminder giữ token hash, recipient authority, lease và retry policy.
+- Thêm pagination/retention cho notification/delivery nếu dataset yêu cầu.
+
+**Frontend**:
+
+- Notification/filter/status dùng canonical projection.
+- Bổ sung one-off calendar email action ở statement UI nếu còn trong scope.
+- Profile subscription hiển thị one-time token warning và revoke state thống nhất.
+
+**MCP**:
+
+- Read upcoming statements dùng cùng query.
+- Không expose send email, calendar token hoặc reminder mutation trừ khi có use
+  case được duyệt và confirmation policy riêng.
+
+**Exit criteria**:
+
+- Đóng `GAP-AUTH-01`.
+- Cùng statement fixture xuất hiện nhất quán ở payment UI, notification, feed,
+  reminder và MCP.
+
+### Phase 9 — Compatibility removal và contract automation
+
+**Mục tiêu**: xóa nguồn thứ hai và tự động phát hiện drift.
+
+**Công việc**:
+
+- Xóa browser client/test cũ `/api/reports/summary`, legacy report core và smoke
+  path không còn runtime.
+- Xóa statement/card `monthlyData` khỏi authoritative path; migration/remove field
+  chỉ sau backup và read telemetry.
+- Quyết định giữ hoặc retire global `banks`/`cardtypes` sau khi catalog thay thế.
+- OpenAPI phải inventory đủ runtime route; MCP docs chỉ liệt kê tool đang đăng ký.
+- Thêm contract parity test: shared fixture -> service -> REST -> MCP.
+- Thêm static rule/grep check ngăn route/tool import model trực tiếp trong slice
+  đã migrate và ngăn frontend chứa authoritative formula.
+
+**Exit criteria**:
+
+- Đóng `GAP-API-01`, `GAP-DOC-01` và compatibility item đã đến removal date.
+- Không có stale endpoint/tool trong docs, smoke test hoặc client source.
+
+### Phase 10 — Release validation
+
+**Mục tiêu**: chứng minh hệ thống thống nhất có thể rollout và rollback an toàn.
+
+**Công việc**:
+
+- Chạy shared/backend/frontend validation và targeted/full E2E.
+- Chạy reconciliation read-only trước/sau migration trên non-production snapshot.
+- Build hai image cùng immutable Git SHA và chạy image/security checks của CI.
+- Staging smoke cho browser + REST + MCP cùng fixtures.
+- Canary/feature flag cho compatibility removal nếu cần.
+- Chuẩn bị rollback image, reverse/restore data và disable MCP mutation path.
+
+Không deploy/apply, mutate shared/production data hoặc trigger pipeline nếu chưa
+có yêu cầu và approval riêng.
+
+**Exit criteria**:
+
+- Không còn GAP mức Cao mở.
+- Parity, workspace isolation, financial reconciliation và critical E2E pass.
+- Rollback owner/command/data boundary được ghi rõ và thử ở non-production.
+
+## 6. Ma trận capability và adapter mục tiêu
+
+| Capability | Frontend | REST | MCP | Backend canonical service |
+|---|---|---|---|---|
+| Access & Tenancy | Auth/Profile/Admin | Auth/Profile/Workspace | Context validation | Auth/User/Workspace services |
+| Card Portfolio | Cards/Catalog/Admin | Card/Catalog routes | `compare_cards` | Card/Catalog query-command services |
+| Financial Ledger | Accounts/Transactions/Dashboard | Account/Transaction routes | account/transaction tools | Account/FinancialTransaction services |
+| Credit Billing & Settlement | Cards/Payments/Statement detail | Statement/payment routes | statement/payment tools | Statement query/payment command services |
+| Benefits & Fees | Cashback/Fee Center | Cashback/Fee routes | benefit read/mutation tools nếu duyệt | Benefit/Fee services |
+| Financial Planning | Budget/Recurring | Finance planning routes | Chỉ tool được duyệt | Category/Budget/Recurring services |
+| Reporting & Insights | Dashboard/Reports/export | Financial report/cash-flow routes | summary/read tools | Canonical report/query services |
+| Engagement | Notifications/Profile | Notification/calendar routes | upcoming statements read | UpcomingStatement/Calendar/Reminder services |
+
+## 7. Verification gates
+
+### Gate cho mỗi slice
+
+1. Shared contract build/test.
+2. Domain unit tests.
+3. Service tests với workspace/parent isolation.
+4. REST adapter contract test.
+5. MCP schema/parity test nếu capability expose MCP.
+6. Frontend client/component test.
+7. Critical browser E2E cho mutation.
+8. Migration dry-run/reconciliation nếu đổi data.
+9. SRS/OpenAPI/tool inventory updated.
+
+### Gate tài chính bắt buộc
+
+- Safe integer VND và ISO calendar date.
+- No cross-workspace access.
+- No double-count expense/payment/cashback/fee.
+- Statement/payment transition fail-closed.
+- Idempotent retry và concurrent request result ổn định.
+- Preview và execute dùng exact canonical payload.
+- Audit không chứa secret/PAN/token và có actor/channel/correlation.
+
+## 8. Definition of Ready
+
+Một slice chỉ bắt đầu implementation khi có:
+
+- requirement IDs và GAP IDs liên quan;
+- canonical source of truth;
+- input/output/error draft;
+- migration/compatibility decision;
+- affected Frontend/REST/MCP consumers;
+- security, concurrency và rollback assumptions;
+- acceptance tests cụ thể.
+
+## 9. Definition of Done
+
+Một slice chỉ hoàn tất khi:
+
+- không còn business rule trùng trong Frontend, REST route, MCP tool hoặc job;
+- canonical service và contract được cả adapter liên quan sử dụng;
+- UI hiển thị server-calculated values và refresh từ mutation result;
+- MCP mutation có preview-confirm-idempotency-audit;
+- workspace/parent/concurrency/financial tests pass;
+- compatibility cũ đã xóa hoặc có owner/removal milestone;
+- SRS, OpenAPI, MCP inventory và runbook đã đồng bộ;
+- validation evidence và untested risks được ghi trong handoff.
