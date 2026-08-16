@@ -1,5 +1,6 @@
 import { z, type ZodRawShape } from "zod";
-import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInputSchema, feeCategorySchema, financialTransactionListQuerySchema, reportDateSchema } from "@card-credit/contracts";
+import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInputSchema, feeCategorySchema, financialTransactionListQuerySchema, reportDateSchema, statementPaymentInputSchema } from "@card-credit/contracts";
+import { PAYMENT_OPERATION } from "../payment-contract.js";
 
 export type McpToolKind = "query" | "preview" | "confirm";
 export type McpToolDefinition = {
@@ -13,6 +14,7 @@ export type McpToolDefinition = {
 export const MCP_OPERATION = {
   importFinancialTransactionBatch: "import_financial_transaction_batch",
   createAccount: "create_account",
+  payStatement: PAYMENT_OPERATION,
 } as const;
 
 const definitions = [
@@ -31,6 +33,8 @@ const definitions = [
   { name: "list_accounts", description: "List accounts grouped as REAL_MONEY (DEBIT, CASH, E_WALLET) or DEBT (CREDIT), with balances calculated from financial transactions.", kind: "query", inputSchema: {} },
   { name: "preview_create_account", description: "Prepare a debit, cash or e-wallet account. Does not write data.", kind: "preview", operation: MCP_OPERATION.createAccount, inputSchema: createRealMoneyAccountInputSchema.shape },
   { name: "confirm_create_account", description: "Confirm a previously previewed real-money account. Retries are idempotent and return the existing account.", kind: "confirm", operation: MCP_OPERATION.createAccount, inputSchema: { payload: createRealMoneyAccountInputSchema, confirmationToken: z.string().min(1), idempotencyKey: z.string().min(8) } },
+  { name: "preview_pay_statement", description: "Preview a statement payment using the canonical statement payment service. Does not write the ledger.", kind: "preview", operation: MCP_OPERATION.payStatement, inputSchema: { cardId: z.string().min(1), statementId: z.string().min(1), input: statementPaymentInputSchema } },
+  { name: "confirm_pay_statement", description: "Confirm a previously previewed statement payment with the canonical payment command and idempotency guard.", kind: "confirm", operation: MCP_OPERATION.payStatement, inputSchema: { cardId: z.string().min(1), statementId: z.string().min(1), input: statementPaymentInputSchema, previewId: z.string().min(1), confirmationToken: z.string().min(1), idempotencyKey: z.string().min(8) } },
 ] satisfies readonly McpToolDefinition[];
 
 export const mcpToolManifest = definitions;

@@ -9,8 +9,8 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 test("MCP inventory is unique and exposes only registered tool names", () => {
   assert.equal(new Set(MCP_TOOL_INVENTORY).size, MCP_TOOL_INVENTORY.length);
   assert.deepEqual(MCP_TOOL_INVENTORY, mcpToolManifest.map(({ name }) => name));
-  assert.equal(mcpToolManifest.filter(({ kind }) => kind === "preview").length, 2);
-  assert.equal(mcpToolManifest.filter(({ kind }) => kind === "confirm").length, 2);
+  assert.equal(mcpToolManifest.filter(({ kind }) => kind === "preview").length, 3);
+  assert.equal(mcpToolManifest.filter(({ kind }) => kind === "confirm").length, 3);
   for (const preview of mcpToolManifest.filter(({ kind }) => kind === "preview")) {
     assert.ok(preview.operation);
     assert.equal(mcpToolManifest.some((candidate) => candidate.kind === "confirm" && candidate.operation === preview.operation), true);

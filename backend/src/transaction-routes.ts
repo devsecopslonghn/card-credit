@@ -11,17 +11,8 @@ import { CardQueryService } from "./services/card-query-service.js";
 import { statementPaymentExecuteInputSchema, statementPaymentInputSchema, statementPaymentPreviewSchema, type StatementPaymentInput } from "@card-credit/contracts";
 import { canonicalPayloadHash, confirmationTokenHash, createPreviewTokenCodec, type PreviewBinding } from "./mcp/preview.js";
 import { previewConfirmationService, type PreviewConfirmationService } from "./services/preview-confirmation-service.js";
+import { PAYMENT_OPERATION, paymentPreviewPayload } from "./payment-contract.js";
 
-const PAYMENT_OPERATION = "pay_statement";
-const paymentPreviewPayload = (cardId: string, statementId: string, input: StatementPaymentInput) => ({
-  cardId,
-  statementId,
-  input: {
-    action: input.action,
-    ...(input.repaymentAccountId ? { repaymentAccountId: input.repaymentAccountId } : {}),
-    ...(input.expectedVersion ? { expectedVersion: input.expectedVersion } : {}),
-  },
-});
 const paymentPreviewBinding = (context: { workspaceId: string; userId: string; channel: string }): PreviewBinding => ({ workspaceId: context.workspaceId, userId: context.userId, channel: context.channel });
 
 export const registerTransactionRoutes = (
