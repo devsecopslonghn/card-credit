@@ -218,6 +218,19 @@ không thêm index tùy tiện trên high-write collections nếu không có que
    mới chỉ khi collections rỗng. Khi đã có receipt/audit, giữ dữ liệu và revert
    adapter code, không xóa receipt để chạy lại command.
 
+#### Rollout ledger — 2026-08-16
+
+- Cluster context `k8s-admin-public`, namespace `card-credit`; target pod
+  `card-credit-backend-68ffb6578f-6tzvq`.
+- Backup trước mutation: `/tmp/card-credit-command-guard-backup/finance-
+  longhn0710-workspace-2026-08-16T14-54-00.001Z.json`, local mode `600`; không
+  commit và không chứa secret.
+- Preflight: `commandreceipts=0`, `commandaudits=0`, duplicate receipt groups
+  `0`; apply tạo và verify đủ bốn named indexes theo bảng trên.
+- Code commit `0ee1cef` đã push trước DB mutation. Vì deployment hiện tại vẫn
+  là image cũ, indexes là additive chuẩn bị trước; chỉ adapter sau khi deploy
+  code mới mới được phép ghi receipt/audit.
+
 ### Rollback
 
 - Additive fields/index có thể giữ khi rollback code.
