@@ -5,6 +5,8 @@ import { sessionCookie, signSession } from "../src/auth.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardFeePaymentModel } from "../src/models/card-fee-payment.js";
 import { registerCardFeePaymentRoutes } from "../src/card-fee-payment-routes.js";
+import { FeeQueryService } from "../src/services/fee-query-service.js";
+import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const secret = "01234567890123456789012345678901";
 const cardId = "507f1f77bcf86cd799439011";
@@ -70,20 +72,11 @@ test("model declares the workspace, card, and newest-payment lookup index", () =
 });
 
 test("GET includes inactive card history and scopes and sorts the query", async (t) => {
-  const cardFind = t.mock.method(CreditCardModel, "findOne", async () => ({
-    _id: cardId,
-    workspaceId: "workspace-a",
-    active: false,
-  }));
-  const sort = t.mock.fn(async (order: Record<string, number>) => {
-    assert.ok(order);
-    return [{ _id: feePaymentId, amount: 100000 }];
+  const list = t.mock.method(FeeQueryService, "listCardPayments", async (context: ServiceContext, requestedCardId: string) => {
+    assert.equal(context.workspaceId, "workspace-a");
+    assert.equal(requestedCardId, cardId);
+    return [{ id: feePaymentId, cardId, category: "ANNUAL_CARD_FEE", paymentDate: "2026-07-23", amount: 100000, note: "" }];
   });
-  const feeFind = t.mock.method(
-    CardFeePaymentModel,
-    "find",
-    () => ({ sort }) as never,
-  );
   const app = appWithRoutes();
   const response = await app.inject({
     url: `/api/cards/${cardId}/fee-payments`,
@@ -91,18 +84,7 @@ test("GET includes inactive card history and scopes and sorts the query", async 
   });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().data[0].amount, 100000);
-  assert.deepEqual(cardFind.mock.calls[0]?.arguments[0], {
-    _id: cardId,
-    workspaceId: "workspace-a",
-  });
-  assert.deepEqual(feeFind.mock.calls[0]?.arguments[0], {
-    workspaceId: "workspace-a",
-    userCardId: cardId,
-  });
-  assert.deepEqual(sort.mock.calls[0]?.arguments[0], {
-    paymentDate: -1,
-    createdAt: -1,
-  });
+  assert.equal(list.mock.callCount(), 1);
   await app.close();
 });
 

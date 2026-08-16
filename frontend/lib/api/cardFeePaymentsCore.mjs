@@ -1,3 +1,5 @@
+import { feePaymentListSchema } from "@card-credit/contracts";
+
 const fallbackMessage = "Không thể xử lý phí thẻ đã đóng.";
 
 const apiMessage = async (response, fallback = fallbackMessage) => {
@@ -54,7 +56,15 @@ export const fetchCardFeePaymentsRequest = async (fetcher, cardId) => {
   if (!response.ok)
     throw new Error(await apiMessage(response, "Không thể tải phí thẻ đã đóng."));
   const body = await response.json();
-  return sortCardFeePayments(body?.data ?? []);
+  const canonical = feePaymentListSchema.parse(body?.data ?? []);
+  return sortCardFeePayments(canonical.map((record) => ({
+    _id: record.id,
+    userCardId: record.cardId,
+    category: record.category,
+    paymentDate: record.paymentDate,
+    amount: record.amount,
+    note: record.note,
+  })));
 };
 
 export const saveCardFeePaymentRequest = async (fetcher, cardId, form) => {

@@ -70,3 +70,11 @@ export {
   financialReportTotalsSchema,
   financialReportSchema,
 } from "./report-contracts.js";
+export {
+  feeCategorySchema,
+  feePaymentSchema,
+  feeCardSummarySchema,
+  feeCenterRecordSchema,
+  feePaymentListSchema,
+  feeCenterRecordListSchema,
+} from "./fee-contracts.js";

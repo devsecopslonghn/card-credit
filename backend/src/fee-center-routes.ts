@@ -1,9 +1,12 @@
 import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { sessionFromRequest } from "./auth.js";
+import { browserServiceContext } from "./context.js";
 import { ApiError } from "./errors.js";
 import { CardFeePaymentModel } from "./models/card-fee-payment.js";
 import { CreditCardModel } from "./models/credit-card.js";
+import { FeeQueryService } from "./services/fee-query-service.js";
+import type { AuthRepository } from "./auth-repository.js";
 
 type Data = Record<string, unknown>;
 type Category = "ANNUAL_CARD_FEE" | "MANAGEMENT_FEE" | "OTHER_FEE" | "BANK_CASHBACK" | "PARTNER_REFUND";
@@ -18,16 +21,13 @@ const note = (value: unknown) => { if (value === undefined || value === null) re
 const serialized = (value: unknown) => JSON.parse(JSON.stringify(value)) as Data;
 const card = async (cardId: string, workspaceId: string) => { if (!mongoose.isValidObjectId(cardId)) throw new ApiError(400, "INVALID_CARD_ID", "Card id không hợp lệ."); const item = await CreditCardModel.findOne({ _id: cardId, workspaceId }); if (!item) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ."); return item; };
 
-export const registerFeeCenterRoutes = (app: FastifyInstance, secret: string) => {
+export const registerFeeCenterRoutes = (app: FastifyInstance, secret: string, users?: Pick<AuthRepository, "findUserById">) => {
   app.get<{ Querystring: { cardId?: string; category?: string } }>("/api/fee-center", async (request) => {
-    const session = sessionFromRequest(request, secret);
-    const query: Data = { workspaceId: session.workspaceId };
-    if (request.query.cardId) { await card(request.query.cardId, session.workspaceId); query.userCardId = request.query.cardId; }
-    if (request.query.category) query.category = category(request.query.category);
-    const records = await CardFeePaymentModel.find(query).sort({ paymentDate: -1, createdAt: -1 });
-    const cards = await CreditCardModel.find({ workspaceId: session.workspaceId }).select("providerName displayName bank name owner");
-    const cardMap = new Map(cards.map((item) => [String(item._id), serialized(item)]));
-    return { data: records.map((item) => ({ ...serialized(item), card: cardMap.get(String(item.userCardId)) ?? null })) };
+    const context = await browserServiceContext(request, secret, users);
+    return { data: await FeeQueryService.listCenter(context, {
+      cardId: request.query.cardId,
+      category: request.query.category ? category(request.query.category) : undefined,
+    }) };
   });
   app.post<{ Body: Data }>("/api/fee-center", async (request, reply) => {
     const session = sessionFromRequest(request, secret); const body = request.body ?? {};

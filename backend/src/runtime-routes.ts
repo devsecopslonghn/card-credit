@@ -47,9 +47,9 @@ export const registerRuntimeRoutes = ({ app, auth, authRepository, catalogReposi
   registerFinanceRoutes(app, auth.secret, authRepository);
   registerRecurringExpenseRoutes(app, auth.secret, authRepository);
   registerMonthlyCardCashbackRoutes(app, auth.secret);
-  registerCardFeePaymentRoutes(app, auth.secret);
+  registerCardFeePaymentRoutes(app, auth.secret, authRepository);
   registerNotificationRoutes(app, auth.secret, authRepository);
-  registerFeeCenterRoutes(app, auth.secret);
+  registerFeeCenterRoutes(app, auth.secret, authRepository);
   registerCashFlowRoutes(app, auth.secret);
   registerTransactionRoutes(app, auth.secret, { users: authRepository, mail: mailService });
   registerNotesRoutes(app, notesRepository, auth.secret);

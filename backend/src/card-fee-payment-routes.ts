@@ -1,9 +1,12 @@
 import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { sessionFromRequest } from "./auth.js";
+import { browserServiceContext } from "./context.js";
 import { ApiError } from "./errors.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { CardFeePaymentModel } from "./models/card-fee-payment.js";
+import { FeeQueryService } from "./services/fee-query-service.js";
+import type { AuthRepository } from "./auth-repository.js";
 
 type Data = Record<string, unknown>;
 
@@ -80,17 +83,15 @@ const recordFilter = (
 export const registerCardFeePaymentRoutes = (
   app: FastifyInstance,
   secret: string,
+  users?: Pick<AuthRepository, "findUserById">,
 ) => {
   app.get<{ Params: { cardId: string } }>(
     "/api/cards/:cardId/fee-payments",
     async (request) => {
-      const session = sessionFromRequest(request, secret);
-      await requireCard(request.params.cardId, session.workspaceId);
-      const records = await CardFeePaymentModel.find({
-        workspaceId: session.workspaceId,
-        userCardId: request.params.cardId,
-      }).sort({ paymentDate: -1, createdAt: -1 });
-      return { data: records.map(serialize) };
+      return { data: await FeeQueryService.listCardPayments(
+        await browserServiceContext(request, secret, users),
+        request.params.cardId,
+      ) };
     },
   );
 

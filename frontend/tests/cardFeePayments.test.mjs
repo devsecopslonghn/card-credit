@@ -74,7 +74,7 @@ test("client lists, creates, updates, and deletes encoded resources", async () =
       return { ok: true, json: async () => ({ data: { _id: "fee-1" } }) };
     return {
       ok: true,
-      json: async () => ({ data: [{ paymentDate: "2026-07-01" }] }),
+      json: async () => ({ data: [{ id: "fee-1", cardId: "card-1", category: "ANNUAL_CARD_FEE", paymentDate: "2026-07-01", amount: 100000, note: "" }] }),
     };
   };
   await fetchCardFeePaymentsRequest(fetcher, "card/unsafe");

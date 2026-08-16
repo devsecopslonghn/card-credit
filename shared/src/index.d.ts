@@ -261,3 +261,26 @@ export type FinancialReportDto = {
   byCategory: Record<string, FinancialReportMetricDto>;
   byAccount: Record<string, FinancialReportMetricDto & { name: string }>;
 };
+
+export declare const feeCategorySchema: z.ZodEnum<any>;
+export declare const feePaymentSchema: z.ZodObject<any>;
+export declare const feeCardSummarySchema: z.ZodObject<any>;
+export declare const feeCenterRecordSchema: z.ZodObject<any>;
+export declare const feePaymentListSchema: z.ZodArray<typeof feePaymentSchema>;
+export declare const feeCenterRecordListSchema: z.ZodArray<typeof feeCenterRecordSchema>;
+export type FeeCategory = "ANNUAL_CARD_FEE" | "MANAGEMENT_FEE" | "OTHER_FEE" | "BANK_CASHBACK" | "PARTNER_REFUND";
+export type FeePaymentDto = {
+  id: string;
+  cardId: string;
+  category: FeeCategory;
+  paymentDate: string;
+  amount: number;
+  note: string;
+};
+export type FeeCardSummaryDto = {
+  id: string;
+  providerName: string | null;
+  displayName: string | null;
+  owner: string;
+};
+export type FeeCenterRecordDto = FeePaymentDto & { card: FeeCardSummaryDto | null };
