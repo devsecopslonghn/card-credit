@@ -35,4 +35,8 @@ test("card portfolio contract preserves canonical identity and inactive state", 
   assert.deepEqual(cardPortfolioCardSchema.parse(card), card);
   assert.equal(cardPortfolioListSchema.parse([{ ...card, active: false }])[0].active, false);
   assert.throws(() => cardPortfolioCardSchema.parse({ ...card, id: "" }));
+  assert.deepEqual(cardPortfolioCardSchema.parse({ ...card, statementDate: "2028-02-29", paymentDueDate: "2028-03-01" }).statementDate, "2028-02-29");
+  assert.throws(() => cardPortfolioCardSchema.parse({ ...card, statementDate: "2026-02-30" }));
+  assert.throws(() => cardPortfolioCardSchema.parse({ ...card, paymentDueDate: "2026-02-30" }));
+  assert.throws(() => cardPortfolioCardSchema.parse({ ...card, paymentDueDate: "31/07/2026" }));
 });

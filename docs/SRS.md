@@ -229,6 +229,7 @@ Hai nhóm cross-cutting:
 | CAT-09 | Legacy masterdata REST routes phải revalidate current user/role qua trusted browser context trước repository access; không dùng workspace từ payload và không đổi global collection semantics. |
 | CAT-10 | Catalog admin REST routes phải revalidate current user active/locked/workspace và current `admin` role qua trusted browser actor context trước list/create/update/provider update; catalog và audit metadata vẫn giữ global semantics, actor lấy từ authoritative user repository. |
 | CAT-11 | Legacy masterdata GET phải trả canonical safe DTO qua shared runtime schema: bank gồm `_id`, `shortname`, `name`, `fullname`, `logo`; card type gồm `_id`, `name`, `logo`; persistence/secret fields không được lộ và REST/frontend phải dùng cùng parser. |
+| CAT-12 | `sourceCheckedAt` trong catalog DTO phải dùng shared `isoDateSchema`: đúng định dạng ISO `YYYY-MM-DD` và là ngày lịch tồn tại; adapter phải reject ngày bất hợp lệ trước khi render/ghi nhận contract. |
 
 #### 5.2.2 User card
 
@@ -244,6 +245,7 @@ Hai nhóm cross-cutting:
 | CARD-10 | Duplicate read phải dùng canonical `CardDuplicateGroupDto` với `id` card và không expose `workspaceId`/`userId`; REST/frontend chỉ giữ aliases ở compatibility boundary. |
 | CARD-08 | Merge duplicate AS-IS chỉ cộng `monthlyData` theo tháng vào target rồi xóa source. Không có cascade/relink các entity mới; xem rủi ro GAP-DATA-01. |
 | CARD-09 | Delete AS-IS chỉ xóa document card theo workspace; không cascade statement/account/cashback/fee. |
+| CARD-11 | `CardPortfolioCardDto.statementDate` và `paymentDueDate` phải là ISO calendar date hoặc `null` trong shared runtime contract; chuỗi legacy `DD/MM/YYYY` không được đi qua canonical REST/MCP/frontend DTO. |
 
 ### 5.3 Financial Ledger
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isoDateSchema } from "./date-contracts.js";
 
 export const monthlyCardDataSchema = z.object({
   month: z.number().int().min(1).max(12),
@@ -30,8 +31,8 @@ export const cardPortfolioCardSchema = z.object({
   reminderDaysBefore: z.array(z.number().int()),
   reminderTimezone: z.string().nullable(),
   reminderTime: z.string().nullable(),
-  statementDate: z.string().nullable(),
-  paymentDueDate: z.string().nullable(),
+  statementDate: isoDateSchema.nullable(),
+  paymentDueDate: isoDateSchema.nullable(),
   amountDueThisMonth: z.number().nullable(),
   isPaidThisMonth: z.boolean().nullable(),
   monthlyData: z.array(monthlyCardDataSchema),

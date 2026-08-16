@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isoDateSchema } from "./date-contracts.js";
 
 export const catalogNetworkSchema = z.enum(["Visa", "Mastercard", "JCB", "American Express", "UnionPay", "Napas"]);
 export const catalogThemeSchema = z.object({ background: z.string().min(1), accent: z.string().min(1) });
@@ -14,7 +15,7 @@ export const catalogProductSchema = z.object({
   imageUrl: z.string().nullable(),
   benefits: z.array(z.string()),
   sourceUrl: z.string(),
-  sourceCheckedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sourceCheckedAt: isoDateSchema,
   active: z.boolean(),
   sortOrder: z.number().finite(),
   theme: catalogThemeSchema,

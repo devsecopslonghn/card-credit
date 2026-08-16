@@ -17,6 +17,24 @@ implemented yet.
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` / `origin/master` | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
+### Completed checkpoint: Shared calendar-date validation for Catalog and Portfolio
+
+- Independent review: GO cho bounded contract-only slice; không đổi route,
+  service, model, index, migration hay database data.
+- Changed write-set: `catalogProductSchema.sourceCheckedAt` và
+  `cardPortfolioCardSchema.statementDate/paymentDueDate` dùng chung
+  `isoDateSchema`; tests cover leap-day acceptance, impossible dates, empty
+  values và legacy `DD/MM/YYYY` rejection.
+- Verification: `shared/npm run validate` pass (25/25 tests, build) và
+  `backend/npm run validate` pass (168 tests, typecheck, lint, build).
+- Compatibility/rollout risk: dữ liệu Mongo legacy không phải ISO hoặc ngày
+  không tồn tại sẽ bị canonical parser reject ở portfolio endpoint. Trước
+  production rollout phải audit/normalize các record đó; không tự động migrate
+  trong slice này.
+- Database impact: không schema/index/migration/write; không cần backup cho
+  commit này.
+- Commit/push: ghi SHA ngay sau khi commit và push thành công.
+
 ### Completed checkpoint: Account contract registry
 
 - Independent review: bounded scope được duyệt là `Ledger Account Read Contract +

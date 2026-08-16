@@ -24,4 +24,7 @@ test("catalog product and provider contracts accept canonical backend/frontend D
   assert.deepEqual(catalogProductSchema.parse(product), product);
   assert.equal(catalogProviderListSchema.parse([{ providerCode: "TST", providerName: "Test Bank", products: [product] }]).length, 1);
   assert.throws(() => catalogProductSchema.parse({ ...product, presetId: "Legacy_ID" }));
+  assert.throws(() => catalogProductSchema.parse({ ...product, sourceCheckedAt: "2026-02-30" }));
+  assert.throws(() => catalogProductSchema.parse({ ...product, sourceCheckedAt: "31/07/2026" }));
+  assert.throws(() => catalogProductSchema.parse({ ...product, sourceCheckedAt: "" }));
 });
