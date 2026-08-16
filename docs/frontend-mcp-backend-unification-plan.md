@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, stateless MCP preview hardening, SRS risk ledger và notification projection đã push | `c3e396f` / `origin/master` | Đối chiếu calendar/reminder/report preview còn compatibility |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification và calendar projection đã push | `b46f460` / `origin/master` | Đối chiếu reminder/report/one-off calendar email còn compatibility |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget read parity và Notification statement projection đã push; write command/calendar/reminder/report slices chưa mở | `c3e396f` / `origin/master` | Hợp nhất calendar feed/reminder read projection; giữ write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification và private Calendar feed statement projections đã push; write command/reminder/report/one-off email slices chưa mở | `b46f460` / `origin/master` | Hợp nhất reminder và one-off calendar email/read report projection; giữ write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -343,6 +343,30 @@ implemented yet.
 - Database impact: read-only model access thay qua service, không schema/index/
   migration/data write, không cần Kubernetes backup.
 - Commit/push: `c3e396f` đã push thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: Private Calendar Feed Statement Projection
+
+- Independent review: read projection dùng service mới nhưng không gọi
+  `upcoming()` vì feed cần card ownership theo subscription và private token
+  semantics riêng. Chỉ active subscription/user hợp lệ mới được đọc.
+- Changed write-set: `CardQueryService.list` hỗ trợ trusted `userId` scope;
+  `StatementQueryService.listForCardIds` batch-load unpaid statements và
+  transactions; calendar feed adapter map canonical `summary.outstandingAmount`,
+  `effectivePaymentStatus`, card metadata sang cùng `StatementCalendarInput`.
+  `lastAccessedAt` update vẫn giữ nguyên behavior hiện hữu.
+- Compatibility: ICS event identity, three-day window, alarms, headers và token
+  validation không đổi; chỉ amount/status source chuyển khỏi `$sum(amount)` và
+  direct model reads.
+- Acceptance evidence: backend `npm run validate` pass (90 tests, typecheck,
+  lint, build); focused calendar/service tests xác nhận owner đổi workspace bị
+  chặn trước card read, card ids được lọc theo workspace, PAID bị loại khỏi
+  feed, charge 600k trừ payment 100k thành outstanding 500k, one transaction
+  batch và canonical VND totals.
+- Database impact: chỉ read query/service refactor; `lastAccessedAt` là write
+  behavior đã tồn tại, không thay đổi schema/index/migration và không cần backup.
+- Commit/push: feature `382e386` và ownership/test hardening `b46f460` đã push
+  thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
 
 ### Execution rules
