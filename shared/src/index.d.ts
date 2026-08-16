@@ -137,6 +137,24 @@ export type CardDto = {
   monthlyData: MonthlyCardDataDto[];
 };
 export type CardList = CardDto[];
+export declare const monthlyCashbackStatusSchema: z.ZodEnum<{
+  PENDING: "PENDING";
+  RECEIVED: "RECEIVED";
+  REJECTED: "REJECTED";
+}>;
+export declare const monthlyCashbackSchema: z.ZodObject<any>;
+export declare const monthlyCashbackListSchema: z.ZodArray<typeof monthlyCashbackSchema>;
+export type MonthlyCashbackStatus = "PENDING" | "RECEIVED" | "REJECTED";
+export type MonthlyCashbackDto = {
+  id: string;
+  cardId: string;
+  period: string;
+  expectedAmount: number;
+  actualAmount: number | null;
+  status: MonthlyCashbackStatus;
+  receivedAt: string | null;
+  note: string;
+};
 export declare const financialTransactionTypeSchema: z.ZodEnum<any>;
 export declare const ownershipSchema: z.ZodEnum<any>;
 export declare const createFinancialTransactionInputSchema: z.ZodObject<any>;

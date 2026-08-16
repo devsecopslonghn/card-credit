@@ -279,7 +279,7 @@ export function MonthlyCashbackSection({
                 </thead>
                 <tbody>
                   {records.map((record) => (
-                    <tr key={record._id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                    <tr key={record.id} className="border-t" style={{ borderColor: "var(--border)" }}>
                       <td className="p-3 font-semibold">{periodLabel(record.period)}</td>
                       <td className="p-3 text-right cc-tabular">{formatVnd(record.expectedAmount)}</td>
                       <td className="p-3">{statusLabels[record.status]}</td>
@@ -295,7 +295,7 @@ export function MonthlyCashbackSection({
             </div>
             <div className="space-y-3 md:hidden">
               {records.map((record) => (
-                <article key={record._id} className="cc-panel rounded-xl p-4">
+                <article key={record.id} className="cc-panel rounded-xl p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h4 className="font-bold cc-text">{periodLabel(record.period)}</h4>

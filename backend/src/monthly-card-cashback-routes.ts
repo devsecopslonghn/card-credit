@@ -1,9 +1,12 @@
 import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { sessionFromRequest } from "./auth.js";
+import { browserServiceContext } from "./context.js";
 import { ApiError } from "./errors.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { MonthlyCardCashbackModel } from "./models/monthly-card-cashback.js";
+import { MonthlyCashbackQueryService } from "./services/monthly-cashback-query-service.js";
+import type { AuthRepository } from "./auth-repository.js";
 
 type Data = Record<string, unknown>;
 type Status = "PENDING" | "RECEIVED" | "REJECTED";
@@ -70,20 +73,14 @@ const requireCard = async (cardId: string, workspaceId: string) => {
 export const registerMonthlyCardCashbackRoutes = (
   app: FastifyInstance,
   secret: string,
+  users?: Pick<AuthRepository, "findUserById">,
 ) => {
   app.get<{
     Params: { cardId: string };
     Querystring: { year?: string };
   }>("/api/cards/:cardId/monthly-cashbacks", async (request) => {
-    const session = sessionFromRequest(request, secret);
-    await requireCard(request.params.cardId, session.workspaceId);
-    const year = validYear(request.query.year);
-    const records = await MonthlyCardCashbackModel.find({
-      workspaceId: session.workspaceId,
-      userCardId: request.params.cardId,
-      period: { $gte: `${year}-01`, $lte: `${year}-12` },
-    }).sort({ period: -1 });
-    return { data: records.map(serialize) };
+    const context = await browserServiceContext(request, secret, users);
+    return { data: await MonthlyCashbackQueryService.list(context, request.params.cardId, validYear(request.query.year)) };
   });
 
   app.put<{

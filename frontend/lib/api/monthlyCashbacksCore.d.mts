@@ -9,16 +9,14 @@ export type MonthlyCashbackForm = {
 };
 
 export type MonthlyCashbackRecord = {
-  _id: string;
-  userCardId: string;
+  id: string;
+  cardId: string;
   period: string;
   expectedAmount: number;
   actualAmount: number | null;
   status: MonthlyCashbackStatus;
   receivedAt: string | null;
   note: string;
-  createdAt: string;
-  updatedAt: string;
 };
 
 export type MonthlyCashbackPayload = {

@@ -78,3 +78,8 @@ export {
   feePaymentListSchema,
   feeCenterRecordListSchema,
 } from "./fee-contracts.js";
+export {
+  monthlyCashbackStatusSchema,
+  monthlyCashbackSchema,
+  monthlyCashbackListSchema,
+} from "./monthly-cashback-contracts.js";

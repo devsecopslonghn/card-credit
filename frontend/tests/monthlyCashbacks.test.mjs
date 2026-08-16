@@ -84,7 +84,8 @@ test("payload keeps actual amount only for received and validates integer VND", 
 
 test("record editing populates form and history sorts newest first", () => {
   const record = {
-    _id: "cb-1",
+    id: "cb-1",
+    cardId: "card-1",
     period: "2026-07",
     expectedAmount: 120000,
     actualAmount: 110000,
@@ -118,13 +119,25 @@ test("client lists, upserts, and deletes encoded card/month resources", async ()
       return {
         ok: true,
         json: async () => ({
-          data: { _id: "cb-1", period: "2026-07", status: "PENDING" },
+          data: {
+            _id: "cb-1",
+            userCardId: "card-1",
+            period: "2026-07",
+            expectedAmount: 100,
+            actualAmount: null,
+            status: "PENDING",
+            receivedAt: null,
+            note: "",
+          },
         }),
       };
     return {
       ok: true,
       json: async () => ({
-        data: [{ period: "2026-01" }, { period: "2026-07" }],
+        data: [
+          { id: "cb-1", cardId: "card-1", period: "2026-01", expectedAmount: 100, actualAmount: null, status: "PENDING", receivedAt: null, note: "" },
+          { id: "cb-2", cardId: "card-1", period: "2026-07", expectedAmount: 200, actualAmount: null, status: "PENDING", receivedAt: null, note: "" },
+        ],
       }),
     };
   };

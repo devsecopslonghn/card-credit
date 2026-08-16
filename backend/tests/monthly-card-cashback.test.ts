@@ -5,6 +5,8 @@ import { sessionCookie, signSession } from "../src/auth.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { MonthlyCardCashbackModel } from "../src/models/monthly-card-cashback.js";
 import { registerMonthlyCardCashbackRoutes } from "../src/monthly-card-cashback-routes.js";
+import { MonthlyCashbackQueryService } from "../src/services/monthly-cashback-query-service.js";
+import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const secret = "01234567890123456789012345678901";
 const cardId = "507f1f77bcf86cd799439011";
@@ -65,24 +67,24 @@ test("model declares the per-workspace card-period unique index", () => {
 });
 
 test("GET validates year and scopes card and cashback queries to workspace", async (t) => {
-  const cardFind = t.mock.method(
-    CreditCardModel,
-    "findOne",
-    async () => ({ _id: cardId, workspaceId: "workspace-a", active: false }),
-  );
-  const cashbackFind = t.mock.method(
-    MonthlyCardCashbackModel,
-    "find",
-    () =>
-      ({
-        sort: async () => [
-          {
-            period: "2026-07",
-            workspaceId: "workspace-a",
-            userCardId: cardId,
-          },
-        ],
-      }) as never,
+  const list = t.mock.method(
+    MonthlyCashbackQueryService,
+    "list",
+    async (context: ServiceContext, requestedCardId: string, year: string) => {
+      assert.equal(context.workspaceId, "workspace-a");
+      assert.equal(requestedCardId, cardId);
+      assert.equal(year, "2026");
+      return [{
+        id: "cashback-1",
+        cardId,
+        period: "2026-07",
+        expectedAmount: 120000,
+        actualAmount: null,
+        status: "PENDING",
+        receivedAt: null,
+        note: "",
+      }];
+    },
   );
   const app = appWithRoutes();
 
@@ -101,15 +103,7 @@ test("GET validates year and scopes card and cashback queries to workspace", asy
   });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().data[0].period, "2026-07");
-  assert.deepEqual(cardFind.mock.calls[0]?.arguments[0], {
-    _id: cardId,
-    workspaceId: "workspace-a",
-  });
-  assert.deepEqual(cashbackFind.mock.calls[0]?.arguments[0], {
-    workspaceId: "workspace-a",
-    userCardId: cardId,
-    period: { $gte: "2026-01", $lte: "2026-12" },
-  });
+  assert.equal(list.mock.callCount(), 1);
   await app.close();
 });
 
@@ -266,7 +260,7 @@ test("PUT rejects invalid period, status, and non-integer or negative VND", asyn
 });
 
 test("missing or cross-workspace cards return CARD_NOT_FOUND before record access", async (t) => {
-  t.mock.method(CreditCardModel, "findOne", async () => null);
+  t.mock.method(CreditCardModel, "findOne", () => ({ lean: async () => null }) as never);
   const cashbackFind = t.mock.method(MonthlyCardCashbackModel, "find");
   const app = appWithRoutes();
   const response = await app.inject({
