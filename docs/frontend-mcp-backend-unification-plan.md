@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query và REST/MCP parity guard đã push | `4af9d5e` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard và Fee/Cashback REST command-service boundary đã push | `e153588` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry và private read adapter revalidation đã push; session version và các direct mutation routes còn thiếu | `8a75e3c` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata và CREDIT account-card validation đã push; generic persistent command guard còn là decision gate | `d0d2c9b` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query và REST/MCP parity guard đã push; write commands chưa mở | `4af9d5e` / `origin/master` | Chờ chốt contract filters, cash-flow semantic join và legacy fee-category migration; giữ payment/write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard và REST Fee/Cashback command services đã push; MCP mutation guard và legacy category migration chưa mở | `e153588` / `origin/master` | Chờ chốt contract filters, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -793,6 +793,34 @@ implemented yet.
   semantics balance/DTO chưa được duyệt.
 - Next action: chờ quyết định product/user, sau đó freeze `FinancialReportQuery`
   shared contract trước REST/MCP/frontend implementation.
+
+### Completed checkpoint: Fee/Cashback REST command-service boundary
+
+- Independent review: bounded write-path extraction được duyệt có điều kiện; giữ
+  nguyên validation, workspace/card/period filters, Mongo operators/options và
+  response compatibility. Không mở MCP write, preview-confirm, idempotency,
+  audit hay transaction trong slice này.
+- Changed write-set: `FeeCommandService` sở hữu card fee và Fee Center
+  create/update/delete; `MonthlyCashbackCommandService` sở hữu cashback
+  upsert/delete. Ba REST modules chỉ tạo trusted `browserServiceContext`, gọi
+  command service và giữ envelope/message legacy. `users` dependency là bắt
+  buộc để mutation không bỏ qua identity revalidation.
+- Behavior locked: card ownership được kiểm tra trước body validation; fee
+  payment giữ positive safe integer/date/note rules; Fee Center giữ
+  `userCardId: body.cardId` kể cả `undefined`; cashback giữ
+  `PENDING|RECEIVED|REJECTED`, `actualAmount=null` cho non-RECEIVED,
+  `receivedAt` đầu tiên và unique workspace/card/period upsert semantics.
+- Acceptance evidence: command-service unit tests và route regression tests
+  pass; backend `npm run validate` pass (119 tests, typecheck, lint và build);
+  `git diff --check` pass.
+- Database impact: write operations hiện hữu được gọi từ application service,
+  nhưng không đổi schema/index/migration, không chạy data rewrite hay DB
+  migration; theo nguyên tắc đã thống nhất không cần Kubernetes backup.
+- Residual risk: REST writes vẫn là compatibility commands chưa có generic
+  preview/one-time confirmation/idempotency reservation/append-only audit;
+  MCP chưa expose fee/cashback mutation. Payment state machine và card
+  delete/merge vẫn là decision gates.
+- Commit/push: `e153588` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
