@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract và MCP manifest slices đã validation; manifest đang chờ commit/push | `a54f09e` / `origin/master` | Commit/push canonical MCP manifest, sau đó hoàn thiện REST/Frontend inventory |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract và MCP manifest slices đã push; REST/Frontend inventory còn thủ công | `7291138` / `origin/master` | Hoàn thiện REST/Frontend inventory và drift gates |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
@@ -100,8 +100,7 @@ implemented yet.
   backup.
 - Residual risk: REST endpoint inventory vẫn còn khai báo thủ công; generic
   preview/confirm/idempotency/audit guard chưa được chuẩn hóa.
-- Commit/push: chờ commit feature sau khi checkpoint này được review trong
-  working tree.
+- Commit/push: `7291138` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
