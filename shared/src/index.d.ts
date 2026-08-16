@@ -265,7 +265,9 @@ export declare const statementListSchema: z.ZodArray<typeof statementSchema>;
 export declare const statementPaymentStatusSchema: z.ZodEnum<any>;
 export declare const statementPaymentActionSchema: z.ZodEnum<any>;
 export declare const statementPaymentInputSchema: z.ZodObject<any>;
+export declare const statementPaymentExecuteInputSchema: z.ZodObject<any>;
 export declare const statementPaymentPreviewWarningSchema: z.ZodEnum<any>;
+export declare const statementPaymentPreviewDataSchema: z.ZodObject<any>;
 export declare const statementPaymentPreviewSchema: z.ZodObject<any>;
 export type StatementSummaryDto = {
   statementAmount: number;
@@ -310,7 +312,11 @@ export type StatementPaymentPreviewDto = {
   version: string | null;
   requiresRepaymentAccount: boolean;
   warnings: StatementPaymentPreviewWarning[];
+  previewId: string;
+  confirmationToken: string;
+  expiresAt: string;
 };
+export type StatementPaymentPreviewDataDto = Omit<StatementPaymentPreviewDto, "previewId" | "confirmationToken" | "expiresAt">;
 
 export declare const financialReportMetricSchema: z.ZodObject<any>;
 export declare const financialReportTotalsSchema: z.ZodObject<any>;

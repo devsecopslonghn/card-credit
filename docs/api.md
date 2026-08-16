@@ -115,8 +115,8 @@ Resource không tồn tại hoặc ngoài workspace đều xử lý như `404 CA
 | `GET /card-statements` | Session | Statements của tất cả card trong workspace. |
 | `GET /cards/:id/statements` | Session | Statements của card. |
 | `GET /cards/:id/statements/:statementId` | Session | Statement + transactions + summary. |
-| `POST /cards/:id/statements/:statementId/payment/preview` | Session | Strict payment input (`expectedVersion?`); read-only canonical preview với persisted statement/payment/outstanding totals, amount to pay, account requirement, current version và warnings. Không ghi database. |
-| `PATCH /cards/:id/statements/:statementId/payment` | Session + `Idempotency-Key` (8+ chars) | Strict `{action:"CLOSED"|"PAID"|"REOPEN",repaymentAccountId?,expectedVersion?}`; command service enforces card/workspace scope, persisted-impact totals, preview-version CAS, PAID lock, one payment transaction and generic receipt/audit guard; stale version returns `PAYMENT_PREVIEW_STALE`, success returns canonical `StatementDto`. |
+| `POST /cards/:id/statements/:statementId/payment/preview` | Session | Strict payment input (`expectedVersion?`); canonical persisted-impact preview với exact totals, account requirement, current version và warnings. Không ghi business data, nhưng ghi hash-only preview metadata và trả `previewId`, `confirmationToken`, `expiresAt`; response `Cache-Control: no-store`. |
+| `PATCH /cards/:id/statements/:statementId/payment` | Session + `Idempotency-Key` (8+ chars) | Strict execute input gồm `{action:"CLOSED"|"PAID"|"REOPEN",repaymentAccountId?,expectedVersion?,previewId,confirmationToken}`; browser token bind context/operation/route payload, one-time generic guard, preview-version CAS, PAID lock, one payment transaction and receipt/audit; stale version returns `PAYMENT_PREVIEW_STALE`, unavailable/replayed preview returns `PREVIEW_NOT_AVAILABLE`, success returns canonical `StatementDto`. |
 | `POST /cards/:id/statements/:statementId/calendar-email` | Session | Không nhận recipient; server gửi tới email user hiện tại. |
 
 Summary response nên có:

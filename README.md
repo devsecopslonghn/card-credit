@@ -184,7 +184,8 @@ operation, payload hash, `previewId` cùng fixed context. Luồng mutation là
 `preview -> human confirm -> one-time consume -> idempotent confirm`; token hash
 được lưu trong `commandpreviews`, không lưu raw token/payload. Account, Financial
 Transaction và REST Payment dùng canonical command guard; browser payment preview
-chỉ là read-only và vẫn cần resource-version confirmation. Production vẫn phải
+không ghi business data nhưng phát hành hash-only confirmation metadata, token
+domain riêng, one-time consume và vẫn cần resource-version confirmation. Production vẫn phải
 qua preview-index backup/verify và old-writer rollout fence.
 MCP không tự chọn user/workspace, tự tính quota, tự tính statement hoặc truy cập
 MongoDB trực tiếp.

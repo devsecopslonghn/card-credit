@@ -8,13 +8,29 @@ import { projectStatementCalendar, serializeStatementCalendar } from "./statemen
 import { StatementQueryService } from "./services/statement-query-service.js";
 import { StatementPaymentCommandService } from "./services/statement-payment-command-service.js";
 import { CardQueryService } from "./services/card-query-service.js";
-import { statementPaymentInputSchema, type StatementPaymentInput } from "@card-credit/contracts";
+import { statementPaymentExecuteInputSchema, statementPaymentInputSchema, statementPaymentPreviewSchema, type StatementPaymentInput } from "@card-credit/contracts";
+import { canonicalPayloadHash, confirmationTokenHash, createPreviewTokenCodec, type PreviewBinding } from "./mcp/preview.js";
+import { previewConfirmationService, type PreviewConfirmationService } from "./services/preview-confirmation-service.js";
+
+const PAYMENT_OPERATION = "pay_statement";
+const paymentPreviewPayload = (cardId: string, statementId: string, input: StatementPaymentInput) => ({
+  cardId,
+  statementId,
+  input: {
+    action: input.action,
+    ...(input.repaymentAccountId ? { repaymentAccountId: input.repaymentAccountId } : {}),
+    ...(input.expectedVersion ? { expectedVersion: input.expectedVersion } : {}),
+  },
+});
+const paymentPreviewBinding = (context: { workspaceId: string; userId: string; channel: string }): PreviewBinding => ({ workspaceId: context.workspaceId, userId: context.userId, channel: context.channel });
 
 export const registerTransactionRoutes = (
   app: FastifyInstance,
   secret: string,
   calendarEmail?: { users: AuthRepository; mail: MailService },
+  previewService: Pick<PreviewConfirmationService, "issue"> = previewConfirmationService,
 ) => {
+  const browserPreviewCodec = createPreviewTokenCodec({ secret, domain: "card-credit:browser-preview:v1" });
   app.get("/api/card-statements", async (request) => {
     return { data: await StatementQueryService.list(await browserServiceContext(request, secret, calendarEmail?.users)) };
   });
@@ -32,27 +48,44 @@ export const registerTransactionRoutes = (
   );
   app.post<{ Params: { id: string; statementId: string }; Body: Record<string, unknown> }>(
     "/api/cards/:id/statements/:statementId/payment/preview",
-    async (request) => {
+    async (request, reply) => {
       const parsed = statementPaymentInputSchema.safeParse(request.body);
       if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
       const context = await browserServiceContext(request, secret, calendarEmail?.users);
-      return { data: await StatementPaymentCommandService.preview(context, request.params.id, request.params.statementId, parsed.data as StatementPaymentInput) };
+      const preview = await StatementPaymentCommandService.preview(context, request.params.id, request.params.statementId, parsed.data as StatementPaymentInput);
+      const previewInput: StatementPaymentInput = {
+        action: preview.action,
+        ...(preview.repaymentAccountId ? { repaymentAccountId: preview.repaymentAccountId } : {}),
+        ...(preview.version ? { expectedVersion: preview.version } : {}),
+      };
+      const metadata = await previewService.issue(context, PAYMENT_OPERATION, paymentPreviewPayload(request.params.id, request.params.statementId, previewInput), browserPreviewCodec);
+      reply.header("Cache-Control", "no-store");
+      return { data: statementPaymentPreviewSchema.parse({ ...preview, previewId: metadata.previewId, confirmationToken: metadata.confirmationToken, expiresAt: new Date(metadata.expiresAt).toISOString() }) };
     },
   );
   app.patch<{ Params: { id: string; statementId: string }; Body: Record<string, unknown> }>(
     "/api/cards/:id/statements/:statementId/payment",
     async (request) => {
-      const parsed = statementPaymentInputSchema.safeParse(request.body);
+      const parsed = statementPaymentExecuteInputSchema.safeParse(request.body);
       if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
       const rawIdempotencyKey = request.headers["idempotency-key"];
       if (typeof rawIdempotencyKey !== "string" || rawIdempotencyKey.trim().length < 8) throw new ApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Thanh toán sao kê cần Idempotency-Key tối thiểu 8 ký tự.");
       const context = await browserServiceContext(request, secret, calendarEmail?.users);
+      const { previewId, confirmationToken, ...rawInput } = parsed.data as StatementPaymentInput & { previewId: string; confirmationToken: string };
+      const paymentInput = rawInput as StatementPaymentInput;
+      let verification: ReturnType<typeof browserPreviewCodec.verify>;
+      try {
+        verification = browserPreviewCodec.verify(confirmationToken, PAYMENT_OPERATION, paymentPreviewPayload(request.params.id, request.params.statementId, paymentInput), paymentPreviewBinding(context));
+      } catch {
+        throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
+      }
+      if (verification.previewId !== previewId) throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
       await StatementPaymentCommandService.execute(
         context,
         request.params.id,
         request.params.statementId,
-        parsed.data as StatementPaymentInput,
-        { idempotencyKey: rawIdempotencyKey.trim(), endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment" },
+        paymentInput,
+        { idempotencyKey: rawIdempotencyKey.trim(), endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment", previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(paymentPreviewPayload(request.params.id, request.params.statementId, paymentInput)) },
         new Date(),
       );
       return { data: await StatementQueryService.get(context, request.params.id, request.params.statementId) };

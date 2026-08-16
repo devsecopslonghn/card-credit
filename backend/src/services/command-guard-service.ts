@@ -12,6 +12,7 @@ export type CommandGuardSpec = {
   endpointOrTool: string;
   previewId?: string;
   confirmationTokenHash?: string;
+  previewPayloadHash?: string;
   resource?: Record<string, unknown>;
 };
 
@@ -20,6 +21,7 @@ export type CommandInvocation = {
   endpointOrTool: string;
   previewId?: string;
   confirmationTokenHash?: string;
+  previewPayloadHash?: string;
 };
 
 export type CommandGuardRepository = {
@@ -103,8 +105,12 @@ const validateSpec = (spec: CommandGuardSpec) => {
   if (!/^[a-f0-9]{64}$/i.test(spec.payloadHash)) throw new ApiError(400, "INVALID_COMMAND_HASH", "Payload hash không hợp lệ.");
   const previewId = spec.previewId?.trim() || null;
   const confirmationTokenHash = spec.confirmationTokenHash?.trim().toLowerCase() || null;
-  if (previewId && (!confirmationTokenHash || !/^[a-f0-9]{64}$/.test(confirmationTokenHash))) throw new ApiError(400, "INVALID_PREVIEW_CONFIRMATION", "Preview confirmation không hợp lệ.");
-  return { operation, endpointOrTool, idempotencyKey, payloadHash: spec.payloadHash.toLowerCase(), previewId, confirmationTokenHash, resource: safeResource(spec.resource) };
+  const previewPayloadHash = spec.previewPayloadHash?.trim().toLowerCase() || null;
+  const hasPreviewMetadata = Boolean(previewId || confirmationTokenHash || previewPayloadHash);
+  if (hasPreviewMetadata && (!previewId || !confirmationTokenHash || !previewPayloadHash)) throw new ApiError(400, "INVALID_PREVIEW_CONFIRMATION", "Preview confirmation không hợp lệ.");
+  if (confirmationTokenHash && !/^[a-f0-9]{64}$/.test(confirmationTokenHash)) throw new ApiError(400, "INVALID_PREVIEW_CONFIRMATION", "Preview confirmation không hợp lệ.");
+  if (previewPayloadHash && !/^[a-f0-9]{64}$/.test(previewPayloadHash)) throw new ApiError(400, "INVALID_PREVIEW_CONFIRMATION", "Preview payload hash không hợp lệ.");
+  return { operation, endpointOrTool, idempotencyKey, payloadHash: spec.payloadHash.toLowerCase(), previewId, confirmationTokenHash, previewPayloadHash, resource: safeResource(spec.resource) };
 };
 
 export class CommandGuardService {
@@ -159,7 +165,7 @@ export class CommandGuardService {
             channel: ctx.channel,
             operation: metadata.operation,
             previewId: metadata.previewId,
-            payloadHash: metadata.payloadHash,
+            payloadHash: metadata.previewPayloadHash ?? metadata.payloadHash,
             tokenHash: metadata.confirmationTokenHash,
             status: "ISSUED",
             expiresAt: { $gt: new Date() },

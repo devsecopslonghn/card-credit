@@ -12,7 +12,7 @@ export const statementPaymentInputSchema = z.object({
   expectedVersion: z.iso.datetime().optional(),
 }).strict();
 export const statementPaymentPreviewWarningSchema = z.enum(["ALREADY_SETTLED", "NO_OUTSTANDING_BALANCE", "REPAYMENT_ACCOUNT_REQUIRED"]);
-export const statementPaymentPreviewSchema = z.object({
+const statementPaymentPreviewDataFields = {
   operation: z.literal("pay_statement"),
   cardId: z.string().min(1),
   statementId: z.string().min(1),
@@ -27,6 +27,16 @@ export const statementPaymentPreviewSchema = z.object({
   version: z.iso.datetime().nullable(),
   requiresRepaymentAccount: z.boolean(),
   warnings: z.array(statementPaymentPreviewWarningSchema).max(8),
+};
+export const statementPaymentPreviewDataSchema = z.object(statementPaymentPreviewDataFields).strict();
+export const statementPaymentPreviewSchema = statementPaymentPreviewDataSchema.extend({
+  previewId: z.string().min(1),
+  confirmationToken: z.string().min(1),
+  expiresAt: z.iso.datetime(),
+}).strict();
+export const statementPaymentExecuteInputSchema = statementPaymentInputSchema.extend({
+  previewId: z.string().min(1),
+  confirmationToken: z.string().min(1),
 }).strict();
 
 export const statementSummarySchema = z.object({

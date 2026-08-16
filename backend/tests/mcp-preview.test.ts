@@ -22,6 +22,10 @@ test("preview token canonicalizes payloads and binds operation/context without r
   assert.throws(() => codec.verify(first.confirmationToken, "other", { note: "secret-note", nested: { a: 1, b: 2 } }, binding), /mismatched|Invalid/);
   now += MCP_PREVIEW_TTL_MS;
   assert.deepEqual(codec.verify(first.confirmationToken, "create_account", { note: "secret-note", nested: { a: 1, b: 2 } }, binding), { previewId: first.previewId });
+  const browserCodec = createPreviewTokenCodec({ secret, domain: "card-credit:browser-preview:v1", now: () => now });
+  const browserToken = browserCodec.issue("create_account", { note: "secret-note", nested: { a: 1, b: 2 } }, binding).confirmationToken;
+  assert.throws(() => codec.verify(browserToken, "create_account", { note: "secret-note", nested: { a: 1, b: 2 } }, binding), /Invalid confirmation token/);
+  assert.throws(() => browserCodec.verify(first.confirmationToken, "create_account", { note: "secret-note", nested: { a: 1, b: 2 } }, binding), /Invalid confirmation token/);
 });
 
 test("preview token rejects unsupported payloads, malformed tokens and weak secrets", () => {

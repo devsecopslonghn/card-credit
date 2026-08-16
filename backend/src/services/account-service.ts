@@ -132,6 +132,7 @@ export class AccountService {
       endpointOrTool: invocation.endpointOrTool,
       previewId: invocation.previewId,
       confirmationTokenHash: invocation.confirmationTokenHash,
+      previewPayloadHash: invocation.previewPayloadHash,
       resource: { type: "account" },
     }, async (session) => {
       const existingMutation = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();

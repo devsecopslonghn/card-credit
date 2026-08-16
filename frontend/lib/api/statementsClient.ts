@@ -1,4 +1,4 @@
-import { statementListSchema, statementPaymentInputSchema, statementPaymentPreviewSchema, statementSchema } from "@card-credit/contracts";
+import { statementListSchema, statementPaymentExecuteInputSchema, statementPaymentInputSchema, statementPaymentPreviewSchema, statementSchema } from "@card-credit/contracts";
 import type { StatementDto, StatementPaymentAction, StatementPaymentPreviewDto } from "@card-credit/contracts";
 
 export type PaymentStatus = "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
@@ -72,7 +72,7 @@ export const previewStatementPayment = async (cardId: string, statementId: strin
   const payload = statementPaymentInputSchema.parse({ action, ...(repaymentAccountId ? { repaymentAccountId } : {}) });
   return statementPaymentPreviewSchema.parse(await request<unknown>(`/api/cards/${cardId}/statements/${statementId}/payment/preview`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })) as StatementPaymentPreviewDto;
 };
-export const updateStatementPayment = async (cardId: string, statementId: string, action: StatementPaymentAction, repaymentAccountId?: string, idempotencyKey = createStatementPaymentKey(), expectedVersion?: string) => {
-  const payload = statementPaymentInputSchema.parse({ action, ...(repaymentAccountId ? { repaymentAccountId } : {}), ...(expectedVersion ? { expectedVersion } : {}) });
+export const updateStatementPayment = async (cardId: string, statementId: string, action: StatementPaymentAction, repaymentAccountId?: string, idempotencyKey = createStatementPaymentKey(), expectedVersion?: string, confirmation?: Pick<StatementPaymentPreviewDto, "previewId" | "confirmationToken">) => {
+  const payload = statementPaymentExecuteInputSchema.parse({ action, ...(repaymentAccountId ? { repaymentAccountId } : {}), ...(expectedVersion ? { expectedVersion } : {}), previewId: confirmation?.previewId, confirmationToken: confirmation?.confirmationToken });
   return toLegacyStatement(statementSchema.parse(await request<unknown>(`/api/cards/${cardId}/statements/${statementId}/payment`, { method: "PATCH", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, body: JSON.stringify(payload) })) as StatementDto);
 };

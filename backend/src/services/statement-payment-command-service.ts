@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { statementPaymentActionSchema, statementPaymentInputSchema, statementPaymentPreviewSchema, type StatementPaymentAction, type StatementPaymentInput, type StatementPaymentPreviewDto } from "@card-credit/contracts";
+import { statementPaymentActionSchema, statementPaymentInputSchema, statementPaymentPreviewDataSchema, type StatementPaymentAction, type StatementPaymentInput, type StatementPaymentPreviewDataDto, type StatementPaymentPreviewDto } from "@card-credit/contracts";
 import { calculateFinancialImpact, type AccountType } from "../financial-domain.js";
 import { ApiError } from "../errors.js";
 import { AccountModel } from "../models/account.js";
@@ -80,7 +80,7 @@ export const nextPaymentState = (current: string, action: StatementPaymentAction
 };
 
 export class StatementPaymentCommandService {
-  static async preview(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput): Promise<StatementPaymentPreviewDto> {
+  static async preview(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput): Promise<StatementPaymentPreviewDataDto> {
     const parsed = statementPaymentInputSchema.safeParse(input);
     if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
     const command = parsed.data as StatementPaymentInput;
@@ -90,7 +90,7 @@ export class StatementPaymentCommandService {
     const transactions = await FinancialTransactionModel.find({ statementId, workspaceId: ctx.workspaceId }).lean() as Data[];
     const paymentTransactions = transactions.filter((item) => String(item.transactionType) === "STATEMENT_PAYMENT");
     if (paymentTransactions.length > 1) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê có nhiều giao dịch thanh toán.");
-    const paymentStatus = String(statement.paymentStatus ?? "OPEN") as StatementPaymentPreviewDto["paymentStatus"];
+    const paymentStatus = String(statement.paymentStatus ?? "OPEN") as StatementPaymentPreviewDataDto["paymentStatus"];
     const nextPaymentStatus = nextPaymentState(paymentStatus, command.action);
     const totals = paymentTotals(transactions);
     if (command.action === "PAID" && paymentStatus === "PAID") {
@@ -105,11 +105,11 @@ export class StatementPaymentCommandService {
     const amountToPay = command.action === "PAID" && paymentStatus !== "PAID" ? totals.outstandingAmount : 0;
     const requiresRepaymentAccount = amountToPay > 0 && !command.repaymentAccountId;
     if (amountToPay > 0 && command.repaymentAccountId) await repaymentAccount(ctx, command.repaymentAccountId);
-    const warnings: StatementPaymentPreviewDto["warnings"] = [];
+    const warnings: StatementPaymentPreviewDataDto["warnings"] = [];
     if (command.action === "PAID" && paymentStatus === "PAID") warnings.push("ALREADY_SETTLED");
     else if (command.action === "PAID" && amountToPay === 0) warnings.push("NO_OUTSTANDING_BALANCE");
     else if (requiresRepaymentAccount) warnings.push("REPAYMENT_ACCOUNT_REQUIRED");
-    return statementPaymentPreviewSchema.parse({
+    return statementPaymentPreviewDataSchema.parse({
       operation: "pay_statement",
       cardId,
       statementId,
@@ -130,6 +130,9 @@ export class StatementPaymentCommandService {
   static async execute(ctx: ServiceContext, cardId: string, statementId: string, input: StatementPaymentInput, invocation: CommandInvocation, paidAt = new Date()): Promise<Data> {
     const parsed = statementPaymentInputSchema.safeParse(input);
     if (!parsed.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
+    if (ctx.channel === "browser" && (!invocation.previewId || !invocation.confirmationTokenHash || !invocation.previewPayloadHash)) {
+      throw new ApiError(400, "PAYMENT_PREVIEW_REQUIRED", "Thanh toán sao kê cần preview và xác nhận hợp lệ.");
+    }
     const command = parsed.data as StatementPaymentInput;
     if (!mongoose.isValidObjectId(cardId) || !mongoose.isValidObjectId(statementId)) throw new ApiError(400, "INVALID_STATEMENT_ID", "Tham chiếu sao kê không hợp lệ.");
     if (!(paidAt instanceof Date) || Number.isNaN(paidAt.valueOf())) throw new ApiError(400, "INVALID_PAYMENT_DATE", "Ngày thanh toán không hợp lệ.");
@@ -141,6 +144,7 @@ export class StatementPaymentCommandService {
       endpointOrTool: invocation.endpointOrTool,
       previewId: invocation.previewId,
       confirmationTokenHash: invocation.confirmationTokenHash,
+      previewPayloadHash: invocation.previewPayloadHash,
       resource: { type: "statement", cardId, statementId },
     } as const;
     const expectedVersion = command.expectedVersion ? new Date(command.expectedVersion) : undefined;

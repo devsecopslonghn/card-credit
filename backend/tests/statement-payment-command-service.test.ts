@@ -17,6 +17,7 @@ const cardId = "507f1f77bcf86cd799439011";
 const statementId = "507f1f77bcf86cd799439021";
 const user = { id: "user-a", email: "user@example.test", passwordHash: "", role: "user" as const, workspaceId: "workspace-a", displayName: "User", active: true, lockedAt: null };
 const cookie = sessionCookie(signSession({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId }, secret));
+const browserPreviewInvocation = { previewId: "preview-test", confirmationTokenHash: "b".repeat(64), previewPayloadHash: "c".repeat(64) };
 
 test("payment totals use persisted credit impact rather than raw amount", () => {
   assert.deepEqual(paymentTotals([
@@ -106,7 +107,7 @@ test("payment execute rejects a stale preview version before ledger work", async
       cardId,
       statementId,
       { action: "PAID", expectedVersion: "2026-08-15T00:00:00.000Z" },
-      { idempotencyKey: "payment-stale-1", endpointOrTool: "test.payment" },
+      { idempotencyKey: "payment-stale-1", endpointOrTool: "test.payment", ...browserPreviewInvocation },
     ),
     (error: unknown) => error instanceof Error && "code" in error && error.code === "PAYMENT_PREVIEW_STALE",
   );
@@ -124,7 +125,7 @@ test("payment command binds statement identity and safe result metadata to the g
     cardId,
     statementId,
     input,
-    { idempotencyKey: "payment-command-1", endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment" },
+    { idempotencyKey: "payment-command-1", endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment", ...browserPreviewInvocation },
   );
   assert.deepEqual(result, { statementId, action: "CLOSED", paymentStatus: "STATEMENT_CLOSED", paidAt: null, paidAmount: 0 });
   assert.equal(observed?.operation, "pay_statement");
@@ -139,8 +140,8 @@ test("payment retry keeps the idempotency hash stable when only the preview vers
     return { statementId, action: "PAID", paymentStatus: "PAID", paidAt: null, paidAmount: 100 };
   });
   const context = { userId: user.id, workspaceId: user.workspaceId, role: user.role, channel: "browser" as const, correlationId: "payment-retry-hash" };
-  await StatementPaymentCommandService.execute(context, cardId, statementId, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: "2026-08-16T00:00:00.000Z" }, { idempotencyKey: "payment-retry-hash-1", endpointOrTool: "test.payment" });
-  await StatementPaymentCommandService.execute(context, cardId, statementId, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: "2026-08-16T00:01:00.000Z" }, { idempotencyKey: "payment-retry-hash-1", endpointOrTool: "test.payment" });
+  await StatementPaymentCommandService.execute(context, cardId, statementId, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: "2026-08-16T00:00:00.000Z" }, { idempotencyKey: "payment-retry-hash-1", endpointOrTool: "test.payment", ...browserPreviewInvocation });
+  await StatementPaymentCommandService.execute(context, cardId, statementId, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: "2026-08-16T00:01:00.000Z" }, { idempotencyKey: "payment-retry-hash-1", endpointOrTool: "test.payment", ...browserPreviewInvocation });
   assert.equal(observed[0]?.payloadHash, observed[1]?.payloadHash);
   assert.notEqual(observed[0]?.payloadHash, paymentCommandPayloadHash(cardId, statementId, { action: "CLOSED" }));
 });
@@ -164,7 +165,7 @@ test("payment REST adapter rejects missing/unknown action and delegates canonica
   t.mock.method(StatementPaymentCommandService, "preview", async () => ({
     operation: "pay_statement", cardId, statementId, action: "PAID", paymentStatus: "OPEN", nextPaymentStatus: "PAID",
     statementAmount: 1_000, paymentAmount: 0, outstandingAmount: 1_000, amountToPay: 1_000,
-    repaymentAccountId: null, requiresRepaymentAccount: false, warnings: [],
+    repaymentAccountId: "507f1f77bcf86cd799439031", version: "2026-08-16T00:00:00.000Z", requiresRepaymentAccount: false, warnings: [],
   }));
   t.mock.method(StatementQueryService, "get", async () => ({
     id: statementId, cardId, periodStartDate: "2026-07-12", periodEndDate: "2026-08-11", statementDate: "2026-08-11", paymentDueDate: "2026-08-26", statementDaySnapshot: 11, paymentDueDaysSnapshot: 15,
@@ -172,27 +173,31 @@ test("payment REST adapter rejects missing/unknown action and delegates canonica
     summary: { statementAmount: 1_000, paymentAmount: 600, outstandingAmount: 400, personalSpending: 1_000, outstandingReceivable: 0, reimbursementReceived: 0, transactionCount: 1 },
   }));
   const app = buildApp({ isReady: () => true }, "silent");
-  registerTransactionRoutes(app, secret);
+  const previewService = { issue: async (context: ServiceContext, operation: string, payload: unknown, codec: { issue: (operation: string, payload: unknown, binding: { workspaceId: string; userId: string; channel: string }) => unknown }) => codec.issue(operation, payload, { workspaceId: context.workspaceId, userId: context.userId, channel: context.channel }) } as never;
+  registerTransactionRoutes(app, secret, undefined, previewService);
   registerFinancialTransactionRoutes(app, secret);
   for (const payload of [{}, { action: "UNKNOWN" }, { action: "PAID", unexpected: true }]) {
     const response = await app.inject({ method: "PATCH", url: `/api/cards/${cardId}/statements/${statementId}/payment`, headers: { cookie }, payload });
     assert.equal(response.statusCode, 400);
     assert.equal(response.json().error.code, "INVALID_PAYMENT_ACTION");
   }
-  const missingKey = await app.inject({ method: "PATCH", url: `/api/cards/${cardId}/statements/${statementId}/payment`, headers: { cookie }, payload: { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" } });
+  const previewResponse = await app.inject({ method: "POST", url: `/api/cards/${cardId}/statements/${statementId}/payment/preview`, headers: { cookie }, payload: { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" } });
+  assert.equal(previewResponse.statusCode, 200, previewResponse.body);
+  const preview = previewResponse.json().data;
+  const missingKey = await app.inject({ method: "PATCH", url: `/api/cards/${cardId}/statements/${statementId}/payment`, headers: { cookie }, payload: { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: preview.version, previewId: preview.previewId, confirmationToken: preview.confirmationToken } });
   assert.equal(missingKey.statusCode, 400);
   assert.equal(missingKey.json().error.code, "IDEMPOTENCY_KEY_REQUIRED");
-  const response = await app.inject({ method: "PATCH", url: `/api/cards/${cardId}/statements/${statementId}/payment`, headers: { cookie, "idempotency-key": " payment-command-1 " }, payload: { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" } });
-  assert.equal(response.statusCode, 200);
+  const response = await app.inject({ method: "PATCH", url: `/api/cards/${cardId}/statements/${statementId}/payment`, headers: { cookie, "idempotency-key": " payment-command-1 " }, payload: { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: preview.version, previewId: preview.previewId, confirmationToken: preview.confirmationToken } });
+  assert.equal(response.statusCode, 200, response.body);
   assert.equal(response.json().data.id, statementId);
   assert.equal(observed.length, 1);
-  assert.deepEqual(observed[0]?.input, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031" });
-  assert.deepEqual(observed[0]?.invocation, { idempotencyKey: "payment-command-1", endpointOrTool: "PATCH /api/cards/:id/statements/:statementId/payment" });
+  assert.deepEqual(observed[0]?.input, { action: "PAID", repaymentAccountId: "507f1f77bcf86cd799439031", expectedVersion: preview.version });
+  assert.equal((observed[0]?.invocation as { idempotencyKey: string }).idempotencyKey, "payment-command-1");
+  assert.equal(typeof (observed[0]?.invocation as { previewId: string }).previewId, "string");
+  assert.equal(typeof (observed[0]?.invocation as { confirmationTokenHash: string }).confirmationTokenHash, "string");
   assert.equal(observed[0]?.context.workspaceId, user.workspaceId);
 
-  const previewResponse = await app.inject({ method: "POST", url: `/api/cards/${cardId}/statements/${statementId}/payment/preview`, headers: { cookie }, payload: { action: "PAID" } });
-  assert.equal(previewResponse.statusCode, 200);
-  assert.equal(previewResponse.json().data.operation, "pay_statement");
+  assert.equal(preview.operation, "pay_statement");
 
   const genericPayment = await app.inject({
     method: "POST",

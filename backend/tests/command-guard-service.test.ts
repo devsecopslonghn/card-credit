@@ -80,6 +80,12 @@ test("command guard rejects payload mismatch and pending receipt", async () => {
   await assert.rejects(() => guard.execute(context, spec, async () => "bad"), (error: unknown) => error instanceof Error && "code" in error && error.code === "COMMAND_IN_PROGRESS");
 });
 
+test("command guard rejects orphaned preview metadata instead of falling back to command hash", async () => {
+  const guard = new CommandGuardService(new FakeRepository());
+  await assert.rejects(() => guard.execute(context, { ...spec, previewId: "preview-orphan" }, async () => "bad"), (error: unknown) => error instanceof Error && "code" in error && error.code === "INVALID_PREVIEW_CONFIRMATION");
+  await assert.rejects(() => guard.execute(context, { ...spec, confirmationTokenHash: "a".repeat(64) }, async () => "bad"), (error: unknown) => error instanceof Error && "code" in error && error.code === "INVALID_PREVIEW_CONFIRMATION");
+});
+
 test("concurrent command guard calls run business work once and rollback failed work", async () => {
   const repository = new FakeRepository();
   const guard = new CommandGuardService(repository);
@@ -115,7 +121,7 @@ test("command guard consumes one preview atomically and allows only same-key rep
   const guard = new CommandGuardService(repository);
   const tokenHash = "a".repeat(64);
   repository.previews.set("preview-1", { workspaceId: context.workspaceId, userId: context.userId, channel: context.channel, operation: spec.operation, previewId: "preview-1", payloadHash: spec.payloadHash, tokenHash, status: "ISSUED", expiresAt: new Date(Date.now() + 60_000) });
-  const previewSpec = { ...spec, previewId: "preview-1", confirmationTokenHash: tokenHash, idempotencyKey: "preview-command-1" };
+  const previewSpec = { ...spec, previewId: "preview-1", confirmationTokenHash: tokenHash, previewPayloadHash: spec.payloadHash, idempotencyKey: "preview-command-1" };
   let calls = 0;
   const first = await guard.execute(context, previewSpec, async () => { calls += 1; return { id: "account-1" }; });
   const replay = await guard.execute(context, previewSpec, async () => { calls += 1; return { id: "unexpected" }; });
@@ -131,7 +137,7 @@ test("command guard rolls preview consumption back on business failure and repor
   const failingRepository = new FakeRepository();
   failingRepository.previews.set("preview-fail", { workspaceId: context.workspaceId, userId: context.userId, channel: context.channel, operation: spec.operation, previewId: "preview-fail", payloadHash: spec.payloadHash, tokenHash, status: "ISSUED", expiresAt: new Date(Date.now() + 60_000) });
   const failingGuard = new CommandGuardService(failingRepository);
-  const failingSpec = { ...spec, previewId: "preview-fail", confirmationTokenHash: tokenHash, idempotencyKey: "preview-failure-1" };
+  const failingSpec = { ...spec, previewId: "preview-fail", confirmationTokenHash: tokenHash, previewPayloadHash: spec.payloadHash, idempotencyKey: "preview-failure-1" };
   await assert.rejects(() => failingGuard.execute(context, failingSpec, async () => { throw new Error("business failed"); }));
   assert.equal(failingRepository.receipts.size, 0);
   assert.equal(failingRepository.previews.get("preview-fail")?.status, "ISSUED");
@@ -139,7 +145,7 @@ test("command guard rolls preview consumption back on business failure and repor
   const expiredRepository = new FakeRepository();
   expiredRepository.previews.set("preview-expired", { workspaceId: context.workspaceId, userId: context.userId, channel: context.channel, operation: spec.operation, previewId: "preview-expired", payloadHash: spec.payloadHash, tokenHash, status: "ISSUED", expiresAt: new Date(Date.now() - 1) });
   const expiredGuard = new CommandGuardService(expiredRepository);
-  await assert.rejects(() => expiredGuard.execute(context, { ...spec, previewId: "preview-expired", confirmationTokenHash: tokenHash, idempotencyKey: "preview-expired-1" }, async () => "bad"), (error: unknown) => error instanceof Error && "code" in error && error.code === "PREVIEW_EXPIRED");
+  await assert.rejects(() => expiredGuard.execute(context, { ...spec, previewId: "preview-expired", confirmationTokenHash: tokenHash, previewPayloadHash: spec.payloadHash, idempotencyKey: "preview-expired-1" }, async () => "bad"), (error: unknown) => error instanceof Error && "code" in error && error.code === "PREVIEW_EXPIRED");
   assert.equal(expiredRepository.receipts.size, 0);
 });
 

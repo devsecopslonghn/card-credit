@@ -45,6 +45,9 @@ test("statement payment preview is canonical and exposes exact persisted impact"
     version: "2026-08-16T00:00:00.000Z",
     requiresRepaymentAccount: false,
     warnings: [],
+    previewId: "preview-1",
+    confirmationToken: "token",
+    expiresAt: "2026-08-16T00:05:00.000Z",
   };
   assert.deepEqual(statementPaymentPreviewSchema.parse(preview), preview);
   assert.throws(() => statementPaymentPreviewSchema.parse({ ...preview, amountToPay: -1 }));
