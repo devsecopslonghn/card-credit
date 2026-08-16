@@ -1,5 +1,32 @@
 # Plan hợp nhất Frontend, MCP và Backend
 
+## 0. Execution status ledger
+
+This section is the resumable execution log. Update it after every completed
+feature, review decision, commit and push. A checked item means the code,
+verification evidence and remote commit are complete; a pending item is not
+implemented yet.
+
+| Phase | Status | Current checkpoint | Commit/push | Next action |
+|---|---|---|---|---|
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | SRS, AGENTS và role contracts đã được cập nhật; code inventory đang được đối chiếu | `b620ce7` / `origin/master` | Chốt shared contract registry và parity baseline |
+| Phase 1 — Access & Tenancy + contract foundation | `PENDING` | Chưa bắt đầu | — | Xây trusted `ServiceContext` và shared primitives |
+| Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
+| Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
+| Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
+| Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
+
+### Execution rules
+
+- Mỗi feature chỉ được đánh dấu `DONE` sau khi có review độc lập, verification
+  evidence, commit và push thành công.
+- Nếu thay đổi persistent schema/index/migration, dừng trước khi apply để lập
+  backup/recovery plan và xin review riêng; documentation/logic-only change
+  không cần truy cập Kubernetes.
+- Khi token gần hết, mục `Current checkpoint`, commit SHA, file write-set và
+  `Next action` là điểm tiếp tục bắt buộc.
+
 ## 1. Kết quả cần đạt
 
 Mục tiêu là một modular monolith có một nguồn business logic duy nhất ở backend.
