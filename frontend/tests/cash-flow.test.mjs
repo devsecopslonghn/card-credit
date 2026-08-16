@@ -19,4 +19,5 @@ test("cash-flow parser returns canonical rows with UI card aliases", () => {
 
 test("cash-flow parser rejects malformed rows", () => {
   assert.throws(() => parseMonthlyCashFlow({ period: "2026-08", data: [{ cardId: "card-1" }] }));
+  assert.throws(() => parseMonthlyCashFlow({ period: "0000-01", data: [] }));
 });

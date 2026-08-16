@@ -18,5 +18,6 @@ const row = {
 test("monthly cash-flow contract preserves canonical totals and rejects invalid periods", () => {
   assert.deepEqual(monthlyCashFlowResponseSchema.parse({ data: [row], period: "2026-08" }).data[0], row);
   assert.throws(() => monthlyCashFlowResponseSchema.parse({ data: [{ ...row, period: "2026-13" }], period: "2026-08" }));
+  assert.throws(() => monthlyCashFlowResponseSchema.parse({ data: [{ ...row, period: "0000-01" }], period: "2026-08" }));
   assert.throws(() => monthlyCashFlowResponseSchema.parse({ data: [{ ...row, totalOut: -1 }], period: "2026-08" }));
 });

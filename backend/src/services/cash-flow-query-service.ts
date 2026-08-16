@@ -7,7 +7,7 @@ import { CreditCardModel } from "../models/credit-card.js";
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import type { ServiceContext } from "./types/service-context.js";
 
-const periodPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
+const periodPattern = /^[1-9]\d{3}-(0[1-9]|1[0-2])$/;
 const validPeriod = (value: unknown): value is string => typeof value === "string" && periodPattern.test(value);
 const currentPeriod = () => {
   const now = new Date();

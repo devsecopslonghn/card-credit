@@ -120,6 +120,8 @@ test("MCP read tool schemas reject tenant fields and malformed year", async () =
   assert.equal(malformedYear.isError, true);
   const malformedPeriod = await client.callTool({ name: "get_monthly_cash_flow", arguments: { period: "2026-13" } });
   assert.equal(malformedPeriod.isError, true);
+  const malformedCardId = await client.callTool({ name: "get_monthly_cash_flow", arguments: { cardId: "not-an-object-id" } });
+  assert.equal(malformedCardId.isError, true);
   await client.close();
   await server.close();
 });

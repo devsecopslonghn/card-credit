@@ -11,7 +11,7 @@ export const cashFlowCardSummarySchema = z.object({
 
 export const monthlyCashFlowRowSchema = z.object({
   cardId: z.string().min(1),
-  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  period: z.string().regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/),
   totalOut: amount,
   totalIn: amount,
   statementPayments: amount,
@@ -24,5 +24,5 @@ export const monthlyCashFlowRowSchema = z.object({
 
 export const monthlyCashFlowResponseSchema = z.object({
   data: z.array(monthlyCashFlowRowSchema),
-  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  period: z.string().regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/),
 });
