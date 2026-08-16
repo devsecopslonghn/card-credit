@@ -10,7 +10,7 @@ implemented yet.
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
 | Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract slice đã hoàn tất và remote đã nhận; trusted context vẫn là checkpoint kế tiếp | `a54f09e` / `origin/master` | Bổ sung `ServiceContext.channel` + `correlationId` và context factories |
-| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã validation; session version và direct routes còn thiếu | `bccd9b1` / `origin/master` | Commit/push session expiry, sau đó chuẩn hóa session version và private adapter coverage |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
@@ -81,8 +81,7 @@ implemented yet.
   nhập lại; không có thay đổi schema/index/migration hay ghi DB.
 - Residual risk: chưa có session version/revocation tức thời và một số private
   direct-model route chưa qua service context.
-- Commit/push: chờ commit feature sau khi checkpoint này được review trong
-  working tree.
+- Commit/push: `26fc471` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
