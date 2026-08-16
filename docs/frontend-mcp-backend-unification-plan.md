@@ -9,8 +9,8 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context và Admin users/audit trusted admin context đã push | `3cab90d` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
-| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin và Admin users/audit trusted admin context đã push; session version và các direct mutation routes còn thiếu | `3cab90d` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context và Catalog admin trusted admin context đã push | `214517a` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `214517a` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata và CREDIT account-card validation đã push; generic persistent command guard còn là decision gate | `d0d2c9b` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
@@ -961,6 +961,32 @@ implemented yet.
   downstream action; session version/revocation, atomic role/version guard và
   audit write policy còn decision gate. Đây chưa phải generic command/audit guard.
 - Commit/push: `3cab90d` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Catalog admin trusted admin context
+
+- Independent review: bounded Card Catalog auth-boundary slice được duyệt với
+  điều kiện production wiring truyền `AuthRepository`, không fallback cookie-only;
+  catalog vẫn global và giữ nguyên audit/envelope/validation semantics.
+- Changed write-set: `buildApp` nhận `authUsers` dependency ở cuối positional
+  signature; `server.ts` khởi tạo `MongoAuthRepository` trước app và truyền vào.
+  Bốn admin catalog routes dùng `browserActorContext`, revalidate signed session,
+  active/locked/workspace và role trước list/create/update/provider update.
+  `browserActorContext` trả `ServiceContext` tối thiểu cùng safe `Session` actor
+  từ một authoritative lookup để audit không lấy email/role stale và không leak
+  `passwordHash`; thiếu repository thì authenticated request fail-closed `503`.
+- Compatibility decision: active non-admin/demoted admin `403`; inactive/locked/
+  moved identity `401`; unauthenticated vẫn `401`. Giữ nguyên global catalog,
+  `withLegacyAliases`, status `201`, duplicate/validation errors, audit events và
+  `writeAudit` payload.
+- Acceptance evidence: catalog/context focused tests pass; kiểm tra actor
+  authoritative và single lookup; backend `npm run validate` pass (130 tests,
+  typecheck, lint và build); `git diff --check` pass.
+- Database impact: chỉ thêm user lookup trước các catalog reads/writes hiện hữu;
+  không schema/index/migration/data rewrite và không cần Kubernetes backup.
+- Residual risk: race giữa context revalidation và catalog write/audit insert;
+  session version/atomic role guard, generic command idempotency và atomic audit
+  policy còn decision gate.
+- Commit/push: `214517a` đã push thành công lên `origin/master`.
 
 ### Execution rules
 

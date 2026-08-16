@@ -222,6 +222,7 @@ Hai nhóm cross-cutting:
 | CAT-07 | Runtime hiện gọi startup catalog sync ở chế độ apply; hành vi này phải được coi là source behavior hiện tại và được xử lý trong rủi ro GAP-OPS-01. |
 | CAT-08 | Legacy `banks` và `cardtypes` cho phép authenticated read, admin create/update/delete và duplicate check không phân biệt hoa thường khi create. Dữ liệu legacy là global collection, không scope workspace. |
 | CAT-09 | Legacy masterdata REST routes phải revalidate current user/role qua trusted browser context trước repository access; không dùng workspace từ payload và không đổi global collection semantics. |
+| CAT-10 | Catalog admin REST routes phải revalidate current user active/locked/workspace và current `admin` role qua trusted browser actor context trước list/create/update/provider update; catalog và audit metadata vẫn giữ global semantics, actor lấy từ authoritative user repository. |
 
 #### 5.2.2 User card
 
@@ -739,7 +740,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 
 | ID | Mức độ | Hiện trạng và tác động |
 |---|---|---|
-| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter, private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes`, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata routes và Admin users/audit routes revalidate user active/locked/workspace (và role cho admin mutation/read). Còn thiếu session version/revocation tức thời, atomic role/version guard và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
+| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter, private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes`, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata routes, Admin users/audit routes và Catalog admin routes revalidate user active/locked/workspace (và role cho admin mutation/read). Còn thiếu session version/revocation tức thời, atomic role/version guard và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
 | GAP-SEC-02 | Cao | Public register chấp nhận `workspaceId` do client truyền. Người biết workspace ID có thể tự đăng ký vào workspace đó nếu không có policy bổ sung ngoài source. |
 | GAP-DATA-01 | Cao | Delete card và duplicate merge không cascade/relink account, statement, transaction, cashback, fee, reminder. Có thể tạo orphan hoặc xóa source trong khi dữ liệu tài chính vẫn tham chiếu source card. |
 | GAP-PAY-01 | Cao | Frontend payment chỉ gửi `action`, không cho chọn `repaymentAccountId`; payment có amount sẽ lỗi nếu thiếu `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |
