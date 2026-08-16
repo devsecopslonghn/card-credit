@@ -9,8 +9,8 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Notes trusted mutation context, Profile trusted mutation context và Workspace owner trusted mutation context đã push | `7306806` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
-| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH và Workspace owner PUT trusted mutation context đã push; session version và các direct mutation routes còn thiếu | `7306806` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context và Masterdata trusted admin context đã push | `38f4c34` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT và Masterdata admin trusted mutation context đã push; session version và các direct mutation routes còn thiếu | `38f4c34` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening, honest MCP audit metadata và CREDIT account-card validation đã push; generic persistent command guard còn là decision gate | `d0d2c9b` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
@@ -913,6 +913,27 @@ implemented yet.
 - Residual risk: race giữa context revalidation và workspace update; atomic
   conditional/transaction policy cùng session version còn decision gate.
 - Commit/push: `7306806` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: Masterdata trusted admin context
+
+- Independent review: bounded legacy masterdata auth-boundary slice được duyệt;
+  GET/POST/PUT/DELETE banks và cardtypes giữ global collection semantics,
+  duplicate validation, repository calls và response/envelope.
+- Changed write-set: `registerMasterdataRoutes` nhận user repository; mọi GET
+  tạo trusted browser context, mọi write revalidate current role và chỉ admin
+  mới qua repository. Runtime composition truyền `authRepository`; không thêm
+  `workspaceId` filter vì CAT-08 quy định masterdata global.
+- Compatibility decision: active non-admin vẫn `403 FORBIDDEN`; stale/demoted/
+  inactive/locked/moved identity bị chặn `401/403` trước repository access.
+  Malformed IDs and repository response behavior không đổi.
+- Acceptance evidence: masterdata duplicate/read/write tests, stale-admin no
+  write test và REST runtime inventory pass; backend `npm run validate` pass
+  (126 tests, typecheck, lint và build); `git diff --check` pass.
+- Database impact: chỉ thêm auth user lookup trước các global repository writes;
+  không schema/index/migration/data rewrite và không cần Kubernetes backup.
+- Residual risk: legacy masterdata vẫn repository trực tiếp từ route, chưa có
+  canonical command service, audit metadata hoặc MCP exposure.
+- Commit/push: `38f4c34` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
