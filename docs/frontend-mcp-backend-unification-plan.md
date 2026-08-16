@@ -10,7 +10,7 @@ implemented yet.
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
 | Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account contract slice đã hoàn tất và remote đã nhận; trusted context vẫn là checkpoint kế tiếp | `a54f09e` / `origin/master` | Bổ sung `ServiceContext.channel` + `correlationId` và context factories |
-| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context và identity revalidation đã validation pass, đang chờ commit | `937f179` / `origin/master` | Commit/push revalidation, sau đó chuẩn hóa session expiry |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context + identity revalidation đã push; session expiry/version và direct routes còn thiếu | `bccd9b1` / `origin/master` | Chuẩn hóa session expiry/version và hoàn tất private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
@@ -64,8 +64,7 @@ implemented yet.
   vẫn là phần còn lại của Access & Tenancy.
 - Database impact: read-only user lookup; không migration/index/write, không cần
   Kubernetes backup.
-- Commit/push: pending; không đánh dấu checkpoint hoàn tất cho tới khi SHA remote
-  được ghi ở checkpoint kế tiếp.
+- Commit/push: `bccd9b1` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
