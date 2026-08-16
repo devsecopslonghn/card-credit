@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog và Card Portfolio read/write contracts đã push; REST docs inventory đã validation, chờ commit/push | `514e6e9` / `origin/master` | Commit/push REST docs inventory; runtime route parity vẫn là gate kế tiếp |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write và REST docs inventory đã push; runtime route parity còn thiếu | `ad2f56e` / `origin/master` | Xây runtime route parity/drift gate, sau đó chuẩn hóa Financial Ledger contracts |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
@@ -178,8 +178,7 @@ implemented yet.
   tuyên bố hoàn tất drift elimination.
 - Database impact: none; không migration/index/write, không cần Kubernetes
   backup.
-- Commit/push: chờ commit feature sau khi checkpoint này được review trong
-  working tree.
+- Commit/push: `ad2f56e` đã push thành công lên `origin/master`.
 
 ### Execution rules
 
