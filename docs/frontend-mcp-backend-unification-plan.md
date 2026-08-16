@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog và Card Portfolio read/write contracts đã push; REST inventory còn thủ công | `514e6e9` / `origin/master` | Xây REST route inventory/drift gate và tiếp tục transaction contract |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog và Card Portfolio read/write contracts đã push; REST docs inventory đã validation, chờ commit/push | `514e6e9` / `origin/master` | Commit/push REST docs inventory; runtime route parity vẫn là gate kế tiếp |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
@@ -162,6 +162,24 @@ implemented yet.
 - Residual risk/blocker: delete/merge vẫn là legacy direct-model path, merge có
   hai write rời và chưa transaction/idempotency. Không mở card mutation qua MCP.
 - Commit/push: `514e6e9` đã push thành công lên `origin/master`.
+
+### Completed checkpoint: REST documentation inventory (ready to commit)
+
+- Independent review: inventory chỉ là documentation source, không được coi là
+  authorization/routing; không thay đổi route behavior hoặc DB.
+- Changed write-set: `backend/src/rest-manifest.ts`, OpenAPI adapter dùng
+  manifest thay cho tuple hard-code và uniqueness/security test. MCP `/mcp`
+  vẫn tách riêng trong MCP manifest.
+- Acceptance evidence: backend `npm run validate` pass (77 tests, typecheck,
+  lint và build); manifest có unique method/path, security explicit và không
+  giả mạo `/mcp` như REST route.
+- Limitation: static manifest hiện bao phủ inventory docs hiện có; runtime
+  route registration parity với toàn bộ route modules vẫn là gate kế tiếp, chưa
+  tuyên bố hoàn tất drift elimination.
+- Database impact: none; không migration/index/write, không cần Kubernetes
+  backup.
+- Commit/push: chờ commit feature sau khi checkpoint này được review trong
+  working tree.
 
 ### Execution rules
 

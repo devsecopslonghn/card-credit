@@ -3,6 +3,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import type { OpenAPIV3 } from "openapi-types";
 import { MCP_TOOL_INVENTORY } from "./mcp/manifest.js";
+import { REST_ENDPOINTS, type RestSecurity } from "./rest-manifest.js";
 
 export const mcpToolNamesForDocs = () => [...MCP_TOOL_INVENTORY];
 
@@ -13,16 +14,8 @@ const operation = (summary: string, security: Security = auth) => ({ summary, se
 const paths: Record<string, Record<string, unknown>> = {};
 const add = (method: string, path: string, summary: string, security = auth) => { paths[path] ??= {}; paths[path][method] = operation(summary, security); };
 
-const endpoints: Array<[string, string, string, Security]> = [
-  ["get", "/health", "Process liveness", []], ["get", "/ready", "MongoDB readiness", []],
-  ["post", "/api/auth/login", "Login", []], ["post", "/api/auth/register", "Register", []], ["get", "/api/auth/me", "Current session", auth], ["post", "/api/auth/logout", "Logout", []], ["post", "/api/auth/forgot-password", "Request password reset", []], ["post", "/api/auth/reset-password", "Reset password", []],
-  ["get", "/api/cards", "List cards", auth], ["post", "/api/cards", "Create card", auth], ["get", "/api/cards/{id}", "Get card", auth], ["put", "/api/cards/{id}", "Update card", auth], ["delete", "/api/cards/{id}", "Delete card", auth], ["get", "/api/cards/duplicates", "Find duplicate cards", auth], ["post", "/api/cards/duplicates", "Merge duplicate cards", auth],
-  ["get", "/api/card-statements", "List statements", auth], ["get", "/api/cards/{id}/statements", "List card statements", auth], ["get", "/api/cards/{id}/statements/{statementId}", "Get statement detail", auth], ["patch", "/api/cards/{id}/statements/{statementId}/payment", "Change statement payment status", auth], ["post", "/api/cards/{id}/statements/{statementId}/calendar-email", "Send statement calendar", auth],
-  ["get", "/api/cash-flow/monthly", "Get monthly cash flow", auth], ["get", "/api/notifications", "List notifications", auth], ["get", "/api/notes", "List notes", auth], ["post", "/api/notes", "Upsert note", auth],
-  ["get", "/api/accounts", "List financial accounts", auth], ["post", "/api/accounts", "Create financial account", auth], ["get", "/api/financial-transactions", "List unified financial transactions", auth], ["post", "/api/financial-transactions", "Create unified financial transaction", auth], ["get", "/api/financial-reports/summary", "Get separated personal/debit/credit summary", auth], ["get", "/api/financial-reports/credit-statements", "Get credit statement projection", auth], ["get", "/api/finance/categories", "List finance categories", auth], ["post", "/api/finance/categories", "Create finance category", auth], ["put", "/api/finance/budgets", "Set monthly budget", auth], ["get", "/api/finance/budgets/status", "Get budget status", auth], ["get", "/api/finance/recurring-expenses", "List recurring expenses", auth], ["post", "/api/finance/recurring-expenses", "Create recurring expense", auth],
-  ["get", "/api/card-catalog/providers", "List active providers", []], ["get", "/api/card-catalog/products", "List active products", []], ["get", "/api/card-catalog/products/{presetId}", "Get active product", []], ["get", "/api/profile", "Get profile", auth], ["patch", "/api/profile", "Update profile", auth], ["get", "/api/calendar-subscriptions", "List calendar subscriptions", auth], ["post", "/api/calendar-subscriptions", "Create calendar subscription", auth], ["delete", "/api/calendar-subscriptions/{id}", "Revoke calendar subscription", auth],
-];
-for (const [method, path, summary, security] of endpoints) add(method, path, summary, security);
+const securityFor = (security: RestSecurity): Security => security === "public" ? [] : security === "bearer" ? bearer : auth;
+for (const endpoint of REST_ENDPOINTS) add(endpoint.method, endpoint.path, endpoint.summary, securityFor(endpoint.security));
 add("post", "/mcp", "MCP Streamable HTTP endpoint", bearer);
 
 export const registerApiDocs = async (app: FastifyInstance) => {
