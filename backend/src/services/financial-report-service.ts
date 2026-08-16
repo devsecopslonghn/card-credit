@@ -1,6 +1,5 @@
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { AccountModel } from "../models/account.js";
-import { CardStatementModel } from "../models/card-statement.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { StatementQueryService } from "./statement-query-service.js";
 
@@ -73,36 +72,25 @@ export class FinancialReportService {
   }
 
   static async creditStatements(ctx: ServiceContext, range?: Range) {
-    const query: Record<string, unknown> = { workspaceId: ctx.workspaceId };
-    if (range) query.statementDate = { $gte: range.from, $lte: range.to };
-    const [statements, transactions] = await Promise.all([
-      CardStatementModel.find(query).sort({ paymentDueDate: 1 }).lean(),
-      FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, statementId: { $ne: null } }).lean(),
-    ]);
-    const grouped = new Map<string, { grossCharges: number; payments: number; personalSpending: number; outstandingReceivable: number; transactionCount: number }>();
-    for (const transaction of transactions) {
-      const statementId = String(transaction.statementId);
-      const current = grouped.get(statementId) ?? { grossCharges: 0, payments: 0, personalSpending: 0, outstandingReceivable: 0, transactionCount: 0 };
-      if (transaction.transactionType === "STATEMENT_PAYMENT") current.payments += Number(transaction.amount ?? 0);
-      else current.grossCharges += Number(transaction.amount ?? 0);
-      current.personalSpending += Number(transaction.personalSpending ?? 0);
-      current.outstandingReceivable += Number(transaction.outstandingReceivable ?? 0);
-      if (transaction.transactionType === "REIMBURSEMENT") current.outstandingReceivable -= Number(transaction.amount ?? 0);
-      current.transactionCount += 1;
-      grouped.set(statementId, current);
-    }
-    return statements.map((statement) => {
-      const values = grouped.get(String(statement._id)) ?? { grossCharges: 0, payments: 0, personalSpending: 0, outstandingReceivable: 0, transactionCount: 0 };
-      return {
-        statementId: String(statement._id),
-        statementDate: statement.statementDate,
-        periodStartDate: statement.periodStartDate,
-        periodEndDate: statement.periodEndDate,
-        paymentDueDate: statement.paymentDueDate,
-        paymentStatus: statement.paymentStatus,
-        outstandingDebt: Math.max(0, values.grossCharges - values.payments),
-        ...values,
-      };
+    const statements = await StatementQueryService.list(ctx, {
+      statementDateFrom: range?.from,
+      statementDateTo: range?.to,
+      order: "paymentDueDate",
+      includeTransactions: false,
     });
+    return statements.map((statement) => ({
+      statementId: statement.id,
+      statementDate: statement.statementDate,
+      periodStartDate: statement.periodStartDate,
+      periodEndDate: statement.periodEndDate,
+      paymentDueDate: statement.paymentDueDate,
+      paymentStatus: statement.paymentStatus,
+      outstandingDebt: statement.summary.outstandingAmount,
+      grossCharges: statement.summary.statementAmount,
+      payments: statement.summary.paymentAmount,
+      personalSpending: statement.summary.personalSpending,
+      outstandingReceivable: statement.summary.outstandingReceivable,
+      transactionCount: statement.summary.transactionCount,
+    }));
   }
 }

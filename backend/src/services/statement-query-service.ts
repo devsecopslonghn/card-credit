@@ -8,7 +8,7 @@ import { ApiError } from "../errors.js";
 import { effectivePaymentStatus, idOf, plain, type Data } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 
-type StatementReadOptions = { cardId?: string; cardIds?: string[]; unpaidOnly?: boolean; paymentDueDates?: string[]; limit?: number; order?: "statementDate" | "paymentDueDate" };
+type StatementReadOptions = { cardId?: string; cardIds?: string[]; unpaidOnly?: boolean; paymentDueDates?: string[]; statementDateFrom?: string; statementDateTo?: string; limit?: number; order?: "statementDate" | "paymentDueDate" };
 export type StatementReadRepository = {
   listStatements(workspaceId: string, options: StatementReadOptions): Promise<Data[]>;
   findStatementById(workspaceId: string, statementId: string): Promise<Data | null>;
@@ -35,6 +35,7 @@ const mongoRepository: StatementReadRepository = {
     else if (options.cardIds?.length) query.userCardId = { $in: options.cardIds };
     if (options.unpaidOnly) query.paymentStatus = { $ne: "PAID" };
     if (options.paymentDueDates?.length) query.paymentDueDate = { $in: options.paymentDueDates };
+    if (options.statementDateFrom || options.statementDateTo) query.statementDate = { ...(options.statementDateFrom ? { $gte: options.statementDateFrom } : {}), ...(options.statementDateTo ? { $lte: options.statementDateTo } : {}) };
     let cursor = sorted(CardStatementModel.find(query), { [options.order === "paymentDueDate" ? "paymentDueDate" : "statementDate"]: options.order === "paymentDueDate" ? 1 : -1 }) as { limit?: (value: number) => unknown };
     if (options.limit && typeof cursor?.limit === "function") cursor = cursor.limit(Math.min(Math.max(options.limit, 1), 50)) as typeof cursor;
     return execute<Data[]>(cursor);
@@ -143,9 +144,9 @@ export const serializeStatementDto = (statement: Data, transactions: Data[] = []
 export class StatementQueryServiceImpl {
   constructor(private readonly repository: StatementReadRepository = mongoRepository) {}
 
-  async list(ctx: ServiceContext, options: { cardId?: string; unpaidOnly?: boolean; limit?: number; order?: "statementDate" | "paymentDueDate"; includeTransactions?: boolean } = {}) {
+  async list(ctx: ServiceContext, options: { cardId?: string; unpaidOnly?: boolean; statementDateFrom?: string; statementDateTo?: string; limit?: number; order?: "statementDate" | "paymentDueDate"; includeTransactions?: boolean } = {}) {
     if (options.cardId) await this.requireCard(ctx, options.cardId);
-    const loaded = await this.repository.listStatements(ctx.workspaceId, { cardId: options.cardId, unpaidOnly: options.unpaidOnly, limit: options.limit, order: options.order ?? "statementDate" });
+    const loaded = await this.repository.listStatements(ctx.workspaceId, { cardId: options.cardId, unpaidOnly: options.unpaidOnly, statementDateFrom: options.statementDateFrom, statementDateTo: options.statementDateTo, limit: options.limit, order: options.order ?? "statementDate" });
     const statements = options.cardId ? loaded : await this.onlyExistingCards(ctx, loaded);
     return this.build(statements, ctx.workspaceId, options.includeTransactions !== false);
   }
