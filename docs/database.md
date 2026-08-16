@@ -118,6 +118,15 @@ outcome và errorCode. Slice foundation chỉ ghi `SUCCESS` sau completed receip
 failed-attempt policy sẽ được chốt khi tích hợp adapter. Không expose update/delete
 service và không coi `McpMutation` receipt là audit.
 
+### CommandPreview (`commandpreviews`)
+
+Persistent one-time preview metadata cho mutation có confirmation. Fields gồm
+`workspaceId`, `userId`, `channel`, `operation`, server-generated `previewId`,
+canonical `payloadHash`, SHA-256 `tokenHash`, status (`ISSUED|CONSUMED`),
+`expiresAt`, `consumedAt` và timestamps. Không lưu raw payload, confirmation
+token hoặc secret. Expiry là trạng thái suy ra từ `expiresAt`; command transaction
+không ghi `ISSUED -> EXPIRED` rồi rollback, cleanup/retention là job riêng.
+
 ### Legacy masterdata (`banks`, `cardtypes`)
 
 Duy trì để tương thích UI/API cũ. Catalog mới là authority cho provider/network;
@@ -216,7 +225,14 @@ không thêm index tùy tiện trên high-write collections nếu không có que
    là slice riêng và phải ghi migration note/retention policy.
 4. Nếu chưa có writer, rollback bằng revert code và drop chính xác named indexes
    mới chỉ khi collections rỗng. Khi đã có receipt/audit, giữ dữ liệu và revert
-   adapter code, không xóa receipt để chạy lại command.
+  adapter code, không xóa receipt để chạy lại command.
+
+5. Preview one-time rollout phải kiểm tra duplicate (`workspaceId + previewId`)
+   và (`workspaceId + tokenHash`) trước khi apply; tạo bốn named indexes cho
+   `commandpreviews` (`command_preview_unique`, `command_preview_token_unique`,
+   `command_preview_workspace_created`, `command_preview_expiry`) bằng cùng script
+   dry-run/apply. Phải backup workspace trước apply và fence old MCP writers vì
+   token v1/stateless từ pod cũ không có preview record.
 
 #### Rollout ledger — 2026-08-16
 

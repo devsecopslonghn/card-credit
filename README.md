@@ -179,13 +179,13 @@ với ngày inclusive; `date` singular là legacy input và bị reject.
 - `preview_import_financial_transaction`
 - `confirm_import_financial_transaction`
 
-Preview token hiện có TTL 300 giây, ký bằng `MCP_PREVIEW_SECRET` riêng và bind
-operation, payload hash cùng fixed context. Luồng mutation vẫn là `preview ->
-human confirm -> idempotent confirm`; token stateless chưa tự chứng minh human
-approval/one-time consume. Account, Financial Transaction và REST Payment dùng
-canonical command guard; browser payment preview chỉ là read-only và vẫn cần
-one-time/resource-version confirmation. Old-writer rollout fence còn là release
-gate.
+Preview token v2 có TTL 300 giây, ký bằng `MCP_PREVIEW_SECRET` riêng và bind
+operation, payload hash, `previewId` cùng fixed context. Luồng mutation là
+`preview -> human confirm -> one-time consume -> idempotent confirm`; token hash
+được lưu trong `commandpreviews`, không lưu raw token/payload. Account, Financial
+Transaction và REST Payment dùng canonical command guard; browser payment preview
+chỉ là read-only và vẫn cần resource-version confirmation. Production vẫn phải
+qua preview-index backup/verify và old-writer rollout fence.
 MCP không tự chọn user/workspace, tự tính quota, tự tính statement hoặc truy cập
 MongoDB trực tiếp.
 

@@ -83,6 +83,7 @@ export class FinancialTransactionService {
       payloadHash,
       endpointOrTool: invocation.endpointOrTool,
       previewId: invocation.previewId,
+      confirmationTokenHash: invocation.confirmationTokenHash,
       resource: { type: "financial_transaction_batch" },
     }, async (session) => {
       const existing = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();
@@ -108,6 +109,7 @@ export class FinancialTransactionService {
       payloadHash,
       endpointOrTool: invocation.endpointOrTool,
       previewId: invocation.previewId,
+      confirmationTokenHash: invocation.confirmationTokenHash,
       resource: { type: "financial_transaction" },
     }, async (session) => {
       const existing = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();

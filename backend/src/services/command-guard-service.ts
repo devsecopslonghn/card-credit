@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { ApiError } from "../errors.js";
 import { CommandAuditModel, type CommandAuditDocument } from "../models/command-audit.js";
+import { CommandPreviewModel } from "../models/command-preview.js";
 import { CommandReceiptModel, type CommandReceiptDocument } from "../models/command-receipt.js";
 import type { ServiceContext } from "./types/service-context.js";
 
@@ -10,6 +11,7 @@ export type CommandGuardSpec = {
   payloadHash: string;
   endpointOrTool: string;
   previewId?: string;
+  confirmationTokenHash?: string;
   resource?: Record<string, unknown>;
 };
 
@@ -17,6 +19,7 @@ export type CommandInvocation = {
   idempotencyKey: string;
   endpointOrTool: string;
   previewId?: string;
+  confirmationTokenHash?: string;
 };
 
 export type CommandGuardRepository = {
@@ -25,6 +28,7 @@ export type CommandGuardRepository = {
   insertReceipt: (record: CommandReceiptDocument, session: mongoose.ClientSession) => Promise<CommandReceiptDocument>;
   completeReceipt: (filter: Record<string, unknown>, result: unknown, session: mongoose.ClientSession) => Promise<boolean>;
   insertAudit: (record: CommandAuditDocument, session: mongoose.ClientSession) => Promise<void>;
+  consumePreview?: (filter: Record<string, unknown>, session: mongoose.ClientSession) => Promise<"CONSUMED" | "EXPIRED" | "ALREADY_CONSUMED" | "NOT_FOUND">;
 };
 
 export class CommandReceiptReservationConflict extends Error {
@@ -60,6 +64,24 @@ const mongoRepository: CommandGuardRepository = {
   async insertAudit(record, session) {
     await CommandAuditModel.create([record], { session });
   },
+  async consumePreview(filter, session) {
+    const update = await CommandPreviewModel.updateOne(filter, { $set: { status: "CONSUMED", consumedAt: new Date() } }, { session });
+    const writeResult = update as unknown as { matchedCount?: number; n?: number };
+    if (Number(writeResult.matchedCount ?? writeResult.n ?? 0) === 1) return "CONSUMED";
+    const current = await CommandPreviewModel.findOne({
+      workspaceId: filter.workspaceId,
+      userId: filter.userId,
+      channel: filter.channel,
+      operation: filter.operation,
+      previewId: filter.previewId,
+      payloadHash: filter.payloadHash,
+      tokenHash: filter.tokenHash,
+    } as never).session(session).lean() as { status?: string; expiresAt?: Date } | null;
+    if (!current) return "NOT_FOUND";
+    if (current.status === "CONSUMED") return "ALREADY_CONSUMED";
+    if (current.expiresAt instanceof Date && current.expiresAt.valueOf() <= Date.now()) return "EXPIRED";
+    return "NOT_FOUND";
+  },
 };
 
 const validResourceKeys = new Set(["type", "id", "resourceType", "resourceId", "cardId", "statementId", "accountId"]);
@@ -79,7 +101,10 @@ const validateSpec = (spec: CommandGuardSpec) => {
   if (!operation || operation.length > 160 || !endpointOrTool || endpointOrTool.length > 240) throw new ApiError(400, "INVALID_COMMAND_GUARD", "Command guard metadata không hợp lệ.");
   if (idempotencyKey.length < 8 || idempotencyKey.length > 200) throw new ApiError(400, "INVALID_IDEMPOTENCY_KEY", "Idempotency key không hợp lệ.");
   if (!/^[a-f0-9]{64}$/i.test(spec.payloadHash)) throw new ApiError(400, "INVALID_COMMAND_HASH", "Payload hash không hợp lệ.");
-  return { operation, endpointOrTool, idempotencyKey, payloadHash: spec.payloadHash.toLowerCase(), previewId: spec.previewId?.trim() || null, resource: safeResource(spec.resource) };
+  const previewId = spec.previewId?.trim() || null;
+  const confirmationTokenHash = spec.confirmationTokenHash?.trim().toLowerCase() || null;
+  if (previewId && (!confirmationTokenHash || !/^[a-f0-9]{64}$/.test(confirmationTokenHash))) throw new ApiError(400, "INVALID_PREVIEW_CONFIRMATION", "Preview confirmation không hợp lệ.");
+  return { operation, endpointOrTool, idempotencyKey, payloadHash: spec.payloadHash.toLowerCase(), previewId, confirmationTokenHash, resource: safeResource(spec.resource) };
 };
 
 export class CommandGuardService {
@@ -126,6 +151,23 @@ export class CommandGuardService {
           errorCode: null,
           completedAt: null,
         }, session);
+        if (metadata.previewId) {
+          if (!this.repository.consumePreview) throw new ApiError(500, "PREVIEW_GUARD_UNAVAILABLE", "Preview guard chưa được cấu hình.");
+          const consumed = await this.repository.consumePreview({
+            workspaceId: ctx.workspaceId,
+            userId: ctx.userId,
+            channel: ctx.channel,
+            operation: metadata.operation,
+            previewId: metadata.previewId,
+            payloadHash: metadata.payloadHash,
+            tokenHash: metadata.confirmationTokenHash,
+            status: "ISSUED",
+            expiresAt: { $gt: new Date() },
+          }, session);
+          if (consumed === "EXPIRED") throw new ApiError(409, "PREVIEW_EXPIRED", "Preview đã hết hạn; hãy tạo preview mới.");
+          if (consumed === "ALREADY_CONSUMED") throw new ApiError(409, "PREVIEW_ALREADY_CONSUMED", "Preview đã được xác nhận; hãy tạo preview mới.");
+          if (consumed !== "CONSUMED") throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
+        }
         output = await work(session);
         const completed = await this.repository.completeReceipt({ _id: pending._id }, output, session);
         if (!completed) throw new ApiError(500, "COMMAND_RECEIPT_COMPLETION_FAILED", "Không thể hoàn tất command receipt.");

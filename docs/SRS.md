@@ -112,13 +112,14 @@ Next.js frontend :3000 ---- internal rewrite ----> Fastify backend :3001
 - Các operation dùng MongoDB transaction cần MongoDB deployment hỗ trợ session/
   transaction, thông thường là replica set hoặc managed cluster tương thích.
 - Khi MCP remote được bật, `MCP_PREVIEW_SECRET` riêng (tối thiểu 32 ký tự) là bắt
-  buộc; không fallback sang `AUTH_SECRET`. Preview token v1 là HMAC stateless,
-  TTL canonical 300 giây, chỉ chứa hash payload/context và bind operation,
-  workspace, actor và channel. Token chưa phải one-time human approval; generic
-  command infrastructure. Generic `CommandReceipt`/`CommandAudit` đã được wire
-  vào Account, Financial Transaction và REST Payment command qua
-  `Idempotency-Key`; MCP confirm đã cover Account/Financial Transaction, còn
-  rollout phải fence old writers.
+  buộc; không fallback sang `AUTH_SECRET`. Preview token v2 là HMAC với TTL
+  canonical 300 giây, chỉ chứa hash payload/context cùng `previewId`, bind
+  operation, workspace, actor và channel. Token hash và trạng thái one-time
+  (`ISSUED|CONSUMED`) được lưu ở `commandpreviews`; không lưu raw payload/token.
+  `CommandGuardService` kiểm tra completed receipt trước expiry, consume preview
+  atomically rồi mới chạy business write trong cùng transaction. Preview chỉ
+  không ghi business data/side effect; việc phát preview là metadata write.
+  Rollout phải fence old writers.
 
 ### 4.2 Kiến trúc tích hợp mục tiêu
 
@@ -380,8 +381,8 @@ Hai nhóm cross-cutting:
 | MCP-02 | MCP chỉ hoạt động khi cấu hình `MCP_HTTP_TOKEN`, `MCP_WORKSPACE_ID`, `MCP_USER_ID`; AI không được chọn tenant/user trong tool arguments. |
 | MCP-03 | Read tools hiện có: `get_statement_summary`, `list_transactions`, `get_monthly_cash_flow`, `compare_cards`, `list_duplicate_cards`, `list_card_fee_payments`, `list_fee_center`, `list_monthly_cashbacks`, `list_upcoming_statements`, `get_personal_finance_summary`, `list_accounts`; mỗi tool gọi canonical query service và trả shared DTO. |
 | MCP-04 | Mutation tools hiện có: `preview_create_account`/`confirm_create_account` và `preview_import_financial_transaction`/`confirm_import_financial_transaction`. |
-| MCP-05 | Preview token phải bind HMAC với operation, exact payload và expiry; confirm phải kiểm tra token trước khi ghi. |
-| MCP-06 | Confirm mutation phải có idempotency key; payload khác dùng cùng key phải trả conflict. |
+| MCP-05 | Preview token v2 phải bind HMAC với operation, exact canonical payload hash, workspace/user/channel, `previewId` và expiry; token hash phải có persistent preview record, confirm phải verify token trước khi ghi và consume preview một lần trong command transaction. |
+| MCP-06 | Confirm mutation phải có idempotency key; payload khác dùng cùng key phải trả conflict, cùng key đã completed phải replay result kể cả token đã hết hạn, còn key khác với preview đã consumed phải fail closed. |
 | MCP-07 | MCP response phải là text content chứa JSON DTO, không trả Mongoose document trực tiếp. |
 | MCP-08 | `list_transactions` nhận shared `{from?,to?,accountId?,categoryId?}` query; input legacy `date` không còn được chấp nhận và phải fail trước khi gọi service. |
 
@@ -767,7 +768,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 | GAP-STM-01 | Đã xử lý một phần | Statement Read v1, notification, private calendar feed, payment-reminder, one-off calendar-email và `creditStatements` report projections dùng shared `StatementDto`, `StatementQueryService` và persisted `creditDebt`/impact cho REST GET, MCP summary/upcoming, Frontend read, notifications, ICS, scheduled/one-off email và credit report. Payment preview hiện dùng shared `StatementPaymentPreviewDto` read-only; PATCH đi qua `StatementPaymentCommandService`, strict shared input, preview-version CAS và generic guard rồi trả canonical DTO. Calendar feed vẫn giữ `lastAccessedAt` write hiện hữu; one-time confirmation, reversal và MCP mutation còn là follow-up. |
 | GAP-REP-01 | Đã xử lý một phần | `FinancialReportService` và shared `FinancialReportDto` đã đọc ledger transaction, `MonthlyCardCashbackModel` và `CardFeePaymentModel` theo workspace/range; report summary hiện dùng shared strict date-range contract với REST/MCP/Frontend parity (REST default current-month → today, MCP yêu cầu đủ range, ngày sai/range đảo/filter dư fail-closed). Transaction, statement, report và fee DTO hiện dùng chung strict calendar-date validator nên ngày không tồn tại bị reject fail-closed. `credit-statements` projection cũng đã có shared strict list contract cho REST/Frontend, giữ raw payment status và optional range behavior. REST, MCP `get_personal_finance_summary`, frontend client/report page dùng cùng DTO. Card fee history/Fee Center GET, monthly cashback GET và monthly cash-flow GET dùng shared read schemas + query services; fee/cashback REST mutations đã được đưa vào `FeeCommandService`/`MonthlyCashbackCommandService` với trusted context, nhưng vẫn là compatibility commands chưa có generic preview-confirm/idempotency/audit và chưa có MCP mutation. Cash-flow vẫn giữ extraction formula và chưa follow `reimbursementForTransactionId` về expense CREDIT. Owner/card/year/month filters, orphan cleanup, semantic cash-flow repair và legacy fee-category migration cần slice riêng; vì vậy chưa đóng hoàn toàn FR-08. |
 | GAP-OPS-01 | Cao | `server.ts` gọi `syncCatalogFromFile()` với apply=true mỗi lần start, trái với mô tả dry-run/operator-controlled trong `backend/README.md`; admin catalog changes trùng baseline có thể bị ghi đè khi restart. |
-| GAP-MCP-01 | Đã xử lý một phần | Preview token v1 hiện dùng dedicated `MCP_PREVIEW_SECRET`, TTL 300 giây, HMAC domain separation và bind operation, canonical payload hash, workspace/user/channel; token không chứa raw payload. Generic `CommandReceipt`/`CommandAudit` đã wire vào Account và Financial Transaction command service cho REST (`Idempotency-Key`) và MCP confirm; legacy `McpMutationModel` được dual-read trong cùng guard transaction. Token vẫn stateless/replayable tới expiry, chưa bind resource version, chưa có one-time human approval, payment adapter/MCP payment mutation chưa mở. Deployment phải fence pod cũ trước khi bật command writers để tránh old/new receipt split. |
+| GAP-MCP-01 | Đã xử lý một phần | Preview token v2 dùng dedicated `MCP_PREVIEW_SECRET`, TTL 300 giây, HMAC domain separation, canonical payload hash, `previewId` và bind workspace/user/channel; token không chứa raw payload, persistent `commandpreviews` chỉ lưu token/payload hash. Generic `CommandReceipt`/`CommandAudit` đã wire vào Account và Financial Transaction command service cho REST (`Idempotency-Key`) và MCP confirm; `CommandGuardService` consume one-time atomically, replay completed receipt trước expiry và rollback consume khi business fail. Còn thiếu resource-version binding, trusted host/HITL receipt, failure-audit policy, payment adapter/MCP payment mutation và production index/old-writer rollout gate. |
 | GAP-ACC-01 | Đã xử lý một phần | `AccountService.create` đã fail-closed với malformed/missing/inactive/cross-workspace `creditCardId` trước `AccountModel.create`, và giữ idempotency replay trước card lookup. Còn race card bị deactivate/delete sau read validation trước write; xử lý transaction/locking thuộc lifecycle decision riêng. |
 | GAP-REP-02 | Trung bình | `netAssets`/`creditDebtBalance` trong range report dùng opening balance cộng transaction chỉ trong range. Dashboard gọi range tháng nên KPI “balance” có thể bỏ qua giao dịch lịch sử trước tháng. |
 | GAP-UI-01 | Đã xử lý | Budget status dùng shared `BudgetStatusDto` (`limitAmount`, `usedAmount`, `remainingAmount`, `usagePercent`, `status`) ở backend serializer, frontend runtime parser và Budget UI; contract tests nằm ở `cc4d333`. Budget write input/month validation vẫn là AS-IS riêng. |

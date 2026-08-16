@@ -4,10 +4,10 @@ export { canonicalPayloadHash } from "../command-hash.js";
 
 export const MCP_PREVIEW_TTL_MS = 300_000;
 export const MCP_PREVIEW_TTL_SECONDS = MCP_PREVIEW_TTL_MS / 1000;
-const PREVIEW_SCHEMA_VERSION = "preview.v1";
+const PREVIEW_SCHEMA_VERSION = "preview.v2";
 
 export type PreviewBinding = { workspaceId: string; userId: string; channel: string };
-type PreviewClaims = { version: string; operation: string; payloadHash: string; contextHash: string; issuedAt: number; expiresAt: number };
+type PreviewClaims = { version: string; previewId: string; operation: string; payloadHash: string; contextHash: string; issuedAt: number; expiresAt: number };
 
 const normalizedBinding = (binding: PreviewBinding): PreviewBinding => {
   const value = { workspaceId: binding.workspaceId?.trim(), userId: binding.userId?.trim(), channel: binding.channel?.trim() };
@@ -21,11 +21,12 @@ const contextHash = (binding: PreviewBinding) => canonicalPayloadHash(normalized
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
 const safeEqual = (left: string, right: string) => { const a = Buffer.from(left, "utf8"); const b = Buffer.from(right, "utf8"); return a.length === b.length && crypto.timingSafeEqual(a, b); };
 const sign = (secret: string, body: string) => crypto.createHmac("sha256", secret).update(`card-credit:mcp-preview:v1:${body}`).digest("base64url");
+const isHash = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{64}$/i.test(value);
 
 export type PreviewTokenCodec = {
   ttlSeconds: number;
-  issue(operation: string, payload: unknown, binding: PreviewBinding): { confirmationToken: string; expiresAt: number; expiresInSeconds: number };
-  verify(token: string, operation: string, payload: unknown, binding: PreviewBinding): void;
+  issue(operation: string, payload: unknown, binding: PreviewBinding): { previewId: string; confirmationToken: string; expiresAt: number; expiresInSeconds: number };
+  verify(token: string, operation: string, payload: unknown, binding: PreviewBinding): { previewId: string };
 };
 
 export const createPreviewTokenCodec = (options: { secret: string; now?: () => number; ttlMs?: number }): PreviewTokenCodec => {
@@ -38,9 +39,9 @@ export const createPreviewTokenCodec = (options: { secret: string; now?: () => n
     ttlSeconds: Math.floor(ttlMs / 1000),
     issue(operation, payload, binding) {
       const issuedAt = now();
-      const claims: PreviewClaims = { version: PREVIEW_SCHEMA_VERSION, operation: operation.trim(), payloadHash: previewPayloadHash(payload), contextHash: contextHash(binding), issuedAt, expiresAt: issuedAt + ttlMs };
+      const claims: PreviewClaims = { version: PREVIEW_SCHEMA_VERSION, previewId: crypto.randomUUID(), operation: operation.trim(), payloadHash: previewPayloadHash(payload), contextHash: contextHash(binding), issuedAt, expiresAt: issuedAt + ttlMs };
       const body = encode(claims);
-      return { confirmationToken: `${body}.${sign(secret, body)}`, expiresAt: claims.expiresAt, expiresInSeconds: Math.floor(ttlMs / 1000) };
+      return { previewId: claims.previewId, confirmationToken: `${body}.${sign(secret, body)}`, expiresAt: claims.expiresAt, expiresInSeconds: Math.floor(ttlMs / 1000) };
     },
     verify(token, operation, payload, binding) {
       const [body, providedSignature, ...extra] = token.split(".");
@@ -48,13 +49,19 @@ export const createPreviewTokenCodec = (options: { secret: string; now?: () => n
       let claims: PreviewClaims;
       try { claims = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as PreviewClaims; } catch { throw new Error("Invalid confirmation token"); }
       const current = now();
-      if (claims.version !== PREVIEW_SCHEMA_VERSION || claims.operation !== operation.trim() || !Number.isFinite(claims.issuedAt) || !Number.isFinite(claims.expiresAt) || claims.issuedAt > current + 60_000 || claims.expiresAt <= current || claims.expiresAt - claims.issuedAt !== ttlMs || !safeEqual(claims.payloadHash, previewPayloadHash(payload)) || !safeEqual(claims.contextHash, contextHash(binding))) throw new Error("Expired or mismatched confirmation token");
+      if (claims.version !== PREVIEW_SCHEMA_VERSION || typeof claims.previewId !== "string" || !/^[0-9a-f-]{36}$/i.test(claims.previewId) || typeof claims.operation !== "string" || claims.operation !== operation.trim() || !Number.isFinite(claims.issuedAt) || !Number.isFinite(claims.expiresAt) || claims.issuedAt < 0 || claims.issuedAt > current + 60_000 || claims.expiresAt - claims.issuedAt !== ttlMs || !isHash(claims.payloadHash) || !isHash(claims.contextHash) || !safeEqual(claims.payloadHash, previewPayloadHash(payload)) || !safeEqual(claims.contextHash, contextHash(binding))) throw new Error("Expired or mismatched confirmation token");
+      // Expiry is enforced by the persistent command guard after it checks for
+      // a completed idempotency receipt, so a lost response can still replay
+      // safely after the short token TTL.
+      return { previewId: claims.previewId };
     },
   };
 };
 
+export const confirmationTokenHash = (token: string) => crypto.createHash("sha256").update(token, "utf8").digest("hex");
+
 const environmentCodec = () => createPreviewTokenCodec({ secret: process.env.MCP_PREVIEW_SECRET?.trim() ?? "" });
 export const createPreviewToken = (operation: string, payload: unknown, binding: PreviewBinding) => environmentCodec().issue(operation, payload, binding);
 export const verifyPreviewToken = (token: string, operation: string, payload: unknown, binding: PreviewBinding) => environmentCodec().verify(token, operation, payload, binding);
-/** @deprecated Use verifyPreviewToken; stateless tokens remain replayable until expiry. */
+/** @deprecated Use verifyPreviewToken; one-time state is consumed by CommandGuardService. */
 export const consumePreviewToken = verifyPreviewToken;

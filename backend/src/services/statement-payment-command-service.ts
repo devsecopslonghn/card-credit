@@ -140,6 +140,7 @@ export class StatementPaymentCommandService {
       payloadHash,
       endpointOrTool: invocation.endpointOrTool,
       previewId: invocation.previewId,
+      confirmationTokenHash: invocation.confirmationTokenHash,
       resource: { type: "statement", cardId, statementId },
     } as const;
     const expectedVersion = command.expectedVersion ? new Date(command.expectedVersion) : undefined;
