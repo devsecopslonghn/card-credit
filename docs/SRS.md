@@ -223,6 +223,7 @@ Hai nhóm cross-cutting:
 | CAT-08 | Legacy `banks` và `cardtypes` cho phép authenticated read, admin create/update/delete và duplicate check không phân biệt hoa thường khi create. Dữ liệu legacy là global collection, không scope workspace. |
 | CAT-09 | Legacy masterdata REST routes phải revalidate current user/role qua trusted browser context trước repository access; không dùng workspace từ payload và không đổi global collection semantics. |
 | CAT-10 | Catalog admin REST routes phải revalidate current user active/locked/workspace và current `admin` role qua trusted browser actor context trước list/create/update/provider update; catalog và audit metadata vẫn giữ global semantics, actor lấy từ authoritative user repository. |
+| CAT-11 | Legacy masterdata GET phải trả canonical safe DTO qua shared runtime schema: bank gồm `_id`, `shortname`, `name`, `fullname`, `logo`; card type gồm `_id`, `name`, `logo`; persistence/secret fields không được lộ và REST/frontend phải dùng cùng parser. |
 
 #### 5.2.2 User card
 
