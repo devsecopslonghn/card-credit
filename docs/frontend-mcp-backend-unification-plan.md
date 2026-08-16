@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification và calendar projection đã push | `b46f460` / `origin/master` | Đối chiếu reminder/report/one-off calendar email còn compatibility |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar và reminder projection đã push | `f0e579b` / `origin/master` | Đối chiếu report/one-off calendar email còn compatibility |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts và stateless preview token hardening đã push; generic persistent command guard còn là decision gate | `425bbec` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Tách payment state machine và command guard; không đổi DB nếu chưa có approval |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification và private Calendar feed statement projections đã push; write command/reminder/report/one-off email slices chưa mở | `b46f460` / `origin/master` | Hợp nhất reminder và one-off calendar email/read report projection; giữ write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed và Payment Reminder statement projections đã push; write command/report/one-off email slices chưa mở | `f0e579b` / `origin/master` | Hợp nhất one-off calendar email/read report projection; giữ write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -367,6 +367,27 @@ implemented yet.
   behavior đã tồn tại, không thay đổi schema/index/migration và không cần backup.
 - Commit/push: feature `382e386` và ownership/test hardening `b46f460` đã push
   thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: Payment Reminder Statement Projection
+
+- Independent review: bounded job-adapter read refactor; delivery claim/update,
+  retry/backoff, recipient validation và SMTP contract được giữ nguyên. Chỉ
+  statement/date/amount source chuyển sang `StatementQueryService` canonical.
+- Changed write-set: `StatementReadOptions.paymentDueDates` và workspace-scoped
+  `listForCardIds`; `ReminderScheduler` tạo trusted `job` context theo workspace,
+  lấy unpaid statements theo đúng due dates, dùng `StatementDto.summary.outstandingAmount`
+  thay cho `$sum(amount)`/loại payment thủ công; reminder tests dùng canonical DTO.
+- Compatibility: exact due-date calculation, per-card reminder offsets/timezone,
+  workspace-owner fallback, delivery idempotency key, status transitions và
+  Vietnamese email content không đổi.
+- Acceptance evidence: backend `npm run validate` pass (90 tests, typecheck,
+  lint, build); focused reminder/service tests xác nhận một workspace batch,
+  due-date filter, canonical partial-payment amount và user/delivery counts.
+- Database impact: không đổi model/schema/index/migration; các write hiện hữu
+  trên `ReminderDeliveryModel` vẫn giữ nguyên vì là delivery state, không tạo
+  persistence mới và không cần Kubernetes backup.
+- Commit/push: `f0e579b` đã push thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
 
 ### Execution rules
