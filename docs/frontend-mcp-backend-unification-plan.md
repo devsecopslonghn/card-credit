@@ -9,13 +9,30 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | SRS, AGENTS và role contracts đã được cập nhật; code inventory đang được đối chiếu | `b620ce7` / `origin/master` | Chốt shared contract registry và parity baseline |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | SRS/AGENTS đã cập nhật; account contract slice đã review độc lập và validation pass, đang chờ commit | `38570d3` / `origin/master` | Commit/push account contract slice, sau đó bổ sung trusted context |
 | Phase 1 — Access & Tenancy + contract foundation | `PENDING` | Chưa bắt đầu | — | Xây trusted `ServiceContext` và shared primitives |
 | Phase 2 — Card Portfolio integrity | `PENDING` | Chưa bắt đầu | — | Service hóa card/catalog và referential policy |
 | Phase 3 — Financial Ledger | `PENDING` | Chưa bắt đầu | — | Account/transaction canonical service + command guard |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
+
+### Completed checkpoint: Account contract registry (ready to commit)
+
+- Independent review: bounded scope được duyệt là `Ledger Account Read Contract +
+  REST/MCP/Frontend parity`; không migration, không mở rộng mutation/audit.
+- Changed write-set: `shared` runtime schema/type, Account REST input parsing,
+  MCP account input schema, Account DTO serializer, Frontend account type và
+  contract fixtures.
+- Evidence: shared `validate` pass (3 tests), backend `validate` pass (65 tests
+  và build), Frontend `typecheck`, `lint` và `test` pass (70 unit + 6
+  integration).
+- Residual risk: account create vẫn dùng mutation receipt cũ; confirmation
+  replay/audit/context binding thuộc generic command guard, chưa được mở trong
+  slice này. Cross-workspace service integration test cần bổ sung cùng trusted
+  context foundation.
+- Commit/push: pending; không đánh dấu Phase 0 hoàn tất cho tới khi SHA remote
+  được ghi ở checkpoint kế tiếp.
 
 ### Execution rules
 

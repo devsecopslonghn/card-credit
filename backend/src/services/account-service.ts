@@ -7,25 +7,21 @@ import { CardStatementModel } from "../models/card-statement.js";
 import type { ServiceContext } from "./types/service-context.js";
 import crypto from "node:crypto";
 import { McpMutationModel } from "../models/mcp-mutation.js";
+import type { AccountDto, CreateAccountInput } from "@card-credit/contracts";
 
-type CreateAccountInput = {
-  name: string;
-  type: AccountType;
-  creditCardId?: string;
-  openingBalance?: number;
-};
-
-const serialize = (value: unknown) => {
-  const item = plain(value);
+const serialize = (value: unknown): AccountDto => {
+  const item = plain(value) as Record<string, unknown>;
   return {
     id: idOf(item._id),
-    name: item.name,
-    type: item.type,
+    name: String(item.name ?? ""),
+    type: item.type as AccountType,
     group: accountGroup(item.type as AccountType),
-    currency: item.currency ?? "VND",
+    currency: "VND",
     active: item.active !== false,
     creditCardId: item.creditCardId ? idOf(item.creditCardId) : null,
     openingBalance: Number(item.openingBalance ?? 0),
+    currentBalance: 0,
+    currentDebt: 0,
   };
 };
 
@@ -51,7 +47,7 @@ export class AccountService {
       const accountId = cardId ? creditAccountByCardId.get(cardId) : undefined;
       if (accountId) paidByCreditAccount.set(accountId, (paidByCreditAccount.get(accountId) ?? 0) + Number(payment.amount ?? 0));
     }
-    return accounts.map((account) => {
+    return accounts.map((account): AccountDto => {
       const totals = balanceById.get(String(account._id)) ?? { debitCashflow: 0, creditDebt: 0 };
       const openingBalance = Number(account.openingBalance ?? 0);
       return {

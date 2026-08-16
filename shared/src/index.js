@@ -22,3 +22,13 @@ export const isApiErrorBody = (value) => Boolean(
   "message" in value.error &&
   typeof value.error.message === "string",
 );
+
+export {
+  accountTypeSchema,
+  realMoneyAccountTypeSchema,
+  accountGroupSchema,
+  createAccountInputSchema,
+  createRealMoneyAccountInputSchema,
+  accountSchema,
+  accountListSchema,
+} from "./account-contracts.js";

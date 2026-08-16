@@ -1,3 +1,5 @@
+import type { AccountDto } from "@card-credit/contracts";
+
 export type FinancialImpact = {
   personalSpending: number;
   debitCashflow: number;
@@ -32,17 +34,6 @@ export const getFinancialSummary = (from: string, to: string) => request(`/api/f
 export const getCreditStatements = (from?: string, to?: string) => request(`/api/financial-reports/credit-statements${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`);
 export const getBudgetStatus = (month: string) => request(`/api/finance/budgets/status?month=${encodeURIComponent(month)}`);
 
-export type FinanceAccount = {
-  id: string;
-  name: string;
-  type: "DEBIT" | "CASH" | "E_WALLET" | "CREDIT";
-  group: "REAL_MONEY" | "DEBT";
-  currency: "VND";
-  active: boolean;
-  creditCardId: string | null;
-  openingBalance: number;
-  currentBalance: number;
-  currentDebt: number;
-};
+export type FinanceAccount = AccountDto;
 
 export const listFinanceAccounts = () => request<FinanceAccount[]>("/api/accounts");
