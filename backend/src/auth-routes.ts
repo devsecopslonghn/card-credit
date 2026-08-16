@@ -5,7 +5,7 @@ import { DEFAULT_SESSION_MAX_AGE_MS, sessionCookie, sessionFromRequest, signSess
 import { hashPassword, verifyPassword } from "./password.js";
 import type { AuthRepository, AuthUser } from "./auth-repository.js";
 
-type AuthOptions = {
+export type AuthOptions = {
   repository: AuthRepository;
   secret: string;
   bootstrapToken?: string;

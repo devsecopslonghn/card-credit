@@ -55,6 +55,60 @@ export const REST_ENDPOINTS: readonly RestEndpointDefinition[] = [
   { method: "get", path: "/api/calendar-subscriptions", summary: "List calendar subscriptions", security: "session" },
   { method: "post", path: "/api/calendar-subscriptions", summary: "Create calendar subscription", security: "session" },
   { method: "delete", path: "/api/calendar-subscriptions/{id}", summary: "Revoke calendar subscription", security: "session" },
+  { method: "get", path: "/api/admin/audit-logs", summary: "List audit logs", security: "session" },
+  { method: "get", path: "/api/admin/card-catalog/products", summary: "List all catalog products", security: "session" },
+  { method: "post", path: "/api/admin/card-catalog/products", summary: "Create catalog product", security: "session" },
+  { method: "patch", path: "/api/admin/card-catalog/products/{presetId}", summary: "Update catalog product", security: "session" },
+  { method: "patch", path: "/api/admin/card-catalog/providers/{providerCode}", summary: "Update catalog provider", security: "session" },
+  { method: "get", path: "/api/admin/users", summary: "List users", security: "session" },
+  { method: "patch", path: "/api/admin/users/{id}", summary: "Update user", security: "session" },
+  { method: "post", path: "/api/auth/bootstrap-users", summary: "Bootstrap users", security: "bearer" },
+  { method: "get", path: "/api/banks", summary: "List banks", security: "session" },
+  { method: "post", path: "/api/banks", summary: "Create bank", security: "session" },
+  { method: "put", path: "/api/banks/{id}", summary: "Update bank", security: "session" },
+  { method: "delete", path: "/api/banks/{id}", summary: "Delete bank", security: "session" },
+  { method: "get", path: "/api/cardtypes", summary: "List card types", security: "session" },
+  { method: "post", path: "/api/cardtypes", summary: "Create card type", security: "session" },
+  { method: "put", path: "/api/cardtypes/{id}", summary: "Update card type", security: "session" },
+  { method: "delete", path: "/api/cardtypes/{id}", summary: "Delete card type", security: "session" },
+  { method: "get", path: "/api/calendar-subscriptions/feed/{token}.ics", summary: "Download calendar feed", security: "public" },
+  { method: "get", path: "/api/cards/{cardId}/fee-payments", summary: "List card fee payments", security: "session" },
+  { method: "post", path: "/api/cards/{cardId}/fee-payments", summary: "Create card fee payment", security: "session" },
+  { method: "put", path: "/api/cards/{cardId}/fee-payments/{feePaymentId}", summary: "Update card fee payment", security: "session" },
+  { method: "delete", path: "/api/cards/{cardId}/fee-payments/{feePaymentId}", summary: "Delete card fee payment", security: "session" },
+  { method: "get", path: "/api/cards/{cardId}/monthly-cashbacks", summary: "List monthly cashback", security: "session" },
+  { method: "put", path: "/api/cards/{cardId}/monthly-cashbacks/{period}", summary: "Upsert monthly cashback", security: "session" },
+  { method: "delete", path: "/api/cards/{cardId}/monthly-cashbacks/{period}", summary: "Delete monthly cashback", security: "session" },
+  { method: "get", path: "/api/fee-center", summary: "List fee center entries", security: "session" },
+  { method: "post", path: "/api/fee-center", summary: "Create fee center entry", security: "session" },
+  { method: "put", path: "/api/fee-center/{id}", summary: "Update fee center entry", security: "session" },
+  { method: "delete", path: "/api/fee-center/{id}", summary: "Delete fee center entry", security: "session" },
+  { method: "post", path: "/api/finance/categories/defaults", summary: "Create default categories", security: "session" },
+  { method: "get", path: "/api/workspace/owner", summary: "Get workspace owner", security: "session" },
+  { method: "put", path: "/api/workspace/owner", summary: "Set workspace owner", security: "session" },
 ] as const;
 
-export const restEndpointKey = (endpoint: Pick<RestEndpointDefinition, "method" | "path">) => `${endpoint.method.toUpperCase()} ${endpoint.path}`;
+export const normalizeRestPath = (path: string) => path
+  .replace(/:([^/|.]+)(?:\|:[^/|.]+)?/g, "{param}")
+  .replace(/\{[^}]+\}/g, "{param}");
+
+export const restEndpointKey = (endpoint: Pick<RestEndpointDefinition, "method" | "path">) => `${endpoint.method.toUpperCase()} ${normalizeRestPath(endpoint.path)}`;
+
+/** Parses Fastify's public route tree output without depending on router internals. */
+export const parseFastifyRouteInventory = (printedRoutes: string) => {
+  const stack: string[] = [];
+  const entries: string[] = [];
+  for (const line of printedRoutes.split("\n")) {
+    const marker = line.indexOf("├──") >= 0 ? "├──" : line.indexOf("└──") >= 0 ? "└──" : null;
+    if (!marker) continue;
+    const markerIndex = line.indexOf(marker);
+    const match = line.slice(markerIndex + 4).match(/^(\/[^ ]*) \(([^)]+)\)$/);
+    if (!match) continue;
+    const depth = markerIndex / 4;
+    stack.length = depth;
+    stack[depth] = match[1]!;
+    const path = normalizeRestPath(stack.slice(0, depth + 1).join(""));
+    for (const method of match[2]!.split(",").map((value) => value.trim()).filter((value) => value !== "HEAD")) entries.push(`${method} ${path}`);
+  }
+  return [...new Set(entries)].sort();
+};
