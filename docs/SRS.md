@@ -322,7 +322,7 @@ Hai nhóm cross-cutting:
 | REP-05 | Monthly cash-flow compatibility endpoint phải đọc Financial Domain, group theo card và tháng, không đọc collection card transaction cũ. |
 | REP-06 | Dashboard tài chính hiển thị summary tháng hiện tại và tối đa sáu transaction gần nhất. Dashboard thẻ hiển thị debt/due, statement sắp đến và cash flow theo card. |
 | REP-07 | Financial summary totals phải có `totalServiceFee`, `transactionCashbackActual`, `monthlyBankCashbackExpected`, `monthlyBankCashbackActual`, `monthlyBankCashbackRejected`, `totalPaidCardFees` và `actualNetBenefit`. |
-| REP-08 | `actualNetBenefit = monthlyBankCashbackActual - totalServiceFee - totalPaidCardFees`; transaction cashback chỉ là KPI đối chiếu và không cộng lần hai. Monthly cashback tính theo tháng giao với range; `RECEIVED` mới tính actual, `REJECTED` dùng expected. |
+| REP-08 | `actualNetBenefit = monthlyBankCashbackActual - totalServiceFee - totalPaidCardFees`; transaction cashback chỉ là KPI đối chiếu và không cộng lần hai. Monthly cashback tính theo tháng giao với range; `RECEIVED` mới tính actual, `REJECTED` dùng expected. `totalServiceFee` của expense `PAID_FOR_OTHER` là `max(amount - reimbursementExpected - refundReceived, 0)`. |
 
 ### 5.8 Engagement & Communications
 
@@ -740,7 +740,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 | GAP-ACC-01 | Trung bình | Create CREDIT account không kiểm tra `creditCardId` tồn tại, active và cùng workspace trước khi persist. |
 | GAP-REP-02 | Trung bình | `netAssets`/`creditDebtBalance` trong range report dùng opening balance cộng transaction chỉ trong range. Dashboard gọi range tháng nên KPI “balance” có thể bỏ qua giao dịch lịch sử trước tháng. |
 | GAP-UI-01 | Đã xử lý | Budget status dùng shared `BudgetStatusDto` (`limitAmount`, `usedAmount`, `remainingAmount`, `usagePercent`, `status`) ở backend serializer, frontend runtime parser và Budget UI; contract tests nằm ở `cc4d333`. Budget write input/month validation vẫn là AS-IS riêng. |
-| GAP-UI-02 | Đã xử lý một phần | Reports UI vẫn hiển thị tháng hiện tại; Cards “Xuất JSON” đã gọi `/api/financial-reports/summary` canonical thay vì mở HTML, và không còn gửi owner filter giả. Owner/card/year/month report filters cần contract slice riêng vì backend hiện chỉ nhận `from/to`. |
+| GAP-UI-02 | Đã xử lý một phần | Reports UI vẫn hiển thị tháng hiện tại; Cards “Xuất JSON” đã gọi `/api/financial-reports/summary` canonical thay vì mở HTML, và không còn gửi owner filter giả. Owner/card/year/month report filters cần contract slice riêng vì backend hiện chỉ nhận `from/to`; independent review yêu cầu chốt semantics balance, inactive/orphan card và zero-total matched cards trước khi mở. |
 | GAP-UI-03 | Trung bình | Transaction “AI modal” chỉ hiển thị text preview cục bộ và đóng modal; chưa kết nối MCP hoặc REST mutation. Accounts/category/budget/recurring cũng thiếu write UI tương ứng. |
 | GAP-AUTH-01 | Trung bình | Forgot-password tạo token nhưng không gọi mail service; production khi không bật return-token vẫn trả generic success mà không gửi hướng dẫn. |
 | GAP-WEB-01 | Đã xử lý | Next middleware hiện guard các UI `/dashboard`, `/transactions`, `/accounts`, `/budgets`, `/reports`, `/payments`, `/notifications`, `/fees`, `/cashback`, `/analytics` và private finance APIs bằng session cookie; unauthenticated UI redirect về login, API trả 401. Calendar subscription `.ics` feed được giữ ngoài session middleware vì dùng token riêng và backend vẫn validate token. |

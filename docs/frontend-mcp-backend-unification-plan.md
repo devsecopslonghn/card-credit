@@ -9,12 +9,12 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup và benefits report contract đã push | `41920dc` / `origin/master` | Mở rộng owner/card/year/month filters sau khi chốt contract; giữ payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup và benefits report contract đã push | `1567c41` / `origin/master` | Chờ chốt owner/card/year/month filter semantics; giữ payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening và honest MCP audit metadata đã push; generic persistent command guard còn là decision gate | `ba851a3` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1 và malformed-id fail-closed correction đã push; payment state transition vẫn legacy | `9ef5d33` / `origin/master` | Decision gate với user trước payment state machine/command guard vì ảnh hưởng financial writes; sau đó lập backup/recovery plan |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup và read-only fee/cashback report parity đã push; write commands chưa mở | `41920dc` / `origin/master` | Contract filters và legacy fee-category migration; giữ payment/write contract riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup và read-only fee/cashback report parity đã push; refund-aware fee formula đã push; write commands chưa mở | `1567c41` / `origin/master` | Chờ chốt contract filters và legacy fee-category migration; giữ payment/write contract riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -546,8 +546,8 @@ implemented yet.
   `MonthlyCardCashbackModel`, `CardFeePaymentModel` theo workspace/range;
   REST/MCP cùng service; frontend client runtime-parse và Reports/Dashboard dùng
   shared type; MCP manifest mô tả benefit reconciliation.
-- Canonical formulas: service fee chỉ là
-  `EXPENSE + PAID_FOR_OTHER: max(amount - reimbursementExpected, 0)`; monthly
+- Canonical formulas: service fee là
+  `EXPENSE + PAID_FOR_OTHER: max(amount - reimbursementExpected - refundReceived, 0)`; monthly
   cashback expected cộng toàn bộ bucket giao range, actual chỉ `RECEIVED`,
   rejected dùng expected; paid card fees chỉ gồm `ANNUAL_CARD_FEE`,
   `MANAGEMENT_FEE`, `OTHER_FEE`; `actualNetBenefit = monthly actual - service
@@ -563,6 +563,38 @@ implemented yet.
   migration/data write, không cần Kubernetes backup.
 - Commit/push: feature `8f53b6d` và test-fix `41920dc` đã push thành công lên
   `origin/master`.
+
+### Completed checkpoint: Refund-aware Service Fee Correction
+
+- Scope: correctness-only refinement của report aggregation; persisted
+  `refundReceived` được trừ khỏi service fee, phù hợp financial impact và không
+  đổi schema hoặc mutation behavior.
+- Acceptance evidence: focused financial-report tests pass (3 tests), gồm
+  `reimbursementExpected + refundReceived` và net benefit; backend lint pass.
+- Database impact: read-only field đã tồn tại trong `FinancialTransaction`; không
+  migration/index/write, không cần Kubernetes backup.
+- Commit/push: `1567c41` đã push thành công lên `origin/master`.
+
+### Decision gate: Owner/Card/Year/Month Report Filters
+
+- Independent review kết luận đây không phải chỉ thêm query params: transaction
+  phải join `account.creditCardId` và `statement.userCardId`, còn cashback/fee
+  join trực tiếp `userCardId`.
+- Cần user/product chốt trước implementation:
+  1. Filter card/owner có loại real-money transaction không có card hay chỉ giữ
+     credit expense + statement payment liên quan card?
+  2. `netAssets`/`creditDebtBalance` khi report đã lọc card là balance workspace,
+     balance card-scoped hay phải bỏ khỏi response?
+  3. Card inactive có giữ trong historical report không; orphan source sau delete
+     card có tính workspace-wide không?
+  4. FR-08 yêu cầu zero-total matching cards: có mở rộng DTO thêm
+     `matchedCards[]` (id/owner/name/metrics) không?
+- Khuyến nghị: giữ active/inactive history; card+owner là giao của hai filter;
+  card-scoped report loại real-money độc lập và orphan; thêm `matchedCards[]`.
+  Đây là read-only slice nên chưa cần backup, nhưng không tự triển khai khi
+  semantics balance/DTO chưa được duyệt.
+- Next action: chờ quyết định product/user, sau đó freeze `FinancialReportQuery`
+  shared contract trước REST/MCP/frontend implementation.
 
 ### Execution rules
 

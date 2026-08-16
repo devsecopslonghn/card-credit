@@ -168,7 +168,9 @@ frontend. `totals` giữ ledger metrics và các KPI benefits:
 phí thẻ thực tế; transaction cashback chỉ để đối chiếu. Monthly cashback là
 bucket theo tháng giao với `from/to`; chỉ `RECEIVED` dùng `actualAmount`, còn
 `REJECTED` dùng `expectedAmount`. Fee categories `BANK_CASHBACK` và
-`PARTNER_REFUND` không được cộng vào paid card fees.
+`PARTNER_REFUND` không được cộng vào paid card fees. Với expense
+`PAID_FOR_OTHER`, phí dịch vụ là
+`max(amount - reimbursementExpected - refundReceived, 0)` từ persisted impact.
 
 Owner/card/year/month filters và fee/cashback report parity chưa nằm trong
 runtime contract hiện tại; phải mở thành contract slice riêng trước khi thêm
