@@ -7,7 +7,7 @@ import { CardStatementModel } from "../src/models/card-statement.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 import { FinancialReconciliationCaseModel } from "../src/models/financial-reconciliation-case.js";
 import { canonicalPayloadHash } from "../src/command-hash.js";
-import { planLegacyStatementPaymentRepairs, reconciliationIdOf, type LegacyPaymentPlan, type LegacyPaymentRepair } from "../src/finance-reconciliation.js";
+import { planLegacyStatementPaymentRepairs, reconciliationIdOf, reconciliationPlanHash, reconciliationPlanPayload, type LegacyPaymentPlan, type LegacyPaymentRepair } from "../src/finance-reconciliation.js";
 
 const uri = process.env.MONGODB_URI?.trim();
 const workspaceId = process.env.FINANCE_MIGRATION_WORKSPACE_ID?.trim();
@@ -33,11 +33,6 @@ const privateFile = async (file: string, label: string) => {
   if (!stat.isFile() || (stat.mode & 0o077) !== 0) throw new Error(`${label} must be a private file`);
   return fs.readFile(file, "utf8");
 };
-const planPayload = (plan: LegacyPaymentPlan) => ({
-  repairs: plan.repairs.map((repair) => ({ ...repair, paidAt: repair.paidAt.toISOString() })),
-  skipped: plan.skipped,
-});
-const planHash = (plan: LegacyPaymentPlan) => canonicalPayloadHash(planPayload(plan));
 const digest = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
 const isObjectId = (value: string) => /^[a-f0-9]{24}$/i.test(value);
 const artifactTargets = (artifactPlan: { repairs?: Array<{ statementId?: unknown; transactionId?: unknown }>; skipped?: Array<{ statementId?: unknown; transactionIds?: unknown }> }) => ({
@@ -49,7 +44,7 @@ const assertBackupAndPlan = async (currentPlan: LegacyPaymentPlan) => {
   if (digest(planText) !== expectedPlanSha256) throw new Error("Reconciliation plan file hash does not match FINANCE_RECONCILIATION_PLAN_SHA256");
   const artifact = JSON.parse(planText) as { artifactVersion?: number; workspaceId?: string; sourceHash?: string; planHash?: string; plan?: { repairs?: unknown[]; skipped?: unknown[] } };
   if (artifact.artifactVersion !== 1 || artifact.workspaceId !== workspaceId || !artifact.plan || typeof artifact.sourceHash !== "string" || typeof artifact.planHash !== "string") throw new Error("Reconciliation plan artifact is invalid");
-  if (artifact.sourceHash !== currentPlan.sourceHash || artifact.planHash !== planHash(currentPlan) || canonicalPayloadHash(artifact.plan) !== artifact.planHash) throw new Error("Reconciliation plan no longer matches current source data");
+  if (artifact.sourceHash !== currentPlan.sourceHash || artifact.planHash !== reconciliationPlanHash(currentPlan) || canonicalPayloadHash(artifact.plan) !== artifact.planHash) throw new Error("Reconciliation plan no longer matches current source data");
   const targets = artifactTargets(artifact.plan as never);
   const statementIds = new Set(currentPlan.repairs.map((item) => item.statementId).concat(currentPlan.skipped.map((item) => item.statementId)).filter(isObjectId));
   const transactionIds = new Set(currentPlan.repairs.map((item) => item.transactionId).concat(currentPlan.skipped.flatMap((item) => item.transactionIds)).filter(isObjectId));
@@ -72,9 +67,9 @@ try {
   ]);
   const plan = planLegacyStatementPaymentRepairs(statements as never[], transactions as never[], accounts as never[]);
   const correlationId = randomUUID();
-  const currentPlanHash = planHash(plan);
+  const currentPlanHash = reconciliationPlanHash(plan);
   if (!apply && planFile) {
-    const artifact = { artifactVersion: 1, workspaceId, createdAt: new Date().toISOString(), sourceHash: plan.sourceHash, planHash: currentPlanHash, plan: planPayload(plan) };
+    const artifact = { artifactVersion: 1, workspaceId, createdAt: new Date().toISOString(), sourceHash: plan.sourceHash, planHash: currentPlanHash, plan: reconciliationPlanPayload(plan) };
     await fs.writeFile(planFile, JSON.stringify(artifact, null, 2), { mode: 0o600 });
     await fs.chmod(planFile, 0o600);
   }

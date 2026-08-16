@@ -12,6 +12,7 @@ export type ReconciliationCaseDocument = {
   snapshot: Record<string, unknown>;
   status: "OPEN" | "RESOLVED";
   resolvedAt?: Date | null;
+  resolvedBy?: string | null;
   createdAt?: Date;
 };
 
@@ -25,6 +26,7 @@ const FinancialReconciliationCaseSchema = new Schema<ReconciliationCaseDocument>
   snapshot: { type: Schema.Types.Mixed, required: true },
   status: { type: String, enum: ["OPEN", "RESOLVED"], default: "OPEN" },
   resolvedAt: { type: Date, default: null },
+  resolvedBy: { type: String, default: null, maxlength: 160 },
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
 FinancialReconciliationCaseSchema.index(

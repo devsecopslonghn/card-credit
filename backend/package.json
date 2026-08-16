@@ -16,6 +16,7 @@
     "backup:finance": "tsx scripts/backup-finance-workspace.ts",
     "audit:finance": "tsx scripts/audit-finance-reconciliation.ts",
     "reconcile:legacy-payments": "tsx scripts/reconcile-legacy-statement-payments.ts",
+    "mark:legacy-payment-paid": "tsx scripts/mark-legacy-statement-payment-paid.ts",
     "ensure:command-guard-indexes": "tsx scripts/ensure-command-guard-indexes.ts"
   },
   "dependencies": {

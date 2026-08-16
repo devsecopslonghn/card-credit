@@ -18,6 +18,14 @@ export type LegacyPaymentTransaction = Data & {
   debitCashflow?: unknown;
   personalSpending?: unknown;
   accountId?: unknown;
+  accountType?: unknown;
+  ownership?: unknown;
+  reimbursementExpected?: unknown;
+  serviceFeeRate?: unknown;
+  refundReceived?: unknown;
+  cashbackReceived?: unknown;
+  outstandingReceivable?: unknown;
+  reimbursementReceived?: unknown;
   createdAt?: unknown;
   transactionDate?: unknown;
 };
@@ -92,6 +100,13 @@ const sourceFingerprint = (
   };
 };
 
+export const reconciliationPlanPayload = (plan: LegacyPaymentPlan) => ({
+  repairs: plan.repairs.map((repair) => ({ ...repair, paidAt: repair.paidAt.toISOString() })),
+  skipped: plan.skipped,
+});
+
+export const reconciliationPlanHash = (plan: LegacyPaymentPlan) => canonicalPayloadHash(reconciliationPlanPayload(plan));
+
 /**
  * Plans only deterministic state repairs where the existing ledger proves that
  * one real-money statement payment fully settles one non-PAID statement.
@@ -149,6 +164,12 @@ export const planLegacyStatementPaymentRepairs = (
     }
     if (!isObjectId(accountId) || !eligibleAccounts.has(accountId)) {
       skipped.push(skip(statementId, "PAYMENT_ACCOUNT_NOT_ACTIVE_REAL_MONEY", paymentTransactions));
+      continue;
+    }
+    const account = accounts.find((item) => idOf(item._id) === accountId);
+    const optionalImpactFields = [payment.reimbursementExpected, payment.serviceFeeRate, payment.refundReceived, payment.cashbackReceived, payment.outstandingReceivable, payment.reimbursementReceived];
+    if (String(payment.accountType ?? "") !== String(account?.type ?? "") || String(payment.ownership ?? "PERSONAL") !== "PERSONAL" || optionalImpactFields.some((value) => (numberOf(value) ?? 0) !== 0)) {
+      skipped.push(skip(statementId, "LEDGER_IMPACT_NOT_CANONICAL", paymentTransactions));
       continue;
     }
     if (amount === null || !Number.isSafeInteger(amount) || amount <= 0) {
