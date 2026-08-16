@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { browserServiceContext, jobServiceContext, mcpServiceContext, serviceContextFromSession } from "../src/context.js";
+import { revalidateMcpContext } from "../src/mcp/context.js";
 import { sessionCookie, signSession } from "../src/auth.js";
 
 const identity = { workspaceId: "workspace-1", userId: "user-1", role: "admin" } as const;
@@ -16,11 +17,30 @@ test("service context records trusted channel and correlation id", () => {
   assert.notEqual(mcpServiceContext(identity).correlationId, mcpServiceContext(identity).correlationId);
 });
 
-test("browser context derives identity from the signed session and rejects invalid metadata", () => {
+test("browser context derives identity from the signed session and rejects invalid metadata", async () => {
   const secret = "01234567890123456789012345678901";
   const cookie = sessionCookie(signSession({ ...identity, email: "user@example.test" }, secret));
   const request = { id: "request-1", headers: { cookie } } as never;
-  assert.deepEqual(browserServiceContext(request, secret), { ...identity, channel: "browser", correlationId: "request-1" });
+  assert.deepEqual(await browserServiceContext(request, secret), { ...identity, channel: "browser", correlationId: "request-1" });
   assert.throws(() => serviceContextFromSession({ ...identity, role: "owner" }, "browser", "request-1"), /Trusted role/);
   assert.throws(() => serviceContextFromSession(identity, "browser", "x".repeat(129)), /Correlation ID/);
+});
+
+test("browser context rejects an inactive or moved user when a repository is provided", async () => {
+  const secret = "01234567890123456789012345678901";
+  const cookie = sessionCookie(signSession({ ...identity, email: "user@example.test" }, secret));
+  const request = { id: "request-1", headers: { cookie } } as never;
+  const inactive = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: false, lockedAt: null }) };
+  await assert.rejects(() => browserServiceContext(request, secret, inactive), /không còn hợp lệ/);
+});
+
+test("MCP context revalidates the fixed identity and workspace on each provider call", async () => {
+  const context = mcpServiceContext(identity);
+  const active = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null }) };
+  const refreshed = await revalidateMcpContext(context, active);
+  assert.equal(refreshed.channel, "mcp");
+  assert.equal(refreshed.userId, identity.userId);
+  assert.notEqual(refreshed.correlationId, context.correlationId);
+  const moved = { findUserById: async () => ({ ...identity, id: identity.userId, workspaceId: "workspace-2", email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null }) };
+  await assert.rejects(() => revalidateMcpContext(context, moved), /không còn hợp lệ/);
 });

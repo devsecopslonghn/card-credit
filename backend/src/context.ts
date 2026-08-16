@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import { sessionFromRequest, type Session } from "./auth.js";
 import { ApiError } from "./errors.js";
+import type { AuthRepository } from "./auth-repository.js";
 import type { ServiceChannel, ServiceContext, ServiceRole } from "./services/types/service-context.js";
 
 const trustedRole = (role: string): ServiceRole => {
@@ -29,8 +30,20 @@ export const serviceContextFromSession = (
   correlationId: trustedCorrelationId(correlationId),
 });
 
-export const browserServiceContext = (request: FastifyRequest, secret: string): ServiceContext =>
-  serviceContextFromSession(sessionFromRequest(request, secret), "browser", request.id || randomUUID());
+export const browserServiceContext = async (
+  request: FastifyRequest,
+  secret: string,
+  users?: Pick<AuthRepository, "findUserById">,
+): Promise<ServiceContext> => {
+  const session = sessionFromRequest(request, secret);
+  if (!users) return serviceContextFromSession(session, "browser", request.id || randomUUID());
+  let user;
+  try { user = await users.findUserById(session.userId); } catch { user = null; }
+  if (!user || !user.active || user.lockedAt || user.workspaceId !== session.workspaceId) {
+    throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hợp lệ.");
+  }
+  return serviceContextFromSession({ userId: user.id, workspaceId: user.workspaceId, role: user.role }, "browser", request.id || randomUUID());
+};
 
 export const mcpServiceContext = (identity: Pick<Session, "workspaceId" | "userId" | "role">): ServiceContext =>
   serviceContextFromSession(identity, "mcp");
