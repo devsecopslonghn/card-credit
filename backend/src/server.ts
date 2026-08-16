@@ -8,7 +8,6 @@ import { MongoNotesRepository } from "./notes.js";
 import { MongoMasterdataRepository } from "./masterdata.js";
 import { SmtpMailService } from "./mail-service.js";
 import { ReminderScheduler } from "./reminder-scheduler.js";
-import { syncCatalogFromFile } from "./catalog-sync.js";
 import { registerMcpHttp } from "./mcp/http.js";
 import { fixedMcpContext } from "./mcp/context.js";
 import { registerApiDocs } from "./api-docs.js";
@@ -58,8 +57,6 @@ process.once("SIGINT", () => void shutdown("SIGINT"));
 
 try {
   await database.connect(config.mongodbUri);
-  const catalogSync = await syncCatalogFromFile();
-  app.log.info({ event: "CATALOG_STARTUP_SYNC_COMPLETED", ...catalogSync });
   await app.listen({ host: config.host, port: config.port });
   app.log.info({ event: "SERVER_LISTENING", host: config.host, port: config.port });
   reminderScheduler.start();

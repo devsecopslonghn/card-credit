@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout đã push | `87e7996` + DB rollout / `origin/master` | Fence old MCP writers; xác minh legacy portfolio dates trước application rollout |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout, catalog startup write removal đã push | `c41d6ae` + catalog fix / `origin/master` | Fence old MCP writers; xác minh legacy portfolio dates trước application rollout |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `b75fb28` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push | `87e7996` + DB rollout / `origin/master` | Fence old MCP writers trước production rollout; không bật new MCP writer khi pod cũ còn phục vụ |
@@ -34,6 +34,23 @@ implemented yet.
 - Database impact: không schema/index/migration/write; không cần backup cho
   commit này.
 - Commit/push: ghi SHA ngay sau khi commit và push thành công.
+
+### Completed checkpoint: Remove silent catalog startup writes
+
+- Independent review: GO; bounded operational fix chỉ thay đổi startup
+  orchestration, không đổi catalog schema, repository, route hay dữ liệu Mongo.
+- Changed write-set: `backend/src/server.ts` không còn import/gọi
+  `syncCatalogFromFile()` sau khi kết nối database. Runtime restart chỉ khởi tạo
+  API/readiness; catalog baseline tiếp tục được xử lý riêng bởi CLI
+  `import:catalog`, dry-run mặc định và production guard
+  `ALLOW_PRODUCTION_CATALOG_IMPORT=true`.
+- Acceptance evidence: catalog import tests giữ dry-run mặc định, explicit apply
+  và production refusal; full backend validation sẽ chạy trước commit/push.
+- Database/rollout impact: không migration/index/write dữ liệu và không cần
+  backup hay Kubernetes mutation cho code slice này. Restart sau deploy không
+  còn overwrite admin catalog changes.
+- Residual: operator vẫn phải review baseline trước import; delete/merge card
+  policy và old MCP writer fence là các slice độc lập.
 
 ### Completed checkpoint: Persistent one-time MCP preview confirmation
 
@@ -360,7 +377,8 @@ implemented yet.
 - Database impact: chỉ đọc repository trong request; không schema/index/migration
   hoặc write, không cần Kubernetes backup.
 - Residual risk: Card CRUD/`compare_cards` vẫn chưa dùng cùng Card DTO/service;
-  catalog admin output còn compatibility aliases và startup sync risk GAP-OPS-01.
+  catalog admin output còn compatibility aliases. Startup sync risk GAP-OPS-01
+  đã đóng bằng cách tách import thành CLI operator-controlled.
 - Commit/push: `b0a74da` đã push thành công lên `origin/master`.
 
 ### Completed checkpoint: Card Portfolio read parity (ready to commit)
@@ -1901,8 +1919,9 @@ kiện xóa compatibility path.
 - Duplicate merge phải preview toàn bộ affected account/statement/transaction/
   cashback/fee/reminder và execute atomic theo policy.
 - Validate CREDIT account link cùng workspace/card active.
-- Đưa catalog startup sync về explicit operator-controlled policy; readiness chỉ
-  báo tình trạng, không silent write baseline.
+- Đã đưa catalog startup sync về explicit operator-controlled policy; readiness
+  chỉ báo tình trạng, không silent write baseline. CLI import vẫn yêu cầu dry-run
+  và production override có chủ đích.
 
 **Frontend**:
 
