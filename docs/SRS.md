@@ -204,6 +204,7 @@ Hai nhóm cross-cutting:
 | WSP-05 | Admin được cấu hình `ownerUserId` của workspace nếu user đích active, không khóa và thuộc cùng workspace. |
 | WSP-06 | UI middleware chỉ là UX guard; backend session/RBAC là authority cuối cùng. |
 | WSP-07 | Profile mutation phải revalidate signed session với user repository qua trusted browser context trước khi cập nhật `displayName`; workspace/user không được lấy từ body. |
+| WSP-08 | Workspace owner mutation phải revalidate current admin role/workspace qua trusted browser context trước khi upsert; target owner phải active, unlocked và cùng workspace. |
 
 ### 5.2 Card Portfolio
 
@@ -736,7 +737,7 @@ cd ../frontend && npm ci && npm run typecheck && npm run lint && npm test && npm
 
 | ID | Mức độ | Hiện trạng và tác động |
 |---|---|---|
-| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter, private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes`, Notes POST và Profile PATCH revalidate user active/locked/workspace. Còn thiếu session version/revocation tức thời và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
+| GAP-SEC-01 | Đã xử lý một phần | Session hiện kiểm tra `issuedAt` theo absolute expiry (`AUTH_SESSION_MAX_AGE_MS`, mặc định 8 giờ); browser/MCP adapter, private reads `/api/auth/me`, `/api/profile`, `/api/workspace/owner`, `/api/notes`, Notes POST, Profile PATCH và Workspace owner PUT revalidate user active/locked/workspace (và role cho admin mutation). Còn thiếu session version/revocation tức thời và các private mutation/direct-model route khác chưa đi qua đầy đủ application service context. |
 | GAP-SEC-02 | Cao | Public register chấp nhận `workspaceId` do client truyền. Người biết workspace ID có thể tự đăng ký vào workspace đó nếu không có policy bổ sung ngoài source. |
 | GAP-DATA-01 | Cao | Delete card và duplicate merge không cascade/relink account, statement, transaction, cashback, fee, reminder. Có thể tạo orphan hoặc xóa source trong khi dữ liệu tài chính vẫn tham chiếu source card. |
 | GAP-PAY-01 | Cao | Frontend payment chỉ gửi `action`, không cho chọn `repaymentAccountId`; payment có amount sẽ lỗi nếu thiếu `FINANCE_DEFAULT_REPAYMENT_ACCOUNT_ID`. |
