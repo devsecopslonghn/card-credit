@@ -15,7 +15,7 @@ import { CashFlowQueryService } from "../services/cash-flow-query-service.js";
 import { financialTransactionListQuerySchema, reportDateRangeSchema, type CreateRealMoneyAccountInput, type FeeCategory, type FinancialTransactionListQuery } from "@card-credit/contracts";
 import { statementPaymentInputSchema, statementPaymentPreviewSchema, type StatementPaymentInput } from "@card-credit/contracts";
 import { randomUUID } from "node:crypto";
-import { MCP_OPERATION, mcpToolMetadata } from "./manifest.js";
+import { MCP_OPERATION, mcpToolMetadata, type McpWriterMode } from "./manifest.js";
 import { ApiError } from "../errors.js";
 import { paymentPreviewPayload } from "../payment-contract.js";
 
@@ -25,7 +25,7 @@ type ContextProvider = ServiceContext | (() => Promise<ServiceContext>);
 
 const binding = (context: ServiceContext): PreviewBinding => ({ workspaceId: context.workspaceId, userId: context.userId, channel: context.channel });
 
-export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previewCodec?: PreviewTokenCodec, previewService: PreviewConfirmationService = previewConfirmationService) => {
+export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previewCodec?: PreviewTokenCodec, previewService: PreviewConfirmationService = previewConfirmationService, writerMode: McpWriterMode = "read") => {
   const invocationContext = async () => {
     const base = typeof ctx === "function" ? await ctx() : ctx;
     return { ...base, correlationId: randomUUID() };
@@ -47,41 +47,45 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
     const range = reportDateRangeSchema.parse({ from, to }) as { from: string; to: string };
     return json(await FinancialReportService.summary(await invocationContext(), range));
   });
-  server.registerTool("preview_import_financial_transaction", mcpToolMetadata("preview_import_financial_transaction"), async (payload: CreateFinancialTransactionBatchInput) => { const context = await invocationContext(); const normalized = await FinancialTransactionService.preview(context, payload); const confirmationPayload = payload; const metadata = await previewService.issue(context, MCP_OPERATION.importFinancialTransactionBatch, confirmationPayload, codec()); return json({ operation: MCP_OPERATION.importFinancialTransactionBatch, payload: confirmationPayload, preview: normalized.items.map((item) => ({ amount: item.amount, serviceFeeRate: item.serviceFeeRate ?? 0, serviceFee: item.amount - Number(item.reimbursementExpected ?? 0), reimbursementExpected: item.reimbursementExpected ?? 0, impact: item.previewImpact })), ...metadata }); });
-  server.registerTool("confirm_import_financial_transaction", mcpToolMetadata("confirm_import_financial_transaction"), async ({ payload, confirmationToken, idempotencyKey }: { payload: CreateFinancialTransactionBatchInput; confirmationToken: string; idempotencyKey: string }) => { const context = await invocationContext(); const verification = codec().verify(confirmationToken, MCP_OPERATION.importFinancialTransactionBatch, payload, binding(context)); return json(await FinancialTransactionService.createBatch(context, payload, { idempotencyKey, endpointOrTool: "confirm_import_financial_transaction", previewId: verification.previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(payload) })); });
+  if (writerMode === "write") {
+    server.registerTool("preview_import_financial_transaction", mcpToolMetadata("preview_import_financial_transaction"), async (payload: CreateFinancialTransactionBatchInput) => { const context = await invocationContext(); const normalized = await FinancialTransactionService.preview(context, payload); const confirmationPayload = payload; const metadata = await previewService.issue(context, MCP_OPERATION.importFinancialTransactionBatch, confirmationPayload, codec()); return json({ operation: MCP_OPERATION.importFinancialTransactionBatch, payload: confirmationPayload, preview: normalized.items.map((item) => ({ amount: item.amount, serviceFeeRate: item.serviceFeeRate ?? 0, serviceFee: item.amount - Number(item.reimbursementExpected ?? 0), reimbursementExpected: item.reimbursementExpected ?? 0, impact: item.previewImpact })), ...metadata }); });
+    server.registerTool("confirm_import_financial_transaction", mcpToolMetadata("confirm_import_financial_transaction"), async ({ payload, confirmationToken, idempotencyKey }: { payload: CreateFinancialTransactionBatchInput; confirmationToken: string; idempotencyKey: string }) => { const context = await invocationContext(); const verification = codec().verify(confirmationToken, MCP_OPERATION.importFinancialTransactionBatch, payload, binding(context)); return json(await FinancialTransactionService.createBatch(context, payload, { idempotencyKey, endpointOrTool: "confirm_import_financial_transaction", previewId: verification.previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(payload) })); });
+  }
   server.registerTool("list_accounts", mcpToolMetadata("list_accounts"), async () => json(await AccountService.list(await invocationContext())));
-  server.registerTool("preview_create_account", mcpToolMetadata("preview_create_account"), async (payload: CreateRealMoneyAccountInput) => { const context = await invocationContext(); const metadata = await previewService.issue(context, MCP_OPERATION.createAccount, payload, codec()); return json({ operation: MCP_OPERATION.createAccount, payload, ...metadata }); });
-  server.registerTool("confirm_create_account", mcpToolMetadata("confirm_create_account"), async ({ payload, confirmationToken, idempotencyKey }: { payload: CreateRealMoneyAccountInput; confirmationToken: string; idempotencyKey: string }) => { const context = await invocationContext(); const verification = codec().verify(confirmationToken, MCP_OPERATION.createAccount, payload, binding(context)); return json(await AccountService.create(context, payload, { idempotencyKey, endpointOrTool: "confirm_create_account", previewId: verification.previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(payload) })); });
-  server.registerTool("preview_pay_statement", mcpToolMetadata("preview_pay_statement"), async ({ cardId, statementId, input }: { cardId: string; statementId: string; input: StatementPaymentInput }) => {
-    const context = await invocationContext();
-    const parsed = statementPaymentInputSchema.parse(input) as StatementPaymentInput;
-    const preview = await StatementPaymentCommandService.preview(context, cardId, statementId, parsed);
-    const previewInput: StatementPaymentInput = {
-      action: preview.action,
-      ...(preview.repaymentAccountId ? { repaymentAccountId: preview.repaymentAccountId } : {}),
-      ...(preview.version ? { expectedVersion: preview.version } : {}),
-    };
-    const payload = paymentPreviewPayload(cardId, statementId, previewInput);
-    const metadata = await previewService.issue(context, MCP_OPERATION.payStatement, payload, codec());
-    return json(statementPaymentPreviewSchema.parse({ ...preview, previewId: metadata.previewId, confirmationToken: metadata.confirmationToken, expiresAt: new Date(metadata.expiresAt).toISOString() }));
-  });
-  server.registerTool("confirm_pay_statement", mcpToolMetadata("confirm_pay_statement"), async ({ cardId, statementId, input, previewId, confirmationToken, idempotencyKey }: { cardId: string; statementId: string; input: StatementPaymentInput; previewId: string; confirmationToken: string; idempotencyKey: string }) => {
-    const context = await invocationContext();
-    const parsed = statementPaymentInputSchema.parse(input) as StatementPaymentInput;
-    let verification: ReturnType<PreviewTokenCodec["verify"]>;
-    try {
-      verification = codec().verify(confirmationToken, MCP_OPERATION.payStatement, paymentPreviewPayload(cardId, statementId, parsed), binding(context));
-    } catch {
-      throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
-    }
-    if (verification.previewId !== previewId) throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
-    await StatementPaymentCommandService.execute(context, cardId, statementId, parsed, { idempotencyKey, endpointOrTool: "confirm_pay_statement", previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(paymentPreviewPayload(cardId, statementId, parsed)) });
-    return json(await StatementQueryService.get(context, cardId, statementId));
-  });
+  if (writerMode === "write") {
+    server.registerTool("preview_create_account", mcpToolMetadata("preview_create_account"), async (payload: CreateRealMoneyAccountInput) => { const context = await invocationContext(); const metadata = await previewService.issue(context, MCP_OPERATION.createAccount, payload, codec()); return json({ operation: MCP_OPERATION.createAccount, payload, ...metadata }); });
+    server.registerTool("confirm_create_account", mcpToolMetadata("confirm_create_account"), async ({ payload, confirmationToken, idempotencyKey }: { payload: CreateRealMoneyAccountInput; confirmationToken: string; idempotencyKey: string }) => { const context = await invocationContext(); const verification = codec().verify(confirmationToken, MCP_OPERATION.createAccount, payload, binding(context)); return json(await AccountService.create(context, payload, { idempotencyKey, endpointOrTool: "confirm_create_account", previewId: verification.previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(payload) })); });
+    server.registerTool("preview_pay_statement", mcpToolMetadata("preview_pay_statement"), async ({ cardId, statementId, input }: { cardId: string; statementId: string; input: StatementPaymentInput }) => {
+      const context = await invocationContext();
+      const parsed = statementPaymentInputSchema.parse(input) as StatementPaymentInput;
+      const preview = await StatementPaymentCommandService.preview(context, cardId, statementId, parsed);
+      const previewInput: StatementPaymentInput = {
+        action: preview.action,
+        ...(preview.repaymentAccountId ? { repaymentAccountId: preview.repaymentAccountId } : {}),
+        ...(preview.version ? { expectedVersion: preview.version } : {}),
+      };
+      const payload = paymentPreviewPayload(cardId, statementId, previewInput);
+      const metadata = await previewService.issue(context, MCP_OPERATION.payStatement, payload, codec());
+      return json(statementPaymentPreviewSchema.parse({ ...preview, previewId: metadata.previewId, confirmationToken: metadata.confirmationToken, expiresAt: new Date(metadata.expiresAt).toISOString() }));
+    });
+    server.registerTool("confirm_pay_statement", mcpToolMetadata("confirm_pay_statement"), async ({ cardId, statementId, input, previewId, confirmationToken, idempotencyKey }: { cardId: string; statementId: string; input: StatementPaymentInput; previewId: string; confirmationToken: string; idempotencyKey: string }) => {
+      const context = await invocationContext();
+      const parsed = statementPaymentInputSchema.parse(input) as StatementPaymentInput;
+      let verification: ReturnType<PreviewTokenCodec["verify"]>;
+      try {
+        verification = codec().verify(confirmationToken, MCP_OPERATION.payStatement, paymentPreviewPayload(cardId, statementId, parsed), binding(context));
+      } catch {
+        throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
+      }
+      if (verification.previewId !== previewId) throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
+      await StatementPaymentCommandService.execute(context, cardId, statementId, parsed, { idempotencyKey, endpointOrTool: "confirm_pay_statement", previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(paymentPreviewPayload(cardId, statementId, parsed)) });
+      return json(await StatementQueryService.get(context, cardId, statementId));
+    });
+  }
 };
 
-export const createMcpServer = (ctx: ContextProvider, previewCodec?: PreviewTokenCodec, previewService: PreviewConfirmationService = previewConfirmationService) => {
+export const createMcpServer = (ctx: ContextProvider, previewCodec?: PreviewTokenCodec, previewService: PreviewConfirmationService = previewConfirmationService, writerMode: McpWriterMode = "read") => {
   const server = new McpServer({ name: "card-credit", version: "0.1.0" });
-  registerMcpTools(server, ctx, previewCodec, previewService);
+  registerMcpTools(server, ctx, previewCodec, previewService, writerMode);
   return server;
 };

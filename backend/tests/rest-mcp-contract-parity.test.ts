@@ -149,7 +149,7 @@ test("REST and MCP statement payment previews parse to the same canonical DTO", 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "payment-parity-test", version: "1.0.0" });
   const codec = { issue: () => metadata, verify: () => ({ previewId: metadata.previewId }) } as unknown as PreviewTokenCodec;
-  const server = createMcpServer(mcpContext, codec, previewService);
+  const server = createMcpServer(mcpContext, codec, previewService, "write");
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const mcpResult = await client.callTool({ name: "preview_pay_statement", arguments: { cardId, statementId, input: { action: "PAID", repaymentAccountId: fixture.repaymentAccountId } } });
   const mcpContent = mcpResult.content as Array<{ type?: string; text?: string }>;

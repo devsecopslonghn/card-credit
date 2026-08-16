@@ -381,7 +381,7 @@ Hai nhóm cross-cutting:
 | MCP-01 | `/mcp` phải dùng Streamable HTTP và Bearer token so sánh timing-safe. |
 | MCP-02 | MCP chỉ hoạt động khi cấu hình `MCP_HTTP_TOKEN`, `MCP_WORKSPACE_ID`, `MCP_USER_ID`; AI không được chọn tenant/user trong tool arguments. |
 | MCP-03 | Read tools hiện có: `get_statement_summary`, `list_transactions`, `get_monthly_cash_flow`, `compare_cards`, `list_duplicate_cards`, `list_card_fee_payments`, `list_fee_center`, `list_monthly_cashbacks`, `list_upcoming_statements`, `get_personal_finance_summary`, `list_accounts`; mỗi tool gọi canonical query service và trả shared DTO. |
-| MCP-04 | Mutation tools hiện có: `preview_create_account`/`confirm_create_account` và `preview_import_financial_transaction`/`confirm_import_financial_transaction`. |
+| MCP-04 | `MCP_WRITER_MODE` mặc định `read`; chỉ khi explicit `write` mới đăng ký mutation tools `preview_create_account`/`confirm_create_account`, `preview_import_financial_transaction`/`confirm_import_financial_transaction` và `preview_pay_statement`/`confirm_pay_statement`. |
 | MCP-05 | Preview token v2 phải bind HMAC với operation, exact canonical payload hash, workspace/user/channel, `previewId` và expiry; token hash phải có persistent preview record, confirm phải verify token trước khi ghi và consume preview một lần trong command transaction. |
 | MCP-06 | Confirm mutation phải có idempotency key; payload khác dùng cùng key phải trả conflict, cùng key đã completed phải replay result kể cả token đã hết hạn, còn key khác với preview đã consumed phải fail closed. |
 | MCP-07 | MCP response phải là text content chứa JSON DTO, không trả Mongoose document trực tiếp. |
@@ -678,7 +678,7 @@ one-off calendar email và Swagger/MCP management.
 | SMTP | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, optional `SMTP_PORT`, `SMTP_SECURE` | Cần cho email/reminder |
 | Reminder | `REMINDER_SCAN_INTERVAL_MS`, `REMINDER_CLAIM_TIMEOUT_MS` | Default 60s và 300s |
 | Payment | `repaymentAccountId` | Chọn từ account `DEBIT|CASH|E_WALLET` đang hoạt động trong workspace; không dùng fallback environment |
-| MCP | `MCP_HTTP_TOKEN`, `MCP_WORKSPACE_ID`, `MCP_USER_ID`, optional `MCP_PREVIEW_SECRET` | Khi token bật endpoint, `MCP_PREVIEW_SECRET` phải explicit và tối thiểu 32 ký tự; không fallback `AUTH_SECRET` |
+| MCP | `MCP_HTTP_TOKEN`, `MCP_WORKSPACE_ID`, `MCP_USER_ID`, `MCP_WRITER_MODE`, optional `MCP_PREVIEW_SECRET` | `MCP_WRITER_MODE` mặc định `read`; mode `write` chỉ bật sau old-writer fence. Khi token bật endpoint, `MCP_PREVIEW_SECRET` phải explicit và tối thiểu 32 ký tự; không fallback `AUTH_SECRET` |
 | Catalog | `CARD_CATALOG_PATH` | Backend image dùng `/app/catalog/card-presets.json` |
 | Docs | `API_DOCS_ENABLED` | `false` để tắt Swagger |
 

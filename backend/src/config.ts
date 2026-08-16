@@ -14,6 +14,7 @@ export type BackendConfig = {
   reminderClaimTimeoutMs: number;
   mcpHttpToken?: string;
   mcpPreviewSecret?: string;
+  mcpWriterMode: "read" | "write";
   sessionMaxAgeMs: number;
 };
 
@@ -52,6 +53,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
   const mcpHttpToken = env.MCP_HTTP_TOKEN?.trim() || undefined;
   const mcpPreviewSecret = env.MCP_PREVIEW_SECRET?.trim() || undefined;
   if (mcpHttpToken && (!mcpPreviewSecret || mcpPreviewSecret.length < 32)) throw new Error("MCP_PREVIEW_SECRET must contain at least 32 characters when MCP is enabled");
+  const mcpWriterMode = env.MCP_WRITER_MODE?.trim() || "read";
+  if (mcpWriterMode !== "read" && mcpWriterMode !== "write") throw new Error("MCP_WRITER_MODE must be read or write");
   return {
     host: env.BACKEND_HOST?.trim() || "0.0.0.0",
     port: integer(env.BACKEND_PORT, 3001, "BACKEND_PORT"),
@@ -66,6 +69,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): BackendConfig 
     reminderClaimTimeoutMs: duration(env.REMINDER_CLAIM_TIMEOUT_MS, 300000, "REMINDER_CLAIM_TIMEOUT_MS"),
     mcpHttpToken,
     mcpPreviewSecret,
+    mcpWriterMode,
     sessionMaxAgeMs: sessionMaxAgeMs(env.AUTH_SESSION_MAX_AGE_MS),
   };
 };

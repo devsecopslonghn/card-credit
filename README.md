@@ -156,7 +156,9 @@ login or multi-user access.
 
 Required runtime variables are `MONGODB_URI`, `AUTH_SECRET`, `MCP_USER_ID`,
 `MCP_WORKSPACE_ID`, `MCP_HTTP_TOKEN`, and `MCP_PREVIEW_SECRET`. Requests must
-send `Authorization: Bearer <MCP_HTTP_TOKEN>`.
+send `Authorization: Bearer <MCP_HTTP_TOKEN>`. `MCP_WRITER_MODE` defaults to
+`read`; set it explicitly to `write` only after the old writer is fenced and
+the candidate image passes the MCP rollout runbook.
 
 Financial MCP tools:
 
@@ -178,6 +180,8 @@ với ngày inclusive; `date` singular là legacy input và bị reject.
 - `confirm_create_account`
 - `preview_import_financial_transaction`
 - `confirm_import_financial_transaction`
+- `preview_pay_statement`
+- `confirm_pay_statement`
 
 Preview token v2 có TTL 300 giây, ký bằng `MCP_PREVIEW_SECRET` riêng và bind
 operation, payload hash, `previewId` cùng fixed context. Luồng mutation là
@@ -195,11 +199,11 @@ Account types:
 - `DEBIT`, `CASH`, `E_WALLET`: nhóm `REAL_MONEY`, được tính vào tiền đang nắm giữ.
 - `CREDIT`: nhóm `DEBT`, chỉ tính vào dư nợ, không cộng vào số dư khả dụng.
 
-Các MCP tool transaction/payment legacy đã được loại bỏ. MCP chỉ ghi giao dịch
-qua Financial Domain; dữ liệu credit cũ chỉ được giữ cho migration. REST payment
-đã dùng strict shared command, `StatementPaymentCommandService` và generic
-receipt/audit guard qua `Idempotency-Key`; MCP payment mutation vẫn chưa expose
-cho tới khi hoàn tất preview/confirm one-time và resource-version guard.
+Các MCP tool transaction/payment legacy đã được loại bỏ. Khi
+`MCP_WRITER_MODE=read`, MCP chỉ cung cấp query tools; khi bật `write`, mutation
+đi qua preview/confirm, `StatementPaymentCommandService` và generic
+receipt/audit guard qua `Idempotency-Key`. Old writer phải được fence trước khi
+bật mode `write` production.
 
 ## Financial API nhanh
 

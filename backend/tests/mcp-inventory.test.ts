@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MCP_TOOL_INVENTORY, mcpToolManifest } from "../src/mcp/manifest.js";
+import { MCP_TOOL_INVENTORY, mcpToolManifest, mcpToolNamesForMode } from "../src/mcp/manifest.js";
 import { mcpToolNamesForDocs } from "../src/api-docs.js";
 import { createMcpServer } from "../src/mcp/tools.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -21,17 +21,31 @@ test("MCP inventory is unique and exposes only registered tool names", () => {
     assert.equal("workspaceId" in definition.inputSchema, false);
     assert.equal("role" in definition.inputSchema, false);
   }
-  assert.deepEqual(mcpToolNamesForDocs(), MCP_TOOL_INVENTORY);
+  assert.deepEqual(mcpToolNamesForDocs("write"), MCP_TOOL_INVENTORY);
 });
 
 test("MCP tools/list matches the canonical manifest", async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "inventory-test", version: "1.0.0" });
-  const server = createMcpServer({ workspaceId: "w1", userId: "u1", role: "user", channel: "mcp", correlationId: "test" });
+  const server = createMcpServer({ workspaceId: "w1", userId: "u1", role: "user", channel: "mcp", correlationId: "test" }, undefined, undefined, "write");
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const result = await client.listTools();
   assert.deepEqual(result.tools.map(({ name }) => name), MCP_TOOL_INVENTORY);
   assert.equal(result.tools.length, mcpToolManifest.length);
+  await client.close();
+  await server.close();
+});
+
+test("MCP read mode registers only query tools and documents the same inventory", async () => {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: "read-mode-test", version: "1.0.0" });
+  const server = createMcpServer({ workspaceId: "w1", userId: "u1", role: "user", channel: "mcp", correlationId: "test" }, undefined, undefined, "read");
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  const result = await client.listTools();
+  const expected = mcpToolNamesForMode("read");
+  assert.deepEqual(result.tools.map(({ name }) => name), expected);
+  assert.equal(result.tools.some(({ name }) => name.startsWith("preview_") || name.startsWith("confirm_")), false);
+  assert.deepEqual(mcpToolNamesForDocs("read"), expected);
   await client.close();
   await server.close();
 });

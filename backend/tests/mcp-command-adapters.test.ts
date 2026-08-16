@@ -21,7 +21,7 @@ const codec = {
 const call = async (name: string, args: Record<string, unknown>, previewService?: PreviewConfirmationService) => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "command-adapter-test", version: "1.0.0" });
-  const server = createMcpServer(context, codec, previewService);
+  const server = createMcpServer(context, codec, previewService, "write");
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const result = await client.callTool({ name, arguments: args });
   const content = result.content as Array<{ type?: string; text?: string }>;

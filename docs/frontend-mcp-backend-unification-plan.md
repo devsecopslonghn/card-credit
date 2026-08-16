@@ -67,6 +67,24 @@ implemented yet.
 - Residual: Jenkins vẫn cần giữ source checkout gồm `shared/` vì frontend dùng
   file dependency; Dockerfile đã copy shared trước `npm ci`.
 
+### Completed checkpoint: Add fail-closed MCP writer mode
+
+- Scope: independent review GO after making every direct composition default
+  fail-closed; add an explicit `MCP_WRITER_MODE` runtime
+  switch without changing business services, persistence, or transport auth.
+- Changed write-set: config defaults to `read` and rejects unknown values;
+  `registerMcpTools` registers query tools in read mode and preview/confirm
+  tools only in write mode; `tools/list` and OpenAPI `x-mcp` inventory derive
+  from the same mode-aware manifest. Rollout runbook and SRS now require
+  explicit `write` only after old-writer fence.
+- Acceptance evidence: typecheck/lint pass; focused config/MCP/parity suite
+  14/14 pass, including explicit write inventory and default read-only inventory.
+  Full backend validation is required before commit/push.
+- Database/rollout impact: no schema/index/data write and no Kubernetes mutation.
+  Existing old pod remains enabled until a separately approved fence/drain;
+  this switch protects candidate/new images and does not by itself fence the
+  old image.
+
 ### Completed checkpoint: Persistent one-time MCP preview confirmation
 
 - Independent review: GO cho bounded Account/Financial Transaction MCP command

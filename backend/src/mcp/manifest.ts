@@ -3,6 +3,7 @@ import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInput
 import { PAYMENT_OPERATION } from "../payment-contract.js";
 
 export type McpToolKind = "query" | "preview" | "confirm";
+export type McpWriterMode = "read" | "write";
 export type McpToolDefinition = {
   name: string;
   description: string;
@@ -40,6 +41,12 @@ const definitions = [
 export const mcpToolManifest = definitions;
 export const MCP_TOOL_INVENTORY = mcpToolManifest.map(({ name }) => name);
 export type McpToolName = (typeof mcpToolManifest)[number]["name"];
+
+export const mcpToolManifestForMode = (mode: McpWriterMode = "write") =>
+  mcpToolManifest.filter((definition) => mode === "write" || definition.kind === "query");
+
+export const mcpToolNamesForMode = (mode: McpWriterMode = "write") =>
+  mcpToolManifestForMode(mode).map(({ name }) => name);
 
 export const mcpToolMetadata = (name: McpToolName) => {
   const definition = mcpToolManifest.find((item) => item.name === name);

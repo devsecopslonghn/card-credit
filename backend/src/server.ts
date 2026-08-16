@@ -19,8 +19,8 @@ const database = new DatabaseLifecycle();
 const catalogRepository = new MongoCatalogRepository();
 const authRepository = new MongoAuthRepository();
 const app = buildApp(database, config.logLevel, catalogRepository, config.authSecret, writeCatalogAudit, authRepository);
-if (config.mcpHttpToken) registerMcpHttp(app, fixedMcpContext(), config.mcpHttpToken, authRepository, createPreviewTokenCodec({ secret: config.mcpPreviewSecret ?? "" }));
-if (process.env.API_DOCS_ENABLED !== "false") await registerApiDocs(app);
+if (config.mcpHttpToken) registerMcpHttp(app, fixedMcpContext(), config.mcpHttpToken, authRepository, createPreviewTokenCodec({ secret: config.mcpPreviewSecret ?? "" }), config.mcpWriterMode);
+if (process.env.API_DOCS_ENABLED !== "false") await registerApiDocs(app, config.mcpWriterMode);
 const mailService = new SmtpMailService();
 const reminderScheduler = new ReminderScheduler(authRepository, mailService, config.reminderScanIntervalMs, config.reminderClaimTimeoutMs, app.log);
 registerRuntimeRoutes({

@@ -10,6 +10,7 @@ test("loads safe runtime defaults", () => {
   assert.equal(config.host, "0.0.0.0");
   assert.equal(config.port, 3001);
   assert.equal(config.sessionMaxAgeMs, 28_800_000);
+  assert.equal(config.mcpWriterMode, "read");
 });
 
 test("rejects missing or short secrets", () => {
@@ -24,4 +25,11 @@ test("MCP requires a dedicated preview secret only when remote MCP is enabled", 
   assert.throws(() => loadConfig({ ...base, MCP_PREVIEW_SECRET: "short" }), /MCP_PREVIEW_SECRET/);
   assert.equal(loadConfig({ ...base, MCP_PREVIEW_SECRET: "01234567890123456789012345678902" }).mcpPreviewSecret, "01234567890123456789012345678902");
   assert.equal(loadConfig({ MONGODB_URI: base.MONGODB_URI, AUTH_SECRET: base.AUTH_SECRET }).mcpPreviewSecret, undefined);
+});
+
+test("MCP writer mode fails closed to read-only and rejects unknown values", () => {
+  const base = { MONGODB_URI: "mongodb://127.0.0.1/test", AUTH_SECRET: "01234567890123456789012345678901", MCP_HTTP_TOKEN: "http-token", MCP_PREVIEW_SECRET: "01234567890123456789012345678902" };
+  assert.equal(loadConfig(base).mcpWriterMode, "read");
+  assert.equal(loadConfig({ ...base, MCP_WRITER_MODE: "write" }).mcpWriterMode, "write");
+  assert.throws(() => loadConfig({ ...base, MCP_WRITER_MODE: "admin" }), /MCP_WRITER_MODE/);
 });

@@ -2,10 +2,10 @@ import type { FastifyInstance } from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import type { OpenAPIV3 } from "openapi-types";
-import { MCP_TOOL_INVENTORY } from "./mcp/manifest.js";
+import { mcpToolNamesForMode, type McpWriterMode } from "./mcp/manifest.js";
 import { REST_ENDPOINTS, type RestSecurity } from "./rest-manifest.js";
 
-export const mcpToolNamesForDocs = () => [...MCP_TOOL_INVENTORY];
+export const mcpToolNamesForDocs = (writerMode: McpWriterMode = "read") => mcpToolNamesForMode(writerMode);
 
 type Security = Array<Record<string, string[]>>;
 const auth: Security = [{ cookieAuth: [] }];
@@ -18,12 +18,12 @@ const securityFor = (security: RestSecurity): Security => security === "public" 
 for (const endpoint of REST_ENDPOINTS) add(endpoint.method, endpoint.path, endpoint.summary, securityFor(endpoint.security));
 add("post", "/mcp", "MCP Streamable HTTP endpoint", bearer);
 
-export const registerApiDocs = async (app: FastifyInstance) => {
+export const registerApiDocs = async (app: FastifyInstance, writerMode: McpWriterMode = "read") => {
   await app.register(swagger, { mode: "static", specification: { path: "", document: ({
     openapi: "3.0.3", info: { title: "Card Credit API", version: "0.1.0", description: "REST API and remote MCP endpoint for Card Credit." },
     tags: [{ name: "REST API" }, { name: "MCP" }], servers: [{ url: "/", description: "Current origin" }],
     components: { securitySchemes: { cookieAuth: { type: "apiKey", in: "cookie", name: "card_credit_session" }, bearerAuth: { type: "http", scheme: "bearer" } } }, paths,
-    "x-mcp": { transport: "Streamable HTTP", endpoint: "/mcp", authentication: "Authorization: Bearer <MCP_HTTP_TOKEN>", fixedContext: ["MCP_USER_ID", "MCP_WORKSPACE_ID"], tools: mcpToolNamesForDocs(), mutationPolicy: "Preview -> explicit confirmation -> idempotent confirm; append-only audit pending", auditStatus: "PENDING" },
+    "x-mcp": { transport: "Streamable HTTP", endpoint: "/mcp", authentication: "Authorization: Bearer <MCP_HTTP_TOKEN>", fixedContext: ["MCP_USER_ID", "MCP_WORKSPACE_ID"], tools: mcpToolNamesForDocs(writerMode), writerMode, mutationPolicy: writerMode === "write" ? "Preview -> explicit confirmation -> idempotent confirm" : "Read-only; mutation tools are not registered", auditStatus: "PENDING" },
   } as unknown as OpenAPIV3.Document) } });
   await app.register(swaggerUi, { routePrefix: "/docs", staticCSP: true, uiConfig: { docExpansion: "list", deepLinking: true } });
 };
