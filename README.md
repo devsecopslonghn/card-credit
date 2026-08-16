@@ -162,6 +162,7 @@ Financial MCP tools:
 
 - `get_statement_summary`
 - `list_transactions`
+- `get_monthly_cash_flow`
 - `list_upcoming_statements`
 - `compare_cards`
 - `list_duplicate_cards`

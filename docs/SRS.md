@@ -354,7 +354,7 @@ Hai nhóm cross-cutting:
 |---|---|
 | MCP-01 | `/mcp` phải dùng Streamable HTTP và Bearer token so sánh timing-safe. |
 | MCP-02 | MCP chỉ hoạt động khi cấu hình `MCP_HTTP_TOKEN`, `MCP_WORKSPACE_ID`, `MCP_USER_ID`; AI không được chọn tenant/user trong tool arguments. |
-| MCP-03 | Read tools hiện có: `get_statement_summary`, `list_transactions`, `compare_cards`, `list_duplicate_cards`, `list_card_fee_payments`, `list_fee_center`, `list_monthly_cashbacks`, `list_upcoming_statements`, `get_personal_finance_summary`, `list_accounts`; mỗi tool gọi canonical query service và trả shared DTO. |
+| MCP-03 | Read tools hiện có: `get_statement_summary`, `list_transactions`, `get_monthly_cash_flow`, `compare_cards`, `list_duplicate_cards`, `list_card_fee_payments`, `list_fee_center`, `list_monthly_cashbacks`, `list_upcoming_statements`, `get_personal_finance_summary`, `list_accounts`; mỗi tool gọi canonical query service và trả shared DTO. |
 | MCP-04 | Mutation tools hiện có: `preview_create_account`/`confirm_create_account` và `preview_import_financial_transaction`/`confirm_import_financial_transaction`. |
 | MCP-05 | Preview token phải bind HMAC với operation, exact payload và expiry; confirm phải kiểm tra token trước khi ghi. |
 | MCP-06 | Confirm mutation phải có idempotency key; payload khác dùng cùng key phải trả conflict. |

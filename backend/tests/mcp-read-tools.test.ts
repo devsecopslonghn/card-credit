@@ -6,6 +6,7 @@ import { createMcpServer } from "../src/mcp/tools.js";
 import { FeeQueryService } from "../src/services/fee-query-service.js";
 import { MonthlyCashbackQueryService } from "../src/services/monthly-cashback-query-service.js";
 import { CardQueryService } from "../src/services/card-query-service.js";
+import { CashFlowQueryService } from "../src/services/cash-flow-query-service.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const context: ServiceContext = {
@@ -93,6 +94,21 @@ test("MCP duplicate-card read tool delegates trusted context and canonical group
   assert.equal(duplicates.mock.callCount(), 1);
 });
 
+test("MCP monthly cash-flow read tool delegates trusted context and canonical response", async (t) => {
+  const cashFlow = t.mock.method(CashFlowQueryService, "list", async (ctx: ServiceContext, options: { period?: string; cardId?: string }) => {
+    assert.equal(ctx.workspaceId, "workspace-a");
+    assert.equal(ctx.channel, "mcp");
+    assert.notEqual(ctx.correlationId, "mcp-test");
+    assert.deepEqual(options, { period: "2026-08", cardId: "507f1f77bcf86cd799439011" });
+    return { period: "2026-08", data: [{ cardId: "507f1f77bcf86cd799439011", period: "2026-08", totalOut: 100, totalIn: 25, statementPayments: 100, actualFees: 10, partnerReturns: 25, bankCashbackActual: 5, netResult: -75, card: { id: "507f1f77bcf86cd799439011", providerName: "Bank", displayName: "Visa", owner: "Tôi" } }] };
+  });
+  assert.deepEqual(await call("get_monthly_cash_flow", { period: "2026-08", cardId: "507f1f77bcf86cd799439011" }), {
+    period: "2026-08",
+    data: [{ cardId: "507f1f77bcf86cd799439011", period: "2026-08", totalOut: 100, totalIn: 25, statementPayments: 100, actualFees: 10, partnerReturns: 25, bankCashbackActual: 5, netResult: -75, card: { id: "507f1f77bcf86cd799439011", providerName: "Bank", displayName: "Visa", owner: "Tôi" } }],
+  });
+  assert.equal(cashFlow.mock.callCount(), 1);
+});
+
 test("MCP read tool schemas reject tenant fields and malformed year", async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "schema-test", version: "1.0.0" });
@@ -102,6 +118,8 @@ test("MCP read tool schemas reject tenant fields and malformed year", async () =
   assert.equal(tenantInput.isError, true);
   const malformedYear = await client.callTool({ name: "list_monthly_cashbacks", arguments: { cardId: "card-1", year: "26" } });
   assert.equal(malformedYear.isError, true);
+  const malformedPeriod = await client.callTool({ name: "get_monthly_cash_flow", arguments: { period: "2026-13" } });
+  assert.equal(malformedPeriod.isError, true);
   await client.close();
   await server.close();
 });
