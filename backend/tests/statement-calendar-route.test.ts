@@ -107,6 +107,36 @@ test("calendar email uses normalized authoritative account email once and ignore
   }
 });
 
+test("calendar email rejects stale browser identity before card, statement, or mail access", async () => {
+  const originalCardGet = CardQueryService.get;
+  const originalStatementGet = StatementQueryService.get;
+  let cardReads = 0;
+  let statementReads = 0;
+  let mailCalls = 0;
+  CardQueryService.get = async () => { cardReads += 1; throw new Error("card read must not run"); };
+  StatementQueryService.get = async () => { statementReads += 1; throw new Error("statement read must not run"); };
+  try {
+    const staleUsers = [
+      null,
+      { ...authoritativeUser, active: false },
+      { ...authoritativeUser, lockedAt: new Date() },
+      { ...authoritativeUser, workspaceId: "workspace-b" },
+    ];
+    for (const stale of staleUsers) {
+      const app = createApp(users(stale), { sendStatementCalendarEmail: async () => { mailCalls += 1; } });
+      const response = await app.inject({ method: "POST", url: `/api/cards/${cardId}/statements/${statementId}/calendar-email`, headers: { cookie } });
+      assert.equal(response.statusCode, 401);
+      await app.close();
+    }
+    assert.equal(cardReads, 0);
+    assert.equal(statementReads, 0);
+    assert.equal(mailCalls, 0);
+  } finally {
+    CardQueryService.get = originalCardGet;
+    StatementQueryService.get = originalStatementGet;
+  }
+});
+
 test("calendar email returns safe errors for unusable account, inaccessible card and mismatched statement", async () => {
   const invalid = { ...authoritativeUser, email: "invalid" };
   const invalidApp = createApp(users(invalid), { sendStatementCalendarEmail: async () => assert.fail("must not send") });

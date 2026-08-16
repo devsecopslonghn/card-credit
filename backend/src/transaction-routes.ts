@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
 import { sessionFromRequest, type Session } from "./auth.js";
-import { browserServiceContext, serviceContextFromSession } from "./context.js";
+import { browserActorContext, browserServiceContext } from "./context.js";
 import { CreditCardModel } from "./models/credit-card.js";
 import { CardStatementModel } from "./models/card-statement.js";
 import {
@@ -148,14 +148,10 @@ export const registerTransactionRoutes = (
     Body: Record<string, unknown>;
     Querystring: Record<string, string>;
   }>("/api/cards/:id/statements/:statementId/calendar-email", async (request) => {
-    const session = sessionFromRequest(request, secret);
-    const user = await calendarEmail.users.findUserById(session.userId);
-    const recipient = user?.email.trim().toLowerCase() ?? "";
+    const { context, actor } = await browserActorContext(request, secret, calendarEmail.users);
+    const recipient = actor.email.trim().toLowerCase();
     const usableEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient);
-    if (!user || !user.active || user.lockedAt || user.workspaceId !== session.workspaceId || !usableEmail)
-      throw new ApiError(400, "ACCOUNT_EMAIL_UNAVAILABLE", "Email tài khoản không khả dụng.");
-
-    const context = serviceContextFromSession({ userId: user.id, workspaceId: user.workspaceId, role: user.role }, "browser", request.id);
+    if (!usableEmail) throw new ApiError(400, "ACCOUNT_EMAIL_UNAVAILABLE", "Email tài khoản không khả dụng.");
     const card = await CardQueryService.get(context, request.params.id);
     const statement = await StatementQueryService.get(context, request.params.id, request.params.statementId);
     const displayName = card.displayName ?? "Thẻ tín dụng";
