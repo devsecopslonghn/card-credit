@@ -158,9 +158,13 @@ Fee read responses are canonical and shared across backend/frontend:
   `id`, `cardId`, `category`, `paymentDate`, `amount`, and `note`.
 - `GET /fee-center` returns `FeeCenterRecordDto[]`, which extends the same
   payment fields with `card: {id, providerName, displayName, owner} | null`.
+- `GET /cards/:cardId/monthly-cashbacks?year=YYYY` returns
+  `MonthlyCashbackDto[]` with `id`, `cardId`, `period`,
+  `expectedAmount`, `actualAmount`, `status`, `receivedAt`, and
+  `note`; `receivedAt` is an ISO string or `null`.
 - The REST `{data}` envelope and existing mutation response aliases are
-  transport/compatibility adapters only; fee write routes remain legacy and
-  are not yet exposed as MCP commands.
+  transport/compatibility adapters only; fee/cashback write routes remain
+  legacy and are not yet exposed as MCP commands.
 
 Report query hiện tại:
 
