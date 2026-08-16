@@ -210,6 +210,11 @@ GET  /api/finance/recurring-expenses
 POST /api/finance/recurring-expenses
 ```
 
+`financial-reports/summary` dùng inclusive calendar date range strict. REST có
+thể bỏ trống từng field và sẽ mặc định UTC current-month đến today; MCP yêu cầu
+đủ `from` và `to`. Ngày không tồn tại, range đảo hoặc query filter ngoài
+`from/to` trả `400 INVALID_DATE_RANGE`.
+
 Swagger UI: `/docs`. MCP endpoint: `/mcp`.
 
 ## Dữ liệu tài chính
