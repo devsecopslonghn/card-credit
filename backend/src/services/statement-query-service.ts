@@ -141,11 +141,11 @@ export const serializeStatementDto = (statement: Data, transactions: Data[] = []
 export class StatementQueryServiceImpl {
   constructor(private readonly repository: StatementReadRepository = mongoRepository) {}
 
-  async list(ctx: ServiceContext, options: { cardId?: string } = {}) {
+  async list(ctx: ServiceContext, options: { cardId?: string; unpaidOnly?: boolean; limit?: number; order?: "statementDate" | "paymentDueDate"; includeTransactions?: boolean } = {}) {
     if (options.cardId) await this.requireCard(ctx, options.cardId);
-    const loaded = await this.repository.listStatements(ctx.workspaceId, { cardId: options.cardId, order: "statementDate" });
+    const loaded = await this.repository.listStatements(ctx.workspaceId, { cardId: options.cardId, unpaidOnly: options.unpaidOnly, limit: options.limit, order: options.order ?? "statementDate" });
     const statements = options.cardId ? loaded : await this.onlyExistingCards(ctx, loaded);
-    return this.build(statements, ctx.workspaceId, true);
+    return this.build(statements, ctx.workspaceId, options.includeTransactions !== false);
   }
 
   async get(ctx: ServiceContext, cardId: string, statementId: string) {
@@ -170,6 +170,14 @@ export class StatementQueryServiceImpl {
   async upcoming(ctx: ServiceContext, limit = 20) {
     const loaded = await this.repository.listStatements(ctx.workspaceId, { unpaidOnly: true, limit, order: "paymentDueDate" });
     const statements = await this.onlyExistingCards(ctx, loaded);
+    return this.build(statements, ctx.workspaceId, false);
+  }
+
+  async listNotifications(ctx: ServiceContext, limit = 50) {
+    const boundedLimit = Math.min(Math.max(Number.isInteger(limit) ? limit : 50, 1), 100);
+    const statements = await this.repository.listStatements(ctx.workspaceId, { unpaidOnly: false, limit: boundedLimit, order: "paymentDueDate" });
+    // Notifications intentionally retain orphan statements for compatibility;
+    // the adapter supplies the existing card-name fallback when no card exists.
     return this.build(statements, ctx.workspaceId, false);
   }
 

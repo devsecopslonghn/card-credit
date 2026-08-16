@@ -1,32 +1,34 @@
 import type { FastifyInstance } from "fastify";
-import { sessionFromRequest } from "./auth.js";
-import { CardStatementModel } from "./models/card-statement.js";
-import { CreditCardModel } from "./models/credit-card.js";
+import { browserServiceContext } from "./context.js";
+import type { AuthRepository } from "./auth-repository.js";
+import { CardQueryService } from "./services/card-query-service.js";
+import { StatementQueryService } from "./services/statement-query-service.js";
 
 /** Read-only notification projection for the Stitch notifications screen. */
-export const registerNotificationRoutes = (app: FastifyInstance, secret: string) => {
+export const registerNotificationRoutes = (app: FastifyInstance, secret: string, users?: Pick<AuthRepository, "findUserById">) => {
   app.get<{ Querystring: { limit?: string } }>("/api/notifications", async (request) => {
-    const session = sessionFromRequest(request, secret);
+    const context = await browserServiceContext(request, secret, users);
     const limit = Math.min(Math.max(Number.parseInt(request.query.limit ?? "50", 10) || 50, 1), 100);
     const [statements, cards] = await Promise.all([
-      CardStatementModel.find({ workspaceId: session.workspaceId }).sort({ paymentDueDate: 1 }).limit(limit).lean(),
-      CreditCardModel.find({ workspaceId: session.workspaceId }).select("providerName displayName bank name").lean(),
+      StatementQueryService.listNotifications(context, limit),
+      CardQueryService.list(context),
     ]);
-    const cardById = new Map(cards.map((card) => [String(card._id), card]));
+    const cardById = new Map(cards.map((card) => [card.id, card]));
     return {
       data: statements.map((statement) => {
-        const card = cardById.get(String(statement.userCardId));
-        const dueDate = String(statement.paymentDueDate ?? "");
-        const status = statement.paymentStatus === "PAID" ? "success" : new Date(dueDate) < new Date() ? "alert" : "warning";
+        const card = cardById.get(statement.cardId);
+        const status = statement.effectivePaymentStatus === "PAID" ? "success" : statement.effectivePaymentStatus === "OVERDUE" ? "alert" : "warning";
+        const providerName = card?.providerName ?? "Thẻ tín dụng";
+        const displayName = card?.displayName ?? "";
         return {
-          id: String(statement._id),
+          id: statement.id,
           type: "payment_due",
           status,
           title: status === "success" ? "Đã ghi nhận thanh toán" : "Kỳ thanh toán cần theo dõi",
-          message: `${card?.providerName ?? card?.bank ?? "Thẻ tín dụng"} · ${card?.displayName ?? card?.name ?? ""}`.trim(),
-          dueDate,
+          message: `${providerName}${displayName ? ` · ${displayName}` : ""}`.trim(),
+          dueDate: statement.paymentDueDate,
           paymentStatus: statement.paymentStatus,
-          cardId: String(statement.userCardId),
+          cardId: statement.cardId,
         };
       }),
       meta: { limit, source: "card_statements" },
