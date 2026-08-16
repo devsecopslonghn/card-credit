@@ -100,6 +100,8 @@ test("mark-paid is job-only and binds reviewed case data to the generic command 
     caseId: "507f1f77bcf86cd799439099",
     sourceHash: "a".repeat(64),
     planHash: "b".repeat(64),
+    currentSourceHash: "a".repeat(64),
+    currentPlanHash: "b".repeat(64),
     expectedStatus: "STATEMENT_CLOSED",
     idempotencyKey: "mark-paid-key-1",
   });
@@ -113,6 +115,8 @@ test("mark-paid is job-only and binds reviewed case data to the generic command 
       caseId: "507f1f77bcf86cd799439099",
       sourceHash: "a".repeat(64),
       planHash: "b".repeat(64),
+      currentSourceHash: "a".repeat(64),
+      currentPlanHash: "b".repeat(64),
       expectedStatus: "STATEMENT_CLOSED",
       idempotencyKey: "mark-paid-key-2",
     }),
@@ -143,7 +147,7 @@ test("mark-paid selects one reviewed case when the workspace has multiple candid
   t.mock.method(FinancialReconciliationCaseModel, "findOneAndUpdate", () => chain({ ...caseDoc, status: "RESOLVED" }) as never);
   const result = await markLegacyStatementPaymentPaid(
     { workspaceId: "workspace-a", userId: "operator-a", role: "admin", channel: "job", correlationId: "mark-paid-correlation" },
-    { caseId: caseDoc._id, sourceHash: plan.sourceHash, planHash: reconciliationPlanHash(plan), expectedStatus: "STATEMENT_CLOSED", idempotencyKey: "mark-paid-key-3" },
+    { caseId: caseDoc._id, sourceHash: plan.sourceHash, planHash: reconciliationPlanHash(plan), currentSourceHash: plan.sourceHash, currentPlanHash: reconciliationPlanHash(plan), expectedStatus: "STATEMENT_CLOSED", idempotencyKey: "mark-paid-key-3" },
   );
   assert.equal(result.statementId, statementA._id);
   assert.equal(result.transactionId, paymentA._id);

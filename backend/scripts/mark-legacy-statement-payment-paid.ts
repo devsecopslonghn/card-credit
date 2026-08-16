@@ -11,6 +11,8 @@ const workspaceId = process.env.FINANCE_MIGRATION_WORKSPACE_ID?.trim();
 const caseId = process.env.FINANCE_RECONCILIATION_CASE_ID?.trim();
 const sourceHash = process.env.FINANCE_RECONCILIATION_SOURCE_HASH?.trim().toLowerCase();
 const planHash = process.env.FINANCE_RECONCILIATION_PLAN_HASH?.trim().toLowerCase();
+const currentSourceHash = process.env.FINANCE_RECONCILIATION_CURRENT_SOURCE_HASH?.trim().toLowerCase() || sourceHash;
+const currentPlanHash = process.env.FINANCE_RECONCILIATION_CURRENT_PLAN_HASH?.trim().toLowerCase() || planHash;
 const expectedStatus = process.env.FINANCE_RECONCILIATION_EXPECTED_STATUS?.trim();
 const operatorId = process.env.FINANCE_RECONCILIATION_OPERATOR_ID?.trim();
 const idempotencyKey = process.env.FINANCE_RECONCILIATION_IDEMPOTENCY_KEY?.trim();
@@ -23,7 +25,7 @@ if (!uri) throw new Error("MONGODB_URI is required");
 if (!workspaceId || !caseId || !sourceHash || !planHash || !expectedStatus || !operatorId || !idempotencyKey) throw new Error("workspace, case, review hashes, expected status, operator and idempotency key are required");
 if (process.env.FINANCE_RECONCILIATION_ALLOW !== "true") throw new Error("FINANCE_RECONCILIATION_ALLOW=true is required for mark-paid writes");
 if (!planFile || !/^[a-f0-9]{64}$/.test(planSha256 ?? "") || !backupFile || !/^[a-f0-9]{64}$/.test(backupSha256 ?? "")) throw new Error("Reviewed plan and private backup with SHA-256 are required");
-if (!/^[a-f0-9]{64}$/.test(sourceHash) || !/^[a-f0-9]{64}$/.test(planHash)) throw new Error("Review hashes must be SHA-256 digests");
+if (![sourceHash, planHash, currentSourceHash, currentPlanHash].every((value) => /^[a-f0-9]{64}$/.test(value ?? ""))) throw new Error("Review hashes must be SHA-256 digests");
 if (!(expectedStatus === "OPEN" || expectedStatus === "STATEMENT_CLOSED")) throw new Error("FINANCE_RECONCILIATION_EXPECTED_STATUS must be OPEN or STATEMENT_CLOSED");
 if (!/^[a-f0-9]{24}$/i.test(caseId)) throw new Error("FINANCE_RECONCILIATION_CASE_ID must be a Mongo ObjectId");
 
@@ -45,7 +47,9 @@ try {
   const planText = await privateFile(planFile, "FINANCE_RECONCILIATION_PLAN_FILE");
   if (digest(planText) !== planSha256) throw new Error("Reconciliation plan file hash mismatch");
   const artifact = JSON.parse(planText) as { artifactVersion?: number; workspaceId?: string; sourceHash?: string; planHash?: string; plan?: unknown };
-  if (artifact.artifactVersion !== 1 || artifact.workspaceId !== workspaceId || artifact.sourceHash !== sourceHash || artifact.planHash !== planHash || !artifact.plan || canonicalPayloadHash(artifact.plan) !== planHash) throw new Error("Reviewed reconciliation plan artifact does not match the operator hashes");
+  if (artifact.artifactVersion !== 1 || artifact.workspaceId !== workspaceId || artifact.sourceHash !== currentSourceHash || artifact.planHash !== currentPlanHash || !artifact.plan || canonicalPayloadHash(artifact.plan) !== currentPlanHash) throw new Error("Reviewed reconciliation plan artifact does not match the current operator hashes");
+  const artifactPlan = artifact.plan as { repairs?: Array<{ statementId?: unknown; transactionId?: unknown }> };
+  if (!(artifactPlan.repairs ?? []).some((item) => String(item.statementId ?? "") === statementId && String(item.transactionId ?? "") === transactionId)) throw new Error("Reviewed reconciliation plan does not contain the case target");
 
   const backupText = await privateFile(backupFile, "FINANCE_RECONCILIATION_BACKUP_FILE");
   if (digest(backupText) !== backupSha256) throw new Error("Backup file hash mismatch");
@@ -54,8 +58,8 @@ try {
   if (!idsIn(backup.collections.cardstatements, "_id").has(statementId) || !idsIn(backup.collections.financialtransactions, "_id").has(transactionId)) throw new Error("Backup does not contain the reviewed case targets");
 
   const context = { workspaceId, userId: operatorId, role: "admin" as const, channel: "job" as const, correlationId: randomUUID() };
-  const result = await markLegacyStatementPaymentPaid(context, { caseId, sourceHash, planHash, expectedStatus: expectedStatus as "OPEN" | "STATEMENT_CLOSED", idempotencyKey });
-  console.log(JSON.stringify({ ...result, workspaceId, caseId, operatorId, sourceHash, planHash }));
+  const result = await markLegacyStatementPaymentPaid(context, { caseId, sourceHash, planHash, currentSourceHash: currentSourceHash!, currentPlanHash: currentPlanHash!, expectedStatus: expectedStatus as "OPEN" | "STATEMENT_CLOSED", idempotencyKey });
+  console.log(JSON.stringify({ ...result, workspaceId, caseId, operatorId, sourceHash, planHash, currentSourceHash, currentPlanHash }));
 } finally {
   await mongoose.disconnect();
 }

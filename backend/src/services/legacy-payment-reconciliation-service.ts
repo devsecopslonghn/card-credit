@@ -15,6 +15,8 @@ export type MarkLegacyStatementPaymentInput = {
   caseId: string;
   sourceHash: string;
   planHash: string;
+  currentSourceHash: string;
+  currentPlanHash: string;
   expectedStatus: "OPEN" | "STATEMENT_CLOSED";
   idempotencyKey: string;
 };
@@ -45,9 +47,9 @@ export const markLegacyStatementPaymentPaid = async (
   input: MarkLegacyStatementPaymentInput,
 ): Promise<MarkLegacyStatementPaymentResult> => {
   if (!mongoose.isValidObjectId(input.caseId)) reject("INVALID_RECONCILIATION_CASE", "Reconciliation case id is invalid.", 400);
-  if (!hashPattern.test(input.sourceHash) || !hashPattern.test(input.planHash)) reject("INVALID_RECONCILIATION_REVIEW", "Reviewed reconciliation hashes are invalid.", 400);
+  if (![input.sourceHash, input.planHash, input.currentSourceHash, input.currentPlanHash].every((value) => hashPattern.test(value))) reject("INVALID_RECONCILIATION_REVIEW", "Reviewed reconciliation hashes are invalid.", 400);
   if (ctx.channel !== "job" || ctx.role !== "admin" || !ctx.userId.trim()) reject("INVALID_RECONCILIATION_OPERATOR", "A trusted admin job operator is required.", 403);
-  const payloadHash = canonicalPayloadHash({ caseId: input.caseId, sourceHash: input.sourceHash, planHash: input.planHash, expectedStatus: input.expectedStatus });
+  const payloadHash = canonicalPayloadHash({ caseId: input.caseId, sourceHash: input.sourceHash, planHash: input.planHash, currentSourceHash: input.currentSourceHash, currentPlanHash: input.currentPlanHash, expectedStatus: input.expectedStatus });
   return commandGuardService.execute(ctx, {
     operation: "mark_legacy_statement_payment_paid",
     idempotencyKey: input.idempotencyKey,
@@ -79,7 +81,7 @@ export const markLegacyStatementPaymentPaid = async (
       transactions as LegacyPaymentTransaction[],
       accounts as LegacyPaymentAccount[],
     );
-    if (plan.sourceHash !== input.sourceHash || reconciliationPlanHash(plan) !== input.planHash) reject("RECONCILIATION_SOURCE_DRIFT", "Statement or ledger data changed after review.");
+    if (plan.sourceHash !== input.currentSourceHash || reconciliationPlanHash(plan) !== input.currentPlanHash) reject("RECONCILIATION_SOURCE_DRIFT", "Statement or ledger data changed after the current plan review.");
     const targetRepairs = plan.repairs.filter((item) => item.statementId === statementId && item.transactionId === transactionId);
     const targetSkips = plan.skipped.filter((item) => item.statementId === statementId || item.transactionIds.includes(transactionId));
     if (targetSkips.length !== 0 || targetRepairs.length !== 1) reject("RECONCILIATION_PRECONDITION_FAILED", "The reviewed full-settlement precondition is no longer true.");
@@ -95,7 +97,7 @@ export const markLegacyStatementPaymentPaid = async (
 
     const resolved = await FinancialReconciliationCaseModel.findOneAndUpdate(
       { _id: input.caseId, workspaceId: ctx.workspaceId, status: "OPEN", classification: "ELIGIBLE_MARK_PAID", "snapshot.sourceHash": input.sourceHash, "snapshot.planHash": input.planHash } as never,
-      { $set: { status: "RESOLVED", resolvedAt: new Date(), resolvedBy: ctx.userId.trim() } },
+      { $set: { status: "RESOLVED", resolvedAt: new Date(), resolvedBy: ctx.userId.trim(), snapshot: input.currentSourceHash === input.sourceHash && input.currentPlanHash === input.planHash ? snapshot : { ...snapshot, sourceHash: input.currentSourceHash, planHash: input.currentPlanHash, reviewedSourceHash: input.sourceHash, reviewedPlanHash: input.planHash } } },
       { returnDocument: "after", session } as never,
     ).lean() as Data | null;
     if (!resolved) reject("RECONCILIATION_CASE_CONFLICT", "Reconciliation case changed before resolution.");
