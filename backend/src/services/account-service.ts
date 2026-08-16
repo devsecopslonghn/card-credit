@@ -1,4 +1,5 @@
 import { AccountModel } from "../models/account.js";
+import { CreditCardModel } from "../models/credit-card.js";
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { ApiError } from "../errors.js";
 import { idOf, plain } from "../statement-domain.js";
@@ -8,6 +9,7 @@ import type { ServiceContext } from "./types/service-context.js";
 import crypto from "node:crypto";
 import { McpMutationModel } from "../models/mcp-mutation.js";
 import type { AccountDto, CreateAccountInput } from "@card-credit/contracts";
+import mongoose from "mongoose";
 
 const serialize = (value: unknown): AccountDto => {
   const item = plain(value) as Record<string, unknown>;
@@ -58,7 +60,7 @@ export class AccountService {
     });
   }
 
-  static async create(ctx: ServiceContext, input: CreateAccountInput, idempotencyKey?: string) {
+  static async create(ctx: ServiceContext, input: CreateAccountInput, idempotencyKey?: string): Promise<AccountDto> {
     const name = input.name.trim();
     if (!name || name.length > 120) {
       throw new ApiError(400, "INVALID_ACCOUNT", "Tên tài khoản không hợp lệ.");
@@ -75,8 +77,19 @@ export class AccountService {
       const existingMutation = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).lean();
       if (existingMutation) {
         if (existingMutation.payloadHash !== payloadHash) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
-        return existingMutation.result;
+        return existingMutation.result as AccountDto;
       }
+    }
+    if (input.type === "CREDIT" && input.creditCardId) {
+      if (!mongoose.isValidObjectId(input.creditCardId)) {
+        throw new ApiError(400, "INVALID_CARD_ID", "Tham chiếu thẻ không hợp lệ.");
+      }
+      const card = await CreditCardModel.findOne({
+        _id: input.creditCardId,
+        workspaceId: ctx.workspaceId,
+        active: { $ne: false },
+      }).lean();
+      if (!card) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
     }
     try {
       const account = await AccountModel.create({
