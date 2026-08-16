@@ -343,6 +343,7 @@ Hai nhóm cross-cutting:
 | CAL-04 | User chỉ list/revoke subscription của chính mình trong workspace. Feed token sai, revoked hoặc account không khả dụng phải trả opaque 404. |
 | CAL-05 | Feed chỉ gồm unpaid statement của card gắn trực tiếp với `subscription.userId` trong workspace. |
 | CAL-06 | Mỗi event bắt đầu 00:00 trước due date ba ngày, kết thúc 17:00 due date và có ba display alarm theo serializer hiện tại. |
+| CAL-07 | REST create/revoke calendar subscription phải đi qua service với trusted browser context; raw token không được log hoặc lưu plaintext, còn feed `lastAccessedAt` là compatibility write riêng. |
 | REM-01 | Card reminder cho phép enable, 1..10 offset duy nhất trong 0..60 ngày, IANA timezone hợp lệ và giờ `HH:mm`. |
 | REM-02 | Scheduler phải scan theo local date/time của card, không chạy chồng một scan trong cùng process và chỉ xét active card/unpaid statement. |
 | REM-03 | Delivery phải unique theo workspace, statement và days-before; claim hết hạn được reclaim theo timeout. |
