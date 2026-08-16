@@ -11,3 +11,16 @@ const users = { findUserById: async (id: string) => id === "admin" ? { id, email
 test("masterdata reads require auth and writes require revalidated admin with duplicate checks", async () => { const repo = new InMemoryMasterdataRepository(); const app = buildApp({ isReady: () => true }, "silent"); registerMasterdataRoutes(app, repo, secret, users); assert.equal((await app.inject({ url: "/api/banks" })).statusCode, 401); assert.equal((await app.inject({ method: "POST", url: "/api/banks", headers: { cookie: cookie("user") }, payload: { shortname: "TST" } })).statusCode, 403); assert.equal((await app.inject({ method: "POST", url: "/api/banks", headers: { cookie: cookie("admin") }, payload: { shortname: "TST", name: "Test", fullname: "Test Bank", logo: "logo" } })).statusCode, 201); assert.equal((await app.inject({ method: "POST", url: "/api/banks", headers: { cookie: cookie("admin") }, payload: { shortname: "tst" } })).statusCode, 400); assert.equal((await app.inject({ url: "/api/banks", headers: { cookie: cookie("user") } })).json().length, 1); assert.equal((await app.inject({ method: "POST", url: "/api/cardtypes", headers: { cookie: cookie("admin") }, payload: { name: "Visa", logo: "logo" } })).statusCode, 201); await app.close(); });
 
 test("masterdata rejects a stale admin session before repository mutation", async (t) => { const repo = new InMemoryMasterdataRepository(); const create = t.mock.method(repo, "create"); const demotedUsers = { findUserById: async () => ({ id: "admin", email: "admin@example.test", passwordHash: "", role: "user" as const, workspaceId: "w", displayName: "Demoted", active: true, lockedAt: null }) } as unknown as Pick<AuthRepository, "findUserById">; const app = buildApp({ isReady: () => true }, "silent"); registerMasterdataRoutes(app, repo, secret, demotedUsers); const response = await app.inject({ method: "POST", url: "/api/banks", headers: { cookie: cookie("admin") }, payload: { shortname: "TST" } }); assert.equal(response.statusCode, 403); assert.equal(create.mock.callCount(), 0); await app.close(); });
+
+test("masterdata GET returns normalized safe DTOs and strips persistence fields", async () => {
+  const repo = new InMemoryMasterdataRepository();
+  repo.values.banks = [{ _id: "bank-1", shortname: "TST", name: "Test", fullname: "Test Bank", logo: "logo", createdAt: new Date(), tokenHash: "secret" }];
+  repo.values.cardtypes = [{ _id: "type-1", name: "Visa", logo: "logo", updatedAt: new Date(), passwordHash: "secret" }];
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerMasterdataRoutes(app, repo, secret, users);
+  const banks = await app.inject({ url: "/api/banks", headers: { cookie: cookie("user") } });
+  const cardTypes = await app.inject({ url: "/api/cardtypes", headers: { cookie: cookie("user") } });
+  assert.deepEqual(banks.json(), [{ _id: "bank-1", shortname: "TST", name: "Test", fullname: "Test Bank", logo: "logo" }]);
+  assert.deepEqual(cardTypes.json(), [{ _id: "type-1", name: "Visa", logo: "logo" }]);
+  await app.close();
+});

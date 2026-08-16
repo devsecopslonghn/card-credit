@@ -348,3 +348,20 @@ export type CalendarSubscriptionDto = {
   revokedAt: string | null;
 };
 export type CalendarSubscriptionCreateDto = CalendarSubscriptionDto & { subscriptionPath: string };
+
+export declare const masterBankSchema: z.ZodObject<any>;
+export declare const masterBankListSchema: z.ZodArray<typeof masterBankSchema>;
+export declare const masterCardTypeSchema: z.ZodObject<any>;
+export declare const masterCardTypeListSchema: z.ZodArray<typeof masterCardTypeSchema>;
+export type MasterBankDto = {
+  _id: string;
+  shortname: string;
+  name: string;
+  fullname: string;
+  logo: string;
+};
+export type MasterCardTypeDto = {
+  _id: string;
+  name: string;
+  logo: string;
+};

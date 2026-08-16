@@ -1,22 +1,13 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { MasterdataLogoImage } from "@/components/MasterdataLogoImage";
+import type { MasterCardTypeDto } from "@card-credit/contracts";
+import { fetchMasterCardTypes } from "@/lib/api/masterdataClient";
 
-type CardType = {
-  _id: string;
-  name: string;
-  logo: string;
-};
+type CardType = MasterCardTypeDto;
 
 type ApiMessage = {
   message?: string;
-};
-
-const fetchCardTypesData = async () => {
-  const res = await fetch(`/api/cardtypes?timestamp=${new Date().getTime()}`, {
-    cache: "no-store",
-  });
-  return (await res.json()) as CardType[];
 };
 
 export default function CardTypeMasterdataPage() {
@@ -31,12 +22,12 @@ export default function CardTypeMasterdataPage() {
   });
 
   const refreshCardTypes = useCallback(async () => {
-    setCardTypes(await fetchCardTypesData());
+    setCardTypes(await fetchMasterCardTypes());
   }, []);
 
   useEffect(() => {
     let active = true;
-    void fetchCardTypesData().then((data) => {
+    void fetchMasterCardTypes().then((data) => {
       if (active) setCardTypes(data);
     });
     return () => {

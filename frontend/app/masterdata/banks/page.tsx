@@ -1,24 +1,13 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { MasterdataLogoImage } from "@/components/MasterdataLogoImage";
+import type { MasterBankDto } from "@card-credit/contracts";
+import { fetchMasterBanks } from "@/lib/api/masterdataClient";
 
-type Bank = {
-  _id: string;
-  fullname: string;
-  name: string;
-  shortname: string;
-  logo: string;
-};
+type Bank = MasterBankDto;
 
 type ApiMessage = {
   message?: string;
-};
-
-const fetchBanksData = async () => {
-  const res = await fetch(`/api/banks?timestamp=${new Date().getTime()}`, {
-    cache: "no-store",
-  });
-  return (await res.json()) as Bank[];
 };
 
 export default function BankMasterdataPage() {
@@ -35,12 +24,12 @@ export default function BankMasterdataPage() {
   });
 
   const refreshBanks = useCallback(async () => {
-    setBanks(await fetchBanksData());
+    setBanks(await fetchMasterBanks());
   }, []);
 
   useEffect(() => {
     let active = true;
-    void fetchBanksData().then((data) => {
+    void fetchMasterBanks().then((data) => {
       if (active) setBanks(data);
     });
     return () => {
