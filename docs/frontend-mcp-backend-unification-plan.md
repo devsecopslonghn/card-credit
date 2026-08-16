@@ -9,7 +9,7 @@ implemented yet.
 
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
-| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report và report UI cleanup đã push | `23a294d` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
+| Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI và API docs cleanup đã push | `c13ef35` / `origin/master` | Đối chiếu fee/cashback report parity và payment state |
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation và absolute session expiry đã push; session version và direct routes còn thiếu | `26fc471` / `origin/master` | Chuẩn hóa session version và private adapter coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, stateless preview token hardening và honest MCP audit metadata đã push; generic persistent command guard còn là decision gate | `ba851a3` / `origin/master` | Lập decision/backup plan trước idempotency/audit DB |
@@ -516,6 +516,22 @@ implemented yet.
 - Database impact: frontend-only, no model/schema/index/migration/data write and
   no Kubernetes backup required.
 - Commit/push: `23a294d` đã push thành công lên `origin/master`; ledger SHA sẽ
+  được ghi ở commit docs kế tiếp.
+
+### Completed checkpoint: Report API Documentation Cleanup
+
+- Scope: documentation-only contract correction; runtime route and DTO are
+  unchanged.
+- Changed write-set: `docs/api.md` now documents
+  `/financial-reports/summary` and `/financial-reports/credit-statements`,
+  `from/to` filters, canonical `StatementDto.summary` fields and explicit
+  unsupported owner/card filters; SRS `GAP-DOC-01` updated accordingly.
+- Acceptance evidence: docs diff checked with `git diff --check`; route/DTO
+  references were compared against `rest-manifest.ts` and
+  `FinancialReportService` implementation.
+- Database impact: docs-only, no model/schema/index/migration/data write and no
+  Kubernetes backup.
+- Commit/push: `c13ef35` đã push thành công lên `origin/master`; ledger SHA sẽ
   được ghi ở commit docs kế tiếp.
 
 ### Execution rules
