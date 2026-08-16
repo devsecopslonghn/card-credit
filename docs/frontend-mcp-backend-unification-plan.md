@@ -14,7 +14,7 @@ implemented yet.
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service và create/update command đã push; delete/merge policy còn thiếu | `514e6e9` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account và Financial Transaction input/output contracts đã push; generic command guard còn là decision gate | `e2a6b9b` / `origin/master` | Tách generic command guard thành decision gate vì có persistent idempotency/audit impact; tiếp tục query parity không-DB nếu phù hợp |
 | Phase 4 — Credit Billing & Settlement | `PENDING` | Chưa bắt đầu | — | Statement/payment state machine |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `PENDING` | Chưa bắt đầu | — | Thực hiện tuần tự theo dependency |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget read parity đã push; write command chưa mở | `cc4d333` / `origin/master` | Giữ PUT/upsert và Planning write contract cho slice riêng; tiếp tục runtime REST parity không-DB |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu | — | Xóa legacy path và chạy release gates |
 
 ### Completed checkpoint: Account contract registry
@@ -205,6 +205,28 @@ implemented yet.
   `JSON.stringify` payload hash. Những thay đổi persistent này phải mở thành
   decision gate và xin user trước khi chạm database.
 - Commit/push: `e2a6b9b` đã push thành công lên `origin/master`; ledger này sẽ được ghi nhận ở commit docs kế tiếp.
+
+### Completed checkpoint: Planning Budget read parity (ready to commit)
+
+- Independent review: bounded scope chỉ là read DTO parity; không sửa PUT/upsert,
+  route write behavior, model/index, MCP hay database. `remainingAmount` được
+  định nghĩa là `max(limitAmount - usedAmount, 0)` và UI dùng `status`/
+  `usagePercent` do backend tính.
+- Changed write-set: shared Planning runtime schema/type và fixture; backend
+  Budget status serializer/parser cùng helper test; frontend finance client
+  runtime-parse và Budget page bỏ local shadow DTO/compatibility fallback; thêm
+  unit test vào frontend test inventory.
+- Canonical DTO: `id`, `month`, `categoryId`, `limitAmount`, `usedAmount`,
+  `remainingAmount`, `usagePercent`, `status`. Backend vẫn là nơi duy nhất
+  aggregate transaction spending và phân loại SAFE/WARNING/EXCEEDED.
+- Acceptance evidence: shared `npm run validate` pass (8 tests), backend
+  `npm run validate` pass (78 tests, typecheck, lint, build), frontend
+  `typecheck`, `lint`, `test` pass (71 unit + 6 integration).
+- Database impact: chỉ parse/serialize response và presentation contract; không
+  migration/index/schema/data/write, không cần Kubernetes backup.
+- Residual risk: Budget write input và month validation vẫn là AS-IS; sẽ xử lý
+  trong Planning command slice riêng. Không mở Planning MCP tool.
+- Commit/push: `cc4d333` đã push thành công lên `origin/master`; ledger này sẽ được ghi nhận ở commit docs kế tiếp.
 
 ### Execution rules
 
