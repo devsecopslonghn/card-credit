@@ -154,6 +154,7 @@ Summary response nên có:
 | `DELETE /cards/:cardId/fee-payments/:feePaymentId` | Session | Xóa fee. |
 | `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Financial report theo khoảng ngày; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category. |
 | `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Credit statement projection dùng canonical `StatementQueryService`; `from/to` tùy chọn. |
+| `GET /cash-flow/monthly?period=YYYY-MM&cardId=` | Session | Financial Domain cash-flow theo card/tháng; output `{data,period}`. |
 | `GET /notes` | Session | List note workspace. |
 | `POST /notes` | Session | `{date,content}`; content rỗng là delete. |
 
@@ -191,6 +192,14 @@ bucket theo tháng giao với `from/to`; chỉ `RECEIVED` dùng `actualAmount`, 
 `PARTNER_REFUND` không được cộng vào paid card fees. Với expense
 `PAID_FOR_OTHER`, phí dịch vụ là
 `max(amount - reimbursementExpected - refundReceived, 0)` từ persisted impact.
+
+`GET /cash-flow/monthly` dùng canonical `MonthlyCashFlowRowDto`/`MonthlyCashFlowResponseDto`.
+Các row giữ `cardId`, tổng out/in, statement payments, actual fees, partner
+returns, bank cashback actual và `netResult`; card summary chỉ gồm `id`,
+`providerName`, `displayName`, `owner`. REST vẫn thêm `bank`/`name` aliases cho
+client cũ. Công thức extraction giữ nguyên Financial Domain hiện tại và chưa
+follow `reimbursementForTransactionId` sang expense CREDIT; semantic repair này
+phải là slice riêng.
 
 Owner/card/year/month filters và fee/cashback report parity chưa nằm trong
 runtime contract hiện tại; phải mở thành contract slice riêng trước khi thêm
