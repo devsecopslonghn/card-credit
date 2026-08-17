@@ -1,6 +1,7 @@
 import { ApiError } from "../errors.js";
 import type { AuthRepository, AuthUser } from "../auth-repository.js";
 import type { ServiceContext } from "./types/service-context.js";
+import { normalizeDisplayName } from "./user-profile-policy.js";
 
 type UpdateBody = Record<string, unknown>;
 type UserUpdate = Partial<Pick<AuthUser, "displayName" | "role" | "workspaceId">>;
@@ -9,21 +10,6 @@ const requireAdmin = (context: ServiceContext) => {
   if (context.role !== "admin") {
     throw new ApiError(403, "FORBIDDEN", "Bạn không có quyền thực hiện thao tác này.");
   }
-};
-
-const normalizeDisplayName = (value: unknown) => {
-  if (typeof value !== "string") {
-    throw new ApiError(400, "INVALID_DISPLAY_NAME", "Tên hiển thị không hợp lệ.", {
-      displayName: "Tên hiển thị phải là chuỗi.",
-    });
-  }
-  const normalized = value.trim().replace(/\s+/g, " ");
-  if (normalized.length > 80) {
-    throw new ApiError(400, "INVALID_DISPLAY_NAME", "Tên hiển thị không hợp lệ.", {
-      displayName: "Tên hiển thị tối đa 80 ký tự.",
-    });
-  }
-  return normalized;
 };
 
 const normalizeUpdate = (body: UpdateBody): UserUpdate => {

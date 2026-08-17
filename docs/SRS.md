@@ -70,7 +70,7 @@ không truy cập MongoDB/MCP token; mọi private read/write scope theo
 
 | Capability | AS-IS chính | TARGET hợp nhất | GAP đáng chú ý |
 |---|---|---|---|
-| Access & Tenancy | Session, role, workspace và admin routes | Trusted `ServiceContext`; revalidate identity trước private command | Session version và một số legacy mutation còn phải chuẩn hóa |
+| Access & Tenancy | Session, role, workspace, profile và admin routes; Profile PATCH dùng `ProfileService` | Trusted `ServiceContext`; một application service cho mỗi use case; revalidate identity trước private command | Session version và một số legacy mutation còn phải chuẩn hóa |
 | Card Portfolio & Catalog | Catalog active, card snapshot/create/update, duplicate read | Product snapshot là nguồn catalog; REST/MCP/UI dùng cùng card DTO | Delete/merge policy và legacy import cần quyết định |
 | Financial Ledger | Account, transaction, persisted financial impact, reports | Một service/query/command cho REST, MCP, UI; integer VND | Fence writer cũ; reconcile legacy writer |
 | Credit Billing & Settlement | Statement period/status, payment command, reminder/calendar | State machine + payment transaction/CAS/idempotency/audit chung | Reversal/compensating transaction policy chưa chốt |
