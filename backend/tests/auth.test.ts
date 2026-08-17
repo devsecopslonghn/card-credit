@@ -43,6 +43,22 @@ const me = await app.inject({ url: "/api/auth/me", headers: { cookie } }); asser
   assert.ok(events.includes("LOGIN_SUCCESS")); assert.ok(events.includes("PASSWORD_RESET_COMPLETED")); await app.close();
 });
 
+test("auth me uses one authoritative user lookup and ignores cookie identity fields", async () => {
+  const repository = new MemoryAuth();
+  await repository.createUser({ email: "authoritative@example.test", passwordHash: "hash", role: "user", workspaceId: "workspace-authoritative", displayName: "Authoritative", active: true, lockedAt: null });
+  let lookups = 0;
+  const originalFindUserById = repository.findUserById.bind(repository);
+  repository.findUserById = async (id) => { lookups += 1; return originalFindUserById(id); };
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerAuthRoutes(app, { repository, secret });
+  const cookie = sessionCookie(signSession({ userId: "1", email: "stale@example.test", role: "admin", workspaceId: "workspace-authoritative" }, secret));
+  const response = await app.inject({ url: "/api/auth/me", headers: { cookie } });
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json().user, { email: "authoritative@example.test", role: "user", workspaceId: "workspace-authoritative" });
+  assert.equal(lookups, 1);
+  await app.close();
+});
+
 test("bootstrap is disabled without token and guarded when configured", async () => {
   const repository = new MemoryAuth(); const app = buildApp({ isReady: () => true }, "silent");
   registerAuthRoutes(app, { repository, secret });

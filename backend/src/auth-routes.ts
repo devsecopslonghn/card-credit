@@ -4,7 +4,7 @@ import { ApiError } from "./errors.js";
 import { DEFAULT_SESSION_MAX_AGE_MS, sessionCookie, sessionFromRequest, signSession, type Session } from "./auth.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import type { AuthRepository, AuthUser } from "./auth-repository.js";
-import { browserServiceContext } from "./context.js";
+import { browserActorContext } from "./context.js";
 import { authSessionListSchema, authSessionSchema } from "@card-credit/contracts";
 import type { MailService } from "./mail-service.js";
 
@@ -38,7 +38,7 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
     try { const session = await authenticate(email, request.body?.password); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser }; }
     catch (error) { await audit("LOGIN_FAILURE", request, null, email, { type: "auth", action: "login", errorCode: error instanceof ApiError ? error.code : "UNKNOWN" }); throw error; }
   });
-  app.get("/api/auth/me", async (request) => { const context = await browserServiceContext(request, options.secret, options.repository); const user = await options.repository.findUserById(context.userId); if (!user) throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hợp lệ."); return { user: authSessionSchema.parse(publicUser(toSession(user))) }; });
+  app.get("/api/auth/me", async (request) => { const { actor } = await browserActorContext(request, options.secret, options.repository); return { user: authSessionSchema.parse(publicUser(actor)) }; });
   app.post("/api/auth/logout", async (request, reply) => { let actor: Session | null = null; try { actor = sessionFromRequest(request, options.secret); } catch { actor = null; } await audit("LOGOUT", request, actor, actor?.email, { type: "auth", action: "logout" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true }; });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/register", async (request, reply) => {
     const email = emailOf(request.body?.email); if (!validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const password = requirePassword(request.body?.password);
