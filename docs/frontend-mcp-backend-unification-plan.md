@@ -135,6 +135,25 @@ implemented yet.
   reports `MCP_WRITER_MODE=write` until an explicitly authorized GitOps sync or
   rollout. Desired-state evidence must not be reported as live-state evidence.
 
+### Runtime read-only refresh: chart reconciliation observed
+
+- Read-only Kubernetes check after chart push `9acfebc`: backend pod
+  `card-credit-backend-7c5548759d-hvsjj` is `Running`, ready, restart `0`, and
+  deployment images remain the immutable candidate
+  `nexus.apps.drgdevlab.com/card-credit/backend:5267c79cf437` (frontend uses
+  the matching tag).
+- Live deployment metadata now reports `MCP_WRITER_MODE=read` and
+  `MCP_OLD_WRITER_FENCED=true`. `/health`, `/ready` and `/docs/json` returned
+  `200`; this proves liveness/readiness/API-doc availability, not financial
+  traffic or receipt/reconciliation behavior.
+- Runtime environment presence check found `MONGODB_URI`, `SMTP_HOST` and
+  `SMTP_USER` set without printing values; the finance audit workspace selector
+  was absent, so no finance audit was executed. SMTP delivery/owner remains
+  unproven.
+- Safety: only `kubectl get` and read-only `kubectl exec` metadata/localhost
+  endpoint checks; no Secret values, MCP invocation, preview/confirm, database
+  write, migration, restart, scale, patch or manual sync was executed.
+
 ### Completed checkpoint: Add recurring REST lifecycle integration evidence
 
 - Scope: thêm Fastify adapter regression cho recurring `GET/POST/PUT/DELETE`,
