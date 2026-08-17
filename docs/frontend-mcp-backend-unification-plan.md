@@ -33,7 +33,7 @@ lại để tránh đọc nhầm checkpoint cũ.
 ### Local validation
 
 - Shared: `npm run validate` — build pass, tests `29/29`.
-- Backend: `npm run validate` — typecheck/lint/build pass, tests `157/157`.
+- Backend: `npm run validate` — typecheck/lint/build pass, tests `158/158`.
 - Frontend: curated `npm test` `44/44`, integration `6/6`, typecheck/lint/build
   pass, production build renders `24` routes.
 - Stale-reference audit ngoài historical ledger không còn
