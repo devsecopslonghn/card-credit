@@ -157,6 +157,19 @@ implemented yet.
 - Residual: chưa chạy live audit vì cần target/snapshot database được phép;
   không dùng source/test để claim production data sạch.
 
+### Completed checkpoint: Remove unreferenced catalog writer helper
+
+- Requirement/GAP: `OPS-01` và compatibility cleanup yêu cầu không còn đường
+  startup/operator writer ngoài CLI có guard.
+- Audit: `syncCatalogFromFile()` và `mongoStore()` trong
+  `backend/src/catalog-sync.ts` không có consumer; CLI chỉ cần
+  `catalogPath()`/`readCatalogFile()` để gọi `catalog-import` với dry-run mặc
+  định và explicit production guard.
+- Changed write-set: xóa helper Mongo upsert không được gọi; giữ nguyên CLI,
+  catalog import behavior và production guard. Regression test xác nhận module
+  loader không import Mongo hay expose writer.
+- Safety: không đổi schema/data/index/cluster; rollback bằng revert commit.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong
