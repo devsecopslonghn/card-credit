@@ -18,7 +18,7 @@ lại để tránh đọc nhầm checkpoint cũ.
 | GAP | Status | Evidence hiện có | Còn thiếu |
 |---|---|---|---|
 | `GAP-CI-01` | `CLOSED` | Jenkins/source checkout, image/GitOps và read-only smoke evidence | Giữ regression gate |
-| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, inactive/locked guard, sessionVersion bump và stale-session tests | Runtime authoritative revoke/version và policy-membership evidence |
+| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, inactive/locked guard, sessionVersion bump, MCP provider bind/reject và stale-session tests | Deployed-image evidence và runtime authoritative policy-membership evidence |
 | `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, chart/live read mode, authenticated `tools/list` 11/11 query tools | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
 | `GAP-PAY-01/02`, `GAP-STM-01` | `PARTIAL` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01` fail-closed boundary | Persistence/reconciliation evidence |
 | `GAP-OPS-01` | `CLOSED` | Startup không silent-write; operator guard/test | Giữ dry-run/apply guard |
