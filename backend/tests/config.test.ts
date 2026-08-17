@@ -30,6 +30,7 @@ test("MCP requires a dedicated preview secret only when remote MCP is enabled", 
 test("MCP writer mode fails closed to read-only and rejects unknown values", () => {
   const base = { MONGODB_URI: "mongodb://127.0.0.1/test", AUTH_SECRET: "01234567890123456789012345678901", MCP_HTTP_TOKEN: "http-token", MCP_PREVIEW_SECRET: "01234567890123456789012345678902" };
   assert.equal(loadConfig(base).mcpWriterMode, "read");
+  assert.equal(loadConfig({ ...base, MCP_OLD_WRITER_FENCED: "true" }).mcpWriterMode, "read");
   assert.equal(loadConfig({ ...base, MCP_WRITER_MODE: "write", MCP_OLD_WRITER_FENCED: "true" }).mcpWriterMode, "write");
   assert.equal(loadConfig(base).mcpOldWriterFenced, false);
   assert.throws(() => loadConfig({ ...base, MCP_WRITER_MODE: "write" }), /MCP_OLD_WRITER_FENCED/);

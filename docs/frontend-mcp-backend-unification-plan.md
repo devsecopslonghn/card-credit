@@ -19,7 +19,7 @@ lại để tránh đọc nhầm checkpoint cũ.
 |---|---|---|---|
 | `GAP-CI-01` | `CLOSED` | Jenkins/source checkout, image/GitOps và read-only smoke evidence | Giữ regression gate |
 | `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject và stale-session tests | Deployed-image evidence và runtime authoritative policy-membership evidence |
-| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, chart/live read mode, authenticated `tools/list` 11/11 query tools | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
+| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, config regression proving fence flag alone does not enable writer, chart/live read mode, authenticated `tools/list` 11/11 query tools | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
 | `GAP-PAY-01/02`, `GAP-STM-01` | `PARTIAL` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01` fail-closed boundary | Persistence/reconciliation evidence |
 | `GAP-OPS-01` | `CLOSED` | Startup không silent-write; operator guard/test | Giữ dry-run/apply guard |
 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | `CLOSED` | Source/tests và live read-only index/duplicate/orphan audit | Giữ preflight |
@@ -51,6 +51,9 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Current security coverage slice adds authoritative MCP role-refresh
   regression; backend critical `162/162`, exhaustive `259/259`,
   typecheck/lint/build all pass.
+- MCP config regression also confirms `MCP_OLD_WRITER_FENCED=true` alone keeps
+  the default mode `read`; write requires an explicit writer mode plus the
+  fence acknowledgement.
 - Local container artifact build was attempted read-only: Docker CLI exists but
   the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
   no `buildctl` is installed. No permission bypass was used; Jenkins remains
