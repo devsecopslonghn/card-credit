@@ -2213,6 +2213,12 @@ chạy validation, commit và push ngay.
 - Registry evidence: registry read-only trả `manifest unknown` cho cả
   `frontend:0e6e8e883cf1` và `backend:0e6e8e883cf1`; không claim image
   publication, GitOps handoff hoặc runtime rollout cho commit này.
+- Old-writer inventory evidence: trên Kubernetes context `k8s-admin-public`,
+  read-only inventory toàn cluster chỉ thấy hai workload card-credit là
+  `card-credit-backend` và `card-credit-frontend`, cùng các Service/Ingress
+  của application; không thấy workload/service/ingress old statement-payment
+  writer riêng. Đây là negative evidence trong cluster hiện tại, không phải
+  bằng chứng external consumer đã được owner xác nhận hoặc đã drain.
 - Runtime evidence: Kubernetes read-only vẫn thấy backend/frontend tag
   `3fffccda40e8`; Argo `card-credit` là `Synced/Healthy`, revision
   `9d5fc372aaf0b116b932632fcdc751538f31e912`. Không scale/restart/patch/sync
