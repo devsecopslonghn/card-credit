@@ -9,6 +9,8 @@ import { CardQueryService } from "./card-query-service.js";
 import { StatementQueryService } from "./statement-query-service.js";
 
 type Data = Record<string, unknown>;
+const DEFAULT_LIST_LIMIT = 100;
+const MAX_LIST_LIMIT = 100;
 
 export type CalendarSubscriptionFeedRepository = {
   findActiveByTokenHash(tokenHash: string): Promise<Data | null>;
@@ -36,6 +38,11 @@ const label = (value: unknown) => {
   }
 };
 
+const boundedListLimit = (value: unknown) => Math.min(
+  Math.max(Number.parseInt(typeof value === "string" ? value : String(DEFAULT_LIST_LIMIT), 10) || DEFAULT_LIST_LIMIT, 1),
+  MAX_LIST_LIMIT,
+);
+
 export class CalendarSubscriptionService {
   static async feedContext(token: string, users: Pick<AuthRepository, "findUserById">, requestId: string, subscriptions: CalendarSubscriptionFeedRepository = feedRepository) {
     if (!validSubscriptionToken(token)) return null;
@@ -48,8 +55,9 @@ export class CalendarSubscriptionService {
     return context;
   }
 
-  static async list(ctx: ServiceContext) {
-    const docs = await CalendarSubscriptionModel.find({ userId: ctx.userId, workspaceId: ctx.workspaceId }).sort({ createdAt: -1 }).lean();
+  static async list(ctx: ServiceContext, rawLimit?: unknown) {
+    const limit = boundedListLimit(rawLimit);
+    const docs = await CalendarSubscriptionModel.find({ userId: ctx.userId, workspaceId: ctx.workspaceId }).sort({ createdAt: -1 }).limit(limit).lean();
     return docs.map((doc) => safeCalendarSubscription(doc as Data));
   }
 

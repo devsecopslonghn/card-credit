@@ -5,7 +5,7 @@ import { CalendarSubscriptionService } from "./services/calendar-subscription-se
 import { calendarSubscriptionCreateSchema, calendarSubscriptionListSchema } from "@card-credit/contracts";
 
 export const registerCalendarSubscriptionRoutes = (app: FastifyInstance, users: AuthRepository, secret: string) => {
-  app.get("/api/calendar-subscriptions", async (request) => ({ data: calendarSubscriptionListSchema.parse(await CalendarSubscriptionService.list(await browserServiceContext(request, secret, users))) }));
+  app.get<{ Querystring: { limit?: string } }>("/api/calendar-subscriptions", async (request) => ({ data: calendarSubscriptionListSchema.parse(await CalendarSubscriptionService.list(await browserServiceContext(request, secret, users), request.query.limit)) }));
   app.post<{ Body: { deviceLabel?: unknown } }>("/api/calendar-subscriptions", async (request, reply) => {
     const context = await browserServiceContext(request, secret, users);
     return reply.code(201).send({ data: calendarSubscriptionCreateSchema.parse(await CalendarSubscriptionService.create(context, request.body?.deviceLabel)) });

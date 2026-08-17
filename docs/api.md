@@ -214,7 +214,7 @@ amount semantics lấy persisted `creditDebt`/impact từ canonical statement DT
 
 | Method/path | Auth | Mục đích |
 |---|---|---|
-| `GET /calendar-subscriptions` | Session | List metadata, không trả token. |
+| `GET /calendar-subscriptions?limit=1..100` | Session | List tối đa 100 metadata mới nhất, không trả token. |
 | `POST /calendar-subscriptions` | Session | `{deviceLabel?}`; trả raw feed URL đúng một lần. |
 | `DELETE /calendar-subscriptions/:id` | Session | Revoke token. |
 | `GET /calendar-subscriptions/feed/:token.ics` | Private token | Read-only unpaid due events; log access không ghi token. |

@@ -19,10 +19,11 @@ const cookie = sessionCookie(signSession({ userId: "user-1", email: "user@exampl
 const activeUser = { findUserById: async () => ({ id: "user-1", email: "user@example.test", passwordHash: "", displayName: "User", role: "user" as const, workspaceId: "workspace-a", active: true, lockedAt: null }) } as unknown as AuthRepository;
 
 test("subscription write adapters use a revalidated browser context and preserve envelopes", async (t) => {
-  const list = t.mock.method(CalendarSubscriptionService, "list", async (context: ServiceContext) => {
+  const list = t.mock.method(CalendarSubscriptionService, "list", async (context: ServiceContext, rawLimit: unknown) => {
     assert.equal(context.workspaceId, "workspace-a");
     assert.equal(context.userId, "user-1");
     assert.equal(context.channel, "browser");
+    assert.equal(rawLimit, "17");
     return [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-16T00:00:00.000Z", lastAccessedAt: null, revokedAt: null }];
   });
   const create = t.mock.method(CalendarSubscriptionService, "create", async (context: ServiceContext, deviceLabel: unknown) => {
@@ -40,7 +41,7 @@ test("subscription write adapters use a revalidated browser context and preserve
   });
   const app = buildApp({ isReady: () => true }, "silent");
   registerCalendarSubscriptionRoutes(app, activeUser, secret);
-  const listed = await app.inject({ url: "/api/calendar-subscriptions", headers: { cookie } });
+  const listed = await app.inject({ url: "/api/calendar-subscriptions?limit=17", headers: { cookie } });
   assert.equal(listed.statusCode, 200);
   assert.deepEqual(listed.json().data, [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-16T00:00:00.000Z", lastAccessedAt: null, revokedAt: null }]);
   const created = await app.inject({ method: "POST", url: "/api/calendar-subscriptions", headers: { cookie }, payload: { deviceLabel: "Laptop" } });
@@ -61,12 +62,31 @@ test("subscription list scopes trusted user/workspace and maps safe fields", asy
     return {
       sort: (sort: Record<string, unknown>) => {
         assert.deepEqual(sort, { createdAt: -1 });
-        return { lean: async () => [{ _id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-01", lastAccessedAt: null, revokedAt: "2026-08-02", tokenHash: "must-not-leak" }] };
+        return {
+          limit: (limit: number) => {
+            assert.equal(limit, 100);
+            return { lean: async () => [{ _id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-01", lastAccessedAt: null, revokedAt: "2026-08-02", tokenHash: "must-not-leak" }] };
+          },
+        };
       },
     } as never;
   }) as never);
   const listed = await CalendarSubscriptionService.list({ userId: "user-1", workspaceId: "workspace-a", role: "user", channel: "browser", correlationId: "request-1" });
   assert.deepEqual(listed, [{ id: "subscription-1", deviceLabel: "Laptop", createdAt: "2026-08-01", lastAccessedAt: null, revokedAt: "2026-08-02" }]);
+  assert.equal(find.mock.callCount(), 1);
+});
+
+test("subscription list clamps an oversized limit before the bounded read", async (t) => {
+  const find = t.mock.method(CalendarSubscriptionModel, "find", () => ({
+    sort: () => ({
+      limit: (limit: number) => {
+        assert.equal(limit, 100);
+        return { lean: async () => [] };
+      },
+    }),
+  }) as never);
+  const listed = await CalendarSubscriptionService.list({ userId: "user-1", workspaceId: "workspace-a", role: "user", channel: "browser", correlationId: "request-2" }, "1000");
+  assert.deepEqual(listed, []);
   assert.equal(find.mock.callCount(), 1);
 });
 
