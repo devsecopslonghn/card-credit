@@ -2218,6 +2218,11 @@ chạy validation, commit và push ngay.
   `sha256:53172f407810893aa2262d002c833c604b142ab1758b39cc815cf9c8cfcf2a08`.
 - GitOps evidence: Jenkins pushed chart commit `952c0fc`, message
   `Deploy card-credit 19f068f18d53`, to `k8s-namepsace-chart`.
+- Independent chart review: commit đầy đủ
+  `952c0fc18354b19a4231dc41bfcfd8a6d16fcb28` đổi đúng
+  `card-credit/values.yaml:image.tag` từ `3fffccda40e8` sang
+  `19f068f18d53`; cùng revision giữ `mcp.writerMode: read` và
+  `mcp.oldWriterFenced: false`.
 - Old-writer inventory evidence: trên Kubernetes context `k8s-admin-public`,
   read-only inventory toàn cluster chỉ thấy hai workload card-credit là
   `card-credit-backend` và `card-credit-frontend`, cùng các Service/Ingress
