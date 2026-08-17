@@ -36,7 +36,7 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Backend: `npm run validate` — typecheck/lint/build pass, tests `160/160`.
 - Frontend: curated `npm test` `44/44`, integration `6/6`, typecheck/lint/build
   pass, production build renders `24` routes.
-- Latest full gate after legacy-writer source audit (`5f9fb8c`): frontend
+- Latest full gate for the current source checkpoint (`d488379`): frontend
   `npm ci --include=optional`, `npm run test:unit --if-present` `80/80`,
   typecheck/lint/integration `6/6`/build pass; shared `29/29`; backend
   `160/160` with typecheck/lint/build pass, including the read-only legacy
