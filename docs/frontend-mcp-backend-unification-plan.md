@@ -87,6 +87,9 @@ lại để tránh đọc nhầm checkpoint cũ.
   `9` requests cho host card-credit, `0` `/mcp` GET/POST/DELETE, `0` card-host
   `401` và `0` card-host `5xx`. Đây là read-only observation trong một log
   window; không đủ để khẳng định client cũ đã bị fence/drain ngoài window.
+- Extended read-only query `--since=168h` trên controller hiện tại chỉ còn `10`
+  dòng retained, `0` card-credit host và `0` `/mcp`; retention quá ngắn để
+  nâng thành evidence seven-day drain, nên GAP vẫn `PARTIAL`.
 
 ## 3. Next execution order
 
