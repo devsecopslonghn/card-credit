@@ -52,11 +52,11 @@ test("browser actor context returns one safe audit actor with the trusted servic
 
 test("MCP context revalidates the fixed identity and workspace on each provider call", async () => {
   const context = mcpServiceContext(identity);
-  const active = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null }) };
+  const active = { findUserById: async () => ({ ...identity, id: identity.userId, role: "user" as const, email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null }) };
   const refreshed = await revalidateMcpContext(context, active);
   assert.equal(refreshed.channel, "mcp");
   assert.equal(refreshed.userId, identity.userId);
-  assert.equal(refreshed.role, "admin");
+  assert.equal(refreshed.role, "user");
   assert.notEqual(refreshed.correlationId, context.correlationId);
   const moved = { findUserById: async () => ({ ...identity, id: identity.userId, workspaceId: "workspace-2", email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null }) };
   await assert.rejects(() => revalidateMcpContext(context, moved), /không còn hợp lệ/);
