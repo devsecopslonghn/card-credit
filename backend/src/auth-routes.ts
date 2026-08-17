@@ -1,14 +1,14 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { ApiError } from "./errors.js";
 import { DEFAULT_SESSION_MAX_AGE_MS, sessionCookie, sessionFromRequest, signSession, type Session } from "./auth.js";
-import { hashPassword } from "./password.js";
 import type { AuthRepository, AuthUser } from "./auth-repository.js";
 import { browserActorContext } from "./context.js";
 import { authSessionListSchema, authSessionSchema } from "@card-credit/contracts";
 import type { MailService } from "./mail-service.js";
 import { AuthSessionService } from "./services/auth-session-service.js";
 import { AuthRegistrationService } from "./services/auth-registration-service.js";
-import { ForgotPasswordService, PasswordResetService, requirePassword, validEmail } from "./services/password-reset-service.js";
+import { ForgotPasswordService, PasswordResetService } from "./services/password-reset-service.js";
+import { AuthBootstrapService } from "./services/auth-bootstrap-service.js";
 
 export type AuthOptions = {
   repository: AuthRepository;
@@ -48,8 +48,7 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
   app.post<{ Body: Record<string, unknown> }>("/api/auth/reset-password", async (request, reply) => { const rawToken = typeof request.body?.token === "string" ? request.body.token.trim() : ""; const user = await PasswordResetService.complete(rawToken, request.body?.password, options.repository); await audit("PASSWORD_RESET_COMPLETED", request, toSession(user), user.email, { type: "auth", action: "reset-password" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true };
   });
   app.post("/api/auth/bootstrap-users", async (request) => {
-    if (!options.bootstrapToken) throw new ApiError(503, "BOOTSTRAP_DISABLED", "Bootstrap user API chưa được bật."); const authorization = request.headers.authorization ?? ""; const provided = authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : String(request.headers["x-bootstrap-token"] ?? ""); if (provided !== options.bootstrapToken) throw new ApiError(403, "FORBIDDEN", "Bootstrap token không hợp lệ."); if (!options.configuredUsers?.length) throw new ApiError(400, "NO_BOOTSTRAP_USERS", "AUTH_USERS_JSON chưa có user để bootstrap."); const results = [];
-    for (const item of options.configuredUsers) { const email = emailOf(item.email); if (!validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ."); const passwordHash = typeof item.passwordHash === "string" ? item.passwordHash : await hashPassword(requirePassword(item.password)); const user = await options.repository.upsertUser({ email, passwordHash, role: item.role === "admin" ? "admin" : "user", workspaceId: String(item.workspaceId), displayName: typeof item.displayName === "string" ? item.displayName.trim() : email.split("@")[0]!, active: item.active !== false, lockedAt: item.lockedAt ? new Date(String(item.lockedAt)) : null }); results.push(authSessionSchema.parse(publicUser(toSession(user)))); }
+    if (!options.bootstrapToken) throw new ApiError(503, "BOOTSTRAP_DISABLED", "Bootstrap user API chưa được bật."); const authorization = request.headers.authorization ?? ""; const provided = authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : String(request.headers["x-bootstrap-token"] ?? ""); if (provided !== options.bootstrapToken) throw new ApiError(403, "FORBIDDEN", "Bootstrap token không hợp lệ."); const users = await AuthBootstrapService.run(options.configuredUsers ?? [], options.repository); const results = users.map((user) => authSessionSchema.parse(publicUser(toSession(user))));
     await audit("USER_BOOTSTRAPPED", request, null, null, { type: "auth", action: "bootstrap-users", count: results.length }); return { users: authSessionListSchema.parse(results) };
   });
 };
