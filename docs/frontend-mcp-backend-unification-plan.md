@@ -234,6 +234,10 @@ ordering.
   current dry-run, backup and rollback policy)
 - `frontend/lib/api/statementCalendarEmailCore.d.ts` (declaration không có
   consumer TypeScript; runtime source là `.mjs` và vẫn có regression test)
+- Các declaration còn lại trong `frontend/types/` và `frontend/lib/api/*.d.ts`/
+  `*.d.mts` đã được đối chiếu với export/consumer; chúng là ambient module hoặc
+  type contract đang được TypeScript/JS sử dụng, nên không có file nào an toàn
+  để xóa thêm trong cleanup slice này.
 - legacy finance-category defaults endpoint/service
 - các alias/wrapper/catalog/cache/index repair path đã được ghi trong Git
   history và không còn consumer.
