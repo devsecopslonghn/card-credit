@@ -224,7 +224,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | P1 | `GAP-UI-02`, `GAP-UI-03`, `GAP-AUTH-01` | Filter semantics và write UI còn thiếu; forgot-password đã nối SMTP delivery với generic response | Contract/UI/mail runtime config và owner evidence |
 | P2 | `GAP-API-01`, `GAP-WEB-01` | Đã đóng: REST inventory drift gate và authorization metadata có runtime regression evidence | Giữ parity tests trong release gate |
 | P2 | `GAP-DOC-01` | Đã đóng cho production surface: không còn reference tới `/api/reports/summary`, `reportsCore` hoặc `docs/refactor*` ngoài historical execution ledger; canonical report docs/smoke path đã cập nhật | Giữ stale-reference check khi compatibility window thay đổi |
-| P2 | `GAP-PERF-01` | Đã có bounded transaction list và calendar subscription list; các list khác và cursor pagination vẫn mở | Bounded/paginated coverage cho từng dataset trước release |
+| P2 | `GAP-PERF-01` | Đã có bounded transaction list, calendar subscription list và workspace notes list; các list khác và cursor pagination vẫn mở | Bounded/paginated coverage cho từng dataset trước release |
 
 Execution order: (1) contract/drift gates, (2) trusted context + query parity,
 (3) generic preview/confirm/idempotency/audit, (4) payment state/reversal, (5)
