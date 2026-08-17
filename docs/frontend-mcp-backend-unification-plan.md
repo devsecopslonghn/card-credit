@@ -170,6 +170,22 @@ implemented yet.
 - Evidence: `git diff --check` pass; active runbook now requires read-only mode
   throughout candidate validation.
 
+### Candidate build checkpoint: source HEAD `de20606`
+
+- Local rootless Buildah built both production images without Docker daemon or
+  registry publication:
+  - backend `localhost/card-credit-backend:de20606`, digest
+    `e33a29ec3344929da40ecdd860af8107635ede1fb8267d3aedfd36deefb2c7d1`;
+  - frontend `localhost/card-credit-frontend:de20606`, digest
+    `1365f82429747594a23a889cd0e6f2350310217d90187cc74fbcbc949d5d49d9`.
+- Build evidence: backend `npm run build` pass; frontend `npm run build` pass,
+  all 24 routes generated. Four remote card-image downloads failed during
+  `prepare:card-images` and correctly fell back to placeholders; this is a
+  non-blocking asset warning, not a build failure.
+- Boundary: images remain local only; no registry push, chart tag change,
+  Kubernetes rollout or database operation was performed. Live pods therefore
+  remain on `5267c79cf437`.
+
 ### Completed checkpoint: Add recurring REST lifecycle integration evidence
 
 - Scope: thêm Fastify adapter regression cho recurring `GET/POST/PUT/DELETE`,
