@@ -301,5 +301,5 @@ MONGODB_URI='mongodb://127.0.0.1:27017/card-credit-development' npm run import:c
 ```
 
 Production cần thêm override có chủ đích `ALLOW_PRODUCTION_CATALOG_IMPORT=true`.
-Xem [tài liệu kiến trúc và vận hành](docs/README.md) cùng
-[implementation plan](docs/implementation-plan.md).
+Xem [tài liệu kiến trúc và vận hành](docs/README.md), [SRS](docs/SRS.md) và
+[unification plan](docs/frontend-mcp-backend-unification-plan.md).

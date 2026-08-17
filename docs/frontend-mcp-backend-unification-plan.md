@@ -224,6 +224,17 @@ implemented yet.
 - Residual: admin user roster và financial report aggregation vẫn giữ HOLD vì
   cần contract completeness riêng; slice này không claim chúng.
 
+### Completed checkpoint: Remove superseded implementation plan
+
+- Scope: xóa `docs/implementation-plan.md` vì không còn được docs index dùng,
+  không còn là execution source-of-truth và README đã chuyển sang SRS cùng
+  unification plan hiện hành.
+- Evidence: repository search không còn reference tới
+  `docs/implementation-plan.md`; tài liệu hiện hành vẫn được liên kết từ
+  `README.md`, `docs/README.md` và `docs/SRS.md`.
+- Safety/rollback: docs-only cleanup, không source/runtime/database/index/data
+  hoặc Kubernetes change; revert commit để khôi phục nếu cần.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong
