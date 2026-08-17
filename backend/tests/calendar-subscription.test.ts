@@ -179,8 +179,8 @@ test("subscription feed batch-loads canonical statement amounts in one workspace
   t.mock.method(CalendarSubscriptionModel, "updateOne", async () => ({
     modifiedCount: 1,
   }) as never);
-  t.mock.method(CreditCardModel, "find", () => ({
-    sort: () => ({ lean: async () => [{
+  t.mock.method(CreditCardModel, "find", () => {
+    const cards = [{
       _id: cardId,
       workspaceId: "workspace-a",
       userId: "user-1",
@@ -188,8 +188,14 @@ test("subscription feed batch-loads canonical statement amounts in one workspace
       providerName: "Bank A",
       owner: "Tôi",
       reminderTimezone: "Asia/Ho_Chi_Minh",
-    }] }),
-  }) as never);
+    }];
+    const chain = {
+      sort: () => chain,
+      limit: () => chain,
+      lean: async () => cards,
+    };
+    return chain;
+  });
   t.mock.method(CardStatementModel, "find", (query: Record<string, unknown>) => ({
     sort: () => ({
       lean: async () => [

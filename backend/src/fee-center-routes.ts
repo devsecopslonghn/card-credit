@@ -8,13 +8,13 @@ type Data = Record<string, unknown>;
 const serialized = (value: unknown) => JSON.parse(JSON.stringify(value)) as Data;
 
 export const registerFeeCenterRoutes = (app: FastifyInstance, secret: string, users: Pick<AuthRepository, "findUserById">) => {
-  app.get<{ Querystring: { cardId?: string; category?: string } }>("/api/fee-center", async (request) => {
+  app.get<{ Querystring: { cardId?: string; category?: string; limit?: string } }>("/api/fee-center", async (request) => {
     const context = await browserServiceContext(request, secret, users);
     const options = {
       ...(request.query.cardId ? { cardId: request.query.cardId } : {}),
       ...(request.query.category ? { category: parseFeeCenterCategory(request.query.category) } : {}),
     };
-    return { data: await FeeQueryService.listCenter(context, options) };
+    return { data: await FeeQueryService.listCenter(context, options, request.query.limit) };
   });
   app.post<{ Body: Data }>("/api/fee-center", async (request, reply) => {
     const record = await FeeCommandService.createCenter(await browserServiceContext(request, secret, users), request.body ?? {});

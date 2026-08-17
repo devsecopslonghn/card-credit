@@ -5,6 +5,7 @@ import { CreditCardModel } from "../models/credit-card.js";
 import { idOf, plain } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { duplicateFingerprint, duplicateReason, normalizeDuplicateOwner } from "../card-duplicate.js";
+import { boundedReadLimit } from "../read-limits.js";
 
 const numberOrNull = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : null;
 const stringOrNull = (value: unknown) => typeof value === "string" && value.trim() ? value : null;
@@ -59,9 +60,9 @@ const validId = (id: string) => {
 };
 
 export class CardQueryService {
-  static async list(ctx: ServiceContext, options: { activeOnly?: boolean; userId?: string } = {}): Promise<CardDto[]> {
+  static async list(ctx: ServiceContext, options: { activeOnly?: boolean; userId?: string } = {}, rawLimit?: unknown): Promise<CardDto[]> {
     const query = { workspaceId: ctx.workspaceId, ...(options.userId ? { userId: options.userId } : {}), active: { $ne: false }, ...(options.activeOnly ? { active: { $ne: false } } : {}) };
-    const cards = await CreditCardModel.find(query).sort({ createdAt: -1 }).lean();
+    const cards = await CreditCardModel.find(query).sort({ createdAt: -1 }).limit(boundedReadLimit(rawLimit)).lean();
     return cards.map(cardDtoFromDocument);
   }
 
@@ -72,12 +73,12 @@ export class CardQueryService {
     return cardDtoFromDocument(card);
   }
 
- static async compare(ctx: ServiceContext): Promise<CardDto[]> {
-   return this.list(ctx, { activeOnly: true });
+ static async compare(ctx: ServiceContext, rawLimit?: unknown): Promise<CardDto[]> {
+   return this.list(ctx, { activeOnly: true }, rawLimit);
  }
 
-  static async listDuplicates(ctx: ServiceContext): Promise<CardDuplicateGroupDto[]> {
-    const cards = await CreditCardModel.find({ workspaceId: ctx.workspaceId, active: { $ne: false } }).sort({ createdAt: 1 }).lean();
+  static async listDuplicates(ctx: ServiceContext, rawLimit?: unknown): Promise<CardDuplicateGroupDto[]> {
+    const cards = await CreditCardModel.find({ workspaceId: ctx.workspaceId, active: { $ne: false } }).sort({ createdAt: 1 }).limit(boundedReadLimit(rawLimit)).lean();
     const groups = new Map<string, { fingerprint: string; presetId: string; normalizedOwner: string; reason: string; cards: CardDto[] }>();
     for (const raw of cards) {
       const fingerprint = duplicateFingerprint(raw as Record<string, unknown>);

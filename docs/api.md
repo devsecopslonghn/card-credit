@@ -95,12 +95,12 @@ Catalog create/update request phải chứa các field canonical như `presetId`
 
 | Method/path | Auth | Request/response |
 |---|---|---|
-| `GET /cards` | Session | Danh sách card trong workspace. |
+| `GET /cards?limit=1..100` | Session | Danh sách tối đa 100 card trong workspace. |
 | `POST /cards` | Session | Product reference + owner + operational config; server snapshot product; `201 {data}`. |
 | `GET /cards/:id` | Session | Chi tiết card nếu cùng workspace. |
 | `PUT /cards/:id` | Session | Chỉ operational fields; snapshot identity read-only. |
 | `DELETE /cards/:id` | Session | Xóa theo policy; response message/data. |
-| `GET /cards/duplicates` | Session | Exact duplicate groups, không mutate. |
+| `GET /cards/duplicates?limit=1..100` | Session | Exact duplicate groups từ tối đa 100 card, không mutate. |
 
 `GET /cards/duplicates` groups cards bằng canonical `CardDuplicateGroupDto`
 (fingerprint, presetId, normalizedOwner, reason và canonical card list). REST
@@ -150,7 +150,7 @@ Summary response nên có:
 
 | Method/path | Auth | Mục đích |
 |---|---|---|
-| `GET /finance/categories` | Session | List category đang active trong workspace. |
+| `GET /finance/categories?limit=1..100` | Session | List tối đa 100 category đang active trong workspace. |
 | `POST /finance/categories` | Session | Tạo category trong workspace. |
 | `PUT /finance/budgets` | Session | Upsert budget theo `{month,categoryId,limitAmount,warningPercent?}`. |
 | `GET /finance/budgets/status?month=YYYY-MM` | Session | Budget status authoritative từ financial transactions. |
@@ -162,7 +162,7 @@ Summary response nên có:
 | `GET /cards/:cardId/monthly-cashbacks/:period` | Session | Read one month. |
 | `PUT /cards/:cardId/monthly-cashbacks/:period` | Session | Upsert `{expectedAmount,actualAmount?,status,note}`; `RECEIVED` cần actual. |
 | `DELETE /cards/:cardId/monthly-cashbacks/:period` | Session | Xóa record. |
-| `GET /cards/:cardId/fee-payments` | Session | Fee history. |
+| `GET /cards/:cardId/fee-payments?limit=1..100` | Session | Tối đa 100 fee history records. |
 | `POST /cards/:cardId/fee-payments` | Session | `{paymentDate,amount,note?}`. |
 | `PUT /cards/:cardId/fee-payments/:feePaymentId` | Session | Sửa actual fee. |
 | `DELETE /cards/:cardId/fee-payments/:feePaymentId` | Session | Xóa fee. |
@@ -174,9 +174,9 @@ Summary response nên có:
 
 Fee read responses are canonical and shared across backend/frontend:
 
-- `GET /cards/:cardId/fee-payments` returns `FeePaymentDto[]` with
+- `GET /cards/:cardId/fee-payments?limit=1..100` returns up to 100 `FeePaymentDto[]` with
   `id`, `cardId`, `category`, `paymentDate`, `amount`, and `note`.
-- `GET /fee-center` returns `FeeCenterRecordDto[]`, which extends the same
+- `GET /fee-center?limit=1..100` returns up to 100 `FeeCenterRecordDto[]`, which extends the same
   payment fields with `card: {id, providerName, displayName, owner} | null`.
 - `GET /cards/:cardId/monthly-cashbacks?year=YYYY` returns
   `MonthlyCashbackDto[]` with `id`, `cardId`, `period`,

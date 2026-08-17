@@ -249,7 +249,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | P1 | `GAP-AUTH-01` | **PARTIAL** — forgot-password đã nối MailService với generic response và test delivery; runtime SMTP config/owner evidence còn thiếu | Contract, runtime mail config và owner evidence |
 | P2 | `GAP-API-01`, `GAP-WEB-01` | Đã đóng: REST inventory drift gate và authorization metadata có runtime regression evidence | Giữ parity tests trong release gate |
 | P2 | `GAP-DOC-01` | Đã đóng cho production surface: không còn reference tới `/api/reports/summary`, `reportsCore` hoặc `docs/refactor*` ngoài historical execution ledger; canonical report docs/smoke path đã cập nhật | Giữ stale-reference check khi compatibility window thay đổi |
-| P2 | `GAP-PERF-01` | Đã có bounded transaction list, calendar subscription list, workspace notes list, recurring list và legacy masterdata lists; audit giữ admin/card/category/fee/reporting reads mở vì chưa có completeness/cursor contract, cursor pagination vẫn mở | Bounded/paginated coverage và completeness regression cho từng dataset trước release |
+| P2 | `GAP-PERF-01` | Đã có bounded transaction, calendar subscription, workspace notes, recurring, legacy masterdata, card, duplicate-card, category và fee reads; audit giữ admin/reporting reads mở vì chưa có completeness/cursor contract, cursor pagination vẫn mở | Bounded/paginated coverage và completeness regression cho admin/reporting trước release |
 
 Status key: `CLOSED` nghĩa là GAP đã có đủ source/test/runtime evidence trong phạm
 vi ledger; `PARTIAL` nghĩa là phần code/test hoặc capability đã có evidence nhưng

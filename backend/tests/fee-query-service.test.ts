@@ -8,7 +8,7 @@ import type { ServiceContext } from "../src/services/types/service-context.js";
 const context: ServiceContext = { workspaceId: "workspace-a", userId: "user-a", role: "user", channel: "browser", correlationId: "fee-query-test" };
 const cardId = "507f1f77bcf86cd799439011";
 const query = <T>(value: T) => {
-  const chain = { sort: () => chain, lean: async () => value };
+  const chain = { sort: () => chain, limit: () => chain, lean: async () => value };
   return chain;
 };
 const card = { id: cardId, providerName: "Bank A", displayName: "Visa A", owner: "Tôi" };

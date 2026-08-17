@@ -12,9 +12,9 @@ export const registerCardFeePaymentRoutes = (
   secret: string,
   users: Pick<AuthRepository, "findUserById">,
 ) => {
-  app.get<{ Params: { cardId: string } }>(
+  app.get<{ Params: { cardId: string }; Querystring: { limit?: string } }>(
     "/api/cards/:cardId/fee-payments",
-    async (request) => ({ data: await FeeQueryService.listCardPayments(await browserServiceContext(request, secret, users), request.params.cardId) }),
+    async (request) => ({ data: await FeeQueryService.listCardPayments(await browserServiceContext(request, secret, users), request.params.cardId, request.query.limit) }),
   );
 
   app.post<{ Params: { cardId: string }; Body: Data }>(

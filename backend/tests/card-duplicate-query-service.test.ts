@@ -19,7 +19,7 @@ const card = (id: string, owner: string, presetId = "preset-a", active = true) =
   monthlyData: [],
 });
 const query = <T>(value: T) => {
-  const chain = { sort: () => chain, lean: async () => value };
+  const chain = { sort: () => chain, limit: () => chain, lean: async () => value };
   return chain;
 };
 

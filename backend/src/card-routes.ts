@@ -43,10 +43,10 @@ export const legacyCardResponse = (card: Awaited<ReturnType<typeof CardQueryServ
 });
 
 export const registerCardRoutes = (app: FastifyInstance, secret: string, users?: AuthRepository, catalog: CatalogRepository = new MongoCatalogRepository()) => {
-  app.get("/api/cards", async (request) => (await CardQueryService.list(await browserServiceContext(request, secret, users))).map(legacyCardResponse));
+  app.get<{ Querystring: { limit?: string } }>("/api/cards", async (request) => (await CardQueryService.list(await browserServiceContext(request, secret, users), {}, request.query.limit)).map(legacyCardResponse));
   app.post<{ Body: Data }>("/api/cards", async (request, reply) => { const card = await CardCommandService.create(await browserServiceContext(request, secret, users), request.body ?? {}, catalog); const response = legacyCardResponse(card); const result = reply.code(201); if (card.legacy) result.header("X-Deprecated-Contract", "legacy-card-create"); return result.send(response); });
-  app.get("/api/cards/duplicates", async (request) => {
-    const groups = await CardQueryService.listDuplicates(await browserServiceContext(request, secret, users));
+  app.get<{ Querystring: { limit?: string } }>("/api/cards/duplicates", async (request) => {
+    const groups = await CardQueryService.listDuplicates(await browserServiceContext(request, secret, users), request.query.limit);
     return { data: groups.map((group) => ({ ...group, cards: group.cards.map(legacyCardResponse) })) };
   });
   app.post<{ Body: Record<string, unknown> }>("/api/cards/duplicates", async (request) => { const context = await browserServiceContext(request, secret, users); const sourceId = request.body?.sourceCardId; const targetId = request.body?.targetCardId; if (typeof sourceId !== "string" || typeof targetId !== "string") throw new ApiError(400, "INVALID_MERGE_TARGET", "Tham chiếu merge không hợp lệ."); const result = await CardLifecycleService.merge(context, sourceId, targetId); return { data: { targetCard: legacyCardResponse(result.targetCard), retiredSourceId: result.retiredSourceId, merge: { sourceCardId: sourceId, targetCardId: targetId, monthlyDataStrategy: "sum", reason: "Same workspace, catalog preset and normalized owner.", historyPolicy: "RESTRICT_REFERENCED_SOURCE" } } }; });

@@ -38,10 +38,10 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
     return json(await FinancialTransactionService.list(await invocationContext(), query));
   });
   server.registerTool("get_monthly_cash_flow", mcpToolMetadata("get_monthly_cash_flow"), async ({ period, cardId }: { period?: string; cardId?: string }) => json(await CashFlowQueryService.list(await invocationContext(), { period, cardId })));
- server.registerTool("compare_cards", mcpToolMetadata("compare_cards"), async () => json(await CardService.compare(await invocationContext())));
-  server.registerTool("list_duplicate_cards", mcpToolMetadata("list_duplicate_cards"), async () => json(await CardQueryService.listDuplicates(await invocationContext())));
-  server.registerTool("list_card_fee_payments", mcpToolMetadata("list_card_fee_payments"), async ({ cardId }: { cardId: string }) => json(await FeeQueryService.listCardPayments(await invocationContext(), cardId)));
-  server.registerTool("list_fee_center", mcpToolMetadata("list_fee_center"), async ({ cardId, category }: { cardId?: string; category?: FeeCategory }) => json(await FeeQueryService.listCenter(await invocationContext(), { ...(cardId ? { cardId } : {}), ...(category ? { category } : {}) })));
+ server.registerTool("compare_cards", mcpToolMetadata("compare_cards"), async ({ limit }: { limit?: number }) => json(await CardService.compare(await invocationContext(), limit)));
+  server.registerTool("list_duplicate_cards", mcpToolMetadata("list_duplicate_cards"), async ({ limit }: { limit?: number }) => json(await CardQueryService.listDuplicates(await invocationContext(), limit)));
+  server.registerTool("list_card_fee_payments", mcpToolMetadata("list_card_fee_payments"), async ({ cardId, limit }: { cardId: string; limit?: number }) => json(await FeeQueryService.listCardPayments(await invocationContext(), cardId, limit)));
+  server.registerTool("list_fee_center", mcpToolMetadata("list_fee_center"), async ({ cardId, category, limit }: { cardId?: string; category?: FeeCategory; limit?: number }) => json(await FeeQueryService.listCenter(await invocationContext(), { ...(cardId ? { cardId } : {}), ...(category ? { category } : {}) }, limit)));
   server.registerTool("list_monthly_cashbacks", mcpToolMetadata("list_monthly_cashbacks"), async ({ cardId, year }: { cardId: string; year: string }) => json(await MonthlyCashbackQueryService.list(await invocationContext(), cardId, year)));
  server.registerTool("list_upcoming_statements", mcpToolMetadata("list_upcoming_statements"), async ({ limit }: { limit: number }) => json(await StatementQueryService.upcoming(await invocationContext(), limit)));
   server.registerTool("get_personal_finance_summary", mcpToolMetadata("get_personal_finance_summary"), async (input: { from?: string; to?: string; cardId?: string; owner?: string; year?: string; month?: string }) => {

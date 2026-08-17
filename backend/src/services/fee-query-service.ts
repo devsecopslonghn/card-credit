@@ -15,6 +15,7 @@ import { CardFeePaymentModel } from "../models/card-fee-payment.js";
 import { CardQueryService } from "./card-query-service.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { idOf, plain } from "../statement-domain.js";
+import { boundedReadLimit } from "../read-limits.js";
 
 const validCardId = (cardId: string) => {
   if (!mongoose.isValidObjectId(cardId)) throw new ApiError(400, "INVALID_CARD_ID", "Card id không hợp lệ.");
@@ -40,16 +41,17 @@ const cardSummary = (card: CardDto) => feeCardSummarySchema.parse({
 });
 
 export class FeeQueryService {
-  static async listCardPayments(ctx: ServiceContext, cardId: string): Promise<FeePaymentDto[]> {
+  static async listCardPayments(ctx: ServiceContext, cardId: string, rawLimit?: unknown): Promise<FeePaymentDto[]> {
     validCardId(cardId);
     await CardQueryService.get(ctx, cardId);
     const records = await CardFeePaymentModel.find({ workspaceId: ctx.workspaceId, userCardId: cardId })
       .sort({ paymentDate: -1, createdAt: -1 })
+      .limit(boundedReadLimit(rawLimit))
       .lean();
     return feePaymentListSchema.parse(records.map(feeDtoFromDocument)) as FeePaymentDto[];
   }
 
-  static async listCenter(ctx: ServiceContext, options: { cardId?: string; category?: FeeCategory } = {}): Promise<FeeCenterRecordDto[]> {
+  static async listCenter(ctx: ServiceContext, options: { cardId?: string; category?: FeeCategory } = {}, rawLimit?: unknown): Promise<FeeCenterRecordDto[]> {
     const card = options.cardId ? await CardQueryService.get(ctx, options.cardId) : null;
     const category = options.category ? feeCategorySchema.parse(options.category) : undefined;
     const query: Record<string, unknown> = {
@@ -58,8 +60,8 @@ export class FeeQueryService {
       ...(category ? { category } : {}),
     };
     const [records, cards] = await Promise.all([
-      CardFeePaymentModel.find(query).sort({ paymentDate: -1, createdAt: -1 }).lean(),
-      CardQueryService.list(ctx),
+      CardFeePaymentModel.find(query).sort({ paymentDate: -1, createdAt: -1 }).limit(boundedReadLimit(rawLimit)).lean(),
+      CardQueryService.list(ctx, {}, rawLimit),
     ]);
     const cardsById = new Map(cards.map((item) => [item.id, cardSummary(item)]));
     return feeCenterRecordListSchema.parse(records.map((record) => {

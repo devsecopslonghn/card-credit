@@ -186,6 +186,28 @@ implemented yet.
   loader không import Mongo hay expose writer.
 - Safety: không đổi schema/data/index/cluster; rollback bằng revert commit.
 
+### Completed checkpoint: Bound card, category and fee reads
+
+- Requirement/GAP: `PERF-01` cần giới hạn các workspace list scan còn lại mà
+  không phá response array hiện tại.
+- Scope: dùng `boundedReadLimit` mặc định/tối đa `100` cho card,
+  duplicate-card, finance category, card fee và Fee Center reads; REST nhận
+  `limit`, MCP query tools expose cùng giới hạn, frontend cũ không cần đổi vì
+  default vẫn giữ nguyên.
+- Independent review: GO cho bounded query-only slice. Helper nhận đúng cả
+  REST string và MCP number, invalid/zero giữ default `100`, upper bound là
+  `100`; không đổi business state, persistence, schema/index, MCP writer mode,
+  database hay Kubernetes.
+- Regression/validation evidence: targeted read/calendar/MCP/parity tests pass
+  `22/22`; shared `npm run validate` pass `26/26`; backend
+  `npm run validate` pass typecheck, lint, build và `147/147` tests; frontend
+  unit `82/82`, integration `6/6`, typecheck, lint và production build pass;
+  `git diff --check` pass.
+- Residual: admin audit và financial report aggregation vẫn cần cursor/
+  completeness design riêng; không cắt các aggregation report trong slice này.
+- Rollback: revert source/docs commit của slice; không có database/schema/data
+  hoặc Kubernetes change.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong
