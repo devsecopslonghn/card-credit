@@ -35,8 +35,8 @@ implemented yet.
 - Residual risk: đây là bounded read, chưa phải cursor pagination; các list
   khác và session-version runtime/external old-writer/financial decisions vẫn
   mở. Production statement-payment MCP writer rollout tiếp tục **NO-GO**.
-- Commit/push: source commit `57bc0c4` pushed; docs checkpoint này được ghi ở
-  commit kế tiếp.
+- Commit/push: source commit `57bc0c4` và docs checkpoint `7fc6a75` đều đã được
+  push lên `origin/master`.
 
 ### Completed checkpoint: Bound legacy masterdata reads
 
@@ -57,8 +57,8 @@ implemented yet.
   session-version runtime, external old-writer fence/drain và financial
   decisions vẫn mở. Production statement-payment MCP writer rollout tiếp tục
   **NO-GO**.
-- Commit/push: source/API commit `c3787b9` pushed; docs checkpoint này được ghi
-  ở commit kế tiếp.
+- Commit/push: source/API commit `c3787b9` và docs checkpoint `7ed8505` đều đã
+  được push lên `origin/master`.
 
 ### Audit checkpoint: Remaining unbounded list reads — HOLD
 
@@ -171,8 +171,8 @@ implemented yet.
   traffic evidence vẫn mở. Production statement-payment MCP writer rollout
   tiếp tục **NO-GO**; reversal/compensating transaction vẫn cần user decision
   riêng.
-- Commit/push: evidence này được ghi trong execution-plan commit kế tiếp; chưa
-  có chart mutation.
+- Commit/push: evidence này đã được ghi trong execution-plan commit
+  `61cabd6`; chưa có chart mutation trong checkpoint đó.
 
 ### Completed checkpoint: Candidate `7f04f18152b4` read-only runtime
 
@@ -1537,8 +1537,8 @@ chạy validation, commit và push ngay.
 - Residual risk: session-version runtime evidence, external old-writer
   fence/drain, card delete/merge policy và financial/reversal decisions vẫn
   mở; production MCP statement-payment writer rollout tiếp tục **NO-GO**.
-- Commit/push: source commit `71dfa58` đã push; docs checkpoint này được ghi
-  trong commit kế tiếp.
+- Commit/push: source commit `71dfa58` và docs checkpoint `45a7ed9` đã được
+  push lên `origin/master`.
 
 ### Completed checkpoint: Reuse shared email validation for calendar mail
 
@@ -1558,8 +1558,8 @@ chạy validation, commit và push ngay.
 - Residual risk: session-version runtime evidence, external old-writer
   fence/drain, card delete/merge policy and financial/reversal decisions remain
   open; production MCP statement-payment writer rollout remains **NO-GO**.
-- Commit/push: source commit `51d3a79` pushed; this checkpoint is pending the
-  next execution-plan docs commit.
+- Commit/push: source commit `51d3a79` và execution-plan checkpoint `74aa876`
+  đã được push lên `origin/master`.
 
 ### Completed checkpoint: Bound calendar subscription list reads
 
