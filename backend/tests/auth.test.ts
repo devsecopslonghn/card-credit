@@ -59,6 +59,19 @@ test("auth me uses one authoritative user lookup and ignores cookie identity fie
   await app.close();
 });
 
+test("auth me rejects a session after an authoritative role or workspace change", async () => {
+  const repository = new MemoryAuth();
+  await repository.createUser({ email: "member@example.test", passwordHash: "hash", role: "user", workspaceId: "workspace-a", displayName: "Member", active: true, lockedAt: null, sessionVersion: 0 });
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerAuthRoutes(app, { repository, secret });
+  const cookie = sessionCookie(signSession({ userId: "1", email: "member@example.test", role: "user", workspaceId: "workspace-a", sessionVersion: 0 }, secret));
+
+  assert.equal((await app.inject({ url: "/api/auth/me", headers: { cookie } })).statusCode, 200);
+  await repository.updateUser("1", { role: "admin", workspaceId: "workspace-b" });
+  assert.equal((await app.inject({ url: "/api/auth/me", headers: { cookie } })).statusCode, 401);
+  await app.close();
+});
+
 test("bootstrap is disabled without token and guarded when configured", async () => {
   const repository = new MemoryAuth(); const app = buildApp({ isReady: () => true }, "silent");
   registerAuthRoutes(app, { repository, secret });

@@ -69,8 +69,8 @@ implemented yet.
 - `revalidateMcpContext` và browser context đã có regression coverage cho
   authoritative role/workspace, inactive user, locked user và stale
   `sessionVersion`; không dùng role/workspace từ identity cũ để authorize.
-- Targeted `backend/tests/context.test.ts` pass `5/5`; backend `npm run
-  validate` pass typecheck, lint, curated test `156/156` và build.
+- Targeted auth/context tests pass `11/11`; backend `npm run validate` pass
+  typecheck, lint, curated test `157/157` và build.
 - Đây chỉ là source/test evidence; chưa claim runtime authoritative version
   bump/revoke hoặc policy membership vì chưa chạy persistence mutation trong
   environment thật.
@@ -81,7 +81,7 @@ implemented yet.
 
 - Shared `npm run validate`: build pass và curated contract tests `29/29`.
 - Backend `npm run validate`: typecheck/lint/build pass và curated tests
-  `156/156`.
+  `157/157`.
 - Frontend `npm test`: curated tests `44/44`; `npm run test:integration` `6/6`;
   typecheck, lint và production build pass với `24` routes.
 - Stale-reference audit ngoài historical execution ledger không còn
