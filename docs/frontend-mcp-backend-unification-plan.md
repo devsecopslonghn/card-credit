@@ -90,6 +90,23 @@ implemented yet.
 - Safety: read-only Kubernetes metadata inspection; no Secret mutation,
   restart, rollout, database or mail side effect.
 
+### Runtime read-only refresh: image `5267c79cf437`
+
+- Context/namespace verified as `k8s-admin-public` / `card-credit`; backend and
+  frontend deployments are `1/1`, pods `Running`, restart count `0`.
+- Both deployment images are
+  `nexus.apps.drgdevlab.com/card-credit/{backend,frontend}:5267c79cf437`.
+  Repository `HEAD` is newer (`e38e153`), so the live image does not prove the
+  report cursor, statement pagination or subsequent cleanup source.
+- Deployment metadata remains `MCP_WRITER_MODE=write` and
+  `MCP_OLD_WRITER_FENCED=true`; these values are configuration metadata, not
+  evidence of external old-writer traffic fencing.
+- No MCP invocation, preview/confirm, Secret value read, database operation,
+  restart, scale, patch or rollout command was executed. This refresh therefore
+  claims only pod/image/config metadata and keeps financial/runtime targets
+  unclaimed.
+- Commit/push: evidence recorded in the follow-up documentation commit below.
+
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
 - Scope: xóa các file frontend không còn production consumer:
