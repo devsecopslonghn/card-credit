@@ -176,6 +176,12 @@ implemented yet.
   `GAP-DATA-01`/`GAP-ACC-01`/`GAP-DATA-02` lifecycle/index evidence group.
 - Safety: `DATA_INTEGRITY_INDEX_APPLY=false`; no index creation, delete,
   migration, repair or persistence mutation was executed.
+- Authenticated read-only MCP `get_personal_finance_summary` for `year=2026`
+  returned HTTP `200`, one content block, and the canonical keys
+  `byAccount`, `byCategory`, `cash`, `credit`, `creditDebtBalance`, `debit`,
+  `eWallet`, `netAssets`, `range`, `realMoney` and `totals`. Totals were not
+  printed; this is runtime report-shape evidence only and does not close the
+  remaining legacy-category/mutation-source decision in `GAP-REP-01`.
 - Safety: only `kubectl get` and read-only `kubectl exec` metadata/localhost
   endpoint checks; no Secret values, MCP invocation, preview/confirm, database
   write, migration, restart, scale, patch or manual sync was executed.
