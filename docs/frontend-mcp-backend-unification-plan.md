@@ -294,6 +294,19 @@ implemented yet.
 - Residual: script chưa được chạy trên database target; source/test không thay
   thế live dry-run hoặc reconciliation evidence.
 
+### Completed checkpoint: Remove unreferenced destructive account-index repair
+
+- Scope: xóa `backend/scripts/repair-account-index.ts` và npm entry
+  `repair:account-index`; repository search trước cleanup chỉ thấy hai path tự
+  tham chiếu, không có CI/docs/operator consumer.
+- Reason: script cũ có thể `dropIndex` và `updateMany` để unset `creditCardId`,
+  trong khi account model đã là canonical index declaration và data-integrity
+  workflow hiện tại là explicit preflight/apply. Git history vẫn là rollback
+  source; không giữ destructive helper không có owner.
+- Safety/validation: docs/source cleanup only, không chạy script, không sửa
+  database/index/data/Kubernetes; repository stale-reference search pass; backend
+  `npm run validate` pass typecheck, lint, build và `150/150` tests.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

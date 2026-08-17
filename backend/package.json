@@ -14,7 +14,6 @@
     "test:all": "node --import tsx --test tests/*.test.ts",
     "validate": "npm run typecheck && npm run lint && npm test && npm run build",
     "import:catalog": "tsx scripts/import-card-catalog.ts",
-    "repair:account-index": "tsx scripts/repair-account-index.ts",
     "backup:finance": "tsx scripts/backup-finance-workspace.ts",
     "audit:finance": "tsx scripts/audit-finance-reconciliation.ts",
     "reconcile:legacy-payments": "tsx scripts/reconcile-legacy-statement-payments.ts",
