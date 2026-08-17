@@ -73,7 +73,7 @@ không truy cập MongoDB/MCP token; mọi private read/write scope theo
 | Access & Tenancy | Session, role, workspace, profile và admin routes; Profile PATCH dùng `ProfileService` | Trusted `ServiceContext`; một application service cho mỗi use case; revalidate identity trước private command | Session version và một số legacy mutation còn phải chuẩn hóa |
 | Card Portfolio & Catalog | Catalog active, card snapshot/create/update, duplicate read | Product snapshot là nguồn catalog; REST/MCP/UI dùng cùng card DTO | Delete/merge policy và legacy import cần quyết định |
 | Financial Ledger | Account, transaction, persisted financial impact, reports | Một service/query/command cho REST, MCP, UI; integer VND | Fence writer cũ; reconcile legacy writer |
-| Credit Billing & Settlement | Statement period/status, payment command, reminder/calendar | State machine + payment transaction/CAS/idempotency/audit chung | Reversal/compensating transaction policy chưa chốt |
+| Credit Billing & Settlement | Statement period/status, payment command, reminder/calendar | State machine + payment transaction/CAS/idempotency/audit chung | Reversal/compensating transaction chỉ fail-closed; persistence/reconciliation còn thiếu |
 | Benefits & Fees | Monthly cashback, card fee, Fee Center, report totals | Query/command services và shared DTO; không cộng trùng benefit | Legacy categories và owner/card/year/month filters |
 | Financial Planning | Category, budget status, recurring expense list/create/update/deactivate | Planning write model; status/usage do backend tính; recurring schedule chỉ là cấu hình | Recurring transaction generation chưa có |
 | Reporting & Insights | Summary, statement projection, cash-flow/dashboard | Read projections từ authoritative ledger, cùng date-range semantics | Cash-flow semantic join/orphan cleanup |
@@ -205,6 +205,12 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
   Ledger mutation chỉ xảy ra qua canonical transaction command do user chủ động
   xác nhận. Nếu sau này bật generation, phải thêm preview/idempotency/audit và
   acceptance riêng trước khi mở writer.
+- **DECISION-PAY-REV-01 — Reversal boundary**: payment command không tự động
+  reversal hoặc compensating transaction. `PAID` bị khóa; mọi yêu cầu hoàn tác
+  phải fail-closed và cần operation-specific decision, dry-run, backup/recovery,
+  rollback và reconciliation plan trước khi có implementation/persistence
+  change. Đây là policy boundary, không phải evidence rằng một reversal đã
+  được thực hiện.
 - `/health` là liveness; `/ready` chỉ 200 khi Mongo connected. Logger redact
   authorization, cookie, password, token và URI. SIGTERM dừng job/server/DB sạch.
 - Production image chạy non-root; Jenkins dùng `Jenkinsfile` và `ci-platform`
@@ -252,7 +258,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | P0 | `GAP-CI-01` | **CLOSED** — Jenkins `#373` checkout đúng proxy source, shared/frontend/backend pass `25/45/135`, publish immutable images, GitOps handoff `952c0fc`, Argo candidate `Synced/Healthy`, pod Ready/restart 0, health/ready và read-only MCP smoke pass | Giữ regression gate trong các release sau |
 | P0 | `GAP-SEC-01`, `GAP-SEC-02` | **PARTIAL** — source guard, authoritative lookup, workspace/session checks, authoritative role refresh, inactive/locked MCP rejection và atomic `$inc sessionVersion` đã có regression evidence; authoritative version bump/revoke và policy membership runtime evidence còn thiếu | Backend/frontend tests, authoritative version bump và policy membership evidence |
 | P0 | `GAP-MCP-01` | **PARTIAL** — canonical manifest, preview/confirm/idempotency guard, REST/MCP adapter tests và chart desired-state read-only guard đã có evidence; live authenticated `tools/list` trả 11 query tools, không có preview/confirm, health/readiness/docs đều `200`; vẫn chưa claim external old-writer traffic fence hoặc financial receipt/audit/reconciliation từ traffic/mutation thật | Xác minh external old-writer traffic fence, giữ preview/confirm/idempotency/audit và production receipt/reconciliation evidence |
-| P0 | `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | **PARTIAL** — payment contract, state-machine guard, preview/CAS và command tests đã có; chưa ghi persistence/reconciliation và reversal policy chưa được quyết định | Operation-specific approval, persistence/reconciliation evidence và reversal decision |
+| P0 | `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | **PARTIAL** — payment contract, state-machine guard, preview/CAS, command tests và `DECISION-PAY-REV-01` fail-closed boundary đã có; persistence/reconciliation evidence chưa có | Operation-specific approval cho persistence/reconciliation và evidence tương ứng |
 | P0 | `GAP-OPS-01` | **CLOSED** — startup không còn silent catalog write; CLI/operator guard và regression test đã có | Giữ dry-run/apply guard |
 | P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | **CLOSED** — source policy/tests cho card soft-retire/restricted-merge, account retention và calendar partial-unique index; live data-integrity dry-run xác nhận required indexes tồn tại, duplicate device groups `0`, duplicate card groups `0`, duplicate card IDs `0`; finance read-only audit xác nhận orphan account/card/transaction references đều `0` | Giữ dry-run/index verification và read-only reconciliation trước release |
 | P1 | `GAP-REP-01` | **CLOSED** — `DECISION-REP-01` chốt ledger `categoryId` là source authoritative, category catalogue chỉ là planning metadata; shared category input/list contracts, category REST trusted-context/tenant rejection tests và Budgets/Recurring client hints đã có; report regression chứng minh không đọc category catalogue/legacy `monthlyData`, endpoint default legacy đã xóa; live report read/reconciliation đã pass | Giữ ledger/category no-join guard và stale endpoint check trước release |

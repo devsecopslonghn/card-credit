@@ -75,7 +75,7 @@ export const nextPaymentState = (current: string, action: StatementPaymentAction
   const parsedAction = statementPaymentActionSchema.safeParse(action);
   if (!parsedAction.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
   if (parsedAction.data === "PAID") return "PAID" as const;
-  if (current === "PAID") throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Kỳ sao kê đã thanh toán. Hãy dùng quy trình hoàn tác riêng.");
+  if (current === "PAID") throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Kỳ sao kê đã thanh toán; không hỗ trợ hoàn tác tự động.");
   return parsedAction.data === "CLOSED" ? "STATEMENT_CLOSED" as const : "OPEN" as const;
 };
 

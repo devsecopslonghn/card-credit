@@ -52,7 +52,7 @@ test("payment state transitions keep PAID locked and reopen only a closed statem
   assert.equal(nextPaymentState("OVERDUE", "CLOSED"), "STATEMENT_CLOSED");
   assert.equal(nextPaymentState("OPEN", "PAID"), "PAID");
   assert.throws(() => nextPaymentState("PAID", "CLOSED"), (error: unknown) => error instanceof Error && "code" in error && error.code === "STATEMENT_PAID_LOCKED");
-  assert.throws(() => nextPaymentState("PAID", "REOPEN"), (error: unknown) => error instanceof Error && "code" in error && error.code === "STATEMENT_PAID_LOCKED");
+  assert.throws(() => nextPaymentState("PAID", "REOPEN"), (error: unknown) => error instanceof Error && "code" in error && error.code === "STATEMENT_PAID_LOCKED" && error.message.includes("không hỗ trợ hoàn tác tự động"));
 });
 
 test("canonical payment service rejects invalid runtime actions before database access", async () => {

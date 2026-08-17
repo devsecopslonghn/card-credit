@@ -88,8 +88,8 @@ lại để tránh đọc nhầm checkpoint cũ.
 ### Slice D — financial boundary
 
 1. Giữ payment preview/CAS/idempotency/audit contracts và regression tests.
-2. Không chạy persistence payment, reconciliation apply, reversal hoặc
-   compensating transaction.
+2. Áp dụng `DECISION-PAY-REV-01`: `PAID` lock và mọi reversal/compensating
+   transaction fail-closed; không tự tạo financial side effect.
 3. Không sửa DB/migration/index production và không xóa legacy receipt trước
    decision/migration evidence.
 
