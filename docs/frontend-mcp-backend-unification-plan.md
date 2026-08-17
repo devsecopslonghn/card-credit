@@ -208,6 +208,22 @@ implemented yet.
 - Rollback: revert source/docs commit của slice; không có database/schema/data
   hoặc Kubernetes change.
 
+### Completed checkpoint: Add stable cursor to admin audit reads
+
+- Requirement/GAP: `GAP-PERF-01` cần completeness cho audit list; `limit` đơn
+  thuần có thể làm mất phần còn lại của audit history.
+- Scope: `GET /api/admin/audit-logs` sort ổn định theo `createdAt DESC, _id DESC`,
+  nhận opaque `cursor`, fetch `limit + 1` để trả `nextCursor`, giữ nguyên các
+  filter và envelope cũ; invalid cursor fail closed với `400`.
+- Independent review: GO cho admin-only, read-only query slice. Không đổi audit
+  records, schema/index/data, financial state, MCP writer mode, database rollout
+  hay Kubernetes.
+- Regression/validation evidence: admin audit/user tests pass `6/6`; backend
+  `npm run validate` pass typecheck, lint, build và `148/148` tests;
+  `git diff --check` pass.
+- Residual: admin user roster và financial report aggregation vẫn giữ HOLD vì
+  cần contract completeness riêng; slice này không claim chúng.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

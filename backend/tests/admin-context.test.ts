@@ -5,6 +5,7 @@ import { buildApp } from "../src/app.js";
 import { sessionCookie, signSession } from "../src/auth.js";
 import type { AuthRepository, AuthUser } from "../src/auth-repository.js";
 import { registerUserRoutes } from "../src/user-routes.js";
+import { AdminAuditService } from "../src/services/admin-audit-service.js";
 
 const secret = "01234567890123456789012345678901";
 const makeUser = (overrides: Partial<AuthUser> = {}): AuthUser => ({
@@ -26,7 +27,17 @@ test("admin user and audit routes use the revalidated admin context", async (t) 
   const collection = t.mock.method(mongoose.connection, "collection", () => ({
     find: (query: Record<string, unknown>) => {
       assert.deepEqual(query, { event: "LOGIN", userId: "user-1", email: "user@example.test", "resource.type": "session", "resource.id": "r1" });
-      return { sort: () => ({ limit: (limit: number) => { assert.equal(limit, 7); return { toArray: async () => [{ _id: "audit-1", event: "LOGIN" }] }; } }) };
+      return {
+        sort: (spec: Record<string, unknown>) => {
+          assert.deepEqual(spec, { createdAt: -1, _id: -1 });
+          return {
+            limit: (limit: number) => {
+              assert.equal(limit, 8);
+              return { toArray: async () => [{ _id: "audit-1", event: "LOGIN" }] };
+            },
+          };
+        },
+      };
     },
   }) as never);
   const app = buildApp({ isReady: () => true }, "silent");
@@ -44,9 +55,30 @@ test("admin user and audit routes use the revalidated admin context", async (t) 
   assert.deepEqual(updates, [{ id: "user-1", update: { displayName: "New Name", role: "user", workspaceId: "workspace-b" } }]);
   const logs = await app.inject({ url: "/api/admin/audit-logs?event=LOGIN&userId=user-1&email=User%40Example.Test&resourceType=session&resourceId=r1&limit=7", headers });
   assert.equal(logs.statusCode, 200);
-  assert.deepEqual(logs.json(), { logs: [{ id: "audit-1", event: "LOGIN" }], filters: { event: "LOGIN", userId: "user-1", email: "user@example.test", "resource.type": "session", "resource.id": "r1" }, limit: 7 });
+  assert.deepEqual(logs.json(), { logs: [{ id: "audit-1", event: "LOGIN" }], filters: { event: "LOGIN", userId: "user-1", email: "user@example.test", "resource.type": "session", "resource.id": "r1" }, limit: 7, nextCursor: null });
   assert.equal(collection.mock.callCount(), 1);
   await app.close();
+});
+
+test("admin audit cursor returns a stable continuation without dropping records", async () => {
+  const first = { _id: "audit-1", createdAt: new Date("2026-08-17T10:00:00.000Z"), event: "LOGIN" };
+  const second = { _id: "audit-2", createdAt: new Date("2026-08-17T09:00:00.000Z"), event: "LOGOUT" };
+  let receivedQuery: Record<string, unknown> | undefined;
+  let call = 0;
+  const repository = {
+    list: async (query: Record<string, unknown>, limit: number) => {
+      receivedQuery = query;
+      assert.equal(limit, 2);
+      call += 1;
+      return call === 1 ? [first, second] : [second];
+    },
+  };
+  const page = await AdminAuditService.list({ limit: "1" }, repository);
+  assert.equal(page.logs.length, 1);
+  assert.equal(typeof page.nextCursor, "string");
+  assert.deepEqual((page.nextCursor ? await AdminAuditService.list({ limit: "1", cursor: page.nextCursor }, repository) : null)?.logs, [{ id: "audit-2", createdAt: second.createdAt, event: "LOGOUT" }]);
+  assert.equal(Array.isArray(receivedQuery?.$or), true);
+  await assert.rejects(() => AdminAuditService.list({ cursor: "invalid" }, repository), (error: unknown) => (error as { code?: string }).code === "INVALID_AUDIT_CURSOR");
 });
 
 test("admin routes reject non-admin and stale admin sessions before downstream work", async () => {

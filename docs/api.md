@@ -237,7 +237,7 @@ amount semantics lấy persisted `creditDebt`/impact từ canonical statement DT
 | `PUT /workspace/owner` | Session | Cấu hình owner theo policy. |
 | `GET /admin/users` | Admin | List users non-secret. |
 | `PATCH /admin/users/:id` | Admin | Update allowlisted displayName/role/workspaceId. |
-| `GET /admin/audit-logs?...` | Admin | Filtered, bounded audit list. |
+| `GET /admin/audit-logs?limit=1..100&cursor=...` | Admin | Filtered audit list with stable opaque cursor; response includes `nextCursor` when more records exist. |
 
 ## 9. Idempotency, concurrency and rate limits
 
