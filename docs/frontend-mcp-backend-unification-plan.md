@@ -161,6 +161,13 @@ implemented yet.
   query tools; the inventory contained no `preview_*` or `confirm_*` tools.
   The check initialized one in-memory MCP session and listed metadata only; it
   did not call a business tool or create preview/receipt data.
+- Existing `audit-finance-reconciliation` ran read-only for the fixed MCP
+  workspace (workspace ID was not printed): counts were 5 cards, 11 statements,
+  45 financial transactions, 7 paid statements, 7 synced payments and zero
+  missing payments. All six orphan-reference kinds were zero; source hash was
+  `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`.
+- This closes `GAP-REP-02` only. No repair, reconciliation mutation, payment
+  confirm, reversal or compensating transaction was run.
 - Safety: only `kubectl get` and read-only `kubectl exec` metadata/localhost
   endpoint checks; no Secret values, MCP invocation, preview/confirm, database
   write, migration, restart, scale, patch or manual sync was executed.
