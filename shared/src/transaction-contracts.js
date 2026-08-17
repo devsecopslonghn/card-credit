@@ -3,6 +3,8 @@ import { isoDateSchema } from "./date-contracts.js";
 
 export const financialTransactionTypeSchema = z.enum(["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT"]);
 export const ownershipSchema = z.enum(["PERSONAL", "PAID_FOR_OTHER"]);
+export const FINANCIAL_TRANSACTION_DEFAULT_LIMIT = 100;
+export const FINANCIAL_TRANSACTION_MAX_LIMIT = 100;
 const safePositiveInteger = z.number().int().positive().refine(Number.isSafeInteger, "Must be a safe integer");
 const safeNonNegativeInteger = z.number().int().nonnegative().refine(Number.isSafeInteger, "Must be a safe integer");
 export const createFinancialTransactionInputSchema = z.object({
@@ -26,6 +28,7 @@ export const financialTransactionListQuerySchema = z.object({
   to: isoDateSchema.optional(),
   accountId: z.string().trim().min(1).optional(),
   categoryId: z.string().trim().min(1).optional(),
+  limit: z.number().int().min(1).max(FINANCIAL_TRANSACTION_MAX_LIMIT).default(FINANCIAL_TRANSACTION_DEFAULT_LIMIT),
 }).strict().superRefine((query, context) => {
   if (query.from && query.to && query.from > query.to) {
     context.addIssue({ code: "custom", path: ["to"], message: "The transaction range must be ordered from earliest to latest date" });

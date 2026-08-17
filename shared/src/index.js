@@ -50,6 +50,8 @@ export {
 export {
   financialTransactionTypeSchema,
   ownershipSchema,
+  FINANCIAL_TRANSACTION_DEFAULT_LIMIT,
+  FINANCIAL_TRANSACTION_MAX_LIMIT,
   createFinancialTransactionInputSchema,
   createFinancialTransactionBatchInputSchema,
   financialTransactionListQuerySchema,

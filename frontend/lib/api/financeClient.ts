@@ -13,9 +13,9 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
 export const listFinancialTransactions = async (input: FinancialTransactionListQuery = {}) => {
   const query = financialTransactionListQuerySchema.parse(input);
   const params = new URLSearchParams();
-  for (const key of ["from", "to", "accountId", "categoryId"] as const) {
+  for (const key of ["from", "to", "accountId", "categoryId", "limit"] as const) {
     const value = query[key] as string | undefined;
-    if (value) params.set(key, value);
+    if (value !== undefined) params.set(key, String(value));
   }
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return financialTransactionListSchema.parse(await request<unknown>(`/api/financial-transactions${suffix}`)) as FinancialTransaction[];

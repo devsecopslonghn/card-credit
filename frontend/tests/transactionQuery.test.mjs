@@ -9,6 +9,7 @@ test("frontend transaction client builds requests from the shared query contract
   assert.match(client, /financialTransactionListQuerySchema\.parse\(input\)/);
   assert.match(client, /new URLSearchParams\(\)/);
   assert.match(client, /financialTransactionListQuerySchema/);
+  assert.match(client, /"limit"/);
   assert.doesNotMatch(client, /query = ""/);
   assert.match(dashboard, /listFinancialTransactions\(\{ from, to \}\)/);
 });

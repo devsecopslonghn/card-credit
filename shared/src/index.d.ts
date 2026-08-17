@@ -192,6 +192,8 @@ export type MonthlyCashFlowResponseDto = {
 };
 export declare const financialTransactionTypeSchema: z.ZodEnum<any>;
 export declare const ownershipSchema: z.ZodEnum<any>;
+export declare const FINANCIAL_TRANSACTION_DEFAULT_LIMIT: 100;
+export declare const FINANCIAL_TRANSACTION_MAX_LIMIT: 100;
 export declare const createFinancialTransactionInputSchema: z.ZodObject<any>;
 export declare const createFinancialTransactionBatchInputSchema: z.ZodObject<any>;
 export declare const financialTransactionListQuerySchema: z.ZodObject<any>;
@@ -221,6 +223,7 @@ export type FinancialTransactionListQuery = {
   to?: string;
   accountId?: string;
   categoryId?: string;
+  limit?: number;
 };
 export type FinancialImpactDto = {
   personalSpending: number;

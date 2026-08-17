@@ -31,16 +31,16 @@ const callMcp = async (args: Record<string, unknown>) => {
   return { result, value };
 };
 
-test("REST and MCP transaction list adapters pass one canonical query", async (t) => {
-  const observed: Array<{ from?: string; to?: string; accountId?: string; categoryId?: string }> = [];
-  t.mock.method(FinancialTransactionService, "list", async (_context: ServiceContext, query: { from?: string; to?: string; accountId?: string; categoryId?: string }) => {
+test("REST and MCP transaction list adapters pass one canonical bounded query", async (t) => {
+  const observed: Array<{ from?: string; to?: string; accountId?: string; categoryId?: string; limit?: number }> = [];
+  t.mock.method(FinancialTransactionService, "list", async (_context: ServiceContext, query: { from?: string; to?: string; accountId?: string; categoryId?: string; limit?: number }) => {
     observed.push(query);
     return [];
   });
   const app = buildApp({ isReady: () => true }, "silent");
   registerFinancialTransactionRoutes(app, secret, users);
-  const args = { from: "2026-08-01", to: "2026-08-16", accountId: "account-1", categoryId: "food" };
-  const rest = await app.inject({ url: "/api/financial-transactions?from=2026-08-01&to=2026-08-16&accountId=%20account-1%20&categoryId=%20food%20", headers: { cookie } });
+  const args = { from: "2026-08-01", to: "2026-08-16", accountId: "account-1", categoryId: "food", limit: 20 };
+  const rest = await app.inject({ url: "/api/financial-transactions?from=2026-08-01&to=2026-08-16&accountId=%20account-1%20&categoryId=%20food%20&limit=20", headers: { cookie } });
   const mcp = await callMcp(args);
   assert.equal(rest.statusCode, 200);
   assert.deepEqual(rest.json().data, []);
@@ -57,6 +57,9 @@ test("REST transaction list rejects invalid ranges and unknown filters before se
     "?from=2026-02-30&to=2026-03-01",
     "?from=2026-09-01&to=2026-08-31",
     "?from=2026-08-01&ownerId=owner-1",
+    "?limit=0",
+    "?limit=101",
+    "?limit=not-a-number",
   ]) {
     const response = await app.inject({ url: `/api/financial-transactions${query}`, headers: { cookie } });
     assert.equal(response.statusCode, 400);

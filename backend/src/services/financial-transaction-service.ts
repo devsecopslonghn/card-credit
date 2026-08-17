@@ -8,7 +8,7 @@ import { ApiError } from "../errors.js";
 import { idOf, plain, statementPeriod, validDate } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { McpMutationModel } from "../models/mcp-mutation.js";
-import { financialTransactionListSchema, financialTransactionSchema } from "@card-credit/contracts";
+import { FINANCIAL_TRANSACTION_DEFAULT_LIMIT, FINANCIAL_TRANSACTION_MAX_LIMIT, financialTransactionListSchema, financialTransactionSchema } from "@card-credit/contracts";
 import type { CreateFinancialTransactionInput as SharedCreateFinancialTransactionInput, CreateFinancialTransactionBatchInput as SharedCreateFinancialTransactionBatchInput, FinancialTransactionDto } from "@card-credit/contracts";
 import { canonicalPayloadHash, legacyPayloadHash, payloadHashMatches } from "../command-hash.js";
 import { commandGuardService, type CommandInvocation } from "./command-guard-service.js";
@@ -197,12 +197,13 @@ export class FinancialTransactionService {
     return serialize(created[0]);
   }
 
-  static async list(ctx: ServiceContext, filters: { accountId?: string; categoryId?: string; from?: string; to?: string } = {}) {
+  static async list(ctx: ServiceContext, filters: { accountId?: string; categoryId?: string; from?: string; to?: string; limit?: number } = {}) {
     const query: Record<string, unknown> = { workspaceId: ctx.workspaceId };
     if (filters.accountId) query.accountId = filters.accountId;
     if (filters.categoryId) query.categoryId = filters.categoryId;
     if (filters.from || filters.to) query.transactionDate = { ...(filters.from ? { $gte: filters.from } : {}), ...(filters.to ? { $lte: filters.to } : {}) };
-    const items = await FinancialTransactionModel.find(query).sort({ transactionDate: -1, createdAt: -1 }).lean();
+    const limit = Math.min(Math.max(filters.limit ?? FINANCIAL_TRANSACTION_DEFAULT_LIMIT, 1), FINANCIAL_TRANSACTION_MAX_LIMIT);
+    const items = await FinancialTransactionModel.find(query).sort({ transactionDate: -1, createdAt: -1 }).limit(limit).lean();
     return financialTransactionListSchema.parse(items.map(serialize)) as FinancialTransactionDto[];
   }
 }

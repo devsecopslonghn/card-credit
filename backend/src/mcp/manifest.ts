@@ -20,7 +20,7 @@ export const MCP_OPERATION = {
 
 const definitions = [
   { name: "get_statement_summary", description: "Read a workspace-scoped credit-card statement summary from Financial Domain.", kind: "query", inputSchema: { statementId: z.string().min(1) } },
-  { name: "list_transactions", description: "List workspace-scoped financial transactions from Financial Domain using an inclusive from/to date range and optional account/category filters.", kind: "query", inputSchema: { ...financialTransactionListQuerySchema.shape, date: z.never().optional() } },
+  { name: "list_transactions", description: "List up to 100 workspace-scoped financial transactions from Financial Domain using an inclusive from/to date range, optional account/category filters and a bounded limit.", kind: "query", inputSchema: { ...financialTransactionListQuerySchema.shape, date: z.never().optional() } },
   { name: "get_monthly_cash_flow", description: "Read canonical Financial Domain cash-flow totals by month and card in the fixed workspace.", kind: "query", inputSchema: { period: z.string().regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/).optional(), cardId: z.string().min(1).optional() } },
   { name: "compare_cards", description: "Compare active cards in the fixed workspace.", kind: "query", inputSchema: {} },
   { name: "list_duplicate_cards", description: "List exact duplicate card groups in the fixed workspace, including inactive cards.", kind: "query", inputSchema: {} },
