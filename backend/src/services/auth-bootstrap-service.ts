@@ -1,7 +1,7 @@
 import type { AuthRepository, AuthUser } from "../auth-repository.js";
 import { ApiError } from "../errors.js";
 import { hashPassword } from "../password.js";
-import { requirePassword, validEmail } from "./password-reset-service.js";
+import { requirePassword, validEmail } from "./auth-policy.js";
 
 type BootstrapRepository = Pick<AuthRepository, "upsertUser">;
 

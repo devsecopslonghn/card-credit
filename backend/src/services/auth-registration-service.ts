@@ -3,13 +3,9 @@ import { ApiError } from "../errors.js";
 import { hashPassword } from "../password.js";
 import type { AuthRepository } from "../auth-repository.js";
 import type { Session } from "../auth.js";
+import { requirePassword, validEmail } from "./auth-policy.js";
 
 type RegistrationRepository = Pick<AuthRepository, "findUserByEmail" | "countUsers" | "createUser">;
-const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const requirePassword = (value: unknown): string => {
-  if (typeof value !== "string" || value.length < 8) throw new ApiError(400, "INVALID_PASSWORD", "Mật khẩu không hợp lệ.", { password: "Mật khẩu phải có ít nhất 8 ký tự." });
-  return value;
-};
 const workspaceForEmail = (email: string) => `personal-${crypto.createHash("sha256").update(email).digest("hex").slice(0, 24)}`;
 
 export class AuthRegistrationService {

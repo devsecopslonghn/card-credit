@@ -3,6 +3,7 @@ import { ApiError } from "../errors.js";
 import type { AuthRepository, AuthUser } from "../auth-repository.js";
 import type { MailService } from "../mail-service.js";
 import { hashPassword } from "../password.js";
+import { normalizeEmail, requirePassword, validEmail } from "./auth-policy.js";
 
 type PasswordResetRepository = Pick<AuthRepository, "findResetToken" | "findUserById" | "updatePassword" | "consumeResetTokens">;
 type ForgotPasswordRepository = Pick<AuthRepository, "findUserByEmail" | "createResetToken">;
@@ -11,12 +12,6 @@ type ForgotPasswordOptions = {
   resetBaseUrl: string;
   returnResetToken?: boolean;
   mail?: Pick<MailService, "sendPasswordResetEmail">;
-};
-export const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-export const normalizeEmail = (value: unknown) => typeof value === "string" ? value.trim().toLowerCase() : "";
-export const requirePassword = (value: unknown): string => {
-  if (typeof value !== "string" || value.length < 8) throw new ApiError(400, "INVALID_PASSWORD", "Mật khẩu không hợp lệ.", { password: "Mật khẩu phải có ít nhất 8 ký tự." });
-  return value;
 };
 export const hashResetToken = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
 
