@@ -10,7 +10,7 @@ implemented yet.
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
 | Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout, catalog startup write removal, frontend/backend clean linked-runtime image fixes, MCP read-default/fence acknowledgement guard, REST authorization metadata, bounded transaction list, password reset SMTP delivery, chart-controlled MCP writer rollout, candidate image publication/runtime evidence, read-only MCP desired-state/live reconciliation, CI npm test entrypoint, CD generic-node handoff, curated CI regression entrypoint, Jenkins runtime validation và production-surface docs cleanup đã có evidence | `c41d6ae` + `6a1728a` + `0ee1156` + `8def2dd` + `995149c` + `e8a3952` + `72d296f` + `7ab6918` + `3145c0c` + `b58a621` / chart `6bfa41f` + `cfb1ccb` + `643a450` + `d4f708a` + `3cf2339` / CI `9aba1d4` / CD `9aacbf6` / `origin/master` | Read-only candidate đã reconcile; tiếp tục xác minh external old-writer consumers/traffic và release gates |
-| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, session version/revoke guard, register workspace policy, private read adapter revalidation, Notes POST, Profile PATCH + `ProfileService`, Workspace owner PUT, Masterdata admin/query/command service, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context, AdminUserService boundary, password reset SMTP delivery đã có source/test evidence; một số direct mutation routes còn thiếu | `b75fb28` + `4578eb7` + `8def2dd` + `85bbc17` + `9d9c976` + `1fe15a2` + batch hiện tại / origin/master | Candidate gate Jenkins/Argo chỉ chạy sau khi push batch; tiếp tục private direct-model route coverage và session version/policy runtime |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, session version/revoke guard, register workspace policy, private read adapter revalidation, Notes POST + `NotesService`, Profile PATCH + `ProfileService`, Workspace owner PUT, Masterdata admin/query/command service, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context, AdminUserService boundary, password reset SMTP delivery đã có source/test evidence; một số direct mutation routes còn thiếu | `b75fb28` + `4578eb7` + `8def2dd` + `85bbc17` + `9d9c976` + `1fe15a2` + `c8e08fb` + Batch B hiện tại / origin/master | Candidate gate Jenkins/Argo chỉ chạy sau khi push batch; tiếp tục private direct-model route coverage và session version/policy runtime |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push; direct MCP manifest default read và write fence acknowledgement đã push; candidate `3145c0cec775` runtime reconcile read-only, chưa mở writer/confirm | `87e7996` + DB rollout + `ee05cc9` + chart `6bfa41f` + `d4f708a` + `3cf2339` / `origin/master` | Xác minh external old-writer consumers/traffic; không chạy confirm tài chính trong smoke |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine và explicit operator mark-paid đã apply live; MCP payment preview/confirm đã code/parity-test; candidate `3145c0cec775` runtime read-only, chưa gọi preview/confirm mutation; reversal còn mở | `1044636` + `ee05cc9` + chart `6bfa41f` + `e8a3952` + `d4f708a` + `3cf2339` / `origin/master` | Candidate runtime đã evidence; còn external old-writer consumer/traffic fence, giữ preview-only smoke và xin user decision riêng trước reversal/compensating transaction |
@@ -2318,6 +2318,36 @@ chạy validation, commit và push ngay.
   chưa trigger hoặc mutate CI/CD/Kubernetes trong local validation.
 - Commit/push: checkpoint này được đóng trong final batch commit chứa chính
   entry này; SHA và origin verification là evidence của candidate gate sau push.
+
+### Completed checkpoint: NotesService application boundary
+
+- Requirement/GAP: Notes GET/POST đã có trusted browser context nhưng REST
+  adapter vẫn gọi `NotesRepository` trực tiếp và giữ date/content rule; cần một
+  canonical service boundary mà không đổi Notes compatibility semantics.
+- Independent review: bounded non-financial slice. `NotesService` nhận trusted
+  `ServiceContext`, luôn scope bằng `context.workspaceId`, giữ validation và
+  blank-content delete behavior; route chỉ tạo context, gọi service và trả
+  envelope/legacy response.
+- Changed write-set: thêm `backend/src/services/notes-service.ts`, route bỏ
+  repository calls và business rule; curated backend thêm
+  `tests/notes-service.test.ts`.
+- Cleanup evidence: `rg` xác nhận `notes-routes.ts` không còn `list/upsert/remove`
+  repository call; các thao tác persistence chỉ còn trong `NotesService` và
+  repository implementation. Không có legacy adapter/test chỉ phục vụ path cũ
+  cần xóa.
+- Compatibility decision: giữ `{message: "Đã xóa ghi chú trống"}`, trim content,
+  missing-date `INVALID_REQUEST`, malformed non-empty date AS-IS, workspace
+  isolation và không thêm MCP/DTO/persistence change.
+- Acceptance evidence: focused Notes service + route tests pass `5/5`; backend
+  `npm run validate` pass `114/114` với typecheck, lint và build; shared
+  `npm run validate` pass `25/25`; frontend typecheck/lint/integration `6/6`/build
+  pass; `git diff --check` pass.
+- Database/operational impact: chỉ chuyển validation/delegation vào service;
+  không DB/schema/index/migration/data rewrite và không Kubernetes mutation.
+- Residual risk: NotesRepository vẫn là persistence seam hợp lệ; malformed
+  non-empty date và các private direct-mutation routes khác còn GAP riêng.
+- Commit/push: final Batch B commit `2278144` đã ghi source, tests và
+  execution-plan checkpoint; push đang chờ sau khi amend SHA verification.
 
 ### Execution rules
 
