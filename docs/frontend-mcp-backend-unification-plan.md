@@ -52,9 +52,10 @@ lại để tránh đọc nhầm checkpoint cũ.
   `MCP_WRITER_MODE=read`, `MCP_OLD_WRITER_FENCED=true`.
 - Authenticated MCP initialize thành công; `11/11` query tools trả HTTP `200`,
   không có preview/confirm tool ở read mode.
-- Backend log window 24h được đếm nội bộ: `83` dòng, không có dòng match
-  MCP/preview/confirm/writer/mutation/error. Đây không phải bằng chứng external
-  client đã bị fence.
+- Backend log window 24h được đếm nội bộ ở observation mới nhất: `279` dòng,
+  không có dòng match MCP/preview/confirm/writer/mutation/error. Đây không phải
+  bằng chứng external client đã bị fence; live pod vẫn chạy image `7ccb02cc9592`
+  và chưa chứa source guard của `86b5168`.
 - Không in secret, token, raw payload, raw financial ID/amount.
 - Read-only topology audit thấy đúng một backend pod và một frontend pod,
   mỗi pod `Ready=true`, restart `0`; Ingress chỉ route `/mcp` và `/docs` vào
