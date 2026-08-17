@@ -42,8 +42,8 @@ implemented yet.
 - Residual risk: external old-writer traffic and consumer drain remain to be
   evidenced. Keep smoke read/preview-only. Reversal or compensating
   transaction remains a separate financial decision and is not implemented.
-- Commit/push: chart `6bfa41f` pushed to `origin/master`; this execution-plan
-  evidence is pending its own source-repo commit/push.
+- Commit/push: chart `6bfa41f` pushed to `origin/master`; this historical note
+  is superseded by the later runtime/read-only checkpoints below.
 
 ### Completed checkpoint: Candidate image publication and GitOps handoff
 
@@ -108,8 +108,8 @@ implemented yet.
   reversal/compensating transaction. Production statement-payment MCP rollout
   vẫn **NO-GO** cho tới khi có external old-writer consumer/traffic evidence.
 - Commit/push: candidate source `e8a3952` và chart `643a450` đã ở `origin/master`;
-  checkpoint này được ghi vào application plan và cần application commit/push
-  riêng.
+  application plan evidence được ghi trong `76d5716` và cập nhật ở các
+  runtime/read-only checkpoints kế tiếp.
 
 ### Completed checkpoint: Restore read-only MCP desired state before fence/drain
 
@@ -127,8 +127,8 @@ implemented yet.
   refresh/sync; cần chờ Argo reconciliation và kiểm tra lại live env/manifest.
   Production statement-payment MCP rollout vẫn **NO-GO** trong khoảng lệch
   desired/live này.
-- Commit/push: chart `d4f708a` đã push `origin/master`; application plan
-  evidence cần commit/push riêng.
+- Commit/push: chart `d4f708a` đã push `origin/master`; desired-state evidence
+  được ghi trong application commit `56ef92f`, live reconciliation ở `3e649f2`.
 
 ### Completed checkpoint: Live read-only MCP reconciliation
 
@@ -150,7 +150,7 @@ implemented yet.
   database và không thực hiện reversal/compensating transaction. Production
   statement-payment MCP rollout vẫn **NO-GO** cho writer enablement.
 - Commit/push: chart `d4f708a` và runtime reconciliation đã evidence; checkpoint
-  này cần application plan commit/push riêng.
+  này được ghi trong application commit `3e649f2`.
 
 ### Completed checkpoint: Simplify shared CI/CD execution and remove superseded plans
 
@@ -222,8 +222,8 @@ implemented yet.
 - Operational impact: chỉ thay boundary trong application process, không đổi
   dữ liệu/schema, Kubernetes, MCP writer mode, payment persistence, reversal
   hoặc compensating transaction.
-- Commit/push: execution-plan evidence và source slice được ghi trong commit
-  application kế tiếp.
+- Commit/push: execution-plan evidence và source slice được ghi trong
+  application commit `72d296f`.
 
 ### Completed checkpoint: Calendar subscription feed service boundary
 
@@ -246,8 +246,8 @@ implemented yet.
   valid feed batches canonical statement amounts.
 - Operational impact: no database/schema change, Kubernetes mutation, MCP
   writer change, payment persistence, reversal or compensating transaction.
-- Commit/push: execution-plan evidence and source slice are included in the
-  next application commit.
+- Commit/push: execution-plan evidence và source slice được ghi trong
+  application commit `7ab6918`.
 
 ### Completed checkpoint: Admin audit query service boundary
 
@@ -267,8 +267,8 @@ implemented yet.
 - Operational impact: application boundary only; không database migration,
   Kubernetes mutation, MCP writer/payment change, reversal hay compensating
   transaction.
-- Commit/push: execution-plan evidence và source slice được ghi trong commit
-  application kế tiếp.
+- Commit/push: execution-plan evidence và source slice được ghi trong
+  application commit `9fdbc3e`.
 
 ### Completed checkpoint: Session version revocation and registration workspace policy
 
