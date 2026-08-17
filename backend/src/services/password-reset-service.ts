@@ -31,7 +31,8 @@ export class ForgotPasswordService {
     if (user && resetLink && options.mail?.sendPasswordResetEmail) {
       try { await options.mail.sendPasswordResetEmail({ to: user.email, resetLink, expiresAt }); delivered = true; } catch { delivered = false; }
     }
-    return { email, delivered, resetLink: options.returnResetToken ? resetLink : null };
+    const canExposeResetLink = options.returnResetToken && (!options.mail || delivered);
+    return { email, delivered, resetLink: canExposeResetLink ? resetLink : null };
   }
 }
 

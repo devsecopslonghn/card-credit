@@ -25,7 +25,7 @@ lại để tránh đọc nhầm checkpoint cũ.
 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | `CLOSED` | Source/tests và live read-only index/duplicate/orphan audit | Giữ preflight |
 | `GAP-REP-01/02` | `CLOSED` | Ledger/category source decision, shared contracts, report guard và live read-only reconciliation | Giữ no-join/orphan checks |
 | `GAP-UI-02/03` | `CLOSED` | Canonical filters/lifecycle và Playwright planning/report acceptance | Giữ browser acceptance |
-| `GAP-AUTH-01` | `PARTIAL` | Generic forgot-password, MailService tests và SMTP `transport.verify()` | Approved-recipient delivery/sender-owner evidence |
+| `GAP-AUTH-01` | `PARTIAL` | Generic forgot-password, MailService tests, SMTP `transport.verify()` và regression chứng minh SMTP failure không làm lộ reset link, audit `delivered=false` | Approved-recipient delivery/sender-owner evidence |
 | `GAP-API-01`, `GAP-WEB-01`, `GAP-DOC-01`, `GAP-PERF-01` | `CLOSED` | Inventory, docs, bounded reads, live query profile | Giữ release gates |
 
 ## 2. Latest evidence
@@ -33,16 +33,18 @@ lại để tránh đọc nhầm checkpoint cũ.
 ### Local validation
 
 - Shared: `npm run validate` — build pass, tests `29/29`.
-- Backend: `npm run validate` — typecheck/lint/build pass, tests `160/160`.
-- Backend exhaustive local suite: `npm run test:all` — tests `257/257` pass,
+- Backend: `npm run validate` — typecheck/lint/build pass, tests `161/161`.
+- Backend exhaustive local suite: `npm run test:all` — tests `258/258` pass,
   including non-blocking legacy/reconciliation/payment coverage.
 - Frontend: curated `npm test` `44/44`, integration `6/6`, typecheck/lint/build
   pass, production build renders `24` routes.
-- Latest full gate for the current source checkpoint (`d488379`): frontend
+- Latest full gate for the previous source checkpoint (`d488379`): frontend
   `npm ci --include=optional`, `npm run test:unit --if-present` `80/80`,
   typecheck/lint/integration `6/6`/build pass; shared `29/29`; backend
   `160/160` with typecheck/lint/build pass, including the read-only legacy
   writer fence and MCP session-version revoke regressions.
+- Current source slice adds the forgot-password SMTP-failure fence; backend
+  critical `161/161`, exhaustive `258/258`, typecheck/lint/build all pass.
 - Local container artifact build was attempted read-only: Docker CLI exists but
   the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
   no `buildctl` is installed. No permission bypass was used; Jenkins remains

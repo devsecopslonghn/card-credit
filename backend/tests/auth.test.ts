@@ -107,6 +107,26 @@ test("forgot password sends the reset link through mail without exposing it in t
   await app.close();
 });
 
+test("forgot password keeps the generic response and audits delivery failure", async () => {
+  const repository = new MemoryAuth();
+  await repository.createUser({ email: "owner@example.test", passwordHash: "hash", role: "user", workspaceId: "workspace-a", displayName: "Owner", active: true, lockedAt: null });
+  const audits: Array<Record<string, unknown>> = [];
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerAuthRoutes(app, {
+    repository,
+    secret,
+    returnResetToken: true,
+    mail: { sendPasswordResetEmail: async () => { throw new Error("SMTP unavailable"); } },
+    audit: async (_event, _request, _actor, _email, resource) => { if (resource) audits.push(resource); },
+  });
+
+  const response = await app.inject({ method: "POST", url: "/api/auth/forgot-password", headers: { "x-forwarded-host": "test.local", "x-forwarded-proto": "https" }, payload: { email: "owner@example.test" } });
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { ok: true, message: "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi." });
+  assert.equal(audits.at(-1)?.delivered, false);
+  await app.close();
+});
+
 test("signed sessions expire from issuedAt and reject future timestamps", () => {
   const secret = "01234567890123456789012345678901";
   const session = { userId: "u1", email: "u@example.test", role: "user", workspaceId: "w1" } as const;
