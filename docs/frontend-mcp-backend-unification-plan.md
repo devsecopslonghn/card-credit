@@ -38,6 +38,9 @@ lại để tránh đọc nhầm checkpoint cũ.
   including non-blocking legacy/reconciliation/payment coverage.
 - Frontend: curated `npm test` `44/44`, integration `6/6`, typecheck/lint/build
   pass, production build renders `24` routes.
+- Current frontend SRS gate: `npm ci --include=optional` and
+  `npm run test:unit --if-present` pass with `80/80`; frontend source is
+  unchanged by the current backend/security slices.
 - Latest full gate for the previous source checkpoint (`d488379`): frontend
   `npm ci --include=optional`, `npm run test:unit --if-present` `80/80`,
   typecheck/lint/integration `6/6`/build pass; shared `29/29`; backend
