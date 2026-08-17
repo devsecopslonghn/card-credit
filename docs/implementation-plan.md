@@ -51,7 +51,7 @@ baseline.
 
 **Files affected**: `backend/src/auth.ts`, `backend/src/auth-routes.ts`,
 `backend/src/browser-security.ts`, `backend/src/errors.ts`, `backend/src/config.ts`,
-`frontend/middleware.ts`, auth/security tests, Docker/Jenkins docs.
+`frontend/proxy.ts`, auth/security tests, Docker/Jenkins docs.
 
 **Dependencies**: Milestone 0; chosen session expiry/rate-limit policy.
 

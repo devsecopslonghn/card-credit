@@ -2284,12 +2284,13 @@ chạy validation, commit và push ngay.
 
 ### Completed checkpoint: Frontend Private Surface Guard
 
-- Independent review: frontend-only route-boundary slice; session middleware
+- Independent review: frontend-only route-boundary slice; session proxy
   bao phủ các application UI/API route hiện hữu, còn card-catalog/auth public
   và calendar subscription feed token được giữ ngoài session guard có chủ đích.
-- Changed write-set: `frontend/middleware.ts` thêm private UI prefixes cho
+- Changed write-set: `frontend/proxy.ts` (migrated from the deprecated
+  `middleware.ts` convention) thêm private UI prefixes cho
   dashboard/transactions/accounts/budgets/reports/payments/notifications/fees/
-  cashback/analytics và private finance API prefixes; `middleware.test.mjs`
+  cashback/analytics và private finance API prefixes; `proxy.test.mjs`
   kiểm tra matcher/policy; `package.json` đưa test vào unit inventory.
 - Compatibility: unauthenticated UI vẫn redirect `/login?next=...`; private API
   trả envelope `401`; calendar `.ics` feed tiếp tục dùng subscription token,
@@ -2299,6 +2300,27 @@ chạy validation, commit và push ngay.
   `middleware` deprecated, không phải lỗi slice này.
 - Database impact: không backend/model/schema/index/migration/data change, không
   cần Kubernetes backup. Rollback bằng revert frontend commit.
+
+### Completed checkpoint: Next.js 16 proxy convention migration
+
+- Requirement/GAP: loại bỏ deprecation warning của Next.js 16 cho
+  `middleware.ts` mà không thay đổi private UI/API boundary hay financial
+  behavior.
+- Independent review: `frontend/middleware.ts` được rename thành
+  `frontend/proxy.ts`, named export đổi từ `middleware` thành `proxy`; matcher,
+  cookie name, unauthenticated API `401`, UI redirect và calendar subscription
+  exclusion giữ nguyên. Regression test được rename thành `proxy.test.mjs` và
+  critical/unit package entries được cập nhật.
+- Changed write-set: chỉ frontend route-boundary filename/export/test/docs;
+  không đổi persistence, REST/MCP command, database, financial state hay
+  Kubernetes.
+- Acceptance evidence: frontend `npm test` pass `45/45`, `npm run test:unit`
+  pass `86/86`, typecheck và lint pass; `npm run build` pass và output nhận
+  diện `ƒ Proxy (Middleware)` nhưng không còn warning deprecated middleware
+  convention. Diff review xác nhận proxy source giống middleware source cũ
+  ngoài filename/export.
+- Residual/decision: đây là cleanup non-financial đã **GO**; session-version
+  runtime, external old-writer fence/drain và financial decisions vẫn mở.
 
 ### Completed checkpoint: Deployment Smoke Report Contract
 

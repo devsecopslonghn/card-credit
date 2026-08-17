@@ -14,7 +14,7 @@ const privateApiPrefixes = [
 
 const hasSessionCookie = (request: NextRequest) => Boolean(request.cookies.get(AUTH_COOKIE_NAME)?.value);
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const privateUi = privateUiPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   const privateApi = privateApiPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

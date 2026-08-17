@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const source = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
+const source = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 
-test("middleware covers every session-backed application surface", () => {
+test("proxy covers every session-backed application surface", () => {
+  assert.match(source, /export function proxy\(/);
   for (const path of ["/dashboard", "/transactions", "/accounts", "/budgets", "/reports", "/payments", "/notifications", "/fees", "/cashback", "/analytics"]) {
     assert.match(source, new RegExp(`"${path}"`));
     assert.match(source, new RegExp(`"${path}/:path\\*"`));
@@ -15,6 +16,6 @@ test("middleware covers every session-backed application surface", () => {
   }
 });
 
-test("calendar subscription feed remains token-authenticated outside session middleware", () => {
+test("calendar subscription feed remains token-authenticated outside session proxy", () => {
   assert.doesNotMatch(source, /"\/api\/calendar-subscriptions"/);
 });
