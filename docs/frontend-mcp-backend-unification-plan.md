@@ -87,6 +87,10 @@ implemented yet.
 - Stale-reference audit ngoài historical execution ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`,
   `FinanceCategoryService.ensureDefaults` hoặc `categories/defaults`.
+- Zero-consumer document audit đã xóa `docs/product.md` và `docs/ui-design.md`;
+  `docs/ui-architecture-review.md` vẫn được giữ vì `docs/README.md` còn tham
+  chiếu. Requirements/SRS/architecture và operational runbook canonical vẫn
+  được giữ lại.
 - Independent review: GO cho local release gate; không có cluster/database/mail
   side effect.
 
