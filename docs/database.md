@@ -258,18 +258,9 @@ không thêm index tùy tiện trên high-write collections nếu không có que
    dry-run/apply. Phải backup workspace trước apply và fence old MCP writers vì
    token v1/stateless từ pod cũ không có preview record.
 
-#### Rollout ledger — 2026-08-16
-
-- Cluster context `k8s-admin-public`, namespace `card-credit`; target pod
-  `card-credit-backend-68ffb6578f-6tzvq`.
-- Backup trước mutation: `/tmp/card-credit-command-guard-backup/finance-
-  longhn0710-workspace-2026-08-16T14-54-00.001Z.json`, local mode `600`; không
-  commit và không chứa secret.
-- Preflight: `commandreceipts=0`, `commandaudits=0`, duplicate receipt groups
-  `0`; apply tạo và verify đủ bốn named indexes theo bảng trên.
-- Code commit `0ee1cef` đã push trước DB mutation. Vì deployment hiện tại vẫn
-  là image cũ, indexes là additive chuẩn bị trước; chỉ adapter sau khi deploy
-  code mới mới được phép ghi receipt/audit.
+Historical rollout observations are kept in Git history and the current
+execution plan, not in this policy document. Do not treat old pod names,
+backup paths or prior index-apply observations as current production state.
 
 ### Rollback
 

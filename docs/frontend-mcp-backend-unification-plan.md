@@ -230,6 +230,8 @@ ordering.
 
 - `docs/product.md`
 - `docs/ui-design.md`
+- stale `docs/database.md` rollout ledger (old pod/backup path; retained the
+  current dry-run, backup and rollback policy)
 - `frontend/lib/api/statementCalendarEmailCore.d.ts` (declaration không có
   consumer TypeScript; runtime source là `.mjs` và vẫn có regression test)
 - legacy finance-category defaults endpoint/service
