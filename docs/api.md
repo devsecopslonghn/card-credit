@@ -146,10 +146,18 @@ Summary response nên có:
 }
 ```
 
-## 7. Cashback, fee and report endpoints
+## 7. Planning, cashback, fee and report endpoints
 
 | Method/path | Auth | Mục đích |
 |---|---|---|
+| `GET /finance/categories` | Session | List category đang active trong workspace. |
+| `POST /finance/categories` | Session | Tạo category trong workspace. |
+| `PUT /finance/budgets` | Session | Upsert budget theo `{month,categoryId,limitAmount,warningPercent?}`. |
+| `GET /finance/budgets/status?month=YYYY-MM` | Session | Budget status authoritative từ financial transactions. |
+| `GET /finance/recurring-expenses?limit=1..100` | Session | List tối đa 100 recurring schedules đang active. |
+| `POST /finance/recurring-expenses` | Session | Tạo recurring schedule monthly; không tự ghi financial transaction. |
+| `PUT /finance/recurring-expenses/:id` | Session | Cập nhật recurring schedule trong workspace. |
+| `DELETE /finance/recurring-expenses/:id` | Session | Soft-deactivate recurring schedule; giữ record để audit/recovery. |
 | `GET /cards/:cardId/monthly-cashbacks` | Session | List bank cashback record. |
 | `GET /cards/:cardId/monthly-cashbacks/:period` | Session | Read one month. |
 | `PUT /cards/:cardId/monthly-cashbacks/:period` | Session | Upsert `{expectedAmount,actualAmount?,status,note}`; `RECEIVED` cần actual. |

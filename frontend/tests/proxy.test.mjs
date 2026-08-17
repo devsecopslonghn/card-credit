@@ -6,7 +6,7 @@ const source = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 
 test("proxy covers every session-backed application surface", () => {
   assert.match(source, /export function proxy\(/);
-  for (const path of ["/dashboard", "/transactions", "/accounts", "/budgets", "/reports", "/payments", "/notifications", "/fees", "/cashback", "/analytics"]) {
+  for (const path of ["/dashboard", "/transactions", "/accounts", "/budgets", "/reports", "/recurring", "/payments", "/notifications", "/fees", "/cashback", "/analytics"]) {
     assert.match(source, new RegExp(`"${path}"`));
     assert.match(source, new RegExp(`"${path}/:path\\*"`));
   }

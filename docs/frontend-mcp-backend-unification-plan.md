@@ -63,6 +63,25 @@ implemented yet.
 - Rollback: revert commit này để khôi phục read-only UI; không có runtime data
   mutation trong validation.
 
+### Completed checkpoint: Complete recurring schedule lifecycle
+
+- Scope: shared recurring input/output contracts; backend list/create/update and
+  soft-deactivate routes scoped by trusted workspace/account; list bounded at
+  `100`; frontend `/recurring` page supports create/edit/deactivate and private
+  proxy coverage.
+- Safety: recurring schedules are configuration only. This slice does not
+  generate or persist financial transactions, does not add migration/index/data
+  changes, and keeps deactivation recoverable in the record.
+- Validation: shared `npm run validate` pass `25/25`; backend typecheck/lint and
+  curated `npm test` pass `143/143`; frontend critical pass `46/46`, unit pass
+  `82/82`, integration `6/6`, typecheck, lint and build pass; `git diff --check`
+  pass.
+- Residual: recurring transaction generation and owner/runtime UI acceptance
+  remain unclaimed; `GAP-UI-02/03` stays `PARTIAL`, while the recurring slice of
+  `GAP-PERF-01` is covered.
+- Rollback: revert this commit to remove the new lifecycle surface; no runtime
+  financial mutation was executed.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

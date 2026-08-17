@@ -4,7 +4,7 @@ const AUTH_COOKIE_NAME = "card_credit_session";
 
 const privateUiPrefixes = [
   "/dashboard", "/transactions", "/accounts", "/budgets", "/reports", "/payments",
-  "/notifications", "/fees", "/cashback", "/analytics", "/cards", "/masterdata", "/profile", "/admin",
+  "/notifications", "/fees", "/cashback", "/analytics", "/recurring", "/cards", "/masterdata", "/profile", "/admin",
 ];
 const privateApiPrefixes = [
   "/api/admin", "/api/profile", "/api/cards", "/api/notes", "/api/banks", "/api/cardtypes",
@@ -38,7 +38,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*", "/transactions/:path*", "/accounts/:path*", "/budgets/:path*", "/reports/:path*",
-    "/payments/:path*", "/notifications/:path*", "/fees/:path*", "/cashback/:path*", "/analytics/:path*",
+    "/payments/:path*", "/notifications/:path*", "/fees/:path*", "/cashback/:path*", "/analytics/:path*", "/recurring/:path*",
     "/cards/:path*", "/masterdata/:path*", "/profile/:path*", "/admin/:path*",
     "/api/admin/:path*", "/api/profile/:path*", "/api/cards/:path*", "/api/notes/:path*", "/api/banks/:path*",
     "/api/cardtypes/:path*", "/api/accounts/:path*", "/api/financial-transactions/:path*",

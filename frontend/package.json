@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:critical",
-    "test:critical": "node --test tests/authSession.test.mjs tests/registerPolicy.test.mjs tests/proxy.test.mjs tests/cardCatalog.test.mjs tests/cardCatalogApi.test.mjs tests/cardDebt.test.mjs tests/dueStatements.test.mjs tests/transactionStatement.test.mjs tests/statementsContract.test.mjs tests/transactionQuery.test.mjs",
+    "test:critical": "node --test tests/authSession.test.mjs tests/registerPolicy.test.mjs tests/proxy.test.mjs tests/cardCatalog.test.mjs tests/cardCatalogApi.test.mjs tests/cardDebt.test.mjs tests/dueStatements.test.mjs tests/transactionStatement.test.mjs tests/statementsContract.test.mjs tests/transactionQuery.test.mjs tests/recurring.test.mjs",
     "test:all": "npm run test:unit && npm run test:integration",
     "test:unit": "node --test tests/budgets.test.mjs tests/calendarSubscriptions.test.mjs tests/masterdata.test.mjs tests/user.test.mjs tests/authSession.test.mjs tests/cash-flow.test.mjs tests/cardAccessibility.test.mjs tests/cardCatalog.test.mjs tests/cardDebt.test.mjs tests/cardUi.test.mjs tests/dashboardLoad.test.mjs tests/dueStatements.test.mjs tests/proxy.test.mjs tests/monthlyCashbacks.test.mjs tests/observability.test.mjs tests/reports.test.mjs tests/registerPolicy.test.mjs tests/statementCalendarEmail.test.mjs tests/statementsContract.test.mjs tests/transactionStatement.test.mjs tests/transactionQuery.test.mjs tests/dockerfile.test.mjs",
     "test:integration": "node --test tests/cardCatalogApi.test.mjs",

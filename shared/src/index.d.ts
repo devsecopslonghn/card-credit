@@ -262,6 +262,22 @@ export type BudgetStatusDto = {
   usagePercent: number;
   status: BudgetStatus;
 };
+
+export declare const recurringFrequencySchema: z.ZodLiteral<"MONTHLY">;
+export declare const recurringExpenseInputSchema: z.ZodObject<any>;
+export declare const recurringExpenseSchema: z.ZodObject<any>;
+export declare const recurringExpenseListSchema: z.ZodArray<typeof recurringExpenseSchema>;
+export type RecurringExpenseDto = {
+  id: string;
+  name: string;
+  categoryId: string;
+  accountId: string;
+  expectedAmount: number;
+  frequency: "MONTHLY";
+  nextDueDate: string;
+  active: boolean;
+};
+export type RecurringExpenseInput = Omit<RecurringExpenseDto, "id" | "active">;
 export declare const statementSummarySchema: z.ZodObject<any>;
 export declare const statementSchema: z.ZodObject<any>;
 export declare const statementListSchema: z.ZodArray<typeof statementSchema>;

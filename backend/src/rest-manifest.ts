@@ -48,6 +48,8 @@ export const REST_ENDPOINTS: readonly RestEndpointDefinition[] = [
   { method: "get", path: "/api/finance/budgets/status", summary: "Get budget status", security: "session" },
   { method: "get", path: "/api/finance/recurring-expenses", summary: "List recurring expenses", security: "session" },
   { method: "post", path: "/api/finance/recurring-expenses", summary: "Create recurring expense", security: "session" },
+  { method: "put", path: "/api/finance/recurring-expenses/{id}", summary: "Update recurring expense", security: "session" },
+  { method: "delete", path: "/api/finance/recurring-expenses/{id}", summary: "Deactivate recurring expense", security: "session" },
   { method: "get", path: "/api/card-catalog/providers", summary: "List active providers", security: "public" },
   { method: "get", path: "/api/card-catalog/products", summary: "List active products", security: "public" },
   { method: "get", path: "/api/card-catalog/products/{presetId}", summary: "Get active product", security: "public" },

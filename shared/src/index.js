@@ -66,6 +66,12 @@ export {
   budgetStatusListSchema,
 } from "./planning-contracts.js";
 export {
+  recurringFrequencySchema,
+  recurringExpenseInputSchema,
+  recurringExpenseSchema,
+  recurringExpenseListSchema,
+} from "./recurring-expense-contracts.js";
+export {
   statementPaymentStatusSchema,
   statementPaymentActionSchema,
   statementPaymentInputSchema,
