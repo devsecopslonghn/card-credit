@@ -11,6 +11,10 @@ test("budget client and page consume the canonical backend status DTO", () => {
   assert.match(page, /remainingAmount/);
   assert.match(page, /usagePercent/);
   assert.match(page, /item\.status/);
+  assert.match(client, /upsertBudget/);
+  assert.match(page, /Lưu ngân sách/);
+  assert.match(page, /Category ID/);
+  assert.match(page, /Hạn mức/);
   assert.doesNotMatch(page, /type Budget =/);
   assert.doesNotMatch(page, /item\.(?:spent|limit|remaining)(?!Amount)/);
 });

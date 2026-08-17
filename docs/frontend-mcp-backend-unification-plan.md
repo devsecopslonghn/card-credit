@@ -49,6 +49,20 @@ implemented yet.
 - Rollback: revert commit cleanup để khôi phục source; không ảnh hưởng runtime
   data vì không có active consumer.
 
+### Completed checkpoint: Add report filters and budget write UI
+
+- Scope: Reports dùng canonical `from`/`to` date-range inputs và gọi cùng
+  `getFinancialSummary`; Budgets dùng canonical `upsertBudget` client cho
+  endpoint `PUT /api/finance/budgets`, sau đó reload status theo tháng.
+- Regression: frontend report/budget tests cover filter controls và budget write
+  surface; không thêm endpoint shadow, không đổi database/schema/migration.
+- Validation: frontend `npm run test:unit --if-present` pass `82/82`,
+  integration pass `6/6`, typecheck, lint và build pass.
+- Residual: `GAP-UI-02/03` chuyển `OPEN → PARTIAL`; recurring update/delete/
+  generation và owner/runtime UI acceptance vẫn chưa claim đóng.
+- Rollback: revert commit này để khôi phục read-only UI; không có runtime data
+  mutation trong validation.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

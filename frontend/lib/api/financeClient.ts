@@ -26,6 +26,12 @@ export const getFinancialSummary = async (from: string, to: string): Promise<Fin
 };
 export const getCreditStatements = async (from?: string, to?: string): Promise<CreditStatementReportDto[]> => creditStatementReportListSchema.parse(await request<unknown>(`/api/financial-reports/credit-statements${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`)) as CreditStatementReportDto[];
 export const getBudgetStatus = async (month: string): Promise<BudgetStatusDto[]> => budgetStatusListSchema.parse(await request<unknown>(`/api/finance/budgets/status?month=${encodeURIComponent(month)}`)) as BudgetStatusDto[];
+export const upsertBudget = async (input: { month: string; categoryId: string; limitAmount: number; warningPercent?: number }) => {
+  if (!/^\d{4}-\d{2}$/.test(input.month) || !input.categoryId.trim() || !Number.isSafeInteger(input.limitAmount) || input.limitAmount <= 0) {
+    throw new Error("Budget không hợp lệ.");
+  }
+  await request<unknown>("/api/finance/budgets", { method: "PUT", body: JSON.stringify({ ...input, categoryId: input.categoryId.trim() }) });
+};
 
 export type FinanceAccount = AccountDto;
 
