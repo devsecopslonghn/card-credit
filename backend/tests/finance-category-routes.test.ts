@@ -47,3 +47,13 @@ test("finance category routes require a session", async () => {
   assert.equal((await app.inject({ method: "POST", url: "/api/finance/categories", payload: { name: "Food" } })).statusCode, 401);
   await app.close();
 });
+
+test("finance category create rejects tenant fields before service access", async (t) => {
+  const create = t.mock.method(FinanceCategoryService, "create");
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerFinanceRoutes(app, secret, users);
+  const response = await app.inject({ method: "POST", url: "/api/finance/categories", headers: { cookie }, payload: { name: "Food", workspaceId: "attacker" } });
+  assert.equal(response.statusCode, 400);
+  assert.equal(create.mock.callCount(), 0);
+  await app.close();
+});

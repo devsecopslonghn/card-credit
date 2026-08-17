@@ -150,8 +150,8 @@ Summary response nên có:
 
 | Method/path | Auth | Mục đích |
 |---|---|---|
-| `GET /finance/categories?limit=1..100` | Session | List tối đa 100 category đang active trong workspace. |
-| `POST /finance/categories` | Session | Tạo category trong workspace. |
+| `GET /finance/categories?limit=1..100` | Session | List tối đa 100 category đang active trong workspace; response parse bằng shared `financeCategoryListSchema`. |
+| `POST /finance/categories` | Session | Tạo category trong workspace theo strict shared `financeCategoryInputSchema`; tenant fields bị reject. |
 | `PUT /finance/budgets` | Session | Upsert budget theo `{month,categoryId,limitAmount,warningPercent?}`. |
 | `GET /finance/budgets/status?month=YYYY-MM` | Session | Budget status authoritative từ financial transactions. |
 | `GET /finance/recurring-expenses?limit=1..100` | Session | List tối đa 100 recurring schedules đang active. |

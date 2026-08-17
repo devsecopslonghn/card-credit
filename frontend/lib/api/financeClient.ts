@@ -1,5 +1,5 @@
-import { accountListSchema, budgetStatusListSchema, creditStatementReportListSchema, creditStatementReportPageSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, reportQuerySchema, reportDateRangeSchema } from "@card-credit/contracts";
-import type { AccountDto, BudgetStatusDto, CreditStatementReportDto, FinancialReportDto, FinancialTransactionDto, FinancialTransactionListQuery } from "@card-credit/contracts";
+import { accountListSchema, budgetStatusListSchema, creditStatementReportListSchema, creditStatementReportPageSchema, financeCategoryListSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, reportQuerySchema, reportDateRangeSchema } from "@card-credit/contracts";
+import type { AccountDto, BudgetStatusDto, CreditStatementReportDto, FinanceCategoryDto, FinancialReportDto, FinancialTransactionDto, FinancialTransactionListQuery } from "@card-credit/contracts";
 
 export type FinancialTransaction = FinancialTransactionDto;
 
@@ -39,6 +39,7 @@ export const getCreditStatementsPage = async (limit = 100, cursor?: string, from
   return creditStatementReportPageSchema.parse(await request<unknown>(`/api/financial-reports/credit-statements?${params.toString()}`));
 };
 export const getBudgetStatus = async (month: string): Promise<BudgetStatusDto[]> => budgetStatusListSchema.parse(await request<unknown>(`/api/finance/budgets/status?month=${encodeURIComponent(month)}`)) as BudgetStatusDto[];
+export const listFinanceCategories = async (): Promise<FinanceCategoryDto[]> => financeCategoryListSchema.parse(await request<unknown>("/api/finance/categories")) as FinanceCategoryDto[];
 export const upsertBudget = async (input: { month: string; categoryId: string; limitAmount: number; warningPercent?: number }) => {
   if (!/^\d{4}-\d{2}$/.test(input.month) || !input.categoryId.trim() || !Number.isSafeInteger(input.limitAmount) || input.limitAmount <= 0) {
     throw new Error("Budget không hợp lệ.");

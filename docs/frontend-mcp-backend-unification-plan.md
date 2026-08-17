@@ -21,10 +21,15 @@ implemented yet.
 - Cleanup: xóa `POST /api/finance/categories/defaults` và
   `FinanceCategoryService.ensureDefaults()` sau zero-consumer audit; giữ
   `GET/POST /api/finance/categories` vì đây là canonical planning surface.
+- Contract/UI: shared `financeCategoryInputSchema` và
+  `financeCategoryListSchema` được dùng ở backend và frontend; Budgets/Recurring
+  lấy catalogue qua client canonical để gợi ý category nhưng vẫn cho phép giữ
+  unknown legacy IDs.
 - Regression evidence: category REST list/create dùng trusted context; unauthenticated
-  routes fail closed; report test asserts zero category-catalogue read và không
-  trả `monthlyData`; backend `npm run validate` pass typecheck, lint, `155/155`
-  critical tests và build.
+  routes fail closed, tenant field bị reject trước service; report test asserts
+  zero category-catalogue read và không trả `monthlyData`; shared `29/29`,
+  frontend unit `80/80` + integration `6/6` + typecheck/lint/build, backend
+  `npm run validate` pass typecheck, lint, `156/156` critical tests và build.
 - Safety: không có database write, migration, reconcile, Kubernetes mutation
   hoặc financial mutation.
 

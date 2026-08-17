@@ -66,6 +66,11 @@ export {
   budgetStatusListSchema,
 } from "./planning-contracts.js";
 export {
+  financeCategoryInputSchema,
+  financeCategorySchema,
+  financeCategoryListSchema,
+} from "./finance-category-contracts.js";
+export {
   recurringFrequencySchema,
   recurringExpenseInputSchema,
   recurringExpenseSchema,

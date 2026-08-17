@@ -263,6 +263,16 @@ export type BudgetStatusDto = {
   status: BudgetStatus;
 };
 
+export declare const financeCategoryInputSchema: z.ZodObject<any>;
+export declare const financeCategorySchema: z.ZodObject<any>;
+export declare const financeCategoryListSchema: z.ZodArray<typeof financeCategorySchema>;
+export type FinanceCategoryDto = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  system: boolean;
+};
+
 export declare const recurringFrequencySchema: z.ZodLiteral<"MONTHLY">;
 export declare const recurringExpenseInputSchema: z.ZodObject<any>;
 export declare const recurringExpenseSchema: z.ZodObject<any>;
