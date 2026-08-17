@@ -56,6 +56,11 @@ lại để tránh đọc nhầm checkpoint cũ.
   `5267c79cf437`, live backend/frontend pods run `7ccb02cc9592`, while source
   HEAD is `3d194ea`. No chart value or cluster resource was changed to bridge
   this gap.
+- Argo read-only status is `Synced/Healthy` at revision
+  `373804725ae24abc9c8c0f7c0df7b479fadb010d`; both deployments report observed
+  generation equal to current generation and one available replica. This
+  confirms the older desired state is healthy, not that current source HEAD is
+  deployed.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
