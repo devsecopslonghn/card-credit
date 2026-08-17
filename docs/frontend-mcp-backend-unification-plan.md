@@ -1176,6 +1176,24 @@ chạy validation, commit và push ngay.
 - Commit/push: source commit `2034060` đã push; checkpoint này sẽ được push
   cùng docs-only commit, không chờ runtime rollout trong batch local.
 
+### Verification checkpoint: Cross-package validation after auth boundary batches
+
+- Scope: xác nhận các batch auth boundary gần nhất không làm lệch shared
+  contract, backend curated suite hoặc frontend consumer/build; đây là local
+  source/test evidence, không phải candidate runtime evidence.
+- Acceptance evidence: `frontend npm ci --include=optional` pass; shared
+  `npm run validate` pass `25/25`; backend `npm run validate` pass `127/127`
+  với typecheck, lint và build; frontend `npm run test:unit` pass `86/86`,
+  `npm run test:integration` pass `6/6`, typecheck/lint và production build
+  pass.
+- Review note: Next.js chỉ phát cảnh báo convention `middleware` deprecated;
+  không có test/build failure và chưa đổi convention trong batch này.
+- Operational impact: chỉ local validation, không Jenkins trigger thủ công,
+  không Argo sync/refresh, không Kubernetes mutation, không database hoặc
+  financial persistence change.
+- Residual risk: candidate image/GitOps handoff và old MCP statement-payment
+  writer fence/drain vẫn cần evidence riêng; không claim production rollout.
+
 ### Completed checkpoint: Monthly Cash-flow Read Contract Parity
 
 - Independent review: bounded extraction-only slice được duyệt; giữ nguyên
