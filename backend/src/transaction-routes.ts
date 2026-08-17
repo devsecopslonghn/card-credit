@@ -10,6 +10,7 @@ import { statementPaymentExecuteInputSchema, statementPaymentInputSchema, statem
 import { canonicalPayloadHash, confirmationTokenHash, createPreviewTokenCodec, type PreviewBinding } from "./mcp/preview.js";
 import { previewConfirmationService, type PreviewConfirmationService } from "./services/preview-confirmation-service.js";
 import { PAYMENT_OPERATION, paymentPreviewPayload } from "./payment-contract.js";
+import { boundedReadLimit } from "./read-limits.js";
 
 const paymentPreviewBinding = (context: { workspaceId: string; userId: string; channel: string }): PreviewBinding => ({ workspaceId: context.workspaceId, userId: context.userId, channel: context.channel });
 
@@ -20,13 +21,23 @@ export const registerTransactionRoutes = (
   previewService: Pick<PreviewConfirmationService, "issue"> = previewConfirmationService,
 ) => {
   const browserPreviewCodec = createPreviewTokenCodec({ secret, domain: "card-credit:browser-preview:v1" });
-  app.get("/api/card-statements", async (request) => {
-    return { data: await StatementQueryService.list(await browserServiceContext(request, secret, calendarEmail?.users)) };
+  app.get<{ Querystring: { limit?: string; cursor?: string } }>("/api/card-statements", async (request) => {
+    const context = await browserServiceContext(request, secret, calendarEmail?.users);
+    if (request.query.limit || request.query.cursor) {
+      const page = await StatementQueryService.listPage(context, { limit: boundedReadLimit(request.query.limit), cursor: request.query.cursor });
+      return { data: { items: page.data, nextCursor: page.nextCursor, limit: page.limit } };
+    }
+    return { data: await StatementQueryService.list(context) };
   });
-  app.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string }; Querystring: { limit?: string; cursor?: string } }>(
     "/api/cards/:id/statements",
     async (request) => {
-      return { data: await StatementQueryService.list(await browserServiceContext(request, secret, calendarEmail?.users), { cardId: request.params.id }) };
+      const context = await browserServiceContext(request, secret, calendarEmail?.users);
+      if (request.query.limit || request.query.cursor) {
+        const page = await StatementQueryService.listPage(context, { cardId: request.params.id, limit: boundedReadLimit(request.query.limit), cursor: request.query.cursor });
+        return { data: { items: page.data, nextCursor: page.nextCursor, limit: page.limit } };
+      }
+      return { data: await StatementQueryService.list(context, { cardId: request.params.id }) };
     },
   );
   app.get<{ Params: { id: string; statementId: string } }>(

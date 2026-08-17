@@ -1,4 +1,4 @@
-import { accountListSchema, budgetStatusListSchema, creditStatementReportListSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, reportQuerySchema, reportDateRangeSchema } from "@card-credit/contracts";
+import { accountListSchema, budgetStatusListSchema, creditStatementReportListSchema, creditStatementReportPageSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, reportQuerySchema, reportDateRangeSchema } from "@card-credit/contracts";
 import type { AccountDto, BudgetStatusDto, CreditStatementReportDto, FinancialReportDto, FinancialTransactionDto, FinancialTransactionListQuery } from "@card-credit/contracts";
 
 export type FinancialTransaction = FinancialTransactionDto;
@@ -31,6 +31,13 @@ export const getFinancialSummary = async (fromOrQuery: string | FinancialSummary
   return financialReportSchema.parse(await request<unknown>(`/api/financial-reports/summary?${params.toString()}`)) as FinancialReportDto;
 };
 export const getCreditStatements = async (from?: string, to?: string): Promise<CreditStatementReportDto[]> => creditStatementReportListSchema.parse(await request<unknown>(`/api/financial-reports/credit-statements${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`)) as CreditStatementReportDto[];
+export const getCreditStatementsPage = async (limit = 100, cursor?: string, from?: string, to?: string) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) params.set("cursor", cursor);
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  return creditStatementReportPageSchema.parse(await request<unknown>(`/api/financial-reports/credit-statements?${params.toString()}`));
+};
 export const getBudgetStatus = async (month: string): Promise<BudgetStatusDto[]> => budgetStatusListSchema.parse(await request<unknown>(`/api/finance/budgets/status?month=${encodeURIComponent(month)}`)) as BudgetStatusDto[];
 export const upsertBudget = async (input: { month: string; categoryId: string; limitAmount: number; warningPercent?: number }) => {
   if (!/^\d{4}-\d{2}$/.test(input.month) || !input.categoryId.trim() || !Number.isSafeInteger(input.limitAmount) || input.limitAmount <= 0) {

@@ -7,6 +7,8 @@ test("statement client parses canonical DTOs and keeps payment compatibility iso
   const cardsPage = readFileSync(new URL("../app/cards/page.tsx", import.meta.url), "utf8");
   const paymentsPage = readFileSync(new URL("../app/payments/page.tsx", import.meta.url), "utf8");
   assert.match(client, /statementListSchema\.parse/);
+  assert.match(client, /statementPageSchema\.parse/);
+  assert.match(client, /fetchCardStatementsPage/);
   assert.match(client, /statementSchema\.parse/);
   assert.match(client, /_id: value\.id/);
   assert.match(client, /outstandingAmount: value\.summary\.outstandingAmount/);

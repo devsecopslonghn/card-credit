@@ -4,6 +4,7 @@ import { FinancialReportService } from "./services/financial-report-service.js";
 import type { AuthRepository } from "./auth-repository.js";
 import { ApiError } from "./errors.js";
 import { creditStatementReportListSchema, reportQuerySchema, resolveReportDateRange } from "@card-credit/contracts";
+import { boundedReadLimit } from "./read-limits.js";
 
 export const registerFinancialReportRoutes = (app: FastifyInstance, secret: string, users?: Pick<AuthRepository, "findUserById">) => {
   app.get<{ Querystring: { from?: string; to?: string; cardId?: string; owner?: string; year?: string; month?: string } }>("/api/financial-reports/summary", async (request) => {
@@ -22,9 +23,14 @@ export const registerFinancialReportRoutes = (app: FastifyInstance, secret: stri
     }
     return { data: await FinancialReportService.summary(context, range, Object.keys(filters).length ? filters : undefined) };
   });
-  app.get<{ Querystring: { from?: string; to?: string } }>("/api/financial-reports/credit-statements", async (request) => {
+  app.get<{ Querystring: { from?: string; to?: string; limit?: string; cursor?: string } }>("/api/financial-reports/credit-statements", async (request) => {
     const range = request.query.from && request.query.to ? { from: request.query.from, to: request.query.to } : undefined;
-    const data = await FinancialReportService.creditStatements(await browserServiceContext(request, secret, users), range);
+    const context = await browserServiceContext(request, secret, users);
+    if (request.query.limit || request.query.cursor) {
+      const page = await FinancialReportService.creditStatementsPage(context, range, { limit: boundedReadLimit(request.query.limit), cursor: request.query.cursor });
+      return { data: page };
+    }
+    const data = await FinancialReportService.creditStatements(context, range);
     return { data: creditStatementReportListSchema.parse(data) };
   });
 };

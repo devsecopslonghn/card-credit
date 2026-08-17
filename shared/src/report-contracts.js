@@ -4,6 +4,7 @@ import { isoDateSchema } from "./date-contracts.js";
 
 const safeInteger = z.number().int().refine(Number.isSafeInteger, "Must be a safe integer");
 const safeNonNegativeInteger = safeInteger.nonnegative();
+const safePositiveInteger = safeInteger.positive();
 export const reportDateSchema = isoDateSchema;
 
 export const reportDateRangeSchema = z.strictObject({
@@ -103,3 +104,8 @@ export const creditStatementReportSchema = z.strictObject({
 });
 
 export const creditStatementReportListSchema = z.array(creditStatementReportSchema);
+export const creditStatementReportPageSchema = z.strictObject({
+  items: creditStatementReportListSchema,
+  nextCursor: z.string().nullable(),
+  limit: safePositiveInteger,
+});

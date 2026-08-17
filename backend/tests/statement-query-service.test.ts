@@ -46,6 +46,25 @@ test("upcoming statements use one batch transaction query and bounded limit", as
   assert.deepEqual(calls, ["listStatements:workspace-a:paymentDueDate:true", "listCards", "listTransactions"]);
 });
 
+test("statement pages use a stable continuation without dropping the next record", async () => {
+  const second = { ...records[0], _id: "507f1f77bcf86cd799439022", statementDate: "2026-08-10", paymentDueDate: "2026-08-25" };
+  let observed: { limit?: number; cursor?: string } | undefined;
+  const service = createStatementQueryService({
+    ...repository([]),
+    async listStatements(_workspaceId, options) { observed = options; return options.cursor ? [second] : [records[0]!, second]; },
+  });
+  const page = await service.listPage(ctx, { cardId, limit: 1, includeTransactions: false });
+  assert.equal(page.data.length, 1);
+  assert.equal(page.data[0]?.id, statementId);
+  assert.equal(page.limit, 1);
+  assert.ok(page.nextCursor);
+  assert.equal(observed?.limit, 2);
+  const next = await service.listPage(ctx, { cardId, limit: 1, cursor: page.nextCursor, includeTransactions: false });
+  assert.equal(next.data[0]?.id, second._id);
+  assert.equal(observed?.cursor, page.nextCursor);
+  assert.equal(next.nextCursor, null);
+});
+
 test("card-scoped statement reads discard card ids outside the workspace", async () => {
   const calls: Array<{ name: string; value?: unknown }> = [];
   const service = createStatementQueryService({

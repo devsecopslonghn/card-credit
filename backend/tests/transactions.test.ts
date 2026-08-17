@@ -7,6 +7,7 @@ import { registerTransactionRoutes } from "../src/transaction-routes.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
+import { StatementQueryService } from "../src/services/statement-query-service.js";
 
 const secret = "01234567890123456789012345678901";
 const cookie = sessionCookie(signSession({ userId: "user-1", email: "user@example.test", role: "user", workspaceId: "workspace-a" }, secret));
@@ -300,5 +301,15 @@ test("transaction, statement and report routes enforce sessions before database 
   const app = buildApp({ isReady: () => true }, "silent");
   registerTransactionRoutes(app, secret);
   for (const url of ["/api/card-statements", "/api/cards/507f1f77bcf86cd799439011/statements"]) assert.equal((await app.inject({ url })).statusCode, 401);
+  await app.close();
+});
+
+test("paginated statement routes expose the canonical page envelope", async (t) => {
+  t.mock.method(StatementQueryService, "listPage", async () => ({ data: [{ id: "statement-1" }], nextCursor: "opaque-cursor", limit: 1 }) as never);
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerTransactionRoutes(app, secret);
+  const response = await app.inject({ url: "/api/card-statements?limit=1", headers: { cookie } });
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json().data, { items: [{ id: "statement-1" }], nextCursor: "opaque-cursor", limit: 1 });
   await app.close();
 });

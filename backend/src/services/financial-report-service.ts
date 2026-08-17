@@ -9,7 +9,7 @@ import type { ServiceContext } from "./types/service-context.js";
 import { ApiError } from "../errors.js";
 import { StatementQueryService } from "./statement-query-service.js";
 import { creditStatementReportListSchema, financialReportSchema, reportDateRangeSchema } from "@card-credit/contracts";
-import type { CreditStatementReportDto, FinancialReportDto } from "@card-credit/contracts";
+import type { FinancialReportDto } from "@card-credit/contracts";
 
 type Range = { from: string; to: string };
 type Data = Record<string, unknown>;
@@ -167,7 +167,27 @@ export class FinancialReportService {
       order: "paymentDueDate",
       includeTransactions: false,
     });
-    return creditStatementReportListSchema.parse(statements.map((statement) => ({
+    return creditStatementReportListSchema.parse(this.toCreditStatementReports(statements));
+  }
+
+  static async creditStatementsPage(ctx: ServiceContext, range: Range | undefined, options: { limit?: number; cursor?: string } = {}) {
+    const page = await StatementQueryService.listPage(ctx, {
+      statementDateFrom: range?.from,
+      statementDateTo: range?.to,
+      order: "paymentDueDate",
+      includeTransactions: false,
+      limit: options.limit,
+      cursor: options.cursor,
+    });
+    return {
+      items: creditStatementReportListSchema.parse(this.toCreditStatementReports(page.data)),
+      nextCursor: page.nextCursor,
+      limit: page.limit,
+    };
+  }
+
+  private static toCreditStatementReports(statements: Awaited<ReturnType<typeof StatementQueryService.list>>) {
+    return statements.map((statement) => ({
       statementId: statement.id,
       statementDate: statement.statementDate,
       periodStartDate: statement.periodStartDate,
@@ -180,6 +200,6 @@ export class FinancialReportService {
       personalSpending: statement.summary.personalSpending,
       outstandingReceivable: statement.summary.outstandingReceivable,
       transactionCount: statement.summary.transactionCount,
-    }))) as CreditStatementReportDto[];
+    }));
   }
 }

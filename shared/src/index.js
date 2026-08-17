@@ -82,10 +82,12 @@ export {
   statementSummarySchema,
   statementSchema,
   statementListSchema,
+  statementPageSchema,
 } from "./statement-contracts.js";
 export {
   creditStatementReportSchema,
   creditStatementReportListSchema,
+  creditStatementReportPageSchema,
   reportDateSchema,
   reportDateRangeSchema,
   reportQueryInputSchema,

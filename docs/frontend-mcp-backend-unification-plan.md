@@ -336,8 +336,31 @@ implemented yet.
 - Regression/validation evidence: financial report service/routes tests pass
   `13/13`, including cursor batch-size and `.lean()` fallback; backend
   `npm run validate` pass typecheck, lint, build và `150/150` critical tests.
-- Residual: credit-statement/non-aggregate projections chưa có public cursor
-  contract; live performance profile chưa có runtime evidence.
+- Residual: live performance profile chưa có runtime evidence; các internal
+  projections không nằm trong public page contract vẫn phải giữ bounded/read
+  policy riêng.
+
+### Completed checkpoint: Paginate statement projections with stable cursors
+
+- Requirement/GAP: `GAP-PERF-01` cần bounded public reads cho các projection
+  sao kê không phải aggregate, nhưng không được làm mất record hoặc đổi
+  statement/payment semantics.
+- Scope: shared `statementPageSchema` và
+  `creditStatementReportPageSchema`; card-statement REST endpoints và
+  credit-statement report endpoint hỗ trợ `limit`/opaque `cursor`, sort ổn định
+  theo ngày + `_id`, page envelope tách `items`, `nextCursor`, `limit`; frontend
+  client có parser/helper tương ứng. Legacy response không có query phân trang
+  vẫn giữ nguyên shape.
+- Independent review: GO cho read-only pagination slice. Cursor bind sort
+  field/value/id, workspace filter vẫn áp dụng; không thay đổi financial
+  formula, payment state, persistence write, database/index, Kubernetes hay
+  MCP writer.
+- Regression/validation evidence: shared `npm run validate` pass `28/28`;
+  backend `npm run validate` pass typecheck, lint, build và `151/151` critical
+  tests; frontend typecheck/lint, unit `82/82`, integration `6/6` và build pass.
+- Residual: live performance profile và completeness evidence trên workspace
+  thật còn thiếu; các internal projections không có public page contract vẫn
+  phải giữ bounded/read policy riêng.
 
 ### Completed checkpoint: Bound workspace notes reads
 

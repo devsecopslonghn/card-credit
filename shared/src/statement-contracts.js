@@ -67,3 +67,8 @@ export const statementSchema = z.object({
 });
 
 export const statementListSchema = z.array(statementSchema);
+export const statementPageSchema = z.strictObject({
+  items: statementListSchema,
+  nextCursor: z.string().nullable(),
+  limit: safePositiveInteger,
+});

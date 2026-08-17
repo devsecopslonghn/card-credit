@@ -5,10 +5,11 @@ import { CardStatementModel } from "../models/card-statement.js";
 import { CreditCardModel } from "../models/credit-card.js";
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { ApiError } from "../errors.js";
+import { boundedReadLimit, READ_MAX_LIMIT } from "../read-limits.js";
 import { effectivePaymentStatus, idOf, plain, type Data } from "../statement-domain.js";
 import type { ServiceContext } from "./types/service-context.js";
 
-type StatementReadOptions = { cardId?: string; cardIds?: string[]; unpaidOnly?: boolean; paymentDueDates?: string[]; statementDateFrom?: string; statementDateTo?: string; limit?: number; order?: "statementDate" | "paymentDueDate" };
+type StatementReadOptions = { cardId?: string; cardIds?: string[]; unpaidOnly?: boolean; paymentDueDates?: string[]; statementDateFrom?: string; statementDateTo?: string; limit?: number; cursor?: string; order?: "statementDate" | "paymentDueDate" };
 export type StatementReadRepository = {
   listStatements(workspaceId: string, options: StatementReadOptions): Promise<Data[]>;
   findStatementById(workspaceId: string, statementId: string): Promise<Data | null>;
@@ -28,6 +29,21 @@ const sorted = (query: unknown, sort: Record<string, 1 | -1>) => {
   return typeof value?.sort === "function" ? value.sort(sort) : query;
 };
 
+type StatementCursor = { field: "statementDate" | "paymentDueDate"; value: string; id: string };
+
+const encodeCursor = (statement: Data, field: StatementCursor["field"]) => Buffer.from(JSON.stringify({ field, value: String(statement[field] ?? ""), id: idOf(statement._id) } satisfies StatementCursor)).toString("base64url");
+
+const decodeCursor = (value: string | undefined, field: StatementCursor["field"]): StatementCursor | undefined => {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<StatementCursor>;
+    if (parsed.field !== field || typeof parsed.value !== "string" || !parsed.value || typeof parsed.id !== "string" || !parsed.id) throw new Error("invalid cursor");
+    return parsed as StatementCursor;
+  } catch {
+    throw new ApiError(400, "INVALID_STATEMENT_CURSOR", "Cursor sao kê không hợp lệ.");
+  }
+};
+
 const mongoRepository: StatementReadRepository = {
   async listStatements(workspaceId, options) {
     const query: Record<string, unknown> = { workspaceId };
@@ -36,8 +52,15 @@ const mongoRepository: StatementReadRepository = {
     if (options.unpaidOnly) query.paymentStatus = { $ne: "PAID" };
     if (options.paymentDueDates?.length) query.paymentDueDate = { $in: options.paymentDueDates };
     if (options.statementDateFrom || options.statementDateTo) query.statementDate = { ...(options.statementDateFrom ? { $gte: options.statementDateFrom } : {}), ...(options.statementDateTo ? { $lte: options.statementDateTo } : {}) };
-    let cursor = sorted(CardStatementModel.find(query), { [options.order === "paymentDueDate" ? "paymentDueDate" : "statementDate"]: options.order === "paymentDueDate" ? 1 : -1 }) as { limit?: (value: number) => unknown };
-    if (options.limit && typeof cursor?.limit === "function") cursor = cursor.limit(Math.min(Math.max(options.limit, 1), 50)) as typeof cursor;
+    const field = options.order === "paymentDueDate" ? "paymentDueDate" : "statementDate";
+    const direction = field === "paymentDueDate" ? 1 : -1;
+    const cursorValue = decodeCursor(options.cursor, field);
+    if (cursorValue) query.$or = [
+      { [field]: { [direction === 1 ? "$gt" : "$lt"]: cursorValue.value } },
+      { [field]: cursorValue.value, _id: { [direction === 1 ? "$gt" : "$lt"]: cursorValue.id } },
+    ];
+    let cursor = sorted(CardStatementModel.find(query), { [field]: direction, _id: direction }) as { limit?: (value: number) => unknown };
+    if (options.limit && typeof cursor?.limit === "function") cursor = cursor.limit(Math.min(Math.max(options.limit, 1), READ_MAX_LIMIT + 1)) as typeof cursor;
     return execute<Data[]>(cursor);
   },
   async findStatement(workspaceId, cardId, statementId) {
@@ -149,6 +172,28 @@ export class StatementQueryServiceImpl {
     const loaded = await this.repository.listStatements(ctx.workspaceId, { cardId: options.cardId, unpaidOnly: options.unpaidOnly, statementDateFrom: options.statementDateFrom, statementDateTo: options.statementDateTo, limit: options.limit, order: options.order ?? "statementDate" });
     const statements = options.cardId ? loaded : await this.onlyExistingCards(ctx, loaded);
     return this.build(statements, ctx.workspaceId, options.includeTransactions !== false);
+  }
+
+  async listPage(ctx: ServiceContext, options: { cardId?: string; unpaidOnly?: boolean; statementDateFrom?: string; statementDateTo?: string; limit?: number; cursor?: string; order?: "statementDate" | "paymentDueDate"; includeTransactions?: boolean } = {}) {
+    if (options.cardId) await this.requireCard(ctx, options.cardId);
+    const limit = boundedReadLimit(options.limit);
+    const loaded = await this.repository.listStatements(ctx.workspaceId, {
+      cardId: options.cardId,
+      unpaidOnly: options.unpaidOnly,
+      statementDateFrom: options.statementDateFrom,
+      statementDateTo: options.statementDateTo,
+      limit: limit + 1,
+      cursor: options.cursor,
+      order: options.order ?? "statementDate",
+    });
+    const hasMore = loaded.length > limit;
+    const page = loaded.slice(0, limit);
+    const statements = options.cardId ? page : await this.onlyExistingCards(ctx, page);
+    return {
+      data: await this.build(statements, ctx.workspaceId, options.includeTransactions !== false),
+      nextCursor: hasMore && page.length ? encodeCursor(page[page.length - 1]!, options.order === "paymentDueDate" ? "paymentDueDate" : "statementDate") : null,
+      limit,
+    };
   }
 
   async get(ctx: ServiceContext, cardId: string, statementId: string) {

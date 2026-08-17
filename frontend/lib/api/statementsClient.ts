@@ -1,4 +1,4 @@
-import { statementListSchema, statementPaymentExecuteInputSchema, statementPaymentInputSchema, statementPaymentPreviewSchema, statementSchema } from "@card-credit/contracts";
+import { statementListSchema, statementPageSchema, statementPaymentExecuteInputSchema, statementPaymentInputSchema, statementPaymentPreviewSchema, statementSchema } from "@card-credit/contracts";
 import type { StatementDto, StatementPaymentAction, StatementPaymentPreviewDto } from "@card-credit/contracts";
 
 export type PaymentStatus = "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
@@ -67,6 +67,12 @@ const parseStatement = (value: unknown) => toLegacyStatement(statementSchema.par
 export const createStatementPaymentKey = () => `statement-payment-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 export const fetchCardStatements = async (cardId: string) => parseStatementList(await request<unknown>(`/api/cards/${cardId}/statements?timestamp=${Date.now()}`, { cache: "no-store" }));
 export const fetchAllCardStatements = async () => parseStatementList(await request<unknown>(`/api/card-statements?timestamp=${Date.now()}`, { cache: "no-store" }));
+export const fetchCardStatementsPage = async (limit = 100, cursor?: string) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) params.set("cursor", cursor);
+  const page = statementPageSchema.parse(await request<unknown>(`/api/card-statements?${params.toString()}`, { cache: "no-store" }));
+  return { ...page, items: parseStatementList(page.items) };
+};
 export const fetchStatementDetail = async (cardId: string, statementId: string) => parseStatement(await request<unknown>(`/api/cards/${cardId}/statements/${statementId}?timestamp=${Date.now()}`, { cache: "no-store" }));
 export const previewStatementPayment = async (cardId: string, statementId: string, action: StatementPaymentAction, repaymentAccountId?: string): Promise<StatementPaymentPreviewDto> => {
   const payload = statementPaymentInputSchema.parse({ action, ...(repaymentAccountId ? { repaymentAccountId } : {}) });
