@@ -235,7 +235,7 @@ amount semantics lấy persisted `creditDebt`/impact từ canonical statement DT
 | `PATCH /profile` | Session | Chỉ display name field. |
 | `GET /workspace/owner` | Session | Owner configuration status. |
 | `PUT /workspace/owner` | Session | Cấu hình owner theo policy. |
-| `GET /admin/users` | Admin | List users non-secret. |
+| `GET /admin/users?limit=1..100&cursor=...` | Admin | List users non-secret; query form is bounded with stable opaque cursor, legacy no-query response remains unchanged. |
 | `PATCH /admin/users/:id` | Admin | Update allowlisted displayName/role/workspaceId. |
 | `GET /admin/audit-logs?limit=1..100&cursor=...` | Admin | Filtered audit list with stable opaque cursor; response includes `nextCursor` when more records exist. |
 

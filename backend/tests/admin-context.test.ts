@@ -6,6 +6,7 @@ import { sessionCookie, signSession } from "../src/auth.js";
 import type { AuthRepository, AuthUser } from "../src/auth-repository.js";
 import { registerUserRoutes } from "../src/user-routes.js";
 import { AdminAuditService } from "../src/services/admin-audit-service.js";
+import { MongoAuthRepository } from "../src/auth-repository.js";
 
 const secret = "01234567890123456789012345678901";
 const makeUser = (overrides: Partial<AuthUser> = {}): AuthUser => ({
@@ -79,6 +80,24 @@ test("admin audit cursor returns a stable continuation without dropping records"
   assert.deepEqual((page.nextCursor ? await AdminAuditService.list({ limit: "1", cursor: page.nextCursor }, repository) : null)?.logs, [{ id: "audit-2", createdAt: second.createdAt, event: "LOGOUT" }]);
   assert.equal(Array.isArray(receivedQuery?.$or), true);
   await assert.rejects(() => AdminAuditService.list({ cursor: "invalid" }, repository), (error: unknown) => (error as { code?: string }).code === "INVALID_AUDIT_CURSOR");
+});
+
+test("admin user repository exposes a stable bounded cursor page", async (t) => {
+  const rows = [
+    { _id: new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"), email: "a@example.test", passwordHash: "hash", role: "user", workspaceId: "workspace-a", displayName: "A", active: true, lockedAt: null },
+    { _id: new mongoose.Types.ObjectId("507f1f77bcf86cd799439012"), email: "b@example.test", passwordHash: "hash", role: "user", workspaceId: "workspace-a", displayName: "B", active: true, lockedAt: null },
+  ];
+  const find = t.mock.method(mongoose.connection, "collection", () => ({
+    find: (query: Record<string, unknown>) => {
+      assert.deepEqual(query, {});
+      return { sort: (spec: Record<string, unknown>) => { assert.deepEqual(spec, { email: 1, _id: 1 }); return { limit: (limit: number) => { assert.equal(limit, 2); return { toArray: async () => rows }; } }; } };
+    },
+  }) as never);
+  const page = await new MongoAuthRepository().listUsersPage({ limit: "1" });
+  assert.deepEqual(page.users.map((user) => user.email), ["a@example.test"]);
+  assert.equal(typeof page.nextCursor, "string");
+  assert.equal(page.limit, 1);
+  assert.equal(find.mock.callCount(), 1);
 });
 
 test("admin routes reject non-admin and stale admin sessions before downstream work", async () => {

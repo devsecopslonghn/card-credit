@@ -1,5 +1,5 @@
 import { ApiError } from "../errors.js";
-import type { AuthRepository, AuthUser } from "../auth-repository.js";
+import type { AuthRepository, AuthUser, UserListPage, UserListPageOptions } from "../auth-repository.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { normalizeDisplayName } from "./user-profile-policy.js";
 
@@ -46,6 +46,13 @@ export class AdminUserService {
   static async list(context: ServiceContext, users: Pick<AuthRepository, "listUsers">) {
     requireAdmin(context);
     return users.listUsers();
+  }
+
+  static async listPage(context: ServiceContext, users: Pick<AuthRepository, "listUsers"> & { listUsersPage?: (options: UserListPageOptions) => Promise<UserListPage> }, options: UserListPageOptions) {
+    requireAdmin(context);
+    if (users.listUsersPage) return users.listUsersPage(options);
+    const all = await users.listUsers();
+    return { users: all, nextCursor: null, limit: all.length } satisfies UserListPage;
   }
 
   static async update(

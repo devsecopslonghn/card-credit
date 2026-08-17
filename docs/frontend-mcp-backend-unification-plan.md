@@ -254,6 +254,22 @@ implemented yet.
 - Safety/rollback: docs-only cleanup, không source/runtime/database/index/data
   hoặc Kubernetes change; revert commit để khôi phục nếu cần.
 
+### Completed checkpoint: Add bounded cursor page for admin users
+
+- Requirement/GAP: `GAP-PERF-01` còn admin user roster đọc toàn bộ collection;
+  query form cần bounded page mà không phá response legacy khi không truyền query.
+- Scope: Mongo auth repository thêm `listUsersPage(limit,cursor)` với sort ổn
+  định `email ASC, _id ASC`, fetch `limit + 1` và opaque `nextCursor`; REST
+  `/api/admin/users` chỉ dùng envelope paginated khi có `limit` hoặc `cursor`.
+- Independent review: GO cho admin-only, read-only query slice. Không đổi user
+  mutation, session policy, schema/index/data, financial state, MCP writer mode,
+  database rollout hay Kubernetes.
+- Regression/validation evidence: admin cursor tests pass `7/7`; backend
+  `npm run validate` pass typecheck, lint, build và `149/149` tests;
+  `git diff --check` pass.
+- Residual: financial report aggregation vẫn HOLD vì cần aggregation/cursor
+  completeness contract riêng; legacy no-query admin response vẫn giữ nguyên.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong
