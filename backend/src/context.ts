@@ -59,8 +59,10 @@ export const browserActorContext = async (
   };
 };
 
-export const mcpServiceContext = (identity: Pick<Session, "workspaceId" | "userId" | "role">): ServiceContext =>
-  serviceContextFromSession(identity, "mcp");
+export const mcpServiceContext = (identity: Pick<Session, "workspaceId" | "userId" | "role"> & Pick<Session, "sessionVersion">): ServiceContext => {
+  const context = serviceContextFromSession(identity, "mcp");
+  return identity.sessionVersion === undefined ? context : { ...context, sessionVersion: identity.sessionVersion };
+};
 
 export const jobServiceContext = (identity: Pick<Session, "workspaceId" | "userId" | "role">, correlationId?: string): ServiceContext =>
   serviceContextFromSession(identity, "job", correlationId);

@@ -16,8 +16,20 @@ export const revalidateMcpContext = async (
 ): Promise<ServiceContext> => {
   let user;
   try { user = await users.findUserById(context.userId); } catch { user = null; }
-  if (!user || !user.active || user.lockedAt || user.workspaceId !== context.workspaceId) {
+  const authoritativeVersion = user?.sessionVersion ?? 0;
+  if (!user || !user.active || user.lockedAt || user.workspaceId !== context.workspaceId || (context.sessionVersion !== undefined && authoritativeVersion !== context.sessionVersion)) {
     throw new ApiError(401, "MCP_CONTEXT_INVALID", "MCP identity không còn hợp lệ.");
   }
-  return mcpServiceContext({ userId: user.id, workspaceId: user.workspaceId, role: user.role });
+  return mcpServiceContext({ userId: user.id, workspaceId: user.workspaceId, role: user.role, sessionVersion: authoritativeVersion });
+};
+
+export const createMcpContextProvider = (
+  initial: ServiceContext,
+  users?: Pick<AuthRepository, "findUserById">,
+) => {
+  let current = initial;
+  return async (): Promise<ServiceContext> => {
+    if (users) current = await revalidateMcpContext(current, users);
+    return current;
+  };
 };

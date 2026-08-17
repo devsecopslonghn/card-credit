@@ -7,4 +7,5 @@ export type ServiceContext = {
   role: ServiceRole;
   channel: ServiceChannel;
   correlationId: string;
+  sessionVersion?: number;
 };

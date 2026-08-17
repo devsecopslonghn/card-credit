@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { browserActorContext, browserServiceContext, jobServiceContext, mcpServiceContext, serviceContextFromSession } from "../src/context.js";
-import { revalidateMcpContext } from "../src/mcp/context.js";
+import { createMcpContextProvider, revalidateMcpContext } from "../src/mcp/context.js";
 import { sessionCookie, signSession } from "../src/auth.js";
 
 const identity = { workspaceId: "workspace-1", userId: "user-1", role: "admin" } as const;
@@ -64,4 +64,17 @@ test("MCP context revalidates the fixed identity and workspace on each provider 
   await assert.rejects(() => revalidateMcpContext(context, inactive), /không còn hợp lệ/);
   const locked = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: new Date() }) };
   await assert.rejects(() => revalidateMcpContext(context, locked), /không còn hợp lệ/);
+});
+
+test("MCP context binds the authoritative session version and rejects a revoked version", async () => {
+  const initial = mcpServiceContext({ ...identity, role: "user" });
+  let sessionVersion = 4;
+  const provider = {
+    findUserById: async () => ({ ...identity, id: identity.userId, role: "user" as const, email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null, sessionVersion }),
+  };
+  const next = createMcpContextProvider(initial, provider);
+  const bound = await next();
+  assert.equal(bound.sessionVersion, 4);
+  sessionVersion = 5;
+  await assert.rejects(() => next(), { code: "MCP_CONTEXT_INVALID" });
 });

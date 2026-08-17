@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { createMcpServer } from "./tools.js";
 import type { ServiceContext } from "../services/types/service-context.js";
 import type { AuthRepository } from "../auth-repository.js";
-import { revalidateMcpContext } from "./context.js";
+import { createMcpContextProvider } from "./context.js";
 import type { PreviewTokenCodec } from "./preview.js";
 import type { McpWriterMode } from "./manifest.js";
 
@@ -25,7 +25,7 @@ export const registerMcpHttp = (app: FastifyInstance, ctx: ServiceContext, token
     if (!transport && request.method === "POST" && isInitializeRequest(request.body)) {
       const created = new StreamableHTTPServerTransport({ sessionIdGenerator: randomUUID, onsessioninitialized: (id) => { transports.set(id, created); }, onsessionclosed: (id) => { transports.delete(id); } });
       transport = created;
-      await createMcpServer(async () => users ? revalidateMcpContext(ctx, users) : ctx, previewCodec, undefined, writerMode).connect(transport);
+      await createMcpServer(createMcpContextProvider(ctx, users), previewCodec, undefined, writerMode).connect(transport);
     }
     if (!transport) return reply.code(400).send({ error: "MCP_SESSION_REQUIRED" });
     await transport.handleRequest(request.raw, reply.raw, request.body);

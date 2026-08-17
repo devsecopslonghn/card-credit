@@ -33,14 +33,14 @@ lại để tránh đọc nhầm checkpoint cũ.
 ### Local validation
 
 - Shared: `npm run validate` — build pass, tests `29/29`.
-- Backend: `npm run validate` — typecheck/lint/build pass, tests `159/159`.
+- Backend: `npm run validate` — typecheck/lint/build pass, tests `160/160`.
 - Frontend: curated `npm test` `44/44`, integration `6/6`, typecheck/lint/build
   pass, production build renders `24` routes.
 - Latest full gate after legacy-writer source audit (`5f9fb8c`): frontend
   `npm ci --include=optional`, `npm run test:unit --if-present` `80/80`,
   typecheck/lint/integration `6/6`/build pass; shared `29/29`; backend
-  `159/159` with typecheck/lint/build pass, including the read-only legacy
-  writer fence regression.
+  `160/160` with typecheck/lint/build pass, including the read-only legacy
+  writer fence and MCP session-version revoke regressions.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
@@ -84,6 +84,11 @@ writer: application source không có `McpMutationModel` create/update/upsert/
 delete; chỉ còn 3 `findOne` compatibility reads, và test `legacy-writer-
 fence.test.ts` sẽ chặn việc tái tạo write path. Đây là evidence để không xóa
 nhầm, chưa phải evidence external writer đã drain.
+
+Security checkpoint: `createMcpContextProvider` giữ context authoritative giữa
+các invocation; lần đầu bind `sessionVersion`, lần sau fail-closed khi version
+đã bị bump. Test `context.test.ts` chứng minh revoke path; live pod chưa chạy
+source HEAD này nên chưa claim deployed-image evidence.
 
 ### Slice B — security evidence
 
