@@ -12,6 +12,21 @@ import { creditStatementReportListSchema, financialReportSchema, reportDateRange
 import type { CreditStatementReportDto, FinancialReportDto } from "@card-credit/contracts";
 
 type Range = { from: string; to: string };
+type Data = Record<string, unknown>;
+const REPORT_CURSOR_BATCH_SIZE = 100;
+
+/** Consume a complete report source with a bounded Mongo cursor when available. */
+export const readReportCollection = async <T>(query: unknown): Promise<T[]> => {
+  const source = query as { lean?: () => unknown };
+  const leanQuery = typeof source?.lean === "function" ? source.lean() : query;
+  const cursorSource = leanQuery as { cursor?: (options?: { batchSize?: number }) => AsyncIterable<T> };
+  if (typeof cursorSource?.cursor === "function") {
+    const values: T[] = [];
+    for await (const value of cursorSource.cursor({ batchSize: REPORT_CURSOR_BATCH_SIZE })) values.push(value);
+    return values;
+  }
+  return await leanQuery as T[];
+};
 
 const empty = () => ({ personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionCount: 0 });
 const emptyTotals = () => ({
@@ -52,16 +67,16 @@ export class FinancialReportService {
     let reportCardIds: unknown[] | null = null;
     if (filters.cardId || filters.owner) {
       if (filters.cardId && !mongoose.isValidObjectId(filters.cardId)) throw new ApiError(400, "INVALID_REPORT_FILTER", "Bộ lọc thẻ không hợp lệ.");
-      const cards = await CreditCardModel.find({
+      const cards = await readReportCollection<Data>(CreditCardModel.find({
         ...cardScope,
         ...(filters.cardId ? { _id: filters.cardId } : {}),
         ...(filters.owner ? { owner: filters.owner.trim() } : {}),
-      }).select({ _id: 1 }).lean();
+      }).select({ _id: 1 }));
       if (filters.cardId && !cards.length) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
       reportCardIds = cards.map((card) => card._id);
       const [cardAccounts, cardStatements] = await Promise.all([
-        AccountModel.find({ ...accountScope, creditCardId: { $in: reportCardIds } }).select({ _id: 1 }).lean(),
-        CardStatementModel.find({ ...cardScope, userCardId: { $in: reportCardIds } }).select({ _id: 1 }).lean(),
+        readReportCollection<Data>(AccountModel.find({ ...accountScope, creditCardId: { $in: reportCardIds } }).select({ _id: 1 })),
+        readReportCollection<Data>(CardStatementModel.find({ ...cardScope, userCardId: { $in: reportCardIds } }).select({ _id: 1 })),
       ]);
       cardAccountIds = cardAccounts.map((account) => account._id);
       transactionScope = { ...transactionScope, $or: [
@@ -70,15 +85,15 @@ export class FinancialReportService {
       ] };
     }
     const [items, accounts, monthlyCashbacks, feePayments] = await Promise.all([
-      FinancialTransactionModel.find(transactionScope).lean(),
-      AccountModel.find(accountScope).lean(),
-      MonthlyCardCashbackModel.find({ workspaceId: ctx.workspaceId, ...(reportCardIds ? { userCardId: { $in: reportCardIds } } : {}), period: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } }).lean(),
-      CardFeePaymentModel.find({
+      readReportCollection<Data>(FinancialTransactionModel.find(transactionScope)),
+      readReportCollection<Data>(AccountModel.find(accountScope)),
+      readReportCollection<Data>(MonthlyCardCashbackModel.find({ workspaceId: ctx.workspaceId, ...(reportCardIds ? { userCardId: { $in: reportCardIds } } : {}), period: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } })),
+      readReportCollection<Data>(CardFeePaymentModel.find({
         workspaceId: ctx.workspaceId,
         ...(reportCardIds ? { userCardId: { $in: reportCardIds } } : {}),
         paymentDate: { $gte: range.from, $lte: range.to },
         category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] },
-      }).lean(),
+      })),
     ]);
     const reportAccounts = reportCardIds
       ? accounts.filter((account) => cardAccountIds.some((id) => String(id) === String(account._id)) || items.some((item) => String(item.accountId) === String(account._id)))
@@ -126,7 +141,7 @@ export class FinancialReportService {
     }, 0);
     totals.actualNetBenefit = totals.monthlyBankCashbackActual - totals.totalServiceFee - totals.totalPaidCardFees;
     const sourceIds = items.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").map((item) => item._id);
-    const reimbursements = sourceIds.length ? await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 }).lean() : [];
+    const reimbursements = sourceIds.length ? await readReportCollection<Data>(FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 })) : [];
     totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
     const netAssets = reportAccounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
     const creditDebtBalance = reportAccounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;

@@ -321,6 +321,24 @@ implemented yet.
   database/index/data/Kubernetes; repository stale-reference search pass; backend
   `npm run validate` pass typecheck, lint, build và `150/150` tests.
 
+### Completed checkpoint: Stream complete financial report source reads
+
+- Requirement/GAP: `GAP-PERF-01` report aggregation phải giữ completeness nhưng
+  không nên materialize mọi source collection trong một Mongo query result.
+- Scope: `FinancialReportService.summary` consume transaction/account/card/
+  statement/cashback/fee/reimbursement sources bằng Mongo cursor batch size
+  `100` khi driver hỗ trợ; vẫn đọc hết và aggregate đầy đủ, fallback `.lean()`
+  giữ test/repository compatibility. Public financial report DTO/range/filter
+  semantics không đổi.
+- Independent review: GO cho read-only performance slice. Không thêm limit,
+  không bỏ record, không đổi financial formula/persistence/schema/index,
+  database/Kubernetes hay MCP writer.
+- Regression/validation evidence: financial report service/routes tests pass
+  `13/13`, including cursor batch-size and `.lean()` fallback; backend
+  `npm run validate` pass typecheck, lint, build và `150/150` critical tests.
+- Residual: credit-statement/non-aggregate projections chưa có public cursor
+  contract; live performance profile chưa có runtime evidence.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

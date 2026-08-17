@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FinancialReportService } from "../src/services/financial-report-service.js";
+import { FinancialReportService, readReportCollection } from "../src/services/financial-report-service.js";
 import { StatementQueryService } from "../src/services/statement-query-service.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 import { AccountModel } from "../src/models/account.js";
@@ -23,6 +23,15 @@ const chain = <T>(value: T) => {
   const query = { select: () => query, lean: async () => value };
   return query;
 };
+
+test("report collection reader consumes complete Mongo cursors and keeps a lean fallback", async () => {
+  const cursor = async function* () {
+    yield { id: "first" };
+    yield { id: "second" };
+  };
+  assert.deepEqual(await readReportCollection<{ id: string }>({ lean: () => ({ cursor: (options: { batchSize?: number }) => { assert.deepEqual(options, { batchSize: 100 }); return cursor(); } }) }), [{ id: "first" }, { id: "second" }]);
+  assert.deepEqual(await readReportCollection<{ id: string }>({ lean: async () => [{ id: "fallback" }] }), [{ id: "fallback" }]);
+});
 
 test("summary reads benefit sources once, keeps ledger groups stable and avoids cashback double count", async (t) => {
   const transactions = [
