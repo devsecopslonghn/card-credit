@@ -63,8 +63,9 @@ implemented yet.
   restart count `0`.
 - Both live images are
   `nexus.apps.drgdevlab.com/card-credit/{backend,frontend}:7c9ba864114f`;
-  source commits sau image này (`dbe7fc3`, `544b700`, `d991208`) chưa có runtime
-  acceptance evidence.
+  source commits sau image này (`dbe7fc3`, `544b700`, `d991208`, `6fc1db9`,
+  `a286d00`, `d09c044`, `b63d546`, `a02704c`) chưa có runtime acceptance
+  evidence.
 - Deployment metadata remains `MCP_WRITER_MODE=write` and
   `MCP_OLD_WRITER_FENCED=true`. Read-only pod inspection confirmed
   `MONGODB_URI` is present but `FINANCE_MIGRATION_WORKSPACE_ID` is absent; do
