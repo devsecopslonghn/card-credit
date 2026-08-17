@@ -10,6 +10,8 @@ implemented yet.
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
 | Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-route guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Calendar feed composition service, statement calendar email service, monthly cashback validation boundary, shared email validation primitive, bounded calendar subscription list, bounded workspace notes list, bounded legacy masterdata lists, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout, catalog startup write removal, frontend/backend clean linked-runtime image fixes, MCP read-default/fence acknowledgement guard, REST authorization metadata, bounded transaction list, route service-boundary guard, password reset SMTP delivery, chart-controlled MCP writer rollout, candidate image publication/GitOps handoff, read-only MCP desired-state/live reconciliation, CI npm test entrypoint, CD generic-node handoff, curated CI regression entrypoint, Jenkins runtime validation và production-surface docs cleanup đã có evidence; proxy migration `0e6e8e8` có source/local validation evidence; Jenkins `#370` checkout/test pass nhưng bị abort thủ công ở image publication, tag `0e6e8e883cf1` không tồn tại; runtime hiện vẫn `3fffccda40e8`, Argo `Synced/Healthy` revision `9d5fc37` | `c41d6ae` + `6a93e14` + `0ee1156` + `8def2dd` + `995149c` + `e8a3952` + `72d296f` + `7ab6918` + `3145c0c` + `b58a621` + `71dfa58` + `51d3a79` + `4acd3ea` + `7f04f18` + `57bc0c4` + `c3787b9` + `7ed8505` + `6e5367e` + `38ef8ef` + `eea32cf` + `e8f4066` + `b00f5b6` + `8f5c7a0` + `0e6e8e8` / chart `6bfa41f` + `cfb1ccb` + `643a450` + `d4f708a` + `3cf2339` + `e05d8ea` + `127bb6b` + `2edfeae` + `3c1d35e` + `c61312f` + `2ac41d8` + `e9b1886` + `7cdf81d` + `dcb6244` + `9d5fc37` / CI `9aba1d4` + Jenkins `#353` + `#359` + `#362` + `#363` + `#364` + `#365` + `#367` + `#368` + `#370 (ABORTED)` / CD `9aacbf6` / `origin/master` | Resolve publication evidence for `0e6e8e8` without claiming #370; then continue external old-writer fence/drain evidence; keep MCP writer mode read-only |
+> Phase 0 ledger supersession: proxy migration `0e6e8e8` đã được Jenkins `#373` checkout qua `19f068f`, pass shared/frontend/backend `25/45/135`, publish image tags `19f068f18d53` và handoff GitOps chart `952c0fc`. Runtime/Argo vẫn cần xác minh riêng; old-writer, session-version và financial decisions vẫn mở.
+
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, session version/revoke guard, register workspace policy, private read adapter revalidation, Notes POST + `NotesService`, Profile PATCH + `ProfileService`, Workspace owner PUT, Masterdata admin/query/command service, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context, AdminUserService boundary, `/api/auth/me` actor boundary, login + `AuthSessionService`, register + `AuthRegistrationService`, bootstrap + `AuthBootstrapService`, forgot/reset-password + `ForgotPasswordService`/`PasswordResetService`, shared `auth-policy` primitive và auth adapter normalization, password reset SMTP delivery đã có source/test evidence; một số direct mutation routes còn thiếu | `b75fb28` + `4578eb7` + `8def2dd` + `85bbc17` + `9d9c976` + `1fe15a2` + `c8e08fb` + `0713812` + `7a3ccdf` + `1983b23` + `35dcf51` + `72292f4` + `74b03ff` + `2034060` + `a212056` + `7743db0` / origin/master | Candidate gate Jenkins/Argo chỉ chạy sau khi push batch; tiếp tục private direct-model route coverage và session version/policy runtime |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; route service-boundary guard xác nhận chỉ card lifecycle route còn direct model dependency; delete/merge policy còn thiếu | `318ba16` + `89e3091` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; giữ REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push; direct MCP manifest default read và write fence acknowledgement đã push; candidate `7f04f18152b4` runtime reconcile read-only, chưa mở writer/confirm | `87e7996` + DB rollout + `ee05cc9` + chart `6bfa41f` + `d4f708a` + `3cf2339` + `7f04f18` / chart `127bb6b` / origin/master | Xác minh external old-writer consumers/traffic; không chạy confirm tài chính trong smoke |
@@ -2201,18 +2203,21 @@ chạy validation, commit và push ngay.
   trên cluster, không chứa backup trong git. Docs checkpoint này sẽ được push
   trong commit kế tiếp.
 
-### Checkpoint: Proxy cleanup CI publication remains pending
+### Completed checkpoint: Proxy cleanup CI publication and GitOps handoff
 
-- Requirement/GAP: `GAP-CI-01` cần tách source/test evidence khỏi image
-  publication và runtime evidence cho commit `0e6e8e8`.
-- Independent review: source checkout của Jenkins `#370` đúng commit
-  `0e6e8e883cf1019a996310c516cc727856d38ca6`; shared/frontend/backend test
-  phases pass (`25/25`, `45/45`, `135/135`). Hai nhánh sau đó chạy `skopeo
-  copy`, nhưng build bị abort thủ công lúc 09:24:10 và kết thúc `ABORTED`
-  lúc 09:26:32. Đây là pipeline outcome, không phải source/test failure.
-- Registry evidence: registry read-only trả `manifest unknown` cho cả
-  `frontend:0e6e8e883cf1` và `backend:0e6e8e883cf1`; không claim image
-  publication, GitOps handoff hoặc runtime rollout cho commit này.
+- Requirement/GAP: `GAP-CI-01` cần tách source/test, image publication và
+  GitOps handoff khỏi runtime evidence cho proxy cleanup.
+- Independent review: source checkout của Jenkins `#373` đúng commit
+  `19f068f18d53f7a400402256f917478e54beec2c6`; shared/frontend/backend test
+  phases pass (`25/25`, `45/45`, `135/135`), frontend build output nhận diện
+  `ƒ Proxy (Middleware)`, và Jenkins kết thúc `SUCCESS`.
+- Registry evidence: registry read-only xác nhận image tags
+  `frontend:19f068f18d53` digest
+  `sha256:a6d93c72bd1360adfea46b807d13f69a41c499b68c7e9f1699bbb3dad96cbfa1`
+  và `backend:19f068f18d53` digest
+  `sha256:53172f407810893aa2262d002c833c604b142ab1758b39cc815cf9c8cfcf2a08`.
+- GitOps evidence: Jenkins pushed chart commit `952c0fc`, message
+  `Deploy card-credit 19f068f18d53`, to `k8s-namepsace-chart`.
 - Old-writer inventory evidence: trên Kubernetes context `k8s-admin-public`,
   read-only inventory toàn cluster chỉ thấy hai workload card-credit là
   `card-credit-backend` và `card-credit-frontend`, cùng các Service/Ingress
@@ -2221,12 +2226,13 @@ chạy validation, commit và push ngay.
   bằng chứng external consumer đã được owner xác nhận hoặc đã drain.
 - Runtime evidence: Kubernetes read-only vẫn thấy backend/frontend tag
   `3fffccda40e8`; Argo `card-credit` là `Synced/Healthy`, revision
-  `9d5fc372aaf0b116b932632fcdc751538f31e912`. Không scale/restart/patch/sync
+  `9d5fc372aaf0b116b932632fcdc751538f31e912` trước khi reconcile chart mới.
+  Chưa claim runtime rollout cho `19f068f18d53`. Không scale/restart/patch/sync
   Kubernetes và không có database/persistence change.
 - Decision/next gate: giữ `MCP_WRITER_MODE=read`, không chạy mixed writers;
-  publication evidence cho proxy commit và external old-writer fence/drain
-  vẫn là gate mở. Reversal/compensating transaction và card delete/merge vẫn
-  cần user decision riêng.
+  Argo reconcile/runtime health/ready/docs read-only cho tag mới và external
+  old-writer fence/drain vẫn là gate mở. Reversal/compensating transaction và
+  card delete/merge vẫn cần user decision riêng.
 - Commit/push: checkpoint này được ghi trong commit kế tiếp; rollback chỉ là
   revert docs commit, không ảnh hưởng runtime.
 
