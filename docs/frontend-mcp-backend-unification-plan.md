@@ -2217,10 +2217,15 @@ chạy validation, commit và push ngay.
 - Validation/review: Helm lint passed; Helm template rendered the expected
   image and both MCP env values; backend config regression test passed `4/4`;
   no MCP preview/confirm or other persistence command was invoked.
-- Runtime gate: chart push is complete, but at the last read Argo was still at
-  chart `6c1da60` with runtime `e1ce0fe53242` read-only. Verify Argo reconcile
-  and `/docs/json` writer metadata after the new chart is observed; do not
-  invoke financial mutation smoke. Rollback is chart revert to
+- Runtime gate: Argo tự reconcile chart `f4eb8b56ad08af5a0064ac07156cb80a42e095a6`
+  và báo `Synced/Healthy` sau rollout. Backend pod
+  `card-credit-backend-849c785c94-ftgq9` Ready `1/1`, restart `0`; `/health` và
+  `/ready` trả `200`; `/docs/json` xác nhận `writerMode=write` và policy
+  `Preview -> explicit confirmation -> idempotent confirm`. Pod env xác nhận
+  `MCP_WRITER_MODE=write`, `MCP_OLD_WRITER_FENCED=true`; startup log có
+  `SERVER_LISTENING` và không có `ERR_MODULE_NOT_FOUND`. Đây chỉ là bằng chứng
+  capability/config runtime; không gọi financial mutation smoke, preview,
+  confirm hoặc persistence command. Rollback là chart revert về
   `writerMode: read`, `oldWriterFenced: false`.
 - Database/financial impact: no database, schema, migration, reversal or
   compensating transaction change was made; enabling a write-capable surface
