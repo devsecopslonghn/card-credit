@@ -18,6 +18,7 @@ const userLinks: NavigationLink[] = [
   { href: "/transactions", label: "Giao dịch", icon: "▤" },
   { href: "/accounts", label: "Tài khoản", icon: "▤" },
   { href: "/budgets", label: "Ngân sách", icon: "◫" },
+  { href: "/recurring", label: "Khoản định kỳ", icon: "↻" },
   { href: "/reports", label: "Báo cáo", icon: "⌁" },
   { href: "/payments", label: "Thanh toán", icon: "$" },
   { href: "/notifications", label: "Thông báo", icon: "◉" },
