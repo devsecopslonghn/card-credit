@@ -14,7 +14,7 @@ implemented yet.
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push; direct MCP manifest default read và write fence acknowledgement đã push; candidate `3145c0cec775` runtime reconcile read-only, chưa mở writer/confirm | `87e7996` + DB rollout + `ee05cc9` + chart `6bfa41f` + `d4f708a` + `3cf2339` / `origin/master` | Xác minh external old-writer consumers/traffic; không chạy confirm tài chính trong smoke |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine và explicit operator mark-paid đã apply live; MCP payment preview/confirm đã code/parity-test; candidate `3145c0cec775` runtime read-only, chưa gọi preview/confirm mutation; reversal còn mở | `1044636` + `ee05cc9` + chart `6bfa41f` + `e8a3952` + `d4f708a` + `3cf2339` / `origin/master` | Candidate runtime đã evidence; còn external old-writer consumer/traffic fence, giữ preview-only smoke và xin user decision riêng trước reversal/compensating transaction |
-| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` / `origin/master` | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
+| Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification + `NotificationService`, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` + Batch C hiện tại / origin/master | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu; đã inventory legacy code/docs. Chỉ nhóm `docs/refactor*` obsolete đã xóa; source compatibility paths còn consumer/test và chưa đủ evidence để xóa | — | Chỉ bắt đầu sau khi đóng P0 runtime/old-writer gate; sau đó xóa legacy path theo từng migration decision và chạy release gates |
 
 ### Completed checkpoint: Enable MCP writer through the GitOps chart
@@ -2348,6 +2348,33 @@ chạy validation, commit và push ngay.
   non-empty date và các private direct-mutation routes khác còn GAP riêng.
 - Commit/push: final Batch B commit `0713812` đã ghi source, tests và
   execution-plan checkpoint; remote verification đã pass.
+
+### Completed checkpoint: NotificationService read projection boundary
+
+- Requirement/GAP: notification REST adapter đã dùng canonical statement/card
+  query services nhưng vẫn giữ limit clamp, status/title/message mapping trong
+  route; cần một application service cho read projection mà không đổi contract.
+- Independent review: bounded read-only slice. `NotificationService` nhận trusted
+  `ServiceContext`, giới hạn query, batch-load hai canonical dependencies và map
+  notification DTO; route chỉ revalidate browser context và delegate.
+- Changed write-set: thêm `backend/src/services/notification-service.ts`, route
+  bỏ query-service imports và projection business rules; curated backend thêm
+  `tests/notification-service.test.ts`.
+- Cleanup evidence: route không còn `StatementQueryService`/`CardQueryService`,
+  limit/status/title/message logic; projection mapping chỉ còn trong service.
+- Compatibility decision: giữ limit `1..100`, default `50`, paid/overdue/future
+  status, orphan-card fallback, exact row fields và `{data,meta}` envelope.
+  Không thêm MCP surface, không đổi shared DTO, schema hoặc persistence.
+- Acceptance evidence: focused service + route tests pass `4/4`; backend
+  `npm run validate` pass `116/116` với typecheck, lint và build; `git diff --check`
+  pass. Shared/frontend gates của Batch B vẫn pass và không có file thuộc hai
+  package bị thay đổi trong Batch C.
+- Database/operational impact: read-only service composition, không DB/schema/
+  index/migration/data rewrite và không Kubernetes mutation.
+- Residual risk: notification projection vẫn phụ thuộc các canonical read services;
+  pagination/semantic changes của statements là GAP riêng.
+- Commit/push: final Batch C commit `c7daacf` ghi source, tests và
+  execution-plan checkpoint; push đang chờ sau khi amend SHA verification.
 
 ### Execution rules
 
