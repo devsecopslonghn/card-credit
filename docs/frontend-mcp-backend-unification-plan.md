@@ -51,6 +51,12 @@ lại để tránh đọc nhầm checkpoint cũ.
   MCP/preview/confirm/writer/mutation/error. Đây không phải bằng chứng external
   client đã bị fence.
 - Không in secret, token, raw payload, raw financial ID/amount.
+- Read-only topology audit thấy đúng một backend pod và một frontend pod,
+  mỗi pod `Ready=true`, restart `0`; Ingress chỉ route `/mcp` và `/docs` vào
+  backend service hiện tại, mỗi endpoint có đúng một address. Đây là evidence
+  không thấy old writer trong cluster inventory, không phải external traffic
+  drain evidence. Live image tag là `7ccb02cc9592`, vì vậy vẫn không claim
+  runtime acceptance cho source HEAD mới hơn.
 
 ## 3. Next execution order
 
