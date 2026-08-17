@@ -2,9 +2,12 @@ import nodemailer from "nodemailer";
 import type { ComposedEmail } from "./statement-calendar-email.js";
 import type { ReminderEmail } from "./payment-reminder.js";
 
+export type PasswordResetEmail = { to: string; resetLink: string; expiresAt: Date };
+
 export interface MailService {
   sendStatementCalendarEmail(email: ComposedEmail): Promise<void>;
   sendPaymentReminder?(email: ReminderEmail): Promise<void>;
+  sendPasswordResetEmail?(email: PasswordResetEmail): Promise<void>;
 }
 
 export class MailUnavailableError extends Error {}
@@ -20,6 +23,7 @@ export type SmtpConfig = {
 };
 
 const unavailable = () => new MailUnavailableError("SMTP configuration is unavailable");
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[character] ?? character);
 const validHost = (value: string) => /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(value);
 const validAddress = (value: string) => {
   const match = value.match(/^(?:[^<>\r\n]+\s*)?<([^<>\s@]+@[^<>\s@]+\.[^<>\s@]+)>$/) ?? value.match(/^([^\s@<>]+@[^\s@<>]+\.[^\s@<>]+)$/);
@@ -91,6 +95,23 @@ export class SmtpMailService implements MailService {
     try { await transport.sendMail({ from: config.from, to: email.to, subject: email.subject, text: email.text, html: email.html }); }
     catch { throw new MailDeliveryError("SMTP submission failed"); }
     finally { transport.close(); }
+  }
+  async sendPasswordResetEmail(email: PasswordResetEmail) {
+    const config = parseSmtpConfig(this.env);
+    const transport = nodemailer.createTransport({ host: config.host, port: config.port, secure: config.secure, auth: { user: config.user, pass: config.password }, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 });
+    try {
+      await transport.sendMail({
+        from: config.from,
+        to: email.to,
+        subject: "Đặt lại mật khẩu Card Credit",
+        text: `Mở liên kết sau để đặt lại mật khẩu (hết hạn lúc ${email.expiresAt.toISOString()}): ${email.resetLink}`,
+        html: `<p>Bạn vừa yêu cầu đặt lại mật khẩu Card Credit.</p><p>Liên kết có hiệu lực đến <strong>${escapeHtml(email.expiresAt.toISOString())}</strong>:</p><p><a href="${escapeHtml(email.resetLink)}">Đặt lại mật khẩu</a></p>`,
+      });
+    } catch {
+      throw new MailDeliveryError("SMTP submission failed");
+    } finally {
+      transport.close();
+    }
   }
 }
 

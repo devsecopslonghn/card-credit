@@ -25,7 +25,7 @@ const mailService = new SmtpMailService();
 const reminderScheduler = new ReminderScheduler(authRepository, mailService, config.reminderScanIntervalMs, config.reminderClaimTimeoutMs, app.log);
 registerRuntimeRoutes({
   app,
-  auth: { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, sessionMaxAgeMs: config.sessionMaxAgeMs, audit: writeAuthAudit },
+  auth: { repository: authRepository, secret: config.authSecret, bootstrapToken: config.bootstrapToken, configuredUsers: config.configuredUsers, returnResetToken: config.returnResetToken, sessionMaxAgeMs: config.sessionMaxAgeMs, audit: writeAuthAudit, mail: mailService },
   authRepository,
   catalogRepository,
   notesRepository: new MongoNotesRepository(),

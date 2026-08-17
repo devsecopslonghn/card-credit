@@ -62,7 +62,7 @@ Không trả stack trace, Mongo URI, secret hoặc existence-sensitive detail.
 | `POST /auth/login` | Public | `{email,password}` | `{user}` + Set-Cookie. |
 | `GET /auth/me` | Session | none | `{user}`. |
 | `POST /auth/logout` | Optional session | none | `{ok:true}` + cleared cookie. |
-| `POST /auth/forgot-password` | Public | `{email}` | Generic `{ok:true,message}`. |
+| `POST /auth/forgot-password` | Public | `{email}` | Generic `{ok:true,message}`; server gửi reset link qua SMTP nếu account hợp lệ, không trả token trong response. |
 | `POST /auth/reset-password` | Public token | `{token,password}` | `{user}` + new session. |
 | `POST /auth/bootstrap-users` | Bootstrap token | configured user payload | Summary; token/header never echoed. |
 

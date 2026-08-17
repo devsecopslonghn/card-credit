@@ -216,7 +216,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | P0 | `GAP-OPS-01` | Đã xử lý: startup không còn silent catalog write | Giữ CLI dry-run/apply guard và regression test |
 | P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | Delete/merge orphan, account lifecycle race, calendar unique index còn mở | DECISION + transaction/index/dry-run/backup/rollback |
 | P1 | `GAP-REP-01`, `GAP-REP-02` | Report parity đã có; cash-flow join, legacy category và range balance còn lệch | Chốt source/filter semantics và reconciliation evidence |
-| P1 | `GAP-UI-02`, `GAP-UI-03`, `GAP-AUTH-01` | Filter semantics, write UI và forgot-password delivery còn thiếu | Contract/UI/mail slices có test và owner |
+| P1 | `GAP-UI-02`, `GAP-UI-03`, `GAP-AUTH-01` | Filter semantics và write UI còn thiếu; forgot-password đã nối SMTP delivery với generic response | Contract/UI/mail runtime config và owner evidence |
 | P2 | `GAP-API-01`, `GAP-DOC-01`, `GAP-WEB-01`, `GAP-PERF-01` | Inventory drift gate, security metadata và bounded transaction list đã implement; stale docs, các list khác và cursor pagination còn mở | Drift gate/docs cleanup hoàn tất và bounded pagination coverage |
 
 Execution order: (1) contract/drift gates, (2) trusted context + query parity,

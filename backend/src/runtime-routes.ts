@@ -36,7 +36,7 @@ export type RuntimeRouteDependencies = {
 
 /** Registers the production REST composition without opening a database. */
 export const registerRuntimeRoutes = ({ app, auth, authRepository, catalogRepository, notesRepository, masterdataRepository, mailService }: RuntimeRouteDependencies) => {
-  registerAuthRoutes(app, auth);
+  registerAuthRoutes(app, { ...auth, mail: auth.mail ?? mailService });
   registerUserRoutes(app, authRepository, auth.secret);
   registerWorkspaceRoutes(app, authRepository, auth.secret);
   registerCalendarSubscriptionRoutes(app, authRepository, auth.secret);

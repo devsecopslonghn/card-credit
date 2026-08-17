@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from "./password.js";
 import type { AuthRepository, AuthUser } from "./auth-repository.js";
 import { browserServiceContext } from "./context.js";
 import { authSessionListSchema, authSessionSchema } from "@card-credit/contracts";
+import type { MailService } from "./mail-service.js";
 
 export type AuthOptions = {
   repository: AuthRepository;
@@ -13,6 +14,7 @@ export type AuthOptions = {
   bootstrapToken?: string;
   configuredUsers?: Array<Record<string, unknown>>;
   returnResetToken?: boolean;
+  mail?: Pick<MailService, "sendPasswordResetEmail">;
   sessionMaxAgeMs?: number;
   audit?: (event: string, request: FastifyRequest, actor?: Session | null, email?: string | null, resource?: Record<string, unknown>) => Promise<void>;
 };
@@ -49,11 +51,17 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
   });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/forgot-password", async (request) => {
     const email = emailOf(request.body?.email); if (email && !validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const user = email ? await options.repository.findUserByEmail(email) : null; let rawToken: string | null = null;
-    if (user?.active && !user.lockedAt) { rawToken = crypto.randomBytes(32).toString("base64url"); await options.repository.createResetToken({ tokenHash: tokenHash(rawToken), userId: user.id, email: user.email, expiresAt: new Date(Date.now() + 30 * 60 * 1000), usedAt: null }); }
-    await audit("PASSWORD_RESET_REQUESTED", request, null, email, { type: "auth", action: "forgot-password", delivered: Boolean(rawToken) });
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    if (user?.active && !user.lockedAt) { rawToken = crypto.randomBytes(32).toString("base64url"); await options.repository.createResetToken({ tokenHash: tokenHash(rawToken), userId: user.id, email: user.email, expiresAt, usedAt: null }); }
     const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "127.0.0.1:3001");
     const protocol = String(request.headers["x-forwarded-proto"] ?? "http").split(",")[0]!.trim();
-    return { ok: true, message: "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi.", ...(rawToken && options.returnResetToken ? { resetLink: `${protocol}://${host}/forgot-password?token=${rawToken}` } : {}) };
+    const resetLink = rawToken ? `${protocol}://${host}/forgot-password?token=${rawToken}` : null;
+    let delivered = false;
+    if (user && resetLink && options.mail?.sendPasswordResetEmail) {
+      try { await options.mail.sendPasswordResetEmail({ to: user.email, resetLink, expiresAt }); delivered = true; } catch { delivered = false; }
+    }
+    await audit("PASSWORD_RESET_REQUESTED", request, null, email, { type: "auth", action: "forgot-password", delivered });
+    return { ok: true, message: "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi.", ...(resetLink && options.returnResetToken ? { resetLink } : {}) };
   });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/reset-password", async (request, reply) => {
     const password = requirePassword(request.body?.password); const rawToken = typeof request.body?.token === "string" ? request.body.token.trim() : ""; if (!rawToken) throw new ApiError(400, "INVALID_TOKEN", "Token đặt lại mật khẩu không hợp lệ."); const token = await options.repository.findResetToken(tokenHash(rawToken), new Date()); if (!token) throw new ApiError(400, "INVALID_TOKEN", "Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."); const user = await options.repository.findUserById(token.userId); if (!user?.active || user.lockedAt) throw new ApiError(400, "INVALID_TOKEN", "Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."); await options.repository.updatePassword(user.id, await hashPassword(password)); await options.repository.consumeResetTokens(user.id, new Date()); await audit("PASSWORD_RESET_COMPLETED", request, toSession(user), user.email, { type: "auth", action: "reset-password" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true };

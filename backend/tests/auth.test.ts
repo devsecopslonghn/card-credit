@@ -4,6 +4,7 @@ import { buildApp } from "../src/app.js";
 import { registerAuthRoutes } from "../src/auth-routes.js";
 import { sessionCookie, sessionFromRequest, signSession } from "../src/auth.js";
 import type { AuthRepository, AuthUser, ResetToken } from "../src/auth-repository.js";
+import type { PasswordResetEmail } from "../src/mail-service.js";
 
 class MemoryAuth implements AuthRepository {
   users: AuthUser[] = []; tokens: ResetToken[] = [];
@@ -49,6 +50,32 @@ test("bootstrap is disabled without token and guarded when configured", async ()
   const enabled = buildApp({ isReady: () => true }, "silent"); registerAuthRoutes(enabled, { repository, secret, bootstrapToken: "bootstrap-secret", configuredUsers: [{ email: "user@example.test", password: "valid-pass", role: "user", workspaceId: "w1" }] });
   assert.equal((await enabled.inject({ method: "POST", url: "/api/auth/bootstrap-users", headers: { authorization: "Bearer wrong" } })).statusCode, 403);
   assert.equal((await enabled.inject({ method: "POST", url: "/api/auth/bootstrap-users", headers: { authorization: "Bearer bootstrap-secret" } })).statusCode, 200); await enabled.close();
+});
+
+test("forgot password sends the reset link through mail without exposing it in the generic response", async () => {
+  const repository = new MemoryAuth();
+  await repository.createUser({ email: "owner@example.test", passwordHash: "hash", role: "user", workspaceId: "workspace-a", displayName: "Owner", active: true, lockedAt: null });
+  const delivered: PasswordResetEmail[] = [];
+  const audits: Array<Record<string, unknown>> = [];
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerAuthRoutes(app, {
+    repository,
+    secret,
+    mail: { sendPasswordResetEmail: async (email) => { delivered.push(email); } },
+    audit: async (_event, _request, _actor, _email, resource) => { if (resource) audits.push(resource); },
+  });
+
+  const response = await app.inject({ method: "POST", url: "/api/auth/forgot-password", headers: { "x-forwarded-host": "test.local", "x-forwarded-proto": "https" }, payload: { email: "owner@example.test" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().resetLink, undefined);
+  assert.equal(delivered.length, 1);
+  assert.match(delivered[0]!.resetLink, /^https:\/\/test\.local\/forgot-password\?token=/);
+  assert.equal(audits.at(-1)?.delivered, true);
+
+  const unknown = await app.inject({ method: "POST", url: "/api/auth/forgot-password", payload: { email: "unknown@example.test" } });
+  assert.equal(unknown.statusCode, 200);
+  assert.equal(delivered.length, 1);
+  await app.close();
 });
 
 test("signed sessions expire from issuedAt and reject future timestamps", () => {
