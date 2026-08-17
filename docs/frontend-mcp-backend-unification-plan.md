@@ -394,6 +394,7 @@ implemented yet.
   claims, TTL, context binding, preview persistence và command guard.
 - Regression/evidence: source/test/runtime search ngoài execution ledger không
   còn hai wrapper; backend full validation phải pass trước commit.
+- Commit/push: `1194b06` đã push lên `origin/master`.
 
 ### Completed checkpoint: Paginate statement projections with stable cursors
 
