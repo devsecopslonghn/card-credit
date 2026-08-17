@@ -5,9 +5,9 @@ import { projectStatementCalendar, serializeStatementCalendar } from "../stateme
 import type { ServiceContext } from "./types/service-context.js";
 import { CardQueryService } from "./card-query-service.js";
 import { StatementQueryService } from "./statement-query-service.js";
+import { validEmail } from "./auth-policy.js";
 
 type CalendarMail = Pick<MailService, "sendStatementCalendarEmail">;
-const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 export class StatementCalendarEmailService {
   static async send(ctx: ServiceContext, actorEmail: string, cardId: string, statementId: string, mail: CalendarMail) {

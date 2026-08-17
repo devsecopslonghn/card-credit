@@ -13,7 +13,7 @@ test("statement calendar email service uses trusted card/statement reads and mas
   const cardGet = t.mock.method(CardQueryService, "get", async (seenContext: ServiceContext, cardId: string) => { assert.equal(seenContext, context); assert.equal(cardId, "card-1"); return card as never; });
   const statementGet = t.mock.method(StatementQueryService, "get", async (seenContext: ServiceContext, cardId: string, statementId: string) => { assert.equal(seenContext, context); assert.equal(cardId, "card-1"); assert.equal(statementId, "statement-1"); return statement as never; });
   let sent: { to: string; text: string } | undefined;
-  const result = await StatementCalendarEmailService.send(context, "Owner@Example.test", "card-1", "statement-1", {
+  const result = await StatementCalendarEmailService.send(context, " Owner@Example.test ", "card-1", "statement-1", {
     sendStatementCalendarEmail: async (email) => { sent = email; },
   });
   assert.deepEqual(result, { sent: true, recipient: "o***@example.test" });
