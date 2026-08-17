@@ -7,17 +7,10 @@ import { boundedReadLimit } from "../read-limits.js";
 
 const Categories = FinanceCategoryModel as unknown as mongoose.Model<Record<string, unknown>>;
 
-const defaults = ["HOUSING", "FOOD", "INTERNET", "TRANSPORT", "SHOPPING", "HEALTH", "INSURANCE", "ENTERTAINMENT", "EDUCATION", "FAMILY", "OTHER"];
-
 export class FinanceCategoryService {
   static async list(ctx: ServiceContext, rawLimit?: unknown) {
     const existing = await Categories.find({ workspaceId: ctx.workspaceId, active: { $ne: false } }).sort({ name: 1 }).limit(boundedReadLimit(rawLimit)).lean();
     return existing.map((item) => ({ id: idOf(item._id), name: item.name, parentId: item.parentId ?? null, system: item.system === true }));
-  }
-
-  static async ensureDefaults(ctx: ServiceContext) {
-    await Categories.bulkWrite(defaults.map((name) => ({ updateOne: { filter: { workspaceId: ctx.workspaceId, name }, update: { $setOnInsert: { workspaceId: ctx.workspaceId, name, system: true, active: true } }, upsert: true } })) as never[]);
-    return this.list(ctx);
   }
 
   static async create(ctx: ServiceContext, input: { name: string; parentId?: string }) {

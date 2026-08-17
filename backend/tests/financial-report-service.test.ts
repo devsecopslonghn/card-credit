@@ -8,6 +8,7 @@ import { MonthlyCardCashbackModel } from "../src/models/monthly-card-cashback.js
 import { CardFeePaymentModel } from "../src/models/card-fee-payment.js";
 import { CardStatementModel } from "../src/models/card-statement.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
+import { FinanceCategoryModel } from "../src/models/finance-category.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const context: ServiceContext = { workspaceId: "workspace-a", userId: "user-a", role: "user", channel: "browser", correlationId: "report-test" };
@@ -54,6 +55,7 @@ test("summary reads benefit sources once, keeps ledger groups stable and avoids 
     { category: "MANAGEMENT_FEE", amount: 60 },
     { category: "BANK_CASHBACK", amount: 900 },
   ]) as never);
+  const categoryFind = t.mock.method(FinanceCategoryModel, "find", () => chain([{ _id: "legacy-category", name: "LEGACY" }]) as never);
 
   const result = await FinancialReportService.summary(context, { from: "2026-07-01", to: "2026-07-31" });
 
@@ -71,6 +73,8 @@ test("summary reads benefit sources once, keeps ledger groups stable and avoids 
   assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", transactionDate: { $gte: "2026-07-01", $lte: "2026-07-31" } });
   assert.deepEqual(cashbackFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", period: { $gte: "2026-07", $lte: "2026-07" } });
   assert.deepEqual(feeFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", paymentDate: { $gte: "2026-07-01", $lte: "2026-07-31" }, category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] } });
+  assert.equal(categoryFind.mock.callCount(), 0);
+  assert.equal(JSON.stringify(result).includes("monthlyData"), false);
 });
 
 test("summary owner filter scopes ledger, cashback and fee sources by card references", async (t) => {

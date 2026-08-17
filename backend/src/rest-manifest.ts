@@ -86,7 +86,6 @@ export const REST_ENDPOINTS: readonly RestEndpointDefinition[] = [
   { method: "post", path: "/api/fee-center", summary: "Create fee center entry", security: "session" },
   { method: "put", path: "/api/fee-center/{id}", summary: "Update fee center entry", security: "session" },
   { method: "delete", path: "/api/fee-center/{id}", summary: "Delete fee center entry", security: "session" },
-  { method: "post", path: "/api/finance/categories/defaults", summary: "Create default categories", security: "session" },
   { method: "get", path: "/api/workspace/owner", summary: "Get workspace owner", security: "session" },
   { method: "put", path: "/api/workspace/owner", summary: "Set workspace owner", security: "session" },
 ] as const;
