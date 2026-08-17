@@ -41,29 +41,9 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Current frontend SRS gate: `npm ci --include=optional` and
   `npm run test:unit --if-present` pass with `80/80`; frontend source is
   unchanged by the current backend/security slices.
-- Latest full gate for the previous source checkpoint (`d488379`): frontend
-  `npm ci --include=optional`, `npm run test:unit --if-present` `80/80`,
-  typecheck/lint/integration `6/6`/build pass; shared `29/29`; backend
-  `160/160` with typecheck/lint/build pass, including the read-only legacy
-  writer fence and MCP session-version revoke regressions.
-- Current source slice adds the forgot-password SMTP-failure fence; backend
-  critical `161/161`, exhaustive `258/258`, typecheck/lint/build all pass.
-- Current security coverage slice adds authoritative MCP role-refresh
-  regression; backend critical `162/162`, exhaustive `259/259`,
-  typecheck/lint/build all pass.
 - MCP config regression also confirms `MCP_OLD_WRITER_FENCED=true` alone keeps
   the default mode `read`; write requires an explicit writer mode plus the
   fence acknowledgement.
-- Cleanup checkpoint at source `88a6cc2`: consumer audit found no TypeScript
-  consumer for `frontend/lib/api/statementCalendarEmailCore.d.ts`; the
-  declaration was removed while the runtime `.mjs`, client behavior and
-  `statementCalendarEmail.test.mjs` remain intact. The retained
-  `calendarSubscriptionsCore.d.ts` still has a TypeScript client consumer.
-- Post-cleanup validation: frontend `npm ci --include=optional`, lint,
-  typecheck, curated `npm test` `44/44`, `test:unit` `80/80`, integration
-  `6/6`, and production build all pass; shared `29/29` and backend `162/162`
-  with typecheck/lint/build also pass. CI entrypoint regression and chart
-  read-only lint/template remain green.
 - Workspace repository inventory at source `f7855f0` found no additional MCP
   writer workload/configuration outside the application and chart repositories.
   A separate local OpenClaw log records an external `card-credit` probe with
