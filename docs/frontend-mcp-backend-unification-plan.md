@@ -57,6 +57,10 @@ lại để tránh đọc nhầm checkpoint cũ.
   không thấy old writer trong cluster inventory, không phải external traffic
   drain evidence. Live image tag là `7ccb02cc9592`, vì vậy vẫn không claim
   runtime acceptance cho source HEAD mới hơn.
+- Ingress controller access-log count trong 24h: `20,968` total lines,
+  `9` requests cho host card-credit, `0` `/mcp` GET/POST/DELETE, `0` card-host
+  `401` và `0` card-host `5xx`. Đây là read-only observation trong một log
+  window; không đủ để khẳng định client cũ đã bị fence/drain ngoài window.
 
 ## 3. Next execution order
 
