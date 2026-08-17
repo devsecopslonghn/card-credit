@@ -157,6 +157,10 @@ implemented yet.
 - Read-only SMTP transport verification from the running backend passed with
   `smtpVerified=true`, port `587`, `secure=false`; the command called
   `transport.verify()` only and did not call `sendMail` or print credentials.
+- Authenticated read-only MCP `tools/list` returned HTTP `200` with exactly 11
+  query tools; the inventory contained no `preview_*` or `confirm_*` tools.
+  The check initialized one in-memory MCP session and listed metadata only; it
+  did not call a business tool or create preview/receipt data.
 - Safety: only `kubectl get` and read-only `kubectl exec` metadata/localhost
   endpoint checks; no Secret values, MCP invocation, preview/confirm, database
   write, migration, restart, scale, patch or manual sync was executed.
