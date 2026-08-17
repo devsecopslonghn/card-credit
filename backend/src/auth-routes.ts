@@ -9,6 +9,7 @@ import { authSessionListSchema, authSessionSchema } from "@card-credit/contracts
 import type { MailService } from "./mail-service.js";
 import { AuthSessionService } from "./services/auth-session-service.js";
 import { AuthRegistrationService } from "./services/auth-registration-service.js";
+import { hashResetToken, PasswordResetService, requirePassword } from "./services/password-reset-service.js";
 
 export type AuthOptions = {
   repository: AuthRepository;
@@ -22,10 +23,8 @@ export type AuthOptions = {
 };
 const emailOf = (value: unknown) => typeof value === "string" ? value.trim().toLowerCase() : "";
 const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const requirePassword = (value: unknown): string => { if (typeof value !== "string" || value.length < 8) throw new ApiError(400, "INVALID_PASSWORD", "Mật khẩu không hợp lệ.", { password: "Mật khẩu phải có ít nhất 8 ký tự." }); return value; };
 const publicUser = (session: Session) => ({ email: session.email, role: session.role, workspaceId: session.workspaceId });
 const toSession = (user: AuthUser): Session => ({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId, sessionVersion: user.sessionVersion ?? 0 });
-const tokenHash = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
 
 export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) => {
   const audit = options.audit ?? (async () => {});
@@ -44,7 +43,7 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
   app.post<{ Body: Record<string, unknown> }>("/api/auth/forgot-password", async (request) => {
     const email = emailOf(request.body?.email); if (email && !validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const user = email ? await options.repository.findUserByEmail(email) : null; let rawToken: string | null = null;
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-    if (user?.active && !user.lockedAt) { rawToken = crypto.randomBytes(32).toString("base64url"); await options.repository.createResetToken({ tokenHash: tokenHash(rawToken), userId: user.id, email: user.email, expiresAt, usedAt: null }); }
+    if (user?.active && !user.lockedAt) { rawToken = crypto.randomBytes(32).toString("base64url"); await options.repository.createResetToken({ tokenHash: hashResetToken(rawToken), userId: user.id, email: user.email, expiresAt, usedAt: null }); }
     const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "127.0.0.1:3001");
     const protocol = String(request.headers["x-forwarded-proto"] ?? "http").split(",")[0]!.trim();
     const resetLink = rawToken ? `${protocol}://${host}/forgot-password?token=${rawToken}` : null;
@@ -55,8 +54,7 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
     await audit("PASSWORD_RESET_REQUESTED", request, null, email, { type: "auth", action: "forgot-password", delivered });
     return { ok: true, message: "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi.", ...(resetLink && options.returnResetToken ? { resetLink } : {}) };
   });
-  app.post<{ Body: Record<string, unknown> }>("/api/auth/reset-password", async (request, reply) => {
-    const password = requirePassword(request.body?.password); const rawToken = typeof request.body?.token === "string" ? request.body.token.trim() : ""; if (!rawToken) throw new ApiError(400, "INVALID_TOKEN", "Token đặt lại mật khẩu không hợp lệ."); const token = await options.repository.findResetToken(tokenHash(rawToken), new Date()); if (!token) throw new ApiError(400, "INVALID_TOKEN", "Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."); const user = await options.repository.findUserById(token.userId); if (!user?.active || user.lockedAt) throw new ApiError(400, "INVALID_TOKEN", "Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."); await options.repository.updatePassword(user.id, await hashPassword(password)); await options.repository.consumeResetTokens(user.id, new Date()); await audit("PASSWORD_RESET_COMPLETED", request, toSession(user), user.email, { type: "auth", action: "reset-password" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true };
+  app.post<{ Body: Record<string, unknown> }>("/api/auth/reset-password", async (request, reply) => { const rawToken = typeof request.body?.token === "string" ? request.body.token.trim() : ""; const user = await PasswordResetService.complete(rawToken, request.body?.password, options.repository); await audit("PASSWORD_RESET_COMPLETED", request, toSession(user), user.email, { type: "auth", action: "reset-password" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true };
   });
   app.post("/api/auth/bootstrap-users", async (request) => {
     if (!options.bootstrapToken) throw new ApiError(503, "BOOTSTRAP_DISABLED", "Bootstrap user API chưa được bật."); const authorization = request.headers.authorization ?? ""; const provided = authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : String(request.headers["x-bootstrap-token"] ?? ""); if (provided !== options.bootstrapToken) throw new ApiError(403, "FORBIDDEN", "Bootstrap token không hợp lệ."); if (!options.configuredUsers?.length) throw new ApiError(400, "NO_BOOTSTRAP_USERS", "AUTH_USERS_JSON chưa có user để bootstrap."); const results = [];
