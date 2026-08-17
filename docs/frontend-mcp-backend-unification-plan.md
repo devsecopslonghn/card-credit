@@ -168,10 +168,10 @@ implemented yet.
 - Argo read-only evidence: Kubernetes `Application/card-credit` CRD reports
   `Synced/Healthy`, operation `Succeeded`, revision `e05d8ea`; its sync result
   explicitly records backend/frontend image `7e561331be91`. This proves the
-  old GitOps revision is healthy, not that source `98ca53f` has been built or
+  old GitOps revision is healthy, not that source `71dfa58` has been built or
   rolled out.
 - Review conclusion: local source/shared/backend/frontend evidence đã pass,
-  nhưng candidate image publication, GitOps handoff cho `98ca53f`, Argo
+  nhưng candidate image publication, GitOps handoff cho `71dfa58`, Argo
   reconciliation và external old-writer fence/drain còn pending. Production
   MCP statement-payment writer rollout tiếp tục **NO-GO**.
 
