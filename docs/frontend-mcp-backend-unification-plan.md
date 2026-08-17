@@ -107,6 +107,21 @@ implemented yet.
   unclaimed.
 - Commit/push: `e947339` đã push lên `origin/master`.
 
+### Runtime read-only refresh: source HEAD `46eecd1`
+
+- Context/namespace verified as `k8s-admin-public` / `card-credit`; backend and
+  frontend deployments are `1/1`, pods `Running`, restart count `0`.
+- Both deployment images remain
+  `nexus.apps.drgdevlab.com/card-credit/{backend,frontend}:5267c79cf437`,
+  while source HEAD is `46eecd1` (`docs: record catalog type cleanup`), so the
+  current pod does not prove the latest cleanup source.
+- Deployment metadata remains `MCP_WRITER_MODE=write` and
+  `MCP_OLD_WRITER_FENCED=true`; these values do not prove external old-writer
+  traffic fencing or financial receipt/reconciliation evidence.
+- Safety: read-only Kubernetes metadata inspection only; no MCP invocation,
+  preview/confirm, Secret value read, database operation, restart, scale,
+  patch or rollout was executed.
+
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
 - Scope: xóa các file frontend không còn production consumer:
