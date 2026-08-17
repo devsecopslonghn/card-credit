@@ -2231,6 +2231,27 @@ chạy validation, commit và push ngay.
   compensating transaction change was made; enabling a write-capable surface
   does not itself create a financial record.
 
+### Completed checkpoint: Session-version atomic guard regression
+
+- Requirement/GAP: `GAP-SEC-01`/`GAP-SEC-02` cần chứng minh session claim bị
+  revoke khi password, role hoặc workspace thay đổi; không mở live database
+  mutation trong batch này.
+- Source review: `browserActorContext` đối chiếu authoritative
+  `sessionVersion`, `workspaceId`, `active` và `lockedAt`; `MongoAuthRepository`
+  dùng `$inc: { sessionVersion: 1 }` cho `updatePassword` và role/workspace
+  `updateUser`, còn `upsertUser` tăng version khi bootstrap thay đổi security
+  fields.
+- Regression evidence: thêm
+  `backend/tests/auth-repository.test.ts`, kiểm tra atomic version bump cho
+  password và role/workspace update; focused test pass `1/1`; backend curated
+  `npm test` pass `136/136`; typecheck và lint pass.
+- Runtime boundary: chưa bump/revoke user authoritative trên cluster và chưa
+  kiểm tra policy membership bằng persistence mutation; không sửa database,
+  schema, migration hay Kubernetes. Vì vậy source guard đã có evidence nhưng
+  `GAP-SEC-01`/`GAP-SEC-02` chưa được claim đóng.
+- Commit/push: batch code/test/docs được ghi trong commit kế tiếp; rollback là
+  revert commit này, không ảnh hưởng dữ liệu runtime.
+
 ### Completed checkpoint: Proxy cleanup CI publication and GitOps handoff
 
 - Requirement/GAP: `GAP-CI-01` cần tách source/test, image publication và
