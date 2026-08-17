@@ -77,6 +77,19 @@ implemented yet.
 - Independent review: GO cho source/test slice; không có database,
   Kubernetes, mail hoặc financial mutation.
 
+### Checkpoint: current local validation and stale-reference gate
+
+- Shared `npm run validate`: build pass và curated contract tests `29/29`.
+- Backend `npm run validate`: typecheck/lint/build pass và curated tests
+  `156/156`.
+- Frontend `npm test`: curated tests `44/44`; `npm run test:integration` `6/6`;
+  typecheck, lint và production build pass với `24` routes.
+- Stale-reference audit ngoài historical execution ledger không còn
+  `/api/reports/summary`, `reportsCore`, `docs/refactor*`,
+  `FinanceCategoryService.ensureDefaults` hoặc `categories/defaults`.
+- Independent review: GO cho local release gate; không có cluster/database/mail
+  side effect.
+
 ### Runtime read-only refresh: current MCP fence observation
 
 - Context/namespace: `k8s-admin-public` / `card-credit`; backend và frontend
