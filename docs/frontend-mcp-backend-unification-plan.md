@@ -18,8 +18,8 @@ lại để tránh đọc nhầm checkpoint cũ.
 | GAP | Status | Evidence hiện có | Còn thiếu |
 |---|---|---|---|
 | `GAP-CI-01` | `CLOSED` | Jenkins/source checkout, image/GitOps và read-only smoke evidence | Giữ regression gate |
-| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject và stale-session tests | Deployed-image evidence và runtime authoritative policy-membership evidence |
-| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, config regression proving fence flag alone does not enable writer, chart/live read mode, authenticated `tools/list` 11/11 query tools | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
+| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject, stale-session tests và deployed image `e003fb24c94f` | Runtime authoritative policy-membership evidence |
+| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, config regression proving fence flag alone does not enable writer, chart/live read mode, historical authenticated `tools/list` 11/11 query tools, current unauthenticated `/mcp` 401 và external OpenClaw probe evidence | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
 | `GAP-PAY-01/02`, `GAP-STM-01` | `PARTIAL` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01` fail-closed boundary | Persistence/reconciliation evidence |
 | `GAP-OPS-01` | `CLOSED` | Startup không silent-write; operator guard/test | Giữ dry-run/apply guard |
 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | `CLOSED` | Source/tests và live read-only index/duplicate/orphan audit | Giữ preflight |
@@ -64,10 +64,13 @@ lại để tránh đọc nhầm checkpoint cũ.
   `6/6`, and production build all pass; shared `29/29` and backend `162/162`
   with typecheck/lint/build also pass. CI entrypoint regression and chart
   read-only lint/template remain green.
-- Workspace external-writer inventory at source `f7855f0` found no additional
-  MCP writer workload/configuration outside the application and chart
-  repositories. This is a bounded repository audit only; it is not evidence
-  that external traffic has drained.
+- Workspace repository inventory at source `f7855f0` found no additional MCP
+  writer workload/configuration outside the application and chart repositories.
+  A separate local OpenClaw log records an external `card-credit` probe with
+  `14` tools at `2026-08-12T08:32:49Z`, `08:52:09Z` and `09:12:44Z`, then
+  `10` tools at `09:33:59Z` and `15:54:49Z`; the log does not expose endpoint,
+  auth, mode or traffic outcome. This is external-client evidence to retain,
+  not proof that old-writer traffic has drained.
 - Local container artifact build was attempted read-only: Docker CLI exists but
   the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
   no `buildctl` is installed. No permission bypass was used; Jenkins remains
@@ -245,6 +248,9 @@ ordering.
 - `docs/ui-architecture-review.md`, `docs/requirements.md`, `docs/SRS.md`,
   `docs/finance-source-of-truth.md` vì còn reference hoặc là canonical
   operational/product requirements.
+- `docs/openclaw/skills/personal-finance-ledger/SKILL.md` vì local OpenClaw
+  evidence cho thấy đây là operational contract của external MCP consumer,
+  dù không có import trong application repository.
 - `docs/mcp-preview-rollout.md` vì là operational gate bắt buộc cho future
   writer rollout; đã được index trong `docs/README.md`, không phải historical
   document.
