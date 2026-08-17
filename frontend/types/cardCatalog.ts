@@ -7,15 +7,6 @@ export type CardCatalogApiResponse<T> = {
   data: T;
 };
 
-export type LegacyCardPresetFields = {
-  id: string;
-  bank: string;
-  bankName: string;
-  name: string;
-  type: string;
-  imageUrl: string;
-};
-
 export type CardImageManifestEntry = {
   status: "cached" | "placeholder" | "remote" | "failed" | "skipped";
   sourceUrl?: string | null;
