@@ -134,7 +134,11 @@ exhaustive local verification khi cần.
 
 Đang giữ vì còn consumer hoặc cần decision:
 
-- `McpMutationModel` và legacy payload hash/receipt compatibility
+- `McpMutationModel` và `legacyPayloadHash`/receipt compatibility: source hiện
+  chỉ đọc legacy receipt; không còn đường create/update trong application source.
+  Removal gate là external writer fence/drain + legacy receipt reconciliation;
+  xóa read path trước các bước đó có thể khiến retry cũ tạo giao dịch tài chính
+  trùng.
 - card `monthlyData` và restricted duplicate-merge history path
 - legacy payment reconciliation planner/operator command
 - `docs/ui-architecture-review.md`, `docs/requirements.md`, `docs/SRS.md`,
