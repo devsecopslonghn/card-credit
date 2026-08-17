@@ -64,6 +64,10 @@ lại để tránh đọc nhầm checkpoint cũ.
   `6/6`, and production build all pass; shared `29/29` and backend `162/162`
   with typecheck/lint/build also pass. CI entrypoint regression and chart
   read-only lint/template remain green.
+- Workspace external-writer inventory at source `f7855f0` found no additional
+  MCP writer workload/configuration outside the application and chart
+  repositories. This is a bounded repository audit only; it is not evidence
+  that external traffic has drained.
 - Local container artifact build was attempted read-only: Docker CLI exists but
   the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
   no `buildctl` is installed. No permission bypass was used; Jenkins remains
@@ -96,15 +100,17 @@ lại để tránh đọc nhầm checkpoint cũ.
   rendered backend keeps `MCP_WRITER_MODE=read` and
   `MCP_OLD_WRITER_FENCED=true`. This is desired-state evidence only; it is not
   proof that the live pod has that image.
-- Current read-only divergence: chart `values.yaml` still declares
-  `5267c79cf437`, live backend/frontend pods run `7ccb02cc9592`, while source
-  HEAD is `50ba248`. No chart value or cluster resource was changed to bridge
-  this gap.
+- Current read-only divergence: local chart `values.yaml` still declares
+  `5267c79cf437`, while live backend/frontend pods run immutable image tag
+  `e003fb24c94f`; source `f7855f0` is a docs/cleanup descendant of the
+  deployed application code. No chart value or cluster resource was changed
+  by this task.
 - Argo read-only status is `Synced/Healthy` at revision
-  `373804725ae24abc9c8c0f7c0df7b479fadb010d`; both deployments report observed
-  generation equal to current generation and one available replica. This
-  confirms the older desired state is healthy, not that current source HEAD is
-  deployed.
+  `38a88b502226303f7503657d373aeebe024c4fe1`; both deployments report one
+  available replica. The backend image digest is
+  `sha256:0f83839da96a7da659226fdd7cb5f1a53324b32c703569610210abfc42e8f0f5`.
+  This supplies deployed-image evidence for the source guards, but not
+  authoritative policy-membership or external-writer evidence.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
@@ -114,29 +120,28 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Kubernetes context/namespace đã xác minh: `k8s-admin-public` / `card-credit`.
 - Backend/frontend `1/1 Ready`, backend restart `0`; live MCP config là
   `MCP_WRITER_MODE=read`, `MCP_OLD_WRITER_FENCED=true`.
-- Authenticated MCP initialize thành công; `11/11` query tools trả HTTP `200`,
-  không có preview/confirm tool ở read mode.
-- Backend log window 24h được đếm nội bộ ở observation mới nhất: `279` dòng,
-  không có dòng match MCP/preview/confirm/writer/mutation/error. Đây không phải
-  bằng chứng external client đã bị fence; live pod vẫn chạy image `7ccb02cc9592`
-  và chưa chứa source guard của `d488379`.
+- Current pod direct read-only probe through a temporary port-forward returned
+  `/health=200`, `/ready=200`, `/docs/json=200`, and unauthenticated `/mcp=401`.
+  The earlier authenticated profile (`11/11` query tools) remains historical
+  evidence and was not re-used as a fresh authenticated current-pod claim.
+- Current backend pod started at `2026-08-17T16:14:17Z`, has restart `0`, and
+  emitted `0` log lines in the `30m` observation window. A quiet log window is
+  not evidence that external clients are fenced.
 - Không in secret, token, raw payload, raw financial ID/amount.
 - Read-only topology audit thấy đúng một backend pod và một frontend pod,
   mỗi pod `Ready=true`, restart `0`; Ingress chỉ route `/mcp` và `/docs` vào
-  backend service hiện tại, mỗi endpoint có đúng một address. Đây là evidence
-  không thấy old writer trong cluster inventory, không phải external traffic
-  drain evidence. Live image tag là `7ccb02cc9592`, vì vậy vẫn không claim
-  runtime acceptance cho source HEAD mới hơn.
-- Ingress controller access-log count trong 24h: `20,968` total lines,
-  `9` requests cho host card-credit, `0` `/mcp` GET/POST/DELETE, `0` card-host
-  `401` và `0` card-host `5xx`. Đây là read-only observation trong một log
-  window; không đủ để khẳng định client cũ đã bị fence/drain ngoài window.
+  backend service hiện tại. Đây là evidence không thấy old writer trong
+  cluster inventory, không phải external traffic drain evidence.
+- Ingress controller access-log count trong 24h: `3,962` total lines,
+  `134` requests cho host card-credit, `0` `/mcp`, `16` card-host `401` và
+  `0` card-host `5xx`. Đây là read-only observation trong một log window;
+  không đủ để khẳng định client cũ đã bị fence/drain ngoài window.
 - Extended read-only query `--since=168h` trên controller hiện tại chỉ còn `10`
   dòng retained, `0` card-credit host và `0` `/mcp`; retention quá ngắn để
   nâng thành evidence seven-day drain, nên GAP vẫn `PARTIAL`.
-- Latest read-only backend log check returned `765` lines and `0` matches for
-  `MCP|preview|confirm|writer|mutation|error`; this confirms the current
-  observed window is quiet, not that external old writers are drained.
+- Latest read-only backend log check returned `0` lines in the current `30m`
+  window; this confirms only that no application logs were emitted in that
+  window, not that external old writers are drained.
 
 ## 3. Next execution order
 
@@ -157,15 +162,16 @@ nhầm, chưa phải evidence external writer đã drain.
 
 Security checkpoint: `createMcpContextProvider` giữ context authoritative giữa
 các invocation; lần đầu bind `sessionVersion`, lần sau fail-closed khi version
-đã bị bump. Test `context.test.ts` chứng minh revoke path; live pod chưa chạy
-source HEAD này nên chưa claim deployed-image evidence.
+đã bị bump. Test `context.test.ts` chứng minh revoke path; live image
+`e003fb24c94f` là descendant/ancestor-aligned với source guard và đang Ready.
+Runtime authoritative policy-membership evidence vẫn còn thiếu.
 
 ### Slice B — security evidence
 
 1. Giữ browser/MCP trusted context fail-closed.
-2. Bổ sung source/test hoặc read-only runtime evidence cho session revoke,
-   authoritative role/workspace và policy membership nếu có thể thu được mà
-   không mutate production.
+2. Bổ sung read-only runtime evidence cho authoritative policy membership nếu
+   có thể thu được mà không đọc secret hoặc mutate production; deployed-image
+   evidence cho session/role/workspace guard đã được ghi nhận.
 3. Chỉ chuyển `GAP-SEC-01/02` sang `CLOSED` khi evidence đúng scope.
 
 ### Slice C — MCP fence
