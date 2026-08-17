@@ -15,6 +15,12 @@ This runbook is required before deploying an image that writes
   checks are complete. `MCP_OLD_WRITER_FENCED=true` is only an application
   acknowledgement; it is not proof that Kubernetes or external clients are
   fenced.
+- Inventory every external MCP client by exact tool names, owner and endpoint
+  before the fence. A tool count alone is insufficient: the current read
+  manifest has 11 query tools, while a local OpenClaw history recorded 14 and
+  later 10 tools. Treat that mismatch as drift until an approved identity
+  probe returns the exact read-only inventory; do not read or print client
+  tokens/config secrets.
 - Back up the target workspace with `backend/scripts/backup-finance-workspace.ts`
   and record the mode-600 file path in the execution plan.
 - Run `npm run ensure:command-guard-indexes` with
