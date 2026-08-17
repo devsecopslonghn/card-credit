@@ -215,9 +215,9 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 
 | Priority | GAP ID | Hiện trạng | Điều kiện đóng |
 |---|---|---|---|
-| P0 | `GAP-CI-01` | Đã đóng: Jenkins build `314` checkout đúng SCM/branch/SHA `9d9c976`, chạy `npm test` đúng một lần cho `shared`/`frontend`/`backend`, pass lần lượt 25/45/103 và publish immutable images | Giữ regression gate; không suy diễn rollout Kubernetes từ Jenkins success |
-| P0 | `GAP-SEC-01`, `GAP-SEC-02` | Đã implement session version/revoke guard và register workspace policy; cần rollout candidate để xác nhận runtime | Backend/frontend tests, authoritative version bump và policy membership evidence |
-| P0 | `GAP-MCP-01`, `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | Preview/receipt/payment parity đã có; old writer, HITL/resource binding và reversal còn mở | Candidate image, fence/drain, resource/HITL policy và reversal decision |
+| P0 | `GAP-CI-01` | Đã đóng: Jenkins build `#353` checkout đúng SCM/branch/SHA `7f04f18`, chạy `npm test` đúng một lần cho `shared`/`frontend`/`backend`, pass lần lượt 25/45/134, catalog validation 33 products và publish immutable images; candidate đã được CD/Argo reconcile read-only | Giữ regression gate; không suy diễn writer rollout từ Jenkins success |
+| P0 | `GAP-SEC-01`, `GAP-SEC-02` | Đã implement session version/revoke guard và register workspace policy; candidate read-only đã rollout và health/ready pass, nhưng authoritative version bump và policy membership runtime evidence còn thiếu | Backend/frontend tests, authoritative version bump và policy membership evidence |
+| P0 | `GAP-MCP-01`, `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | Preview/receipt/payment parity và candidate read-only runtime đã có; external old writer, HITL/resource binding và reversal còn mở | Independent fence/drain/traffic evidence, resource/HITL policy và reversal decision |
 | P0 | `GAP-OPS-01` | Đã xử lý: startup không còn silent catalog write | Giữ CLI dry-run/apply guard và regression test |
 | P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | Delete/merge orphan, account lifecycle race, calendar unique index còn mở | DECISION + transaction/index/dry-run/backup/rollback |
 | P1 | `GAP-REP-01`, `GAP-REP-02` | Report parity đã có; cash-flow join, legacy category và range balance còn lệch | Chốt source/filter semantics và reconciliation evidence |
