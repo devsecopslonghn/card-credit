@@ -215,7 +215,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 
 | Priority | GAP ID | Hiện trạng | Điều kiện đóng |
 |---|---|---|---|
-| P0 | `GAP-CI-01` | Đã đóng cho CI/source publication và candidate read-only: Jenkins `#365` checkout commit `e8f4066`, pass 25/45/135, publish immutable images tag `e8f40663bec9` và handoff GitOps `e9b1886`; runtime mới đang chờ Argo reconcile, candidate trước đó đã có health/ready/MCP read smoke | Giữ regression gate; không suy diễn writer rollout từ Jenkins success |
+| P0 | `GAP-CI-01` | Đã đóng cho CI/source publication và candidate read-only: Jenkins `#365` checkout commit `e8f4066`, pass 25/45/135, immutable images tag `e8f40663bec9`, GitOps `e9b1886`, Argo `Synced/Healthy/Succeeded`; candidate runtime health/ready/docs smoke pass với MCP read-only | Giữ regression gate; không suy diễn writer rollout từ Jenkins success |
 | P0 | `GAP-SEC-01`, `GAP-SEC-02` | Đã implement session version/revoke guard và register workspace policy; candidate read-only đã rollout và health/ready pass, nhưng authoritative version bump và policy membership runtime evidence còn thiếu | Backend/frontend tests, authoritative version bump và policy membership evidence |
 | P0 | `GAP-MCP-01`, `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | Preview/receipt/payment parity và candidate read-only runtime đã có; external old writer, HITL/resource binding và reversal còn mở | Independent fence/drain/traffic evidence, resource/HITL policy và reversal decision |
 | P0 | `GAP-OPS-01` | Đã xử lý: startup không còn silent catalog write | Giữ CLI dry-run/apply guard và regression test |
