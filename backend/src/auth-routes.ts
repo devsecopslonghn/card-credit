@@ -2,11 +2,12 @@ import crypto from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { ApiError } from "./errors.js";
 import { DEFAULT_SESSION_MAX_AGE_MS, sessionCookie, sessionFromRequest, signSession, type Session } from "./auth.js";
-import { hashPassword, verifyPassword } from "./password.js";
+import { hashPassword } from "./password.js";
 import type { AuthRepository, AuthUser } from "./auth-repository.js";
 import { browserActorContext } from "./context.js";
 import { authSessionListSchema, authSessionSchema } from "@card-credit/contracts";
 import type { MailService } from "./mail-service.js";
+import { AuthSessionService } from "./services/auth-session-service.js";
 
 export type AuthOptions = {
   repository: AuthRepository;
@@ -28,14 +29,9 @@ const tokenHash = (token: string) => crypto.createHash("sha256").update(token).d
 
 export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) => {
   const audit = options.audit ?? (async () => {});
-  const authenticate = async (email: string, password: unknown) => {
-    const user = await options.repository.findUserByEmail(email);
-    if (!user || !user.active || user.lockedAt || !(await verifyPassword(password, user.passwordHash))) throw new ApiError(401, "UNAUTHENTICATED", "Email hoặc mật khẩu không đúng.");
-    await options.repository.touchLogin(user.id); return toSession(user);
-  };
   app.post<{ Body: Record<string, unknown> }>("/api/auth/login", async (request, reply) => {
     const email = emailOf(request.body?.email);
-    try { const session = await authenticate(email, request.body?.password); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser }; }
+    try { const session = await AuthSessionService.login(email, request.body?.password, options.repository); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser }; }
     catch (error) { await audit("LOGIN_FAILURE", request, null, email, { type: "auth", action: "login", errorCode: error instanceof ApiError ? error.code : "UNKNOWN" }); throw error; }
   });
   app.get("/api/auth/me", async (request) => { const { actor } = await browserActorContext(request, options.secret, options.repository); return { user: authSessionSchema.parse(publicUser(actor)) }; });
