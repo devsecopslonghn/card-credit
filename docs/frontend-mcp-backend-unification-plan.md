@@ -30,6 +30,12 @@ implemented yet.
 - GitOps evidence: chart repository clean tại commit `33a4ad6`; source
   repository hiện đã tiến tới `28f52fd`, vì vậy runtime hiện tại chưa chứng minh
   các feature recurring/UI mới.
+- Read-only endpoint evidence: `/health` và `/ready` trả `200`; `/docs/json`
+  trả `200` với MCP `Streamable HTTP`, fixed context
+  (`MCP_USER_ID`/`MCP_WORKSPACE_ID`), policy
+  `Preview -> explicit confirmation -> idempotent confirm`, `writerMode=write`
+  và `17` tools. Runtime `auditStatus=PENDING`, nên chưa claim receipt/audit
+  traffic hoặc financial mutation evidence.
 - Safety: chỉ đọc deployment/chart metadata; không sync, restart, scale, patch,
   exec mutation, database change hoặc financial mutation.
 
