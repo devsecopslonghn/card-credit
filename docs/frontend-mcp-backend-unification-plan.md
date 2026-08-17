@@ -57,6 +57,11 @@ lại để tránh đọc nhầm checkpoint cũ.
 - A Docker-format backend build also passed as
   `localhost/card-credit-backend:3d194ea-docker` (`607374fba31e`), retaining
   `user=backend`, `CMD npm run start` and the declared `/health` HEALTHCHECK.
+- Local container smoke from those artifacts passed: frontend `/` returned
+  HTTP `200` with HTML content; backend compiled config loaded with
+  `writerMode=read`, `oldWriterFenced=false`, `0.0.0.0:3001`. Backend server
+  was not started because no local MongoDB is available; no persistence side
+  effect was attempted.
 - Chart release gate is green in `/home/longhn0710/workspace/k8s-namepsace-chart/card-credit`:
   `helm lint .` pass and `helm template` pass with immutable tag `8ceb3fe`;
   rendered backend keeps `MCP_WRITER_MODE=read` and
