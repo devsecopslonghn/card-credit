@@ -78,3 +78,14 @@ test("MCP context binds the authoritative session version and rejects a revoked 
   sessionVersion = 5;
   await assert.rejects(() => next(), { code: "MCP_CONTEXT_INVALID" });
 });
+
+test("MCP context refreshes authoritative role membership between invocations", async () => {
+  let role: "user" | "admin" = "user";
+  const provider = {
+    findUserById: async () => ({ ...identity, id: identity.userId, role, email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null }),
+  };
+  const next = createMcpContextProvider(mcpServiceContext({ ...identity, role: "user" }), provider);
+  assert.equal((await next()).role, "user");
+  role = "admin";
+  assert.equal((await next()).role, "admin");
+});

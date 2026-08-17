@@ -18,7 +18,7 @@ lại để tránh đọc nhầm checkpoint cũ.
 | GAP | Status | Evidence hiện có | Còn thiếu |
 |---|---|---|---|
 | `GAP-CI-01` | `CLOSED` | Jenkins/source checkout, image/GitOps và read-only smoke evidence | Giữ regression gate |
-| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, inactive/locked guard, sessionVersion bump, MCP provider bind/reject và stale-session tests | Deployed-image evidence và runtime authoritative policy-membership evidence |
+| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject và stale-session tests | Deployed-image evidence và runtime authoritative policy-membership evidence |
 | `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, chart/live read mode, authenticated `tools/list` 11/11 query tools | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
 | `GAP-PAY-01/02`, `GAP-STM-01` | `PARTIAL` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01` fail-closed boundary | Persistence/reconciliation evidence |
 | `GAP-OPS-01` | `CLOSED` | Startup không silent-write; operator guard/test | Giữ dry-run/apply guard |
@@ -33,8 +33,8 @@ lại để tránh đọc nhầm checkpoint cũ.
 ### Local validation
 
 - Shared: `npm run validate` — build pass, tests `29/29`.
-- Backend: `npm run validate` — typecheck/lint/build pass, tests `161/161`.
-- Backend exhaustive local suite: `npm run test:all` — tests `258/258` pass,
+- Backend: `npm run validate` — typecheck/lint/build pass, tests `162/162`.
+- Backend exhaustive local suite: `npm run test:all` — tests `259/259` pass,
   including non-blocking legacy/reconciliation/payment coverage.
 - Frontend: curated `npm test` `44/44`, integration `6/6`, typecheck/lint/build
   pass, production build renders `24` routes.
@@ -45,6 +45,9 @@ lại để tránh đọc nhầm checkpoint cũ.
   writer fence and MCP session-version revoke regressions.
 - Current source slice adds the forgot-password SMTP-failure fence; backend
   critical `161/161`, exhaustive `258/258`, typecheck/lint/build all pass.
+- Current security coverage slice adds authoritative MCP role-refresh
+  regression; backend critical `162/162`, exhaustive `259/259`,
+  typecheck/lint/build all pass.
 - Local container artifact build was attempted read-only: Docker CLI exists but
   the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
   no `buildctl` is installed. No permission bypass was used; Jenkins remains
