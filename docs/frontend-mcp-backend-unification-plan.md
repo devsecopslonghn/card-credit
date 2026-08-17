@@ -68,13 +68,14 @@ lại để tránh đọc nhầm checkpoint cũ.
   was not started because no local MongoDB is available; no persistence side
   effect was attempted.
 - Chart release gate is green in `/home/longhn0710/workspace/k8s-namepsace-chart/card-credit`:
-  `helm lint .` pass and `helm template` pass with immutable tag `8ceb3fe`;
+  `helm lint .` pass and `helm template` pass with hypothetical immutable tag
+  `a989ae7`;
   rendered backend keeps `MCP_WRITER_MODE=read` and
   `MCP_OLD_WRITER_FENCED=true`. This is desired-state evidence only; it is not
   proof that the live pod has that image.
 - Current read-only divergence: chart `values.yaml` still declares
   `5267c79cf437`, live backend/frontend pods run `7ccb02cc9592`, while source
-  HEAD is `3d194ea`. No chart value or cluster resource was changed to bridge
+  HEAD is `50ba248`. No chart value or cluster resource was changed to bridge
   this gap.
 - Argo read-only status is `Synced/Healthy` at revision
   `373804725ae24abc9c8c0f7c0df7b479fadb010d`; both deployments report observed
@@ -95,7 +96,7 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Backend log window 24h được đếm nội bộ ở observation mới nhất: `279` dòng,
   không có dòng match MCP/preview/confirm/writer/mutation/error. Đây không phải
   bằng chứng external client đã bị fence; live pod vẫn chạy image `7ccb02cc9592`
-  và chưa chứa source guard của `86b5168`.
+  và chưa chứa source guard của `d488379`.
 - Không in secret, token, raw payload, raw financial ID/amount.
 - Read-only topology audit thấy đúng một backend pod và một frontend pod,
   mỗi pod `Ready=true`, restart `0`; Ingress chỉ route `/mcp` và `/docs` vào
@@ -110,6 +111,9 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Extended read-only query `--since=168h` trên controller hiện tại chỉ còn `10`
   dòng retained, `0` card-credit host và `0` `/mcp`; retention quá ngắn để
   nâng thành evidence seven-day drain, nên GAP vẫn `PARTIAL`.
+- Latest read-only backend log check returned `765` lines and `0` matches for
+  `MCP|preview|confirm|writer|mutation|error`; this confirms the current
+  observed window is quiet, not that external old writers are drained.
 
 ## 3. Next execution order
 
