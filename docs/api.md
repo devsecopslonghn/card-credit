@@ -159,7 +159,7 @@ Summary response nên có:
 | `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Financial report theo khoảng ngày; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category. |
 | `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Credit statement projection dùng canonical `StatementQueryService` và shared `CreditStatementReportDto[]`; `from/to` tùy chọn, thiếu một đầu vẫn all-time. |
 | `GET /cash-flow/monthly?period=YYYY-MM&cardId=` | Session | Financial Domain cash-flow theo card/tháng; output `{data,period}`. |
-| `GET /notes` | Session | List note workspace. |
+| `GET /notes?limit=1..100` | Session | List tối đa 100 notes mới nhất trong workspace; response raw array được giữ nguyên để tương thích. |
 | `POST /notes` | Session | `{date,content}`; content rỗng là delete. |
 
 Fee read responses are canonical and shared across backend/frontend:

@@ -1,12 +1,13 @@
 import { ApiError } from "../errors.js";
-import type { NotesRepository, Note } from "../notes.js";
+import { NOTES_DEFAULT_LIMIT, NOTES_MAX_LIMIT, type NotesRepository, type Note } from "../notes.js";
 import type { ServiceContext } from "./types/service-context.js";
 
 export type NoteInput = { date?: unknown; content?: unknown };
+const boundedLimit = (value: unknown) => Math.min(Math.max(Number.parseInt(typeof value === "string" ? value : String(NOTES_DEFAULT_LIMIT), 10) || NOTES_DEFAULT_LIMIT, 1), NOTES_MAX_LIMIT);
 
 export class NotesService {
-  static async list(context: ServiceContext, repository: Pick<NotesRepository, "list">) {
-    return repository.list(context.workspaceId);
+  static async list(context: ServiceContext, rawLimit: unknown, repository: Pick<NotesRepository, "list">) {
+    return repository.list(context.workspaceId, boundedLimit(rawLimit));
   }
 
   static async save(context: ServiceContext, input: NoteInput, repository: Pick<NotesRepository, "upsert" | "remove">): Promise<Note | { message: string }> {

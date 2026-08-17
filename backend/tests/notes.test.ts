@@ -11,9 +11,11 @@ test("notes require auth, scope by workspace, upsert, and delete blank content",
   const repository = new InMemoryNotesRepository(); const app = buildApp({ isReady: () => true }, "silent"); const users = { findUserById: async (id: string) => id === "u1" ? { id, email: "u1@example.test", passwordHash: "", role: "user" as const, workspaceId: "a", displayName: "User", active: true, lockedAt: null } : id === "u2" ? { id, email: "u2@example.test", passwordHash: "", role: "user" as const, workspaceId: "b", displayName: "Other", active: true, lockedAt: null } : null }; registerNotesRoutes(app, repository, secret, users);
   assert.equal((await app.inject({ url: "/api/notes" })).statusCode, 401);
   assert.equal((await app.inject({ method: "POST", url: "/api/notes", headers: { cookie: cookie("a") }, payload: { date: "2026-07-11", content: " Note " } })).statusCode, 200);
-  assert.equal((await app.inject({ url: "/api/notes", headers: { cookie: cookie("a") } })).json()[0].content, "Note");
+  await app.inject({ method: "POST", url: "/api/notes", headers: { cookie: cookie("a") }, payload: { date: "2026-07-12", content: "Newer" } });
+  const limited = await app.inject({ url: "/api/notes?limit=1", headers: { cookie: cookie("a") } });
+  assert.deepEqual(limited.json().map((note: { content: string }) => note.content), ["Newer"]);
   assert.deepEqual((await app.inject({ url: "/api/notes", headers: { cookie: cookie("b", "u2") } })).json(), []);
-  await app.inject({ method: "POST", url: "/api/notes", headers: { cookie: cookie("a") }, payload: { date: "2026-07-11", content: " " } }); assert.deepEqual((await app.inject({ url: "/api/notes", headers: { cookie: cookie("a") } })).json(), []); await app.close();
+  await app.inject({ method: "POST", url: "/api/notes", headers: { cookie: cookie("a") }, payload: { date: "2026-07-11", content: " " } }); assert.deepEqual((await app.inject({ url: "/api/notes", headers: { cookie: cookie("a") } })).json().map((note: { content: string }) => note.content), ["Newer"]); await app.close();
 });
 
 test("notes POST revalidates the browser identity before repository writes", async () => {

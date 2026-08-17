@@ -8,20 +8,26 @@ const context: ServiceContext = {
 };
 
 test("notes service scopes list and save operations to trusted workspace", async () => {
-  const calls: Array<{ operation: string; workspaceId: string; date?: string; content?: string }> = [];
+  const calls: Array<{ operation: string; workspaceId: string; limit?: number; date?: string; content?: string }> = [];
   const repository = {
-    list: async (workspaceId: string) => { calls.push({ operation: "list", workspaceId }); return []; },
+    list: async (workspaceId: string, limit?: number) => { calls.push({ operation: "list", workspaceId, limit }); return []; },
     upsert: async (workspaceId: string, date: string, content: string) => { calls.push({ operation: "upsert", workspaceId, date, content }); return { workspaceId, date, content }; },
     remove: async (workspaceId: string, date: string) => { calls.push({ operation: "remove", workspaceId, date }); },
   };
 
-  await NotesService.list(context, repository);
+  await NotesService.list(context, undefined, repository);
   const saved = await NotesService.save(context, { date: "2026-07-11", content: "  Note  " }, repository);
   assert.equal((saved as { content: string }).content, "Note");
   assert.deepEqual(calls, [
-    { operation: "list", workspaceId: "workspace-a" },
+    { operation: "list", workspaceId: "workspace-a", limit: 100 },
     { operation: "upsert", workspaceId: "workspace-a", date: "2026-07-11", content: "Note" },
   ]);
+});
+
+test("notes service clamps oversized list reads before repository execution", async () => {
+  let receivedLimit = 0;
+  await NotesService.list(context, "1000", { list: async (_workspaceId, limit) => { receivedLimit = limit ?? 0; return []; } });
+  assert.equal(receivedLimit, 100);
 });
 
 test("notes service removes blank content and preserves legacy response", async () => {
