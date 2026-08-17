@@ -76,6 +76,19 @@ implemented yet.
   orphan completeness or latest-source acceptance.
 - Commit/push: `f4f673b` đã push lên `origin/master`.
 
+### Runtime read-only SMTP metadata refresh
+
+- Backend deployment uses `envFrom` Secret reference `card-credit-runtime`; key
+  metadata contains `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`,
+  `SMTP_FROM_ADDRESS` và `SMTP_SECURE` alongside auth/Mongo keys.
+- Only Secret key names were inspected; no Secret values were read or printed,
+  and no email was sent. Therefore this proves configuration wiring metadata,
+  not SMTP connectivity, sender ownership or delivery evidence.
+- `GAP-AUTH-01` remains `PARTIAL` until an approved test recipient/owner and
+  runtime delivery evidence exist.
+- Safety: read-only Kubernetes metadata inspection; no Secret mutation,
+  restart, rollout, database or mail side effect.
+
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
 - Scope: xóa các file frontend không còn production consumer:
