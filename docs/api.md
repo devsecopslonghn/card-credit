@@ -80,9 +80,11 @@ phân biệt user không tồn tại với password sai.
 | `POST /admin/card-catalog/products` | Admin | Tạo product; validate toàn catalog. |
 | `PATCH /admin/card-catalog/products/:presetId` | Admin | Sửa field cho phép; ghi audit. |
 | `PATCH /admin/card-catalog/providers/:providerCode` | Admin | Sửa provider name/active hàng loạt. |
-| `GET/POST /banks` | Session/Admin write | Read legacy banks; admin tạo. |
+| `GET /banks?limit=1..100` | Session | Read tối đa 100 legacy banks. |
+| `POST /banks` | Admin | Tạo legacy bank. |
 | `PUT/DELETE /banks/:id` | Admin | Sửa/xóa bank. |
-| `GET/POST /cardtypes` | Session/Admin write | Read legacy card networks; admin tạo. |
+| `GET /cardtypes?limit=1..100` | Session | Read tối đa 100 legacy card networks. |
+| `POST /cardtypes` | Admin | Tạo legacy card network. |
 | `PUT/DELETE /cardtypes/:id` | Admin | Sửa/xóa network legacy. |
 
 Catalog create/update request phải chứa các field canonical như `presetId`,

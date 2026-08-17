@@ -22,5 +22,7 @@ test("masterdata GET returns normalized safe DTOs and strips persistence fields"
   const cardTypes = await app.inject({ url: "/api/cardtypes", headers: { cookie: cookie("user") } });
   assert.deepEqual(banks.json(), [{ _id: "bank-1", shortname: "TST", name: "Test", fullname: "Test Bank", logo: "logo" }]);
   assert.deepEqual(cardTypes.json(), [{ _id: "type-1", name: "Visa", logo: "logo" }]);
+  repo.values.banks.push({ _id: "bank-2", shortname: "AAA", name: "Another", fullname: "Another Bank", logo: "logo" });
+  assert.deepEqual((await app.inject({ url: "/api/banks?limit=1", headers: { cookie: cookie("user") } })).json().map((bank: { shortname: string }) => bank.shortname), ["AAA"]);
   await app.close();
 });
