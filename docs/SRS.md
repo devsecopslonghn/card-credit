@@ -218,16 +218,25 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 
 | Priority | GAP ID | Hiện trạng | Điều kiện đóng |
 |---|---|---|---|
-| P0 | `GAP-CI-01` | Proxy cleanup commit `0e6e8e8` đã được Jenkins `#373` checkout qua source commit `19f068f`, pass shared/frontend/backend `25/45/135`, build output nhận diện `ƒ Proxy (Middleware)`, publish immutable images tag `19f068f18d53`, handoff GitOps chart `952c0fc` và candidate runtime read-only smoke pass: Argo `Synced/Healthy`, backend/frontend tag mới Ready/restart 0, `/health`/`/ready` 200, docs MCP read-only | Giữ regression gate và read-only runtime evidence; không suy diễn writer rollout từ Jenkins/Argo success |
-| P0 | `GAP-SEC-01`, `GAP-SEC-02` | Đã implement session version/revoke guard và register workspace policy; browser context revalidates active/locked/workspace/sessionVersion, repository password/role/workspace changes atomically `$inc sessionVersion`, regression test mới pass; candidate read-only đã rollout và health/ready pass, nhưng authoritative version bump và policy membership runtime evidence còn thiếu | Backend/frontend tests, authoritative version bump và policy membership evidence |
-| P0 | `GAP-MCP-01`, `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | User đã quyết định cho canonical MCP writer chuyển sang `write` và xác nhận không cần legacy old writer; chart commit `f4eb8b5` đặt `writerMode: write`, `oldWriterFenced: true` trên image `e1ce0fe53242`; Argo `Synced/Healthy`, backend Ready/restart 0, `/health`/`/ready` 200 và `/docs/json` xác nhận `writerMode=write` cùng preview-confirm-idempotency policy; chưa gọi mutation và chưa ghi persistence | Giữ preview/confirm/idempotency/audit, resource/HITL policy và reversal decision; authoritative financial persistence/reconciliation và reversal/compensating transaction vẫn là gate riêng |
-| P0 | `GAP-OPS-01` | Đã xử lý: startup không còn silent catalog write | Giữ CLI dry-run/apply guard và regression test |
-| P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | Delete/merge orphan, account lifecycle race, calendar unique index còn mở | DECISION + transaction/index/dry-run/backup/rollback |
-| P1 | `GAP-REP-01`, `GAP-REP-02` | Report parity đã có; cash-flow join, legacy category và range balance còn lệch | Chốt source/filter semantics và reconciliation evidence |
-| P1 | `GAP-UI-02`, `GAP-UI-03`, `GAP-AUTH-01` | Filter semantics và write UI còn thiếu; forgot-password đã nối SMTP delivery với generic response | Contract/UI/mail runtime config và owner evidence |
+| P0 | `GAP-CI-01` | **CLOSED** — Jenkins `#373` checkout đúng proxy source, shared/frontend/backend pass `25/45/135`, publish immutable images, GitOps handoff `952c0fc`, Argo candidate `Synced/Healthy`, pod Ready/restart 0, health/ready và read-only MCP smoke pass | Giữ regression gate trong các release sau |
+| P0 | `GAP-SEC-01`, `GAP-SEC-02` | **PARTIAL** — source guard, authoritative lookup, workspace/session checks và atomic `$inc sessionVersion` đã có regression evidence; authoritative version bump/revoke và policy membership runtime evidence còn thiếu | Backend/frontend tests, authoritative version bump và policy membership evidence |
+| P0 | `GAP-MCP-01` | **PARTIAL** — canonical manifest, preview/confirm/idempotency guard, REST/MCP adapter tests và runtime writer capability đã có evidence; chưa claim financial receipt/audit/reconciliation từ traffic hoặc mutation thật | Giữ preview/confirm/idempotency/audit, resource/HITL policy và production receipt/reconciliation evidence |
+| P0 | `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | **PARTIAL** — payment contract, state-machine guard, preview/CAS và command tests đã có; chưa ghi persistence/reconciliation và reversal policy chưa được quyết định | Operation-specific approval, persistence/reconciliation evidence và reversal decision |
+| P0 | `GAP-OPS-01` | **CLOSED** — startup không còn silent catalog write; CLI/operator guard và regression test đã có | Giữ dry-run/apply guard |
+| P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | **OPEN** — delete/merge orphan, account lifecycle race và calendar unique index chưa có decision/transaction/index rollout | DECISION + transaction/index/dry-run/backup/rollback |
+| P1 | `GAP-REP-01` | **PARTIAL** — benefits/fees report read parity và no-double-count formulas đã có test; legacy category và mutation source-of-truth còn mở | Chốt legacy source/mutation semantics và reconciliation evidence |
+| P1 | `GAP-REP-02` | **OPEN** — cash-flow join, owner/card/year/month filters và range balance semantics chưa chốt | Chốt source/filter semantics và reconciliation evidence |
+| P1 | `GAP-UI-02`, `GAP-UI-03` | **OPEN** — report filters và planning/write UI còn thiếu contract/implementation | Contract/UI acceptance và owner evidence |
+| P1 | `GAP-AUTH-01` | **PARTIAL** — forgot-password đã nối MailService với generic response và test delivery; runtime SMTP config/owner evidence còn thiếu | Contract, runtime mail config và owner evidence |
 | P2 | `GAP-API-01`, `GAP-WEB-01` | Đã đóng: REST inventory drift gate và authorization metadata có runtime regression evidence | Giữ parity tests trong release gate |
 | P2 | `GAP-DOC-01` | Đã đóng cho production surface: không còn reference tới `/api/reports/summary`, `reportsCore` hoặc `docs/refactor*` ngoài historical execution ledger; canonical report docs/smoke path đã cập nhật | Giữ stale-reference check khi compatibility window thay đổi |
 | P2 | `GAP-PERF-01` | Đã có bounded transaction list, calendar subscription list, workspace notes list và legacy masterdata lists; audit giữ admin/card/recurring/category/fee/reporting reads mở vì chưa có completeness/cursor contract, cursor pagination vẫn mở | Bounded/paginated coverage và completeness regression cho từng dataset trước release |
+
+Status key: `CLOSED` nghĩa là GAP đã có đủ source/test/runtime evidence trong phạm
+vi ledger; `PARTIAL` nghĩa là phần code/test hoặc capability đã có evidence nhưng
+chưa được claim production/financial target; `OPEN` nghĩa là còn thiếu contract,
+decision hoặc implementation. Historical checkpoints trong execution plan không
+được dùng để nâng trạng thái nếu thiếu evidence mới.
 
 Execution order: (1) contract/drift gates, (2) trusted context + query parity,
 (3) generic preview/confirm/idempotency/audit, (4) payment state/reversal, (5)

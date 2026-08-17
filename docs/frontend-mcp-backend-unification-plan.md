@@ -2252,6 +2252,23 @@ chạy validation, commit và push ngay.
 - Commit/push: batch code/test/docs được ghi trong commit kế tiếp; rollback là
   revert commit này, không ảnh hưởng dữ liệu runtime.
 
+### Completed checkpoint: SRS claim-status cleanup
+
+- Scope: chuẩn hóa GAP ledger theo evidence hiện có, không thêm target mới và
+  không biến source/test evidence thành production financial evidence.
+- Claimed `CLOSED`: `GAP-CI-01`, `GAP-OPS-01`, `GAP-API-01`, `GAP-WEB-01` và
+  `GAP-DOC-01`, dựa trên các CI/GitOps/runtime/inventory evidence đã ghi.
+- Marked `PARTIAL`: `GAP-SEC-01/02`, `GAP-MCP-01`, `GAP-PAY-01/02`,
+  `GAP-STM-01`, `GAP-REP-01` và `GAP-AUTH-01`; code/test hoặc capability đã có,
+  nhưng runtime authoritative, financial receipt/reconciliation, source-of-
+  truth, legacy category hoặc mail config evidence còn thiếu tùy GAP.
+- Kept `OPEN`: card/account/calendar lifecycle decisions, report filter/range
+  semantics, UI/write contracts và các bounded-list completeness gaps.
+- Safety: docs-only status cleanup; không database/schema/migration/data write,
+  không financial mutation/reversal, không Kubernetes mutation.
+- Validation: `git diff --check` và đối chiếu SRS với execution-plan evidence;
+  commit/push được ghi ở application commit kế tiếp.
+
 ### Completed checkpoint: Proxy cleanup CI publication and GitOps handoff
 
 - Requirement/GAP: `GAP-CI-01` cần tách source/test, image publication và
