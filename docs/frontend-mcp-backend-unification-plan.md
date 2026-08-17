@@ -154,6 +154,9 @@ implemented yet.
   `SMTP_USER` set without printing values; the finance audit workspace selector
   was absent, so no finance audit was executed. SMTP delivery/owner remains
   unproven.
+- Read-only SMTP transport verification from the running backend passed with
+  `smtpVerified=true`, port `587`, `secure=false`; the command called
+  `transport.verify()` only and did not call `sendMail` or print credentials.
 - Safety: only `kubectl get` and read-only `kubectl exec` metadata/localhost
   endpoint checks; no Secret values, MCP invocation, preview/confirm, database
   write, migration, restart, scale, patch or manual sync was executed.
