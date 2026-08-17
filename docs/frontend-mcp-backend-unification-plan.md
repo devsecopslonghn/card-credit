@@ -382,6 +382,7 @@ implemented yet.
 - Regression/evidence: stale-reference search ngoài execution ledger không còn
   `consumePreviewToken`; backend full validation pass typecheck, lint, build và
   `151/151` critical tests.
+- Commit/push: `be2658c` đã push lên `origin/master`.
 
 ### Completed checkpoint: Paginate statement projections with stable cursors
 
