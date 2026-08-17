@@ -110,6 +110,27 @@ implemented yet.
 - Commit/push: `0ee1156` (`bound financial transaction list queries`) đã push lên
   `origin/master`.
 
+### Completed checkpoint: Password reset SMTP delivery
+
+- Requirement/GAP: `GAP-AUTH-01` yêu cầu forgot-password có delivery thật nhưng
+  vẫn generic để chống account enumeration.
+- Independent review: GO cho bounded auth/mail slice. Auth route tạo token hash
+  như trước, gửi raw reset link chỉ qua injected `MailService`, response không
+  trả token; delivery failure không làm lộ account existence và audit chỉ ghi
+  boolean `delivered`.
+- Changed write-set: `AuthOptions`/runtime route wiring, SMTP password-reset
+  mail composition với HTML escaping, auth regression test và API/SRS docs. Không
+  đổi ledger, financial persistence, schema/index/migration hoặc Kubernetes.
+- Verification: shared `npm run validate` pass 25/25; backend
+  `npm run validate` pass typecheck/lint, 186/186 tests và build; frontend
+  typecheck/lint, unit 86/86, integration 6/6 và build pass; targeted auth +
+  SMTP tests pass 8/8; `git diff --check` pass.
+- Residual risk: production SMTP configuration/delivery monitoring vẫn cần
+  runtime evidence; `PASSWORD_RESET_RETURN_TOKEN` chỉ dành cho controlled test
+  or local workflows.
+- Commit/push: `8def2dd` (`deliver password reset emails`) đã push lên
+  `origin/master`.
+
 ### Completed checkpoint: Clean frontend image dependency boundary và MCP writer fence guard
 
 - Requirement/GAP: `GAP-CI-01` cần chứng minh frontend image build được trong
