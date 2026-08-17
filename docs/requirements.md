@@ -177,8 +177,9 @@ actualNetBenefit = monthlyBankCashbackActual - totalServiceFee - totalPaidCardFe
 
 - Backend stateless ngoài MongoDB và delivery records; có thể scale nhiều replica.
 - Reminder claim bằng unique key/lease để tránh gửi trùng khi scale.
-- Catalog image cache và feed query phải giới hạn payload; report có thể chuyển
-  sang aggregate/materialized summary khi dữ liệu tăng.
+- Catalog image URL/local manifest và feed query phải giới hạn payload; report có
+  thể chuyển sang aggregate/materialized summary khi dữ liệu tăng. Server-side
+  `cardproductimages` cache là legacy, không còn runtime owner.
 - Target initial: 100 workspace, 1.000 user, 100.000 card transaction, 3 backend
   replica; cần benchmark trước khi mở rộng.
 

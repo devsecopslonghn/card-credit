@@ -17,7 +17,7 @@ implemented yet.
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push; direct MCP manifest default read và write fence acknowledgement đã push; candidate `7f04f18152b4` runtime reconcile read-only, chưa mở writer/confirm | `87e7996` + DB rollout + `ee05cc9` + chart `6bfa41f` + `d4f708a` + `3cf2339` + `7f04f18` / chart `127bb6b` / origin/master | Xác minh external old-writer consumers/traffic; không chạy confirm tài chính trong smoke |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine và explicit operator mark-paid đã apply live; MCP payment preview/confirm đã code/parity-test; candidate `7f04f18152b4` runtime read-only, chưa gọi preview/confirm mutation; reversal còn mở | `1044636` + `ee05cc9` + chart `6bfa41f` + `e8a3952` + `d4f708a` + `3cf2339` + `7f04f18` / chart `127bb6b` / origin/master | Candidate runtime đã evidence; còn external old-writer consumer/traffic fence, giữ preview-only smoke và xin user decision riêng trước reversal/compensating transaction |
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification + `NotificationService`, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, monthly cashback validation boundary, shared email validation primitive, bounded calendar subscription list, bounded workspace notes list, bounded legacy masterdata lists, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Calendar feed composition service, statement calendar email service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` + `0713812` + `08f7471` + `523fcc5` + `98ca53f` + `71dfa58` + `51d3a79` + `4acd3ea` + `57bc0c4` + `c3787b9` / origin/master | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
-| Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu theo release gate; đã xóa nhóm `docs/refactor*` obsolete và nhóm frontend fee-payment/card-presets không có production consumer. Backend fee API, legacy receipts, card `monthlyData` và operator reconciliation vẫn có consumer hoặc removal decision riêng | `HEAD` cleanup evidence | Tiếp tục xóa từng dead path có zero consumer; compatibility/persistence path chỉ xóa sau migration decision và release gates |
+| Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu theo release gate; đã xóa nhóm `docs/refactor*` obsolete, nhóm frontend fee-payment/card-presets và backend server-side card-product-image cache không có production consumer. Backend fee API, legacy receipts, card `monthlyData` và operator reconciliation vẫn có consumer hoặc removal decision riêng | `HEAD` cleanup evidence | Tiếp tục xóa từng dead path có zero consumer; compatibility/persistence path chỉ xóa sau migration decision và release gates |
 
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
@@ -34,6 +34,20 @@ implemented yet.
   diện `ƒ Proxy (Middleware)`. `git diff --check` pass.
 - Rollback: revert commit cleanup để khôi phục các file frontend; không có
   database/schema/migration/data hoặc Kubernetes change.
+
+### Completed checkpoint: Retire unreferenced server-side card image cache
+
+- Scope: xóa `backend/src/card-product-image-cache.ts` và
+  `backend/src/models/card-product-image.ts`; không có import, route, job, test
+  hoặc runtime consumer. Frontend vẫn dùng `CardProduct.imageUrl` và local image
+  manifest.
+- Documentation: đánh dấu `cardproductimages` là legacy, không runtime-managed;
+  không drop/migrate hoặc đọc dữ liệu collection trong batch này.
+- Validation: backend curated `npm test` pass `136/136`, typecheck, lint và
+  build pass; `git diff --check` pass; repository search không còn source
+  reference tới card-product-image cache/model.
+- Rollback: revert commit cleanup để khôi phục source; không ảnh hưởng runtime
+  data vì không có active consumer.
 
 ### Completed checkpoint: Bound workspace notes reads
 

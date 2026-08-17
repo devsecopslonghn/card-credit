@@ -56,10 +56,15 @@ timestamps.
 Catalog product inactive vẫn giữ để history/audit; chỉ active product selectable
 cho card mới.
 
-### CardProductImage (`cardproductimages`)
+### CardProductImage (`cardproductimages`) — legacy, not runtime-managed
 
 `presetId` unique, `sourceUrl`, `contentType`, binary `data` nếu cache, `byteSize`,
 `sha256`, `status` (`VERIFIED|BROKEN`), `checkedAt`, `errorMessage`, timestamps.
+
+Collection này chỉ còn trong historical schema inventory. Runtime hiện dùng
+`CardProduct.imageUrl` và frontend local image manifest; không còn backend model,
+cache reader hoặc writer cho `cardproductimages`. Batch cleanup này không drop,
+đọc hoặc migrate dữ liệu collection.
 
 ### CardStatement (`cardstatements`)
 
@@ -147,7 +152,7 @@ User 1 ---- N CreditCard N ---- 1 CardProduct (logical preset snapshot)
  +---- N AuthAuditLog
 
 Workspace 1 ---- N User/Card/Statement/Transaction/Cashback/Fee/Note/Delivery
-CardProduct 1 ---- 0..1 CardProductImage
+CardProduct 1 ---- 0..1 CardProductImage (legacy, not runtime-managed)
 CardStatement 1 ---- N ReminderDelivery (unique by daysBefore)
 ```
 
@@ -166,7 +171,7 @@ workspace trước mutation, đặc biệt `userCardId`, `statementId` và feed 
 | creditcards | `{ workspaceId: 1, presetId: 1 }` | Catalog/duplicate lookup. |
 | cardproducts | `{ presetId: 1 }` unique | Product detail/import idempotency. |
 | cardproducts | `{ providerCode: 1, active: 1, sortOrder: 1 }` | Picker/provider listing. |
-| cardproductimages | `{ presetId: 1 }` unique | Image cache lookup. |
+| cardproductimages | `{ presetId: 1 }` unique | Legacy index; current runtime không đọc/ghi. |
 | cardstatements | `{ workspaceId: 1, userCardId: 1, statementDate: 1 }` unique | No duplicate statement. |
 | cardstatements | `{ workspaceId: 1, paymentStatus: 1, paymentDueDate: 1 }` | Dashboard/reminder due scan. |
 | financialtransactions | `{ workspaceId: 1, transactionDate: -1, createdAt: -1 }` | Unified finance list/report input. |
