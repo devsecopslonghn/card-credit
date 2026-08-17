@@ -202,8 +202,11 @@ exhaustive local verification khi cần.
 - card `monthlyData` và restricted duplicate-merge history path
 - legacy payment reconciliation planner/operator command
 - `docs/ui-architecture-review.md`, `docs/requirements.md`, `docs/SRS.md`,
-  `docs/finance-source-of-truth.md`, `docs/mcp-preview-rollout.md` vì còn
-  reference hoặc là canonical operational/product requirements.
+  `docs/finance-source-of-truth.md` vì còn reference hoặc là canonical
+  operational/product requirements.
+- `docs/mcp-preview-rollout.md` vì là operational gate bắt buộc cho future
+  writer rollout; đã được index trong `docs/README.md`, không phải historical
+  document.
 
 ## 6. Safety and definition of done
 
