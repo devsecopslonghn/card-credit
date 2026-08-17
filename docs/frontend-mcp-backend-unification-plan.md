@@ -131,6 +131,10 @@ lại để tránh đọc nhầm checkpoint cũ.
   mỗi pod `Ready=true`, restart `0`; Ingress chỉ route `/mcp` và `/docs` vào
   backend service hiện tại. Đây là evidence không thấy old writer trong
   cluster inventory, không phải external traffic drain evidence.
+- Full-cluster workload inventory found only the canonical backend/frontend
+  deployments carrying MCP configuration. The only other matching name was a
+  Jenkins Trivy build pod, not an application writer; no other workload had
+  `MCP_*` writer environment names or a card-credit application image.
 - Ingress controller access-log count trong 24h: `3,962` total lines,
   `134` requests cho host card-credit, `0` `/mcp`, `16` card-host `401` và
   `0` card-host `5xx`. Đây là read-only observation trong một log window;
