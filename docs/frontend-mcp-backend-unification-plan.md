@@ -249,6 +249,27 @@ implemented yet.
 - Commit/push: execution-plan evidence and source slice are included in the
   next application commit.
 
+### Completed checkpoint: Admin audit query service boundary
+
+- Requirement/GAP: admin audit-log query/filter/limit/serialization không nằm
+  trực tiếp trong REST route; route phải giữ vai trò auth/context adapter.
+- Independent review: GO cho bounded Access & Tenancy slice.
+  `AdminAuditService.list` owns normalized filters, bounded limit 1–100, newest
+  ordering, safe `_id` serialization and a repository boundary. Admin context
+  remains revalidated before service invocation; public response giữ nguyên.
+- Changed write-set: thêm `backend/src/services/admin-audit-service.ts` và
+  đổi `backend/src/user-routes.ts`; existing admin audit regression remains
+  active in curated backend suite. Không đổi collection/schema/index hoặc audit
+  event payload.
+- Verification: curated backend `npm run validate` pass `97/97` với
+  typecheck/lint/build; full `npm run test:all` pass `188/188`; route test
+  xác nhận filter normalization, limit và admin authorization.
+- Operational impact: application boundary only; không database migration,
+  Kubernetes mutation, MCP writer/payment change, reversal hay compensating
+  transaction.
+- Commit/push: execution-plan evidence và source slice được ghi trong commit
+  application kế tiếp.
+
 ### Completed checkpoint: Session version revocation and registration workspace policy
 
 - Requirement/GAP: `GAP-SEC-01` và `GAP-SEC-02` yêu cầu revoke/version guard
