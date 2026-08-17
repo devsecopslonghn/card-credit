@@ -52,6 +52,10 @@ lại để tránh đọc nhầm checkpoint cũ.
   rendered backend keeps `MCP_WRITER_MODE=read` and
   `MCP_OLD_WRITER_FENCED=true`. This is desired-state evidence only; it is not
   proof that the live pod has that image.
+- Current read-only divergence: chart `values.yaml` still declares
+  `5267c79cf437`, live backend/frontend pods run `7ccb02cc9592`, while source
+  HEAD is `3d194ea`. No chart value or cluster resource was changed to bridge
+  this gap.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
