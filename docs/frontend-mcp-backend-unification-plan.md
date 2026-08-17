@@ -196,6 +196,12 @@ npm run build
 CI dùng một curated entrypoint `npm test`; các package vẫn giữ `test:all` cho
 exhaustive local verification khi cần.
 
+Current external CI library checkpoint `ci-platform@9aba1d4` removes the
+separate `test:unit`, `test:integration`, `coverage` and `test:coverage` calls;
+the npm validation loop invokes only `npm test` per package. The repository
+`Jenkinsfile` delegates to that library and keeps `shared → frontend → backend`
+ordering.
+
 ## 5. Cleanup ledger
 
 Đã xóa sau zero-consumer audit:

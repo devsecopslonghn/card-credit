@@ -220,10 +220,11 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
 - `cd-platform` là CD adapter riêng: nhận immutable image tag và sửa external
   GitOps repository; push source không đồng nghĩa image đã publish/rollout.
 - MCP writer rollout phải bắt đầu bằng candidate `read`, sau đó chỉ bật `write`
-  khi canonical writer đã có explicit chart acknowledgement. Theo quyết định
-  hiện tại, không có legacy old writer trong scope; không chạy mixed writers.
-  Runtime write-mode evidence chỉ chứng minh capability/config, không tự động
-  cho phép financial mutation smoke hoặc thay đổi dữ liệu.
+  khi canonical writer đã có explicit chart acknowledgement. Application source
+  hiện không còn legacy old-writer write path; external writer traffic vẫn phải
+  được fence/drain và chứng minh riêng, không chạy mixed writers. Runtime
+  write-mode evidence chỉ chứng minh capability/config, không tự động cho phép
+  financial mutation smoke hoặc thay đổi dữ liệu.
 
 ## 9. Verification và Definition of Done
 
