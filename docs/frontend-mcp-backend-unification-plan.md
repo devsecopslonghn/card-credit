@@ -56,6 +56,25 @@ implemented yet.
   patch or rollout command was executed. Runtime evidence therefore does not
   claim financial receipt/audit or latest-source acceptance.
 
+### Current runtime read-only refresh: image 7c9ba864114f
+
+- Context/namespace verified as `k8s-admin-public` / `card-credit`; deployments
+  `card-credit-backend` và `card-credit-frontend` đều `1/1`, pods Ready và
+  restart count `0`.
+- Both live images are
+  `nexus.apps.drgdevlab.com/card-credit/{backend,frontend}:7c9ba864114f`;
+  source commits sau image này (`dbe7fc3`, `544b700`, `d991208`) chưa có runtime
+  acceptance evidence.
+- Deployment metadata remains `MCP_WRITER_MODE=write` and
+  `MCP_OLD_WRITER_FENCED=true`. Read-only pod inspection confirmed
+  `MONGODB_URI` is present but `FINANCE_MIGRATION_WORKSPACE_ID` is absent; do
+  not guess a workspace, so `audit:finance` was not executed against the live
+  database.
+- No MCP tool invocation, preview/confirm, database operation, restart, scale,
+  patch or rollout command was executed. This refresh therefore records only
+  runtime health/config metadata and does not claim financial receipt/audit,
+  orphan completeness or latest-source acceptance.
+
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
 - Scope: xóa các file frontend không còn production consumer:
