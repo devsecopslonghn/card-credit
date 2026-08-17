@@ -135,7 +135,11 @@ implemented yet.
   trước khi claim release.
 - Safety/limitations: read-only, không sửa ledger/database/index/cluster; orphan
   reconciliation và production/runtime acceptance vẫn chưa được claim.
-- Commit/push: sẽ ghi commit chứa slice này sau full validation.
+- Validation: shared `npm run validate` pass `26/26`; backend
+  `npm run validate` pass `143/143` plus typecheck/lint/build; frontend unit
+  `82/82`, integration `6/6`, typecheck/lint/build pass.
+- Commit/push: `0a32cfd` đã push lên `origin/master`; runtime chưa rollout nên
+  không claim production UI/MCP acceptance.
 
 ### Completed checkpoint: Bound workspace notes reads
 
