@@ -381,8 +381,9 @@ implemented yet.
   credit-statement report endpoint hỗ trợ `limit`/opaque `cursor`, sort ổn định
   theo ngày + `_id`, page envelope tách `items`, `nextCursor`, `limit`; frontend
   client có parser/helper tương ứng; `docs/api.md` ghi rõ cả page contract và
-  legacy response. Legacy response không có query phân trang vẫn giữ nguyên
-  shape.
+  legacy response. Paginated card-statement items chỉ giữ projection/summary để
+  tránh kéo toàn bộ transaction history; legacy response không có query phân
+  trang vẫn giữ nguyên shape.
 - Independent review: GO cho read-only pagination slice. Cursor bind sort
   field/value/id, workspace filter vẫn áp dụng; không thay đổi financial
   formula, payment state, persistence write, database/index, Kubernetes hay
@@ -393,8 +394,10 @@ implemented yet.
 - Residual: live performance profile và completeness evidence trên workspace
   thật còn thiếu; các internal projections không có public page contract vẫn
   phải giữ bounded/read policy riêng.
-- Commit/push: implementation `fada443`; API documentation `a87d100` đã push
-  lên `origin/master`.
+- Correction: paginated card-statement routes explicitly set
+  `includeTransactions=false`, so the bounded page cannot materialize nested
+  transaction history; legacy non-paginated routes are unchanged.
+- Commit/push: implementation `fada443`, correction `pending`.
 
 ### Completed checkpoint: Bound workspace notes reads
 

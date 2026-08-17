@@ -24,7 +24,7 @@ export const registerTransactionRoutes = (
   app.get<{ Querystring: { limit?: string; cursor?: string } }>("/api/card-statements", async (request) => {
     const context = await browserServiceContext(request, secret, calendarEmail?.users);
     if (request.query.limit || request.query.cursor) {
-      const page = await StatementQueryService.listPage(context, { limit: boundedReadLimit(request.query.limit), cursor: request.query.cursor });
+      const page = await StatementQueryService.listPage(context, { limit: boundedReadLimit(request.query.limit), cursor: request.query.cursor, includeTransactions: false });
       return { data: { items: page.data, nextCursor: page.nextCursor, limit: page.limit } };
     }
     return { data: await StatementQueryService.list(context) };
@@ -34,7 +34,7 @@ export const registerTransactionRoutes = (
     async (request) => {
       const context = await browserServiceContext(request, secret, calendarEmail?.users);
       if (request.query.limit || request.query.cursor) {
-        const page = await StatementQueryService.listPage(context, { cardId: request.params.id, limit: boundedReadLimit(request.query.limit), cursor: request.query.cursor });
+        const page = await StatementQueryService.listPage(context, { cardId: request.params.id, limit: boundedReadLimit(request.query.limit), cursor: request.query.cursor, includeTransactions: false });
         return { data: { items: page.data, nextCursor: page.nextCursor, limit: page.limit } };
       }
       return { data: await StatementQueryService.list(context, { cardId: request.params.id }) };

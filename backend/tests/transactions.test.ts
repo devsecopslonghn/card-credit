@@ -305,11 +305,13 @@ test("transaction, statement and report routes enforce sessions before database 
 });
 
 test("paginated statement routes expose the canonical page envelope", async (t) => {
-  t.mock.method(StatementQueryService, "listPage", async () => ({ data: [{ id: "statement-1" }], nextCursor: "opaque-cursor", limit: 1 }) as never);
+  let observed: { includeTransactions?: boolean } | undefined;
+  t.mock.method(StatementQueryService, "listPage", async (_context: unknown, options: { includeTransactions?: boolean }) => { observed = options; return { data: [{ id: "statement-1" }], nextCursor: "opaque-cursor", limit: 1 } as never; });
   const app = buildApp({ isReady: () => true }, "silent");
   registerTransactionRoutes(app, secret);
   const response = await app.inject({ url: "/api/card-statements?limit=1", headers: { cookie } });
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.json().data, { items: [{ id: "statement-1" }], nextCursor: "opaque-cursor", limit: 1 });
+  assert.equal(observed?.includeTransactions, false);
   await app.close();
 });
