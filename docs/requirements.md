@@ -100,8 +100,9 @@
 - Matching cards vẫn xuất hiện với zero totals nếu không có activity trong range.
 - KPI gồm service fee, transaction cashback đối chiếu, monthly bank cashback
   expected/actual/rejected, paid card fee và actual net benefit.
-- Runtime contract hiện đã cung cấp các KPI trên cho khoảng ngày `from/to`; owner,
-  card và calendar year/month filter là phần mở rộng chưa mở trong API hiện tại.
+- Runtime contract hiện cung cấp các KPI trên với `from/to` hoặc calendar
+  `year/month`, cùng `owner` và `card` filter; REST, MCP và frontend dùng chung
+  schema/range resolver và giữ matching cards với zero totals.
 - User có thể export JSON theo đúng filter đang chọn.
 - User có thể upsert/xóa note theo ngày; note rỗng được coi là delete.
 
