@@ -397,7 +397,8 @@ implemented yet.
 - Correction: paginated card-statement routes explicitly set
   `includeTransactions=false`, so the bounded page cannot materialize nested
   transaction history; legacy non-paginated routes are unchanged.
-- Commit/push: implementation `fada443`, correction `pending`.
+- Commit/push: implementation `fada443`, correction `071407e` đã push lên
+  `origin/master`.
 
 ### Completed checkpoint: Bound workspace notes reads
 
