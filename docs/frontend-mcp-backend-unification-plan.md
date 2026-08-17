@@ -62,6 +62,13 @@ lại để tránh đọc nhầm checkpoint cũ.
 - A Docker-format backend build also passed as
   `localhost/card-credit-backend:3d194ea-docker` (`607374fba31e`), retaining
   `user=backend`, `CMD npm run start` and the declared `/health` HEALTHCHECK.
+- Current backend source packaging was rebuilt locally from the code at
+  `9f608e0`: OCI artifact `localhost/card-credit-backend:9f608e0`
+  (`b0c3180d9599`) and Docker-format artifact
+  `localhost/card-credit-backend:9f608e0-docker` (`a1fd6f5d5636`) both passed.
+  They retain non-root `user=backend`, `CMD npm run start` and the Docker
+  `/health` HEALTHCHECK. A compiled-config smoke returned `read`,
+  `oldWriterFenced=true`, `0.0.0.0:3001`; no server or persistence was run.
 - Local container smoke from those artifacts passed: frontend `/` returned
   HTTP `200` with HTML content; backend compiled config loaded with
   `writerMode=read`, `oldWriterFenced=false`, `0.0.0.0:3001`. Backend server
