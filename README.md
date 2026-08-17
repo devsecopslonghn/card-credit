@@ -153,8 +153,9 @@ Jenkins chạy cùng các bước qua `ci-platform` theo thứ tự `shared` →
 `zod` riêng; frontend cũng khai báo `zod` trực tiếp vì package linked
 `@card-credit/contracts` import Zod lúc runtime. Không xóa unit test để né lỗi
 dependency. `cd-platform` là pipeline riêng, chỉ cập nhật external GitOps repo
-với immutable `IMAGE_TAG`; push vào repository này chưa đồng nghĩa deployment đã
-rollout.
+với immutable `IMAGE_TAG`; `npm test` là curated regression suite cho CI, còn
+`npm run test:all` trong `shared`, `backend` hoặc `frontend` chạy full package
+suite khi cần; push vào repository này chưa đồng nghĩa deployment đã rollout.
 
 ## MCP remote server
 

@@ -197,6 +197,11 @@ cd ../frontend && npm run test:unit --if-present && npm run test:integration
 cd ../frontend && npm run build
 ```
 
+CI gọi một entrypoint test duy nhất là `npm test`, dùng curated regression
+cases cho các boundary/rủi ro chính. Full package suites không bị xóa; chạy
+`npm run test:all` trong shared, backend hoặc frontend khi cần kiểm tra
+exhaustive.
+
 Jenkins thực thi cùng phạm vi qua `sourceDirectories: ['shared', 'frontend',
 'backend']`. Khi CI báo `ERR_MODULE_NOT_FOUND` cho `zod`, kiểm tra checkout
 SHA/SCM URL/branch và lockfile trước; không bỏ bớt unit test để che lỗi.

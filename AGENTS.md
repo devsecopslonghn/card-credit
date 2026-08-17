@@ -40,10 +40,11 @@ describe target behavior as implemented without code and test evidence.
   security opt-ins and the GitOps deployment profile.
 - `ci-platform` is the CI shared library. Its `ciPipeline` checks out the
   application SCM and runs, per `sourceDirectories`, `npm ci --include=optional`,
-  catalog validation, typecheck, lint, unit/integration tests and `npm test`
-  before image build/scan/publish. Current order is `shared`, `frontend`,
+  catalog validation, typecheck, lint and the package's curated `npm test`
+  regression entrypoint before image build/scan/publish. Current order is `shared`, `frontend`,
   `backend`; the linked shared contract must therefore have its own lockfile
-  and runtime dependencies.
+  and runtime dependencies. Full non-blocking package suites remain available
+  through `npm run test:all` where defined.
 - `cd-platform` is a separate CD shared library. It consumes the immutable
   `IMAGE_TAG` and updates the configured external GitOps repository; a push to
   this application repository is not proof of deployment or Kubernetes rollout.
