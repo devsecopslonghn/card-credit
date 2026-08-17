@@ -19,6 +19,20 @@ implemented yet.
 | Phase 5–8 — Benefits, Planning, Reporting, Engagement | `IN_PROGRESS` | Planning Budget, Notification + `NotificationService`, private Calendar feed, Payment Reminder, one-off Calendar Email, creditStatements, Frontend private-route guard, report UI cleanup, benefits/report parity, refund-aware fee formula, canonical fee read parity, monthly cashback read parity, MCP benefits read tools, monthly cashback validation boundary, shared email validation primitive, bounded calendar subscription list, bounded workspace notes list, bounded legacy masterdata lists, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, REST Fee/Cashback command services, Calendar Subscription command boundary, Calendar Subscription list service, Calendar feed composition service, statement calendar email service, Notes trusted mutation context, Calendar email trusted identity context, Calendar Subscription contract parity, Report date-range contract parity, Credit-statement report contract parity và shared calendar-date contract parity đã push; MCP mutation guard và legacy category migration chưa mở | `95c8db0` + `0713812` + `08f7471` + `523fcc5` + `98ca53f` + `71dfa58` + `51d3a79` + `4acd3ea` + `57bc0c4` + `c3787b9` / origin/master | Chờ chốt owner/card/year/month filter semantics, cash-flow semantic join và legacy fee-category migration; giữ payment state/command guard riêng |
 | Phase 9–10 — Compatibility removal + release validation | `PENDING` | Chưa bắt đầu theo release gate; đã xóa nhóm `docs/refactor*` obsolete, nhóm frontend fee-payment/card-presets và backend server-side card-product-image cache không có production consumer. Backend fee API, legacy receipts, card `monthlyData` và operator reconciliation vẫn có consumer hoặc removal decision riêng | `HEAD` cleanup evidence | Tiếp tục xóa từng dead path có zero consumer; compatibility/persistence path chỉ xóa sau migration decision và release gates |
 
+### Runtime read-only checkpoint: current candidate is not latest source
+
+- Context/namespace: Kubernetes context `k8s-admin-public`, namespace
+  `card-credit`.
+- Current deployment evidence: backend/frontend đều `1/1` Ready, restart `0`,
+  image `nexus.apps.drgdevlab.com/card-credit/{backend,frontend}:3e4744dc26fc`.
+  Backend env metadata là `MCP_WRITER_MODE=write` và
+  `MCP_OLD_WRITER_FENCED=true`.
+- GitOps evidence: chart repository clean tại commit `33a4ad6`; source
+  repository hiện đã tiến tới `28f52fd`, vì vậy runtime hiện tại chưa chứng minh
+  các feature recurring/UI mới.
+- Safety: chỉ đọc deployment/chart metadata; không sync, restart, scale, patch,
+  exec mutation, database change hoặc financial mutation.
+
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
 - Scope: xóa các file frontend không còn production consumer:
