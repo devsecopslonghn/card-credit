@@ -168,6 +168,14 @@ implemented yet.
   `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`.
 - This closes `GAP-REP-02` only. No repair, reconciliation mutation, payment
   confirm, reversal or compensating transaction was run.
+- Live `ensure-data-integrity-indexes` dry-run then returned the required named
+  indexes (`credit_card_merge_redirect` and
+  `calendar_subscription_user_workspace_device_unique`), with duplicate
+  device groups `0`, duplicate card groups `0` and duplicate card IDs `0`.
+  Combined with the finance audit's zero orphan references, this closes the
+  `GAP-DATA-01`/`GAP-ACC-01`/`GAP-DATA-02` lifecycle/index evidence group.
+- Safety: `DATA_INTEGRITY_INDEX_APPLY=false`; no index creation, delete,
+  migration, repair or persistence mutation was executed.
 - Safety: only `kubectl get` and read-only `kubectl exec` metadata/localhost
   endpoint checks; no Secret values, MCP invocation, preview/confirm, database
   write, migration, restart, scale, patch or manual sync was executed.
