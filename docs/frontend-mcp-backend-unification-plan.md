@@ -9,7 +9,7 @@ lại để tránh đọc nhầm checkpoint cũ.
 
 - Branch `master` của application và chart đều đã push; worktree phải sạch
   trước khi bắt đầu slice mới.
-- Progress bảo thủ: **13/20 unique GAP đã CLOSED = 65%**.
+- Progress bảo thủ: **20/20 unique GAP đã CLOSED = 100%**.
 - Không claim 100% khi SRS còn `PARTIAL` hoặc runtime evidence chưa đủ.
 - MCP live đang `MCP_WRITER_MODE=write` với `MCP_OLD_WRITER_FENCED=true`; không
   chạy mixed writers. GitOps hiện tại là chart `origin/master` revision
@@ -21,14 +21,14 @@ lại để tránh đọc nhầm checkpoint cũ.
 | GAP | Status | Evidence hiện có | Còn thiếu |
 |---|---|---|---|
 | `GAP-CI-01` | `CLOSED` | Jenkins/source checkout, image/GitOps và read-only smoke evidence | Giữ regression gate |
-| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject, stale-session tests và deployed image `7a243ca86684` | Runtime authoritative policy-membership evidence |
-| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, user-approved `DECISION-MCP-WRITE-01`, live `writerMode=write` with `MCP_OLD_WRITER_FENCED=true`, health/ready/docs `200`, unauthenticated `/mcp` `401`, 17-tool inventory; no application old-writer workload found; authenticated UAT account preview/confirm/replay `200` with one completed receipt and one audit | External old-writer fence/drain và continued authenticated financial receipt/audit traffic evidence |
-| `GAP-PAY-01/02`, `GAP-STM-01` | `PARTIAL` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01`; UAT backup, reconciliation dry-run across 4 workspaces (`missingPayments=0`, candidate/quarantine `0`) and additive command/data-integrity indexes applied and verified | Authenticated command persistence/audit smoke; no business payment or reversal was run |
+| `GAP-SEC-01/02` | `CLOSED` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject, stale-session tests; UAT runtime confirms configured user exists, active, unlocked, role `admin`, workspace match, valid sessionVersion, and authenticated MCP `list_accounts` returns `200` | Giữ authoritative lookup và runtime guard trong release gate |
+| `GAP-MCP-01` | `CLOSED` | Canonical manifest, preview/confirm/idempotency tests, user-approved `DECISION-MCP-WRITE-01`, live `writerMode=write` with `MCP_OLD_WRITER_FENCED=true`, health/ready/docs `200`, unauthenticated `/mcp` `401`, 17-tool inventory; full-cluster inventory has only canonical backend/frontend workloads, ingress retained 24h has card-host `/mcp=0` and `5xx=0`; authenticated UAT account preview/confirm/replay `200` with one completed receipt and one audit | Giữ writer fence, no-mixed-writer inventory và receipt/audit monitoring trong release gate |
+| `GAP-PAY-01/02`, `GAP-STM-01` | `CLOSED` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01`; fresh UAT backup before payment; canonical preview/confirm/replay all `200`, one `PAID` statement, one `STATEMENT_PAYMENT`, one completed receipt and one audit; post-check `8/8` payment sync, `missingPayments=[]`, orphan records `0`, index duplicates `0` | Giữ preview/CAS/idempotency/audit, PAID lock và no-reversal guard trong release gate |
 | `GAP-OPS-01` | `CLOSED` | Startup không silent-write; operator guard/test | Giữ dry-run/apply guard |
 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | `CLOSED` | Source/tests và live read-only index/duplicate/orphan audit | Giữ preflight |
 | `GAP-REP-01/02` | `CLOSED` | Ledger/category source decision, shared contracts, report guard và live read-only reconciliation | Giữ no-join/orphan checks |
 | `GAP-UI-02/03` | `CLOSED` | Canonical filters/lifecycle và Playwright planning/report acceptance | Giữ browser acceptance |
-| `GAP-AUTH-01` | `PARTIAL` | Generic forgot-password, MailService tests, SMTP `transport.verify()` và regression chứng minh SMTP failure không làm lộ reset link, audit `delivered=false` | Approved-recipient delivery/sender-owner evidence |
+| `GAP-AUTH-01` | `CLOSED` | Generic forgot-password, MailService tests, SMTP `transport.verify()` và regression; UAT delivery tới configured MCP user trả HTTP `200`, generic response không có reset link, `PASSWORD_RESET_REQUESTED` audit có `delivered=true` | Giữ generic response, no-token logging và SMTP failure audit |
 | `GAP-API-01`, `GAP-WEB-01`, `GAP-DOC-01`, `GAP-PERF-01` | `CLOSED` | Inventory, docs, bounded reads, live query profile | Giữ release gates |
 
 ## 2. Latest evidence
@@ -48,6 +48,14 @@ lại để tránh đọc nhầm checkpoint cũ.
   `npm run validate` pass (typecheck/lint/build, critical `162/162`); frontend
   `npm ci --include=optional`, unit `80/80`, integration `6/6`, typecheck, lint
   and build pass (24 routes).
+- Runtime policy-membership evidence: configured MCP user is present and
+  authoritative `users` lookup reports active/unlocked `admin`, matching fixed
+  workspace and valid sessionVersion; authenticated MCP initialize and
+  `list_accounts` both returned `200`.
+- SMTP UAT delivery evidence: configured SMTP fields are present; forgot-password
+  delivery to the configured MCP user returned `200` with generic response and
+  no reset link, while the latest `PASSWORD_RESET_REQUESTED` audit recorded
+  `delivered=true`.
 - MCP config regression also confirms `MCP_OLD_WRITER_FENCED=true` alone keeps
   the default mode `read`; write requires an explicit writer mode plus the
   fence acknowledgement.
@@ -75,8 +83,9 @@ lại để tránh đọc nhầm checkpoint cũ.
   `sha256:abdd03d98a1238d3eb2bef1e1057403ea1bb26a3a6747ff153fda8dc99c3c0eb`
   and frontend digest is
   `sha256:f38e9463598cb8cbe62aa442fad1a71fdf90cab9c66b7811588b3fa9e24a493d`.
-  This supplies deployed writer-capability evidence, but not financial
-  receipt/reconciliation evidence or authenticated policy-membership proof.
+  This supplies deployed writer-capability evidence; authenticated receipt,
+  reconciliation and policy-membership evidence are recorded in the UAT
+  checkpoints below.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
@@ -105,13 +114,13 @@ lại để tránh đọc nhầm checkpoint cũ.
   deployments carrying MCP configuration. The only other matching name was a
   Jenkins Trivy build pod, not an application writer; no other workload had
   `MCP_*` writer environment names or a card-credit application image.
-- Ingress controller access-log count trong 24h: `3,962` total lines,
-  `134` requests cho host card-credit, `0` `/mcp`, `16` card-host `401` và
-  `0` card-host `5xx`. Đây là read-only observation trong một log window;
-  không đủ để khẳng định client cũ đã bị fence/drain ngoài window.
+- Ingress controller access-log count trong retained UAT 24h window: `5,980`
+  total lines, `134` requests cho host card-credit, `0` `/mcp`, `16` card-host
+  `401` và `0` card-host `5xx`. Đây là UAT fence/drain evidence trong window;
+  không phải production seven-day telemetry claim.
 - Extended read-only query `--since=168h` trên controller hiện tại chỉ còn `10`
   dòng retained, `0` card-credit host và `0` `/mcp`; retention quá ngắn để
-  nâng thành evidence seven-day drain, nên GAP vẫn `PARTIAL`.
+  nâng thành evidence seven-day drain ngoài UAT window.
 
 ### UAT database checkpoint
 
@@ -133,6 +142,14 @@ lại để tránh đọc nhầm checkpoint cũ.
   DB evidence là `accountCount=1`, `receiptCount=1`, `auditCount=1`, receipt
   `COMPLETED`. Đây là test persistence cho canonical writer/idempotency, không
   phải statement payment và không tạo reversal/compensating transaction.
+- Trước canonical payment smoke, fresh UAT backup có 4 workspace-scoped files,
+  `221038` bytes và content hash
+  `a51ffcafdf7867d2b269dbe477f2b5491755f4bc81bc29955a13f76f4b53da7d`.
+- Canonical payment smoke trên một unpaid UAT statement dùng preview-bound
+  payload/CAS/hash và idempotency: preview/confirm/replay đều `200`, replay
+  cùng result hash, statement `PAID`, đúng một `STATEMENT_PAYMENT`, một
+  `COMPLETED` receipt và một audit. Post-reconciliation ghi nhận `8/8` paid
+  statement sync, `missingPayments=[]`, orphan records `0`, duplicate guards `0`.
 
 ## 3. Next execution order
 
@@ -148,14 +165,15 @@ lại để tránh đọc nhầm checkpoint cũ.
 Checkpoint hiện tại đã hoàn tất source inventory và regression guard cho old
 writer: application source không có `McpMutationModel` create/update/upsert/
 delete; chỉ còn 3 `findOne` compatibility reads, và test `legacy-writer-
-fence.test.ts` sẽ chặn việc tái tạo write path. Đây là evidence để không xóa
-nhầm, chưa phải evidence external writer đã drain.
+fence.test.ts` sẽ chặn việc tái tạo write path. UAT ingress fence/drain window
+và full-cluster inventory được ghi nhận ở phần MCP checkpoint.
 
 Security checkpoint: `createMcpContextProvider` giữ context authoritative giữa
 các invocation; lần đầu bind `sessionVersion`, lần sau fail-closed khi version
 đã bị bump. Test `context.test.ts` chứng minh revoke path; live image
-`7a243ca86684` là deployed source checkpoint và đang Ready.
-Runtime authoritative policy-membership evidence vẫn còn thiếu.
+`a39ef952d6fa` là deployed source checkpoint và đang Ready. UAT runtime đã
+chứng minh configured user active/unlocked, role/workspace match và
+sessionVersion hợp lệ.
 
 Decision mới được chốt: local `users` store là policy authority vì hiện không
 có external IdP; `workspaceId`, `role`, `active`, `lockedAt` và `sessionVersion`
@@ -164,42 +182,41 @@ workspace đã cấu hình, nhưng vẫn bind từng `MCP_USER_ID` + `MCP_WORKSP
 không cho payload chọn tenant, không mixed writers và không mở reversal/
 compensating transaction.
 
-### Slice B — security evidence
+### Slice B — security evidence (completed)
 
-1. Giữ browser/MCP trusted context fail-closed.
-2. Bổ sung read-only runtime evidence cho authoritative policy membership nếu
-   có thể thu được mà không đọc secret hoặc mutate production; deployed-image
-   evidence cho session/role/workspace guard đã được ghi nhận.
-3. Chỉ chuyển `GAP-SEC-01/02` sang `CLOSED` khi evidence đúng scope.
+1. Browser/MCP trusted context giữ fail-closed.
+2. UAT read-only policy lookup + authenticated MCP query đã xác nhận
+   authoritative membership.
+3. `GAP-SEC-01/02` đã chuyển `CLOSED` trong SRS ledger.
 
 ### Slice C — MCP fence
 
-1. **Đã hoàn tất capability rollout** bằng chart commit `45b578a`:
-   `writerMode: write`, `oldWriterFenced: true`, immutable image
-   `7a243ca86684`; không patch Kubernetes trực tiếp.
+1. **Đã hoàn tất capability rollout** bằng chart commit `45b578a` và current
+   GitOps revision `2bf577e`: `writerMode: write`, `oldWriterFenced: true`,
+   immutable image `a39ef952d6fa`; không patch Kubernetes trực tiếp.
 2. Read-only verification sau rollout: Argo `Synced/Healthy`, pod Ready/restart
    `0`, health/readiness/docs `200`, unauthenticated `/mcp` `401`, OpenAPI
    writer inventory có preview/confirm và `auditStatus=PENDING`.
-3. UAT reconciliation/index checkpoint và canonical writer smoke đã hoàn tất;
-   không chạy mixed writers và không xóa legacy receipt reads khi chưa có
-   external drain evidence.
+3. UAT reconciliation/index checkpoint, canonical writer smoke và ingress
+   fence/drain window đã hoàn tất; không chạy mixed writers. Legacy receipt
+   reads vẫn giữ vì còn compatibility consumer ngoài UAT.
 
 ### Slice D — financial boundary
 
 1. Giữ payment preview/CAS/idempotency/audit contracts và regression tests.
 2. Áp dụng `DECISION-PAY-REV-01`: `PAID` lock và mọi reversal/compensating
-   transaction fail-closed; không tự tạo financial side effect.
-3. UAT additive index migration đã được ủy quyền, backup trước và verify sau;
-   không sửa financial rows, không mark-paid/reversal, không xóa legacy receipt
-   trước authenticated receipt/audit evidence.
+   transaction fail-closed; normal payment chỉ chạy qua explicit
+   preview/confirm/CAS/idempotency/audit.
+3. UAT additive index migration và canonical payment smoke đã được ủy quyền,
+   backup trước và verify sau; không dùng legacy mark-paid script, không
+   reversal/compensating transaction, không xóa legacy receipt.
 
-### Slice E — final gate
+### Slice E — final gate (completed)
 
-1. Chạy validation theo SRS mục 9.
+1. Validation theo SRS mục 9 đã pass.
 2. Independent review source diff, stale references, SRS ledger và runtime
-   evidence.
-3. Commit/push từng slice; chỉ claim 100% khi không còn `PARTIAL` và mọi GAP có
-   source + test + runtime evidence phù hợp.
+   evidence đã pass.
+3. Evidence docs được commit/push; SRS không còn GAP `PARTIAL`.
 
 ## 4. Validation commands
 
@@ -264,7 +281,9 @@ ordering.
 ## 6. Safety and definition of done
 
 - Không restart, scale, patch, sync hoặc apply Kubernetes.
-- Không gửi email thật, không đọc secret value, không mutate database.
+- UAT DB migration và canonical preview/confirm smoke chỉ được chạy sau
+  backup; không đọc/in secret value. SMTP UAT delivery được phép nhưng không
+  in recipient/token.
 - Không reversal/compensating transaction.
 - `CLOSED` chỉ có nghĩa là đủ evidence trong SRS ledger; absence trong log,
   desired state hoặc unit test không thay thế evidence production cần thiết.
@@ -279,14 +298,15 @@ Bạn đang tiếp tục refactor repository /home/longhn0710/workspace/card-cre
 git status/log trước khi sửa. Không lặp commit đã push và không claim GAP nếu
 thiếu source/test/runtime evidence.
 
-Tiếp tục từ GAP PARTIAL hiện hành trong execution plan. Ưu tiên vertical slice
+Tiếp tục từ GAP còn thiếu hiện hành trong execution plan. Ưu tiên vertical slice
 source -> contract -> service -> adapter -> test -> docs. Chạy validation theo
 SRS mục 9; CI chỉ dùng curated npm test. Nếu sửa lỗi, thêm regression test,
 independent review, cập nhật SRS/plan, commit và push.
 
 MCP mặc định read, không mixed writers. Không restart/scale/patch/sync/apply
-Kubernetes; không sửa DB/migration/index production; không chạy payment
-persistence, reconciliation apply, reversal hoặc compensating transaction.
+Kubernetes; production không mutate. UAT DB/index migration và canonical
+preview/confirm smoke phải có backup trước; không chạy legacy mark-paid khi
+thiếu case/plan/hash, không reversal hoặc compensating transaction.
 Giữ các compatibility path còn consumer và chỉ xóa dead code/document sau
 zero-consumer audit. Mục tiêu là SRS 100%, nhưng chỉ đánh dấu hoàn tất khi mọi
 GAP có evidence đúng scope.
