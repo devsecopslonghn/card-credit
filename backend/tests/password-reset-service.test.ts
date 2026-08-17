@@ -1,12 +1,50 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AuthUser, ResetToken } from "../src/auth-repository.js";
-import { hashResetToken, PasswordResetService } from "../src/services/password-reset-service.js";
+import { ForgotPasswordService, hashResetToken, PasswordResetService } from "../src/services/password-reset-service.js";
 
 const user: AuthUser = {
   id: "user-1", email: "user@example.test", passwordHash: "old", role: "user",
   workspaceId: "workspace-a", displayName: "User", active: true, lockedAt: null,
 };
+
+test("forgot password service creates a hashed token and reports mail delivery", async () => {
+  let created: ResetToken | undefined;
+  let delivered: { to: string; resetLink: string; expiresAt: Date } | undefined;
+  const result = await ForgotPasswordService.request(" USER@Example.test ", {
+    repository: {
+      findUserByEmail: async (email) => email === user.email ? user : null,
+      createResetToken: async (token) => { created = token; },
+    },
+    resetBaseUrl: "https://test.local",
+    returnResetToken: true,
+    mail: { sendPasswordResetEmail: async (email) => { delivered = email; } },
+  });
+  assert.equal(result.email, user.email);
+  assert.match(result.resetLink ?? "", /^https:\/\/test\.local\/forgot-password\?token=[A-Za-z0-9_-]+$/);
+  assert.ok(created);
+  assert.match(created.tokenHash, /^[a-f0-9]{64}$/);
+  assert.equal(created.userId, user.id);
+  assert.equal(delivered?.to, user.email);
+  assert.equal(delivered?.resetLink, result.resetLink);
+  assert.ok((created.expiresAt.getTime() - Date.now()) > 29 * 60 * 1000);
+});
+
+test("forgot password service keeps generic response and avoids token writes for unknown or locked users", async () => {
+  let writes = 0;
+  const result = await ForgotPasswordService.request("unknown@example.test", {
+    repository: { findUserByEmail: async () => null, createResetToken: async () => { writes += 1; } },
+    resetBaseUrl: "https://test.local",
+  });
+  assert.equal(result.resetLink, null);
+  await ForgotPasswordService.request(user.email, {
+    repository: { findUserByEmail: async () => ({ ...user, lockedAt: new Date() }), createResetToken: async () => { writes += 1; } },
+    resetBaseUrl: "https://test.local",
+  });
+  assert.equal(writes, 0);
+  await assert.rejects(() => ForgotPasswordService.request("invalid", { repository: { findUserByEmail: async () => null, createResetToken: async () => { writes += 1; } }, resetBaseUrl: "https://test.local" }), (error) => (error as { code?: string }).code === "INVALID_EMAIL");
+  assert.equal(writes, 0);
+});
 
 test("password reset service validates token, updates password and consumes tokens", async () => {
   const rawToken = "reset-token";

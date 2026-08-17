@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { ApiError } from "./errors.js";
 import { DEFAULT_SESSION_MAX_AGE_MS, sessionCookie, sessionFromRequest, signSession, type Session } from "./auth.js";
@@ -9,7 +8,7 @@ import { authSessionListSchema, authSessionSchema } from "@card-credit/contracts
 import type { MailService } from "./mail-service.js";
 import { AuthSessionService } from "./services/auth-session-service.js";
 import { AuthRegistrationService } from "./services/auth-registration-service.js";
-import { hashResetToken, PasswordResetService, requirePassword } from "./services/password-reset-service.js";
+import { ForgotPasswordService, PasswordResetService, requirePassword, validEmail } from "./services/password-reset-service.js";
 
 export type AuthOptions = {
   repository: AuthRepository;
@@ -22,7 +21,6 @@ export type AuthOptions = {
   audit?: (event: string, request: FastifyRequest, actor?: Session | null, email?: string | null, resource?: Record<string, unknown>) => Promise<void>;
 };
 const emailOf = (value: unknown) => typeof value === "string" ? value.trim().toLowerCase() : "";
-const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const publicUser = (session: Session) => ({ email: session.email, role: session.role, workspaceId: session.workspaceId });
 const toSession = (user: AuthUser): Session => ({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId, sessionVersion: user.sessionVersion ?? 0 });
 
@@ -41,18 +39,11 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
     const session = await AuthRegistrationService.register(email, request.body?.password, request.body?.displayName, options.repository); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser };
   });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/forgot-password", async (request) => {
-    const email = emailOf(request.body?.email); if (email && !validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const user = email ? await options.repository.findUserByEmail(email) : null; let rawToken: string | null = null;
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-    if (user?.active && !user.lockedAt) { rawToken = crypto.randomBytes(32).toString("base64url"); await options.repository.createResetToken({ tokenHash: hashResetToken(rawToken), userId: user.id, email: user.email, expiresAt, usedAt: null }); }
     const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "127.0.0.1:3001");
     const protocol = String(request.headers["x-forwarded-proto"] ?? "http").split(",")[0]!.trim();
-    const resetLink = rawToken ? `${protocol}://${host}/forgot-password?token=${rawToken}` : null;
-    let delivered = false;
-    if (user && resetLink && options.mail?.sendPasswordResetEmail) {
-      try { await options.mail.sendPasswordResetEmail({ to: user.email, resetLink, expiresAt }); delivered = true; } catch { delivered = false; }
-    }
-    await audit("PASSWORD_RESET_REQUESTED", request, null, email, { type: "auth", action: "forgot-password", delivered });
-    return { ok: true, message: "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi.", ...(resetLink && options.returnResetToken ? { resetLink } : {}) };
+    const result = await ForgotPasswordService.request(request.body?.email, { repository: options.repository, resetBaseUrl: `${protocol}://${host}`, returnResetToken: options.returnResetToken, mail: options.mail });
+    await audit("PASSWORD_RESET_REQUESTED", request, null, result.email, { type: "auth", action: "forgot-password", delivered: result.delivered });
+    return { ok: true, message: "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi.", ...(result.resetLink ? { resetLink: result.resetLink } : {}) };
   });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/reset-password", async (request, reply) => { const rawToken = typeof request.body?.token === "string" ? request.body.token.trim() : ""; const user = await PasswordResetService.complete(rawToken, request.body?.password, options.repository); await audit("PASSWORD_RESET_COMPLETED", request, toSession(user), user.email, { type: "auth", action: "reset-password" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true };
   });
