@@ -65,5 +65,3 @@ export const confirmationTokenHash = (token: string) => crypto.createHash("sha25
 const environmentCodec = () => createPreviewTokenCodec({ secret: process.env.MCP_PREVIEW_SECRET?.trim() ?? "" });
 export const createPreviewToken = (operation: string, payload: unknown, binding: PreviewBinding) => environmentCodec().issue(operation, payload, binding);
 export const verifyPreviewToken = (token: string, operation: string, payload: unknown, binding: PreviewBinding) => environmentCodec().verify(token, operation, payload, binding);
-/** @deprecated Use verifyPreviewToken; one-time state is consumed by CommandGuardService. */
-export const consumePreviewToken = verifyPreviewToken;

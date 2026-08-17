@@ -371,6 +371,18 @@ implemented yet.
   runtime behavior.
 - Commit/push: `c997bc5` đã push lên `origin/master`.
 
+### Completed checkpoint: Remove unreferenced preview-token alias
+
+- Scope: xóa `consumePreviewToken`, một deprecated alias không có consumer trong
+  source/test/runtime composition; MCP/browser paths dùng codec `verify` và
+  persistent `CommandGuardService` trực tiếp.
+- Independent review: GO cho zero-consumer source cleanup; không thay đổi token
+  format, verification semantics, one-time receipt state, persistence,
+  database, Kubernetes hay writer mode.
+- Regression/evidence: stale-reference search ngoài execution ledger không còn
+  `consumePreviewToken`; backend full validation pass typecheck, lint, build và
+  `151/151` critical tests.
+
 ### Completed checkpoint: Paginate statement projections with stable cursors
 
 - Requirement/GAP: `GAP-PERF-01` cần bounded public reads cho các projection
