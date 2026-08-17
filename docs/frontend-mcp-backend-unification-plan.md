@@ -77,6 +77,22 @@ implemented yet.
 - Independent review: GO cho source/test slice; không có database,
   Kubernetes, mail hoặc financial mutation.
 
+### Runtime read-only refresh: current MCP fence observation
+
+- Context/namespace: `k8s-admin-public` / `card-credit`; backend và frontend
+  deployment đều `1/1`, backend pod restart `0`, image hiện tại là immutable
+  tag `7adcb8390115`.
+- Backend deployment đang chạy `MCP_WRITER_MODE=read` và
+  `MCP_OLD_WRITER_FENCED=true`; đây là live configuration evidence, không phải
+  bằng chứng cho external client fence.
+- Backend log window `24h` có `83` dòng; bộ lọc đếm được `0` dòng chứa MCP,
+  preview, confirm, writer/mutation hoặc error. Chỉ ghi số lượng, không in
+  payload, ID, token hay secret.
+- Kết luận bảo thủ: chưa thấy old-writer activity trong app log window, nhưng
+  vẫn chưa claim external old-writer traffic fence/drain; không gọi MCP tool,
+  không preview/confirm, không restart/scale/patch/apply Kubernetes và không
+  ghi database.
+
 | Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, session version/revoke guard, register workspace policy, private read adapter revalidation, Notes POST + `NotesService`, Profile PATCH + `ProfileService`, Workspace owner PUT, Masterdata admin/query/command service, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context, AdminUserService boundary, `/api/auth/me` actor boundary, login + `AuthSessionService`, register + `AuthRegistrationService`, bootstrap + `AuthBootstrapService`, forgot/reset-password + `ForgotPasswordService`/`PasswordResetService`, shared `auth-policy` primitive và auth adapter normalization, password reset SMTP delivery đã có source/test evidence; một số direct mutation routes còn thiếu | `b75fb28` + `4578eb7` + `8def2dd` + `85bbc17` + `9d9c976` + `1fe15a2` + `c8e08fb` + `0713812` + `7a3ccdf` + `1983b23` + `35dcf51` + `72292f4` + `74b03ff` + `2034060` + `a212056` + `7743db0` / origin/master | Candidate gate Jenkins/Argo chỉ chạy sau khi push batch; tiếp tục private direct-model route coverage và session version/policy runtime |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; route service-boundary guard xác nhận chỉ card lifecycle route còn direct model dependency; delete/merge policy còn thiếu | `318ba16` + `89e3091` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; giữ REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push; direct MCP manifest default read và write fence acknowledgement đã push; candidate `7f04f18152b4` runtime reconcile read-only, chưa mở writer/confirm | `87e7996` + DB rollout + `ee05cc9` + chart `6bfa41f` + `d4f708a` + `3cf2339` + `7f04f18` / chart `127bb6b` / origin/master | Xác minh external old-writer consumers/traffic; không chạy confirm tài chính trong smoke |
