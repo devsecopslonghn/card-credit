@@ -196,6 +196,19 @@ implemented yet.
   Kubernetes rollout or database operation was performed. Live pods therefore
   remain on `5267c79cf437`.
 
+### Verification checkpoint: full local SRS §9 gate
+
+- Source HEAD at verification: `beee24f` (docs-only commits after the last
+  application source change).
+- Shared: `npm run validate` passed build and `28/28` tests.
+- Backend: `npm run validate` passed typecheck, lint, critical tests `153/153`
+  and production build.
+- Frontend: `npm ci --include=optional`, `npm run test:unit` `80/80`,
+  typecheck, lint, `npm run test:integration` `6/6` and production build with
+  all 24 routes generated.
+- No database, Kubernetes, registry or financial mutation was performed by
+  this verification gate.
+
 ### Completed checkpoint: Add recurring REST lifecycle integration evidence
 
 - Scope: thêm Fastify adapter regression cho recurring `GET/POST/PUT/DELETE`,
