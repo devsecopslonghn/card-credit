@@ -36,6 +36,10 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Backend: `npm run validate` — typecheck/lint/build pass, tests `158/158`.
 - Frontend: curated `npm test` `44/44`, integration `6/6`, typecheck/lint/build
   pass, production build renders `24` routes.
+- Latest full gate after legacy-writer source audit (`5f9fb8c`): frontend
+  `npm ci --include=optional`, `npm run test:unit --if-present` `80/80`,
+  typecheck/lint/integration `6/6`/build pass; shared `29/29`; backend
+  `158/158` with typecheck/lint/build pass.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
@@ -68,10 +72,15 @@ lại để tránh đọc nhầm checkpoint cũ.
 
 1. Audit `consumer -> source` bằng `rg`/inventory.
 2. Xóa chỉ dead code/document có zero consumer.
-3. Giữ compatibility path còn consumer: legacy receipts,
+3. Giữ compatibility path còn consumer: legacy receipt reads của
    `McpMutationModel`, card `monthlyData` và reconciliation planner.
 4. Mỗi xóa phải có regression/stale-reference evidence, cập nhật ledger, review,
    commit và push.
+
+Checkpoint `5f9fb8c` đã hoàn tất source inventory cho old writer: application
+source không có `McpMutationModel` create/update/upsert/delete; chỉ còn 3
+`findOne` compatibility reads. Đây là evidence để không xóa nhầm, chưa phải
+evidence external writer đã drain.
 
 ### Slice B — security evidence
 
