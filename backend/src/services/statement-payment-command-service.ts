@@ -188,7 +188,7 @@ export class StatementPaymentCommandService {
             { $set: { paymentStatus: next, paidAt: null, paidAmount: null } },
             { returnDocument: "after", session },
           ).lean() as Data | null;
-          if (!result) throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Kỳ sao kê đã thanh toán. Hãy dùng quy trình hoàn tác riêng.");
+          if (!result) throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Kỳ sao kê đã thanh toán; không hỗ trợ hoàn tác tự động.");
           return paymentReceiptResult(result, statementId, input.action);
         }
 
