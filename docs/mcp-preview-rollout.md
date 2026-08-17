@@ -8,11 +8,13 @@ This runbook is required before deploying an image that writes
 - Confirm the exact Kubernetes context, namespace, deployment and image digest.
 - Confirm the candidate image contains preview claims v2 and the persistent
   `CommandGuardService`; do not run mixed old/new writers.
-- Start the candidate with `MCP_WRITER_MODE=read` while validating health and
-  tool inventory. Set `MCP_WRITER_MODE=write` and
-  `MCP_OLD_WRITER_FENCED=true` only after the old writer is fenced and the
-  candidate smoke checks are complete. The second variable is an explicit
-  operator acknowledgement; it is not proof that Kubernetes has fenced a pod.
+- Start and keep the candidate with `MCP_WRITER_MODE=read` while validating
+  health and tool inventory. Do not switch to `write` as part of this runbook.
+  Enabling `MCP_WRITER_MODE=write` requires an independent, operation-specific
+  decision after the old writer is externally fenced and candidate smoke
+  checks are complete. `MCP_OLD_WRITER_FENCED=true` is only an application
+  acknowledgement; it is not proof that Kubernetes or external clients are
+  fenced.
 - Back up the target workspace with `backend/scripts/backup-finance-workspace.ts`
   and record the mode-600 file path in the execution plan.
 - Run `npm run ensure:command-guard-indexes` with

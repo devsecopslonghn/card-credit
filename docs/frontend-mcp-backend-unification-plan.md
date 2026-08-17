@@ -158,6 +158,18 @@ implemented yet.
   endpoint checks; no Secret values, MCP invocation, preview/confirm, database
   write, migration, restart, scale, patch or manual sync was executed.
 
+### Completed checkpoint: Make MCP rollout runbook read-only by default
+
+- Scope: `docs/mcp-preview-rollout.md` no longer instructs an operator to switch
+  the candidate to `MCP_WRITER_MODE=write` during the rollout runbook. Write
+  mode now requires a separate operation-specific decision after independent
+  old-writer fence/drain evidence.
+- Independent review: GO for documentation safety correction; the runbook keeps
+  preview/index/backup/rollback gates and does not remove operational recovery
+  guidance.
+- Evidence: `git diff --check` pass; active runbook now requires read-only mode
+  throughout candidate validation.
+
 ### Completed checkpoint: Add recurring REST lifecycle integration evidence
 
 - Scope: thêm Fastify adapter regression cho recurring `GET/POST/PUT/DELETE`,
