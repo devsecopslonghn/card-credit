@@ -70,6 +70,11 @@ implemented yet.
   `MCP_OLD_WRITER_FENCED=false`. Chỉ CD/Argo tự reconcile theo pipeline; không
   có thao tác scale/restart/patch trực tiếp, không gọi preview/confirm, không
   sửa database và không thực hiện reversal/compensating transaction.
+- Scope audit: inventory read-only trong cluster chỉ thấy một backend và một
+  frontend `card-credit`; chart/workspace search không thấy thêm old-writer
+  workload. Log sample của candidate chỉ có startup signal, không phải traffic
+  accounting. Đây vẫn không phải proof về external MCP clients/writers hoặc
+  network traffic ngoài cluster.
 - Residual/decision: candidate read-only runtime đã **GO có điều kiện**; chưa
   có independent evidence về external old-writer consumer/traffic fence/drain,
   session-version runtime và production statement-payment writer rollout vẫn
