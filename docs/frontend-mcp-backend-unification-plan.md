@@ -2203,6 +2203,29 @@ chạy validation, commit và push ngay.
   trên cluster, không chứa backup trong git. Docs checkpoint này sẽ được push
   trong commit kế tiếp.
 
+### Decision checkpoint: Canonical MCP writer enablement
+
+- User decision: user explicitly chose to enable the canonical MCP writer and
+  stated that no legacy old writer is needed/in scope. This is recorded as a
+  decision, not as independent traffic proof.
+- Changed write-set: GitOps chart `card-credit/values.yaml` only, commit
+  `f4eb8b56ad08af5a0064ac07156cb80a42e095a6`, rebased on remote chart commit
+  `6c1da60`; image remains the already-published `e1ce0fe53242`. Values are
+  `mcp.writerMode: write` and `mcp.oldWriterFenced: true`; application source
+  default remains fail-closed `read` and its guard still rejects write without
+  the fenced acknowledgement.
+- Validation/review: Helm lint passed; Helm template rendered the expected
+  image and both MCP env values; backend config regression test passed `4/4`;
+  no MCP preview/confirm or other persistence command was invoked.
+- Runtime gate: chart push is complete, but at the last read Argo was still at
+  chart `6c1da60` with runtime `e1ce0fe53242` read-only. Verify Argo reconcile
+  and `/docs/json` writer metadata after the new chart is observed; do not
+  invoke financial mutation smoke. Rollback is chart revert to
+  `writerMode: read`, `oldWriterFenced: false`.
+- Database/financial impact: no database, schema, migration, reversal or
+  compensating transaction change was made; enabling a write-capable surface
+  does not itself create a financial record.
+
 ### Completed checkpoint: Proxy cleanup CI publication and GitOps handoff
 
 - Requirement/GAP: `GAP-CI-01` cần tách source/test, image publication và
