@@ -105,7 +105,7 @@ implemented yet.
   restart, scale, patch or rollout command was executed. This refresh therefore
   claims only pod/image/config metadata and keeps financial/runtime targets
   unclaimed.
-- Commit/push: evidence recorded in the follow-up documentation commit below.
+- Commit/push: `e947339` đã push lên `origin/master`.
 
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
