@@ -8,6 +8,7 @@ import { browserActorContext } from "./context.js";
 import { authSessionListSchema, authSessionSchema } from "@card-credit/contracts";
 import type { MailService } from "./mail-service.js";
 import { AuthSessionService } from "./services/auth-session-service.js";
+import { AuthRegistrationService } from "./services/auth-registration-service.js";
 
 export type AuthOptions = {
   repository: AuthRepository;
@@ -24,7 +25,6 @@ const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const requirePassword = (value: unknown): string => { if (typeof value !== "string" || value.length < 8) throw new ApiError(400, "INVALID_PASSWORD", "Mật khẩu không hợp lệ.", { password: "Mật khẩu phải có ít nhất 8 ký tự." }); return value; };
 const publicUser = (session: Session) => ({ email: session.email, role: session.role, workspaceId: session.workspaceId });
 const toSession = (user: AuthUser): Session => ({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId, sessionVersion: user.sessionVersion ?? 0 });
-const workspaceForEmail = (email: string) => `personal-${crypto.createHash("sha256").update(email).digest("hex").slice(0, 24)}`;
 const tokenHash = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
 
 export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) => {
@@ -37,13 +37,9 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
   app.get("/api/auth/me", async (request) => { const { actor } = await browserActorContext(request, options.secret, options.repository); return { user: authSessionSchema.parse(publicUser(actor)) }; });
   app.post("/api/auth/logout", async (request, reply) => { let actor: Session | null = null; try { actor = sessionFromRequest(request, options.secret); } catch { actor = null; } await audit("LOGOUT", request, actor, actor?.email, { type: "auth", action: "logout" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true }; });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/register", async (request, reply) => {
-    const email = emailOf(request.body?.email); if (!validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const password = requirePassword(request.body?.password);
+    const email = emailOf(request.body?.email);
     if ("workspaceId" in (request.body ?? {})) throw new ApiError(400, "WORKSPACE_SELECTION_NOT_ALLOWED", "Workspace được cấp tự động khi đăng ký.");
-    if (await options.repository.findUserByEmail(email)) throw new ApiError(409, "EMAIL_ALREADY_REGISTERED", "Email này đã được đăng ký.");
-    const role = await options.repository.countUsers() === 0 ? "admin" : "user";
-    const workspaceId = workspaceForEmail(email);
-    const user = await options.repository.createUser({ email, passwordHash: await hashPassword(password), role, workspaceId, displayName: typeof request.body?.displayName === "string" ? request.body.displayName.trim() : email.split("@")[0]!, active: true, lockedAt: null });
-    const session = toSession(user); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser };
+    const session = await AuthRegistrationService.register(email, request.body?.password, request.body?.displayName, options.repository); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser };
   });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/forgot-password", async (request) => {
     const email = emailOf(request.body?.email); if (email && !validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const user = email ? await options.repository.findUserByEmail(email) : null; let rawToken: string | null = null;
