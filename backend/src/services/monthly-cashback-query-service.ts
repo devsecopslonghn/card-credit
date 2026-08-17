@@ -14,8 +14,9 @@ const validCardId = (cardId: string) => {
   if (!mongoose.isValidObjectId(cardId)) throw new ApiError(400, "INVALID_CARD_ID", "Card id không hợp lệ.");
 };
 
-const validYear = (year: string) => {
-  if (!/^\d{4}$/.test(year)) throw new ApiError(400, "INVALID_YEAR", "Năm không hợp lệ.");
+const validYear = (year: unknown) => {
+  if (typeof year !== "string" || !/^\d{4}$/.test(year)) throw new ApiError(400, "INVALID_YEAR", "Năm không hợp lệ.", { year: "Năm phải có dạng YYYY." });
+  return year;
 };
 
 const timestamp = (value: unknown): string | null => {
@@ -42,14 +43,14 @@ export const monthlyCashbackDtoFromDocument = (value: unknown): MonthlyCashbackD
 };
 
 export class MonthlyCashbackQueryService {
-  static async list(ctx: ServiceContext, cardId: string, year: string): Promise<MonthlyCashbackDto[]> {
+  static async list(ctx: ServiceContext, cardId: string, year: unknown): Promise<MonthlyCashbackDto[]> {
     validCardId(cardId);
-    validYear(year);
+    const selectedYear = validYear(year);
     await CardQueryService.get(ctx, cardId);
     const records = await MonthlyCardCashbackModel.find({
       workspaceId: ctx.workspaceId,
       userCardId: cardId,
-      period: { $gte: `${year}-01`, $lte: `${year}-12` },
+      period: { $gte: `${selectedYear}-01`, $lte: `${selectedYear}-12` },
     }).sort({ period: -1 }).lean();
     return monthlyCashbackListSchema.parse(records.map(monthlyCashbackDtoFromDocument)) as MonthlyCashbackDto[];
   }

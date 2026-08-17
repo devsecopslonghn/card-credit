@@ -69,6 +69,16 @@ test("model declares the per-workspace card-period unique index", () => {
 });
 
 test("GET validates year and scopes card and cashback queries to workspace", async (t) => {
+  const app = appWithRoutes();
+  const invalid = await app.inject({
+    method: "GET",
+    url: `/api/cards/${cardId}/monthly-cashbacks?year=26`,
+    headers: { cookie },
+  });
+  assert.equal(invalid.statusCode, 400);
+  assert.equal(invalid.json().error.code, "INVALID_YEAR");
+  await app.close();
+
   const list = t.mock.method(
     MonthlyCashbackQueryService,
     "list",
@@ -88,17 +98,8 @@ test("GET validates year and scopes card and cashback queries to workspace", asy
       }];
     },
   );
-  const app = appWithRoutes();
-
-  const invalid = await app.inject({
-    method: "GET",
-    url: `/api/cards/${cardId}/monthly-cashbacks?year=26`,
-    headers: { cookie },
-  });
-  assert.equal(invalid.statusCode, 400);
-  assert.equal(invalid.json().error.code, "INVALID_YEAR");
-
-  const response = await app.inject({
+  const mockedApp = appWithRoutes();
+  const response = await mockedApp.inject({
     method: "GET",
     url: `/api/cards/${cardId}/monthly-cashbacks?year=2026`,
     headers: { cookie },
@@ -106,7 +107,7 @@ test("GET validates year and scopes card and cashback queries to workspace", asy
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().data[0].period, "2026-07");
   assert.equal(list.mock.callCount(), 1);
-  await app.close();
+  await mockedApp.close();
 });
 
 test("PUT validates payload and performs a workspace-scoped idempotent upsert", async (t) => {
