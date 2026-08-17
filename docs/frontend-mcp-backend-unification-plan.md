@@ -161,6 +161,29 @@ implemented yet.
   vẫn chạy được khi operator gọi `npm run test:all`. Không đổi database,
   Kubernetes, financial persistence, preview/confirm hay reversal.
 
+### Completed checkpoint: Workspace owner service boundary
+
+- Requirement/GAP: Phase 1 yêu cầu workspace owner read/write đi qua canonical
+  application service; route không được giữ persistence hoặc authorization
+  business logic ngoài trusted-context adaptation.
+- Independent review: GO cho bounded non-financial slice. `WorkspaceService`
+  nhận `ServiceContext`, scope mọi read/write theo `workspaceId`, kiểm tra role
+  admin và active/unlocked target owner trước khi gọi repository. Route chỉ tạo
+  context, chuyển input và map `{ data }`; không đổi public response, schema,
+  index hoặc update semantics.
+- Changed write-set: thêm `backend/src/services/workspace-service.ts`, đổi
+  `backend/src/workspace-routes.ts`, thêm `backend/tests/workspace-service.test.ts`
+  và đưa test mới vào curated backend entrypoint. Không có database write khi
+  test; production persistence path vẫn là cùng `WorkspaceModel.updateOne`
+  upsert với filter workspace hiện tại.
+- Verification: curated backend `npm test` pass `89/89`; full
+  `npm run test:all` pass `188/188`; backend typecheck, lint và build pass.
+- Operational impact: chỉ thay boundary trong application process, không đổi
+  dữ liệu/schema, Kubernetes, MCP writer mode, payment persistence, reversal
+  hoặc compensating transaction.
+- Commit/push: execution-plan evidence và source slice được ghi trong commit
+  application kế tiếp.
+
 ### Completed checkpoint: Session version revocation and registration workspace policy
 
 - Requirement/GAP: `GAP-SEC-01` và `GAP-SEC-02` yêu cầu revoke/version guard
