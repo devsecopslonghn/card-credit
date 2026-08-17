@@ -117,8 +117,8 @@ Resource không tồn tại hoặc ngoài workspace đều xử lý như `404 CA
 |---|---|---|
 | `GET /financial-transactions?accountId=&categoryId=&from=&to=&limit=` | Session | Unified transactions scoped to workspace; shared strict query rejects invalid calendar dates, reversed ranges and unknown filters. `limit` mặc định 100, tối đa 100; response giữ nguyên `{data:[...]}` để tương thích. |
 | `POST /financial-transactions` | Session | Creates a Financial Domain transaction through the canonical command service. Requires `Idempotency-Key` (8+ chars); REST/MCP use the same receipt/audit guard and payload hash. |
-| `GET /card-statements` | Session | Statements của tất cả card trong workspace. |
-| `GET /cards/:id/statements` | Session | Statements của card. |
+| `GET /card-statements` | Session | Statements của tất cả card trong workspace; thêm `limit=1..100` hoặc `cursor` trả page `{items,nextCursor,limit}` với sort ổn định theo `statementDate DESC, _id DESC`. Không có query phân trang vẫn giữ `{data:[...]}`. |
+| `GET /cards/:id/statements` | Session | Statements của card; hỗ trợ cùng page contract `limit`/opaque `cursor`. |
 | `GET /cards/:id/statements/:statementId` | Session | Statement + transactions + summary. |
 | `POST /cards/:id/statements/:statementId/payment/preview` | Session | Strict payment input (`expectedVersion?`); canonical persisted-impact preview với exact totals, account requirement, current version và warnings. Không ghi business data, nhưng ghi hash-only preview metadata và trả `previewId`, `confirmationToken`, `expiresAt`; response `Cache-Control: no-store`. |
 | `PATCH /cards/:id/statements/:statementId/payment` | Session + `Idempotency-Key` (8+ chars) | Strict execute input gồm `{action:"CLOSED"|"PAID"|"REOPEN",repaymentAccountId?,expectedVersion?,previewId,confirmationToken}`; browser token bind context/operation/route payload, one-time generic guard, preview-version CAS, PAID lock, one payment transaction and receipt/audit; stale version returns `PAYMENT_PREVIEW_STALE`, unavailable/replayed preview returns `PREVIEW_NOT_AVAILABLE`, success returns canonical `StatementDto`. |
@@ -167,7 +167,7 @@ Summary response nên có:
 | `PUT /cards/:cardId/fee-payments/:feePaymentId` | Session | Sửa actual fee. |
 | `DELETE /cards/:cardId/fee-payments/:feePaymentId` | Session | Xóa fee. |
 | `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&cardId=` | Session | Financial report theo khoảng ngày, tùy chọn card filter theo statement/account reference; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category. |
-| `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Credit statement projection dùng canonical `StatementQueryService` và shared `CreditStatementReportDto[]`; `from/to` tùy chọn, thiếu một đầu vẫn all-time. |
+| `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD&limit=1..100&cursor=` | Session | Credit statement projection dùng canonical `StatementQueryService`; `from/to` tùy chọn, thiếu một đầu vẫn all-time. Có `limit`/`cursor` trả page `{items,nextCursor,limit}`; không có query vẫn giữ `CreditStatementReportDto[]`. |
 | `GET /cash-flow/monthly?period=YYYY-MM&cardId=` | Session | Financial Domain cash-flow theo card/tháng; output `{data,period}`. |
 | `GET /notes?limit=1..100` | Session | List tối đa 100 notes mới nhất trong workspace; response raw array được giữ nguyên để tương thích. |
 | `POST /notes` | Session | `{date,content}`; content rỗng là delete. |

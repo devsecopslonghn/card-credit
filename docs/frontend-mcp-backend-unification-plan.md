@@ -363,8 +363,9 @@ implemented yet.
   `creditStatementReportPageSchema`; card-statement REST endpoints và
   credit-statement report endpoint hỗ trợ `limit`/opaque `cursor`, sort ổn định
   theo ngày + `_id`, page envelope tách `items`, `nextCursor`, `limit`; frontend
-  client có parser/helper tương ứng. Legacy response không có query phân trang
-  vẫn giữ nguyên shape.
+  client có parser/helper tương ứng; `docs/api.md` ghi rõ cả page contract và
+  legacy response. Legacy response không có query phân trang vẫn giữ nguyên
+  shape.
 - Independent review: GO cho read-only pagination slice. Cursor bind sort
   field/value/id, workspace filter vẫn áp dụng; không thay đổi financial
   formula, payment state, persistence write, database/index, Kubernetes hay
