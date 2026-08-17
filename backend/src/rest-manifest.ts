@@ -1,4 +1,4 @@
-export type RestSecurity = "public" | "session" | "bearer";
+export type RestSecurity = "public" | "session" | "admin" | "bearer" | "calendar-token";
 export type RestEndpointDefinition = {
   method: string;
   path: string;
@@ -56,13 +56,13 @@ export const REST_ENDPOINTS: readonly RestEndpointDefinition[] = [
   { method: "get", path: "/api/calendar-subscriptions", summary: "List calendar subscriptions", security: "session" },
   { method: "post", path: "/api/calendar-subscriptions", summary: "Create calendar subscription", security: "session" },
   { method: "delete", path: "/api/calendar-subscriptions/{id}", summary: "Revoke calendar subscription", security: "session" },
-  { method: "get", path: "/api/admin/audit-logs", summary: "List audit logs", security: "session" },
-  { method: "get", path: "/api/admin/card-catalog/products", summary: "List all catalog products", security: "session" },
-  { method: "post", path: "/api/admin/card-catalog/products", summary: "Create catalog product", security: "session" },
-  { method: "patch", path: "/api/admin/card-catalog/products/{presetId}", summary: "Update catalog product", security: "session" },
-  { method: "patch", path: "/api/admin/card-catalog/providers/{providerCode}", summary: "Update catalog provider", security: "session" },
-  { method: "get", path: "/api/admin/users", summary: "List users", security: "session" },
-  { method: "patch", path: "/api/admin/users/{id}", summary: "Update user", security: "session" },
+  { method: "get", path: "/api/admin/audit-logs", summary: "List audit logs", security: "admin" },
+  { method: "get", path: "/api/admin/card-catalog/products", summary: "List all catalog products", security: "admin" },
+  { method: "post", path: "/api/admin/card-catalog/products", summary: "Create catalog product", security: "admin" },
+  { method: "patch", path: "/api/admin/card-catalog/products/{presetId}", summary: "Update catalog product", security: "admin" },
+  { method: "patch", path: "/api/admin/card-catalog/providers/{providerCode}", summary: "Update catalog provider", security: "admin" },
+  { method: "get", path: "/api/admin/users", summary: "List users", security: "admin" },
+  { method: "patch", path: "/api/admin/users/{id}", summary: "Update user", security: "admin" },
   { method: "post", path: "/api/auth/bootstrap-users", summary: "Bootstrap users", security: "bearer" },
   { method: "get", path: "/api/banks", summary: "List banks", security: "session" },
   { method: "post", path: "/api/banks", summary: "Create bank", security: "session" },
@@ -72,7 +72,7 @@ export const REST_ENDPOINTS: readonly RestEndpointDefinition[] = [
   { method: "post", path: "/api/cardtypes", summary: "Create card type", security: "session" },
   { method: "put", path: "/api/cardtypes/{id}", summary: "Update card type", security: "session" },
   { method: "delete", path: "/api/cardtypes/{id}", summary: "Delete card type", security: "session" },
-  { method: "get", path: "/api/calendar-subscriptions/feed/{token}.ics", summary: "Download calendar feed", security: "public" },
+  { method: "get", path: "/api/calendar-subscriptions/feed/{token}.ics", summary: "Download calendar feed", security: "calendar-token" },
   { method: "get", path: "/api/cards/{cardId}/fee-payments", summary: "List card fee payments", security: "session" },
   { method: "post", path: "/api/cards/{cardId}/fee-payments", summary: "Create card fee payment", security: "session" },
   { method: "put", path: "/api/cards/{cardId}/fee-payments/{feePaymentId}", summary: "Update card fee payment", security: "session" },

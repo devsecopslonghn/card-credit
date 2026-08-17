@@ -9,6 +9,9 @@
   integer basis points (`10000 = 100%`).
 - Auth được xác định bằng session cookie hoặc private calendar token; không nhận
   `userId`, `role`, `workspaceId` từ client để quyết định scope.
+- REST inventory phân biệt `session`, `admin`, `bearer` bootstrap và
+  `calendar-token`; OpenAPI `x-authorization` chỉ mô tả policy, không thay thế
+  enforcement trong route.
 - `Content-Type: application/json` cho mutation; mutation same-origin cần Origin/
   Fetch Metadata hợp lệ.
 - Query list/report cần giới hạn page/limit khi contract mở rộng; limit audit tối

@@ -8,15 +8,17 @@ import { REST_ENDPOINTS, type RestSecurity } from "./rest-manifest.js";
 export const mcpToolNamesForDocs = (writerMode: McpWriterMode = "read") => mcpToolNamesForMode(writerMode);
 
 type Security = Array<Record<string, string[]>>;
+type AuthorizationMetadata = { mechanism: "cookie" | "bearer" | "path-token"; requiredRole?: "admin"; purpose?: "bootstrap" | "calendar-feed" };
 const auth: Security = [{ cookieAuth: [] }];
 const bearer: Security = [{ bearerAuth: [] }];
-const operation = (summary: string, security: Security = auth) => ({ summary, security, responses: { "200": { description: "Success" }, "400": { description: "Invalid request" }, "401": { description: "Unauthenticated" }, "403": { description: "Forbidden" }, "404": { description: "Not found" }, "409": { description: "Conflict" }, "500": { description: "Unexpected error" } } });
+const operation = (summary: string, security: Security = auth, authorization?: AuthorizationMetadata) => ({ summary, security, ...(authorization ? { "x-authorization": authorization } : {}), responses: { "200": { description: "Success" }, "400": { description: "Invalid request" }, "401": { description: "Unauthenticated" }, "403": { description: "Forbidden" }, "404": { description: "Not found" }, "409": { description: "Conflict" }, "500": { description: "Unexpected error" } } });
 const paths: Record<string, Record<string, unknown>> = {};
-const add = (method: string, path: string, summary: string, security = auth) => { paths[path] ??= {}; paths[path][method] = operation(summary, security); };
+const add = (method: string, path: string, summary: string, security = auth, authorization?: AuthorizationMetadata) => { paths[path] ??= {}; paths[path][method] = operation(summary, security, authorization); };
 
-const securityFor = (security: RestSecurity): Security => security === "public" ? [] : security === "bearer" ? bearer : auth;
-for (const endpoint of REST_ENDPOINTS) add(endpoint.method, endpoint.path, endpoint.summary, securityFor(endpoint.security));
-add("post", "/mcp", "MCP Streamable HTTP endpoint", bearer);
+const securityFor = (security: RestSecurity): Security => security === "public" || security === "calendar-token" ? [] : security === "bearer" ? bearer : auth;
+const authorizationFor = (security: RestSecurity): AuthorizationMetadata | undefined => security === "admin" ? { mechanism: "cookie", requiredRole: "admin" } : security === "bearer" ? { mechanism: "bearer", purpose: "bootstrap" } : security === "calendar-token" ? { mechanism: "path-token", purpose: "calendar-feed" } : undefined;
+for (const endpoint of REST_ENDPOINTS) add(endpoint.method, endpoint.path, endpoint.summary, securityFor(endpoint.security), authorizationFor(endpoint.security));
+add("post", "/mcp", "MCP Streamable HTTP endpoint", bearer, { mechanism: "bearer" });
 
 export const registerApiDocs = async (app: FastifyInstance, writerMode: McpWriterMode = "read") => {
   await app.register(swagger, { mode: "static", specification: { path: "", document: ({
