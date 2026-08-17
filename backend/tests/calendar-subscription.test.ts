@@ -4,6 +4,8 @@ import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel, s
 import { buildApp } from "../src/app.js";
 import { registerCalendarSubscriptionRoutes } from "../src/calendar-subscription-routes.js";
 import { CalendarSubscriptionService } from "../src/services/calendar-subscription-service.js";
+import { CardQueryService } from "../src/services/card-query-service.js";
+import { StatementQueryService } from "../src/services/statement-query-service.js";
 import type { AuthRepository } from "../src/auth-repository.js";
 import { CalendarSubscriptionModel } from "../src/models/calendar-subscription.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
@@ -91,6 +93,26 @@ test("subscription feed contains the three-day payment window and alarms only", 
   assert.equal(calendar.match(/BEGIN:VALARM/g)?.length, 3);
   assert.doesNotMatch(calendar, /DTSTART[^\r\n]*20260731/);
   assert.equal(calendar.includes("workspace/user/statement"), false);
+});
+
+test("calendar subscription service composes the canonical card and statement reads", async (t) => {
+  const context: ServiceContext = { userId: "user-1", workspaceId: "workspace-a", role: "user", channel: "job", correlationId: "feed-test" };
+  const cardList = t.mock.method(CardQueryService, "list", async (seenContext: ServiceContext, options: { userId?: string }) => {
+    assert.equal(seenContext, context);
+    assert.deepEqual(options, { userId: "user-1" });
+    return [{ id: "card-1", displayName: "Visa", providerName: "Bank", owner: "Tôi", reminderTimezone: "Asia/Ho_Chi_Minh" }] as never;
+  });
+  const statementList = t.mock.method(StatementQueryService, "listForCardIds", async (seenContext: ServiceContext, cardIds: string[], options: { unpaidOnly?: boolean; order?: "statementDate" | "paymentDueDate" }) => {
+    assert.equal(seenContext, context);
+    assert.deepEqual(cardIds, ["card-1"]);
+    assert.deepEqual(options, { unpaidOnly: true, order: "paymentDueDate" });
+    return [{ id: "statement-1", cardId: "card-1", periodStartDate: "2026-07-01", periodEndDate: "2026-07-31", statementDate: "2026-07-31", paymentDueDate: "2026-08-15", summary: { outstandingAmount: 500000 }, effectivePaymentStatus: "OPEN" }] as never;
+  });
+  const feed = await CalendarSubscriptionService.feed(context);
+  assert.match(feed, /Visa/);
+  assert.match(feed, /500\.000/);
+  assert.equal(cardList.mock.callCount(), 1);
+  assert.equal(statementList.mock.callCount(), 1);
 });
 
 test("management requires a session and malformed feed tokens return opaque 404", async () => {

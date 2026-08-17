@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
 import { ApiError } from "../errors.js";
 import { CalendarSubscriptionModel } from "../models/calendar-subscription.js";
-import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel, validSubscriptionToken } from "../calendar-subscription.js";
+import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel, serializePaymentDueFeed, validSubscriptionToken } from "../calendar-subscription.js";
 import { jobServiceContext } from "../context.js";
 import type { AuthRepository } from "../auth-repository.js";
 import type { ServiceContext } from "./types/service-context.js";
+import { CardQueryService } from "./card-query-service.js";
+import { StatementQueryService } from "./statement-query-service.js";
 
 type Data = Record<string, unknown>;
 
@@ -73,5 +75,17 @@ export class CalendarSubscriptionService {
     );
     if (!result.modifiedCount) throw new ApiError(404, "SUBSCRIPTION_NOT_FOUND", "Không tìm thấy lịch đăng ký.");
     return { revoked: true };
+  }
+
+  static async feed(ctx: ServiceContext) {
+    const cards = await CardQueryService.list(ctx, { userId: ctx.userId });
+    const cardById = new Map(cards.map((card) => [card.id, card]));
+    const statements = await StatementQueryService.listForCardIds(ctx, cards.map((card) => card.id), { unpaidOnly: true, order: "paymentDueDate" });
+    const inputs = statements.flatMap((statement) => {
+      const card = cardById.get(statement.cardId);
+      if (!card) return [];
+      return [{ identity: `${ctx.workspaceId}/${ctx.userId}/${statement.id}`, displayName: card.displayName ?? "Thẻ tín dụng", providerName: card.providerName ?? "Ngân hàng", owner: card.owner, periodStartDate: statement.periodStartDate, periodEndDate: statement.periodEndDate, statementDate: statement.statementDate, paymentDueDate: statement.paymentDueDate, totalAmountDue: statement.summary.outstandingAmount, effectivePaymentStatus: statement.effectivePaymentStatus, timezone: card.reminderTimezone ?? "Asia/Ho_Chi_Minh" }];
+    });
+    return serializePaymentDueFeed(inputs);
   }
 }
