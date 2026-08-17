@@ -12,7 +12,9 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Progress bảo thủ: **13/20 unique GAP đã CLOSED = 65%**.
 - Không claim 100% khi SRS còn `PARTIAL` hoặc runtime evidence chưa đủ.
 - MCP live đang `MCP_WRITER_MODE=write` với `MCP_OLD_WRITER_FENCED=true`; không
-  chạy mixed writers.
+  chạy mixed writers. GitOps hiện tại là chart `origin/master` revision
+  `2bf577e`, image tag `a39ef952d6fa`; commit này chỉ đổi image từ
+  `7a243ca86684` về `a39ef952d6fa`, writer fence vẫn giữ nguyên.
 
 ### SRS GAP ledger
 
@@ -20,8 +22,8 @@ lại để tránh đọc nhầm checkpoint cũ.
 |---|---|---|---|
 | `GAP-CI-01` | `CLOSED` | Jenkins/source checkout, image/GitOps và read-only smoke evidence | Giữ regression gate |
 | `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject, stale-session tests và deployed image `7a243ca86684` | Runtime authoritative policy-membership evidence |
-| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, user-approved `DECISION-MCP-WRITE-01`, chart/live `writerMode=write` with `MCP_OLD_WRITER_FENCED=true`, current unauthenticated `/mcp` 401 and OpenAPI mutation inventory; no mutation tool was called | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
-| `GAP-PAY-01/02`, `GAP-STM-01` | `PARTIAL` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01` fail-closed boundary | Persistence/reconciliation evidence |
+| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, user-approved `DECISION-MCP-WRITE-01`, live `writerMode=write` with `MCP_OLD_WRITER_FENCED=true`, health/ready/docs `200`, unauthenticated `/mcp` `401`, 17-tool inventory; no application old-writer workload found; authenticated UAT account preview/confirm/replay `200` with one completed receipt and one audit | External old-writer fence/drain và continued authenticated financial receipt/audit traffic evidence |
+| `GAP-PAY-01/02`, `GAP-STM-01` | `PARTIAL` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01`; UAT backup, reconciliation dry-run across 4 workspaces (`missingPayments=0`, candidate/quarantine `0`) and additive command/data-integrity indexes applied and verified | Authenticated command persistence/audit smoke; no business payment or reversal was run |
 | `GAP-OPS-01` | `CLOSED` | Startup không silent-write; operator guard/test | Giữ dry-run/apply guard |
 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | `CLOSED` | Source/tests và live read-only index/duplicate/orphan audit | Giữ preflight |
 | `GAP-REP-01/02` | `CLOSED` | Ledger/category source decision, shared contracts, report guard và live read-only reconciliation | Giữ no-join/orphan checks |
@@ -42,6 +44,10 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Current frontend SRS gate: `npm ci --include=optional` and
   `npm run test:unit --if-present` pass with `80/80`; frontend source is
   unchanged by the current backend/security slices.
+- Current validation rerun: shared `npm run validate` pass (`29/29`); backend
+  `npm run validate` pass (typecheck/lint/build, critical `162/162`); frontend
+  `npm ci --include=optional`, unit `80/80`, integration `6/6`, typecheck, lint
+  and build pass (24 routes).
 - MCP config regression also confirms `MCP_OLD_WRITER_FENCED=true` alone keeps
   the default mode `read`; write requires an explicit writer mode plus the
   fence acknowledgement.
@@ -53,20 +59,22 @@ lại để tránh đọc nhầm checkpoint cũ.
   auth, mode or traffic outcome. This is external-client evidence to retain,
   not proof that old-writer traffic has drained.
 - Local Docker/buildkit artifact checks are not authoritative for the deployed
-  image; Jenkins remains the image build/publish evidence. No local server,
-  database or persistence side effect was run during this audit.
-- GitOps chart release gate is green from remote chart `origin/master`
-  `45b578a`: `helm lint` and `helm template` pass; rendered backend/frontend
-  use immutable image tag `7a243ca86684`, with
+  image; Jenkins remains the image build/publish evidence. No local server or
+  local database side effect was run; UAT DB changes are recorded separately
+  below.
+- GitOps chart release gate was green at writer capability commit `45b578a`;
+  current remote chart `origin/master` is `2bf577e` and Argo is using immutable
+  image tag `a39ef952d6fa`, with
   `MCP_WRITER_MODE=write` and `MCP_OLD_WRITER_FENCED=true` after
   `DECISION-MCP-WRITE-01`. The local chart checkout remains stale and is not
-  the Argo source of truth.
+  the Argo source of truth; the remote image drift was observed, not initiated
+  by this checkpoint.
 - Argo read-only status is `Synced/Healthy` at revision
-  `45b578a2ed03c28fd98992894a9669fe766d9362`; both deployments report one
-  available replica. Backend digest is
-  `sha256:42707b8aef2ed20925e2f12e630ac7ad02d0d30faca61ea7a8c34a3850004f83`
+  `2bf577e7ab554ae2e3971dec9d049ef7f16c3d79`; both deployments report one
+  available replica. Current backend digest is
+  `sha256:abdd03d98a1238d3eb2bef1e1057403ea1bb26a3a6747ff153fda8dc99c3c0eb`
   and frontend digest is
-  `sha256:81ffe269147b03387d9c8ad9311cef2764603702428538dbef03151079373cff`.
+  `sha256:f38e9463598cb8cbe62aa442fad1a71fdf90cab9c66b7811588b3fa9e24a493d`.
   This supplies deployed writer-capability evidence, but not financial
   receipt/reconciliation evidence or authenticated policy-membership proof.
 - Stale-reference audit ngoài historical ledger không còn
@@ -81,7 +89,8 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Current pod direct read-only probe through a temporary port-forward returned
   `/health=200`, `/ready=200`, `/docs/json=200`, and unauthenticated `/mcp=401`.
   OpenAPI hiện báo `writerMode=write`, mutation inventory preview/confirm và
-  `auditStatus=PENDING`; không gọi mutation tool.
+  `auditStatus=PENDING`; sau đó UAT smoke account preview/confirm/replay đều
+  `200` và ghi nhận một completed receipt + một audit.
 - Current backend pod started at `2026-08-17T17:11:39Z`, has restart `0`. A
   bounded `168h` pod-log query returned `556` lines, `2` GET `/mcp` entries
   (one external-host request and one local port-forward probe), no mutation or
@@ -103,6 +112,27 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Extended read-only query `--since=168h` trên controller hiện tại chỉ còn `10`
   dòng retained, `0` card-credit host và `0` `/mcp`; retention quá ngắn để
   nâng thành evidence seven-day drain, nên GAP vẫn `PARTIAL`.
+
+### UAT database checkpoint
+
+- Exact target đã xác minh: Kubernetes context `k8s-admin-public`, namespace
+  `card-credit`, current Ready backend pod; không patch/restart/scale workload.
+- Backup chạy trước mọi DB write: 4 workspace-scoped JSON files, `218451` bytes,
+  content hash `1788fbaeac2e8d78244fe560f7acbc84bba98ef751e91115773e49358edb18a`,
+  lưu ngoài repository tại `/home/longhn0710/workspace/card-credit-backups/`
+  với permission `700`.
+- Reconciliation dry-run đọc 4 workspace: workspace có dữ liệu chính có
+  `5` cards, `11` statements, `7` paid statements, `45` financial transactions,
+  `7/7` paid-statement payment sync và `missingPayments=0`; không có candidate
+  hoặc quarantine case, nên không ghi case và không mark-paid.
+- `ensure-command-guard-indexes` và `ensure-data-integrity-indexes` đã chạy với
+  apply guard sau preflight duplicate `0`; required indexes được verify. Đây
+  là additive/idempotent migration, không thay đổi financial rows.
+- Authenticated MCP UAT smoke đã chạy đúng một lần với account `CASH` opening
+  balance `0`: preview/confirm/replay đều `200`, replay trả cùng result hash;
+  DB evidence là `accountCount=1`, `receiptCount=1`, `auditCount=1`, receipt
+  `COMPLETED`. Đây là test persistence cho canonical writer/idempotency, không
+  phải statement payment và không tạo reversal/compensating transaction.
 
 ## 3. Next execution order
 
@@ -150,16 +180,18 @@ compensating transaction.
 2. Read-only verification sau rollout: Argo `Synced/Healthy`, pod Ready/restart
    `0`, health/readiness/docs `200`, unauthenticated `/mcp` `401`, OpenAPI
    writer inventory có preview/confirm và `auditStatus=PENDING`.
-3. Không gọi financial mutation smoke, không chạy mixed writers và không xóa
-   legacy receipt reads khi chưa có production receipt/reconciliation evidence.
+3. UAT reconciliation/index checkpoint và canonical writer smoke đã hoàn tất;
+   không chạy mixed writers và không xóa legacy receipt reads khi chưa có
+   external drain evidence.
 
 ### Slice D — financial boundary
 
 1. Giữ payment preview/CAS/idempotency/audit contracts và regression tests.
 2. Áp dụng `DECISION-PAY-REV-01`: `PAID` lock và mọi reversal/compensating
    transaction fail-closed; không tự tạo financial side effect.
-3. Không sửa DB/migration/index production và không xóa legacy receipt trước
-   decision/migration evidence.
+3. UAT additive index migration đã được ủy quyền, backup trước và verify sau;
+   không sửa financial rows, không mark-paid/reversal, không xóa legacy receipt
+   trước authenticated receipt/audit evidence.
 
 ### Slice E — final gate
 
