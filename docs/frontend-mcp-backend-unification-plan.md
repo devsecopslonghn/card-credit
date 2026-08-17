@@ -41,6 +41,10 @@ lại để tránh đọc nhầm checkpoint cũ.
   typecheck/lint/integration `6/6`/build pass; shared `29/29`; backend
   `160/160` with typecheck/lint/build pass, including the read-only legacy
   writer fence and MCP session-version revoke regressions.
+- Local container artifact build was attempted read-only: Docker CLI exists but
+  the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
+  no `buildctl` is installed. No permission bypass was used; Jenkins remains
+  the authoritative image build/publish evidence.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
