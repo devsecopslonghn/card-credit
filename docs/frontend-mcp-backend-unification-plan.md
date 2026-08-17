@@ -339,6 +339,7 @@ implemented yet.
 - Residual: live performance profile chưa có runtime evidence; các internal
   projections không nằm trong public page contract vẫn phải giữ bounded/read
   policy riêng.
+- Commit/push: `fada443` đã push lên `origin/master`.
 
 ### Completed checkpoint: Paginate statement projections with stable cursors
 
