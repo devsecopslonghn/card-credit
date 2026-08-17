@@ -40,6 +40,22 @@ implemented yet.
 - Safety: chỉ đọc deployment/chart metadata; không sync, restart, scale, patch,
   exec mutation, database change hoặc financial mutation.
 
+### Current runtime read-only refresh: image dffcd9ba5f16
+
+- Context/namespace verified as `k8s-admin-public` / `card-credit`; backend and
+  frontend deployments are `1/1` Ready and pods report restart count `0`.
+- Both live images are
+  `nexus.apps.drgdevlab.com/card-credit/{backend,frontend}:dffcd9ba5f16`.
+  This image includes the report-filter chain through `dffcd9b`, but does not
+  prove the newer cleanup commit `7b6fb64` is live.
+- Deployment metadata remains `MCP_WRITER_MODE=write` and
+  `MCP_OLD_WRITER_FENCED=true`. Read-only port-forward checks returned
+  `/health` `200 {"status":"ok"}`, `/ready` `200 {"status":"ready"}` and
+  `/docs/json` `x-mcp.writerMode=write`, 17 tools and `auditStatus=PENDING`.
+- No MCP tool invocation, preview/confirm, database operation, restart, scale,
+  patch or rollout command was executed. Runtime evidence therefore does not
+  claim financial receipt/audit or latest-source acceptance.
+
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
 - Scope: xóa các file frontend không còn production consumer:
