@@ -215,7 +215,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 
 | Priority | GAP ID | Hiện trạng | Điều kiện đóng |
 |---|---|---|---|
-| P0 | `GAP-CI-01` | Đã sửa contract dependency; Jenkins app config nay validate `shared` → `frontend` → `backend` | Jenkins runtime phải xác nhận đúng checkout SHA/SCM/branch và pass source stages |
+| P0 | `GAP-CI-01` | Đã đóng: Jenkins build `309` checkout đúng SCM/branch/SHA `3145c0c`, chạy `npm test` đúng một lần cho `shared`/`frontend`/`backend`, pass lần lượt 25/45/97 và publish immutable images | Giữ regression gate; không suy diễn rollout Kubernetes từ Jenkins success |
 | P0 | `GAP-SEC-01`, `GAP-SEC-02` | Đã implement session version/revoke guard và register workspace policy; cần rollout candidate để xác nhận runtime | Backend/frontend tests, authoritative version bump và policy membership evidence |
 | P0 | `GAP-MCP-01`, `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | Preview/receipt/payment parity đã có; old writer, HITL/resource binding và reversal còn mở | Candidate image, fence/drain, resource/HITL policy và reversal decision |
 | P0 | `GAP-OPS-01` | Đã xử lý: startup không còn silent catalog write | Giữ CLI dry-run/apply guard và regression test |
