@@ -390,7 +390,8 @@ implemented yet.
   MCP writer.
 - Regression/validation evidence: shared `npm run validate` pass `28/28`;
   backend `npm run validate` pass typecheck, lint, build và `151/151` critical
-  tests; frontend typecheck/lint, unit `82/82`, integration `6/6` và build pass.
+  tests; financial report service/routes tests pass `15/15`; frontend
+  typecheck/lint, unit `82/82`, integration `6/6` và build pass.
 - Residual: live performance profile và completeness evidence trên workspace
   thật còn thiếu; các internal projections không có public page contract vẫn
   phải giữ bounded/read policy riêng.
