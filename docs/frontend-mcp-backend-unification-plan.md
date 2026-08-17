@@ -185,6 +185,9 @@ implemented yet.
   all 24 routes generated. Four remote card-image downloads failed during
   `prepare:card-images` and correctly fell back to placeholders; this is a
   non-blocking asset warning, not a build failure.
+- Local image smoke: starting the frontend image with Buildah returned `/`
+  `200` and `content-type: text/html; charset=utf-8`; the Next server reached
+  `Ready` before the smoke process was stopped.
 - Boundary: images remain local only; no registry push, chart tag change,
   Kubernetes rollout or database operation was performed. Live pods therefore
   remain on `5267c79cf437`.
