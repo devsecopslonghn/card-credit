@@ -71,32 +71,9 @@ lại để tránh đọc nhầm checkpoint cũ.
   `10` tools at `09:33:59Z` and `15:54:49Z`; the log does not expose endpoint,
   auth, mode or traffic outcome. This is external-client evidence to retain,
   not proof that old-writer traffic has drained.
-- Local container artifact build was attempted read-only: Docker CLI exists but
-  the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
-  no `buildctl` is installed. No permission bypass was used; Jenkins remains
-  the authoritative image build/publish evidence.
-- Buildah then produced local source-HEAD artifacts without registry push:
-  backend `localhost/card-credit-backend:3d194ea` (`4777524dca97`, non-root
-  user `backend`, CMD `npm run start`) and frontend
-  `localhost/card-credit-frontend:3d194ea` (`28ed18144b6d`, non-root user
-  `nextjs`, CMD `node server.js`). Frontend optional card-image fetch failures
-  used the repository placeholder fallback; Next build still generated all
-  `24` routes successfully.
-- A Docker-format backend build also passed as
-  `localhost/card-credit-backend:3d194ea-docker` (`607374fba31e`), retaining
-  `user=backend`, `CMD npm run start` and the declared `/health` HEALTHCHECK.
-- Current backend source packaging was rebuilt locally from the code at
-  `9f608e0`: OCI artifact `localhost/card-credit-backend:9f608e0`
-  (`b0c3180d9599`) and Docker-format artifact
-  `localhost/card-credit-backend:9f608e0-docker` (`a1fd6f5d5636`) both passed.
-  They retain non-root `user=backend`, `CMD npm run start` and the Docker
-  `/health` HEALTHCHECK. A compiled-config smoke returned `read`,
-  `oldWriterFenced=true`, `0.0.0.0:3001`; no server or persistence was run.
-- Local container smoke from those artifacts passed: frontend `/` returned
-  HTTP `200` with HTML content; backend compiled config loaded with
-  `writerMode=read`, `oldWriterFenced=false`, `0.0.0.0:3001`. Backend server
-  was not started because no local MongoDB is available; no persistence side
-  effect was attempted.
+- Local Docker/buildkit artifact checks are not authoritative for the deployed
+  image; Jenkins remains the image build/publish evidence. No local server,
+  database or persistence side effect was run during this audit.
 - GitOps chart release gate is green from remote chart `origin/master`
   `38a88b5`: `helm lint` and `helm template` pass; rendered backend/frontend
   use immutable image tag `e003fb24c94f`, with
@@ -123,9 +100,11 @@ lại để tránh đọc nhầm checkpoint cũ.
   `/health=200`, `/ready=200`, `/docs/json=200`, and unauthenticated `/mcp=401`.
   The earlier authenticated profile (`11/11` query tools) remains historical
   evidence and was not re-used as a fresh authenticated current-pod claim.
-- Current backend pod started at `2026-08-17T16:14:17Z`, has restart `0`, and
-  emitted `0` log lines in the `30m` observation window. A quiet log window is
-  not evidence that external clients are fenced.
+- Current backend pod started at `2026-08-17T16:14:17Z`, has restart `0`. A
+  bounded `168h` pod-log query returned `556` lines, `2` GET `/mcp` entries
+  (one external-host request and one local port-forward probe), no mutation or
+  receipt/audit/writer terms, and no HTTP `5xx`. This is a bounded absence
+  observation, not evidence that external old writers are fenced or drained.
 - Không in secret, token, raw payload, raw financial ID/amount.
 - Read-only topology audit thấy đúng một backend pod và một frontend pod,
   mỗi pod `Ready=true`, restart `0`; Ingress chỉ route `/mcp` và `/docs` vào
@@ -142,9 +121,6 @@ lại để tránh đọc nhầm checkpoint cũ.
 - Extended read-only query `--since=168h` trên controller hiện tại chỉ còn `10`
   dòng retained, `0` card-credit host và `0` `/mcp`; retention quá ngắn để
   nâng thành evidence seven-day drain, nên GAP vẫn `PARTIAL`.
-- Latest read-only backend log check returned `0` lines in the current `30m`
-  window; this confirms only that no application logs were emitted in that
-  window, not that external old writers are drained.
 
 ## 3. Next execution order
 
