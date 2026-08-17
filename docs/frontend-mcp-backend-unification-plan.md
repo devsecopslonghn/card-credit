@@ -341,6 +341,18 @@ implemented yet.
   policy riêng.
 - Commit/push: `fada443` đã push lên `origin/master`.
 
+### Completed checkpoint: Remove superseded finance domain plan
+
+- Scope: xóa `docs/finance-domain-plan.md` sau khi xác minh không có incoming
+  reference; các domain decisions còn dùng được đã có trong `docs/SRS.md`,
+  `docs/finance-source-of-truth.md` và execution ledger này.
+- Independent review: GO cho documentation-only cleanup; không xóa runbook
+  `docs/mcp-preview-rollout.md` vì nó vẫn là operational fence/backup/index
+  gate chưa có tài liệu thay thế.
+- Regression/evidence: repository stale-reference search không còn reference
+  tới file đã xóa; không thay đổi source, persistence, database, Kubernetes hay
+  runtime behavior.
+
 ### Completed checkpoint: Paginate statement projections with stable cursors
 
 - Requirement/GAP: `GAP-PERF-01` cần bounded public reads cho các projection
