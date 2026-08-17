@@ -97,17 +97,13 @@ lại để tránh đọc nhầm checkpoint cũ.
   `writerMode=read`, `oldWriterFenced=false`, `0.0.0.0:3001`. Backend server
   was not started because no local MongoDB is available; no persistence side
   effect was attempted.
-- Chart release gate is green in `/home/longhn0710/workspace/k8s-namepsace-chart/card-credit`:
-  `helm lint .` pass and `helm template` pass with hypothetical immutable tag
-  `a989ae7`;
-  rendered backend keeps `MCP_WRITER_MODE=read` and
-  `MCP_OLD_WRITER_FENCED=true`. This is desired-state evidence only; it is not
-  proof that the live pod has that image.
-- Current read-only divergence: local chart `values.yaml` still declares
-  `5267c79cf437`, while live backend/frontend pods run immutable image tag
-  `e003fb24c94f`; source `f7855f0` is a docs/cleanup descendant of the
-  deployed application code. No chart value or cluster resource was changed
-  by this task.
+- GitOps chart release gate is green from remote chart `origin/master`
+  `38a88b5`: `helm lint` and `helm template` pass; rendered backend/frontend
+  use immutable image tag `e003fb24c94f`, with
+  `MCP_WRITER_MODE=read` and `MCP_OLD_WRITER_FENCED=true`. The local chart
+  checkout remains stale at `9acfebc`/tag `5267c79cf437`, but it is not the
+  Argo source of truth; no chart branch or cluster resource was changed by
+  this task.
 - Argo read-only status is `Synced/Healthy` at revision
   `38a88b502226303f7503657d373aeebe024c4fe1`; both deployments report one
   available replica. The backend image digest is
