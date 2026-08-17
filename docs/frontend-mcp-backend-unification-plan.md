@@ -47,6 +47,13 @@ lại để tránh đọc nhầm checkpoint cũ.
   the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
   no `buildctl` is installed. No permission bypass was used; Jenkins remains
   the authoritative image build/publish evidence.
+- Buildah then produced local source-HEAD artifacts without registry push:
+  backend `localhost/card-credit-backend:3d194ea` (`4777524dca97`, non-root
+  user `backend`, CMD `npm run start`) and frontend
+  `localhost/card-credit-frontend:3d194ea` (`28ed18144b6d`, non-root user
+  `nextjs`, CMD `node server.js`). Frontend optional card-image fetch failures
+  used the repository placeholder fallback; Next build still generated all
+  `24` routes successfully.
 - Chart release gate is green in `/home/longhn0710/workspace/k8s-namepsace-chart/card-credit`:
   `helm lint .` pass and `helm template` pass with immutable tag `8ceb3fe`;
   rendered backend keeps `MCP_WRITER_MODE=read` and
