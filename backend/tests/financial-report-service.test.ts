@@ -6,6 +6,8 @@ import { FinancialTransactionModel } from "../src/models/financial-transaction.j
 import { AccountModel } from "../src/models/account.js";
 import { MonthlyCardCashbackModel } from "../src/models/monthly-card-cashback.js";
 import { CardFeePaymentModel } from "../src/models/card-fee-payment.js";
+import { CardStatementModel } from "../src/models/card-statement.js";
+import { CreditCardModel } from "../src/models/credit-card.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const context: ServiceContext = { workspaceId: "workspace-a", userId: "user-a", role: "user", channel: "browser", correlationId: "report-test" };
@@ -60,6 +62,30 @@ test("summary reads benefit sources once, keeps ledger groups stable and avoids 
   assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", transactionDate: { $gte: "2026-07-01", $lte: "2026-07-31" } });
   assert.deepEqual(cashbackFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", period: { $gte: "2026-07", $lte: "2026-07" } });
   assert.deepEqual(feeFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", paymentDate: { $gte: "2026-07-01", $lte: "2026-07-31" }, category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] } });
+});
+
+test("summary owner filter scopes ledger, cashback and fee sources by card references", async (t) => {
+  const cardIds = ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"];
+  const cardFind = t.mock.method(CreditCardModel, "find", () => chain(cardIds.map((_id) => ({ _id }))) as never);
+  const accountFind = t.mock.method(AccountModel, "find", (query: Record<string, unknown>) => chain(query.creditCardId ? [{ _id: "account-card" }] : []) as never);
+  const statementFind = t.mock.method(CardStatementModel, "find", () => chain([{ _id: "statement-card" }]) as never);
+  const transactionFind = t.mock.method(FinancialTransactionModel, "find", () => chain([]) as never);
+  const cashbackFind = t.mock.method(MonthlyCardCashbackModel, "find", () => chain([]) as never);
+  const feeFind = t.mock.method(CardFeePaymentModel, "find", () => chain([]) as never);
+
+  await FinancialReportService.summary(context, { from: "2026-08-01", to: "2026-08-31" }, { owner: "Tôi" });
+
+  assert.deepEqual(cardFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", owner: "Tôi" });
+  assert.deepEqual(accountFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", active: { $ne: false }, creditCardId: { $in: cardIds } });
+  assert.deepEqual(statementFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", userCardId: { $in: cardIds } });
+  assert.deepEqual(transactionFind.mock.calls[0]?.arguments[0], {
+    workspaceId: "workspace-a",
+    transactionDate: { $gte: "2026-08-01", $lte: "2026-08-31" },
+    $or: [{ accountId: { $in: ["account-card"] } }, { statementId: { $in: ["statement-card"] } }],
+  });
+  assert.deepEqual(cashbackFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", userCardId: { $in: cardIds }, period: { $gte: "2026-08", $lte: "2026-08" } });
+  assert.deepEqual(feeFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", userCardId: { $in: cardIds }, paymentDate: { $gte: "2026-08-01", $lte: "2026-08-31" }, category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] } });
+  assert.equal(transactionFind.mock.callCount(), 1);
 });
 
 test("credit statement report delegates date range and canonicalizes persisted impact", async (t) => {

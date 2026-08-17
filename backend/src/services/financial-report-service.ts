@@ -43,19 +43,25 @@ export class FinancialReportService {
     return StatementQueryService.upcoming(ctx, limit);
   }
 
-  static async summary(ctx: ServiceContext, range: Range, filters: { cardId?: string } = {}) {
+  static async summary(ctx: ServiceContext, range: Range, filters: { cardId?: string; owner?: string } = {}) {
     range = reportDateRangeSchema.parse(range) as Range;
     let transactionScope: Record<string, unknown> = { workspaceId: ctx.workspaceId, transactionDate: { $gte: range.from, $lte: range.to } };
     const accountScope: Record<string, unknown> = { workspaceId: ctx.workspaceId, active: { $ne: false } };
     const cardScope: Record<string, unknown> = { workspaceId: ctx.workspaceId };
     let cardAccountIds: unknown[] = [];
-    if (filters.cardId) {
-      if (!mongoose.isValidObjectId(filters.cardId)) throw new ApiError(400, "INVALID_REPORT_FILTER", "Bộ lọc thẻ không hợp lệ.");
-      const card = await CreditCardModel.findOne({ ...cardScope, _id: filters.cardId }).select({ _id: 1 }).lean();
-      if (!card) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
+    let reportCardIds: unknown[] | null = null;
+    if (filters.cardId || filters.owner) {
+      if (filters.cardId && !mongoose.isValidObjectId(filters.cardId)) throw new ApiError(400, "INVALID_REPORT_FILTER", "Bộ lọc thẻ không hợp lệ.");
+      const cards = await CreditCardModel.find({
+        ...cardScope,
+        ...(filters.cardId ? { _id: filters.cardId } : {}),
+        ...(filters.owner ? { owner: filters.owner.trim() } : {}),
+      }).select({ _id: 1 }).lean();
+      if (filters.cardId && !cards.length) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
+      reportCardIds = cards.map((card) => card._id);
       const [cardAccounts, cardStatements] = await Promise.all([
-        AccountModel.find({ ...accountScope, creditCardId: filters.cardId }).select({ _id: 1 }).lean(),
-        CardStatementModel.find({ ...cardScope, userCardId: filters.cardId }).select({ _id: 1 }).lean(),
+        AccountModel.find({ ...accountScope, creditCardId: { $in: reportCardIds } }).select({ _id: 1 }).lean(),
+        CardStatementModel.find({ ...cardScope, userCardId: { $in: reportCardIds } }).select({ _id: 1 }).lean(),
       ]);
       cardAccountIds = cardAccounts.map((account) => account._id);
       transactionScope = { ...transactionScope, $or: [
@@ -66,15 +72,15 @@ export class FinancialReportService {
     const [items, accounts, monthlyCashbacks, feePayments] = await Promise.all([
       FinancialTransactionModel.find(transactionScope).lean(),
       AccountModel.find(accountScope).lean(),
-      MonthlyCardCashbackModel.find({ workspaceId: ctx.workspaceId, ...(filters.cardId ? { userCardId: filters.cardId } : {}), period: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } }).lean(),
+      MonthlyCardCashbackModel.find({ workspaceId: ctx.workspaceId, ...(reportCardIds ? { userCardId: { $in: reportCardIds } } : {}), period: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } }).lean(),
       CardFeePaymentModel.find({
         workspaceId: ctx.workspaceId,
-        ...(filters.cardId ? { userCardId: filters.cardId } : {}),
+        ...(reportCardIds ? { userCardId: { $in: reportCardIds } } : {}),
         paymentDate: { $gte: range.from, $lte: range.to },
         category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] },
       }).lean(),
     ]);
-    const reportAccounts = filters.cardId
+    const reportAccounts = reportCardIds
       ? accounts.filter((account) => cardAccountIds.some((id) => String(id) === String(account._id)) || items.some((item) => String(item.accountId) === String(account._id)))
       : accounts;
     const byCategory = new Map<string, ReturnType<typeof empty>>();

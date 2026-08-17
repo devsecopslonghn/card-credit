@@ -37,8 +37,13 @@ test("report date range keeps REST defaults in the shared contract", () => {
   assert.deepEqual(resolveReportDateRange({ to: "2026-08-10" }, today), { from: "2026-08-01", to: "2026-08-10" });
 });
 
-test("report query accepts only the canonical optional card filter", () => {
-  assert.deepEqual(reportQuerySchema.parse({ from: "2026-08-01", to: "2026-08-31", cardId: "card-1" }), { from: "2026-08-01", to: "2026-08-31", cardId: "card-1" });
+test("report query accepts canonical card/owner and calendar filters", () => {
+  assert.deepEqual(reportQuerySchema.parse({ from: "2026-08-01", to: "2026-08-31", cardId: "card-1", owner: " Alice " }), { from: "2026-08-01", to: "2026-08-31", cardId: "card-1", owner: "Alice" });
+  assert.deepEqual(reportQuerySchema.parse({ year: "2026", month: "8" }), { year: "2026", month: "8" });
+  assert.deepEqual(resolveReportDateRange({ year: "2026" }), { from: "2026-01-01", to: "2026-12-31" });
+  assert.deepEqual(resolveReportDateRange({ year: "2026", month: "2" }), { from: "2026-02-01", to: "2026-02-28" });
+  assert.throws(() => reportQuerySchema.parse({ month: "08" }));
+  assert.throws(() => reportQuerySchema.parse({ year: "2026", from: "2026-01-01" }));
   assert.throws(() => reportQuerySchema.parse({ from: "2026-08-01", to: "2026-08-31", ownerId: "owner-1" }));
 });
 

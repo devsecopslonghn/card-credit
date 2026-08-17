@@ -215,10 +215,12 @@ client cũ. Công thức extraction giữ nguyên Financial Domain hiện tại 
 follow `reimbursementForTransactionId` sang expense CREDIT; semantic repair này
 phải là slice riêng.
 
-Owner/year/month filters và orphan reconciliation chưa nằm trong runtime
-contract hiện tại; `cardId` đã được thêm vào shared REST/MCP/frontend report
-contract theo statement/account reference. Fee/cashback report parity vẫn cần
-slice riêng trước khi thêm query parameters. `creditStatements` trả compatibility field names nhưng
+Report summary nhận các query canonical: `cardId` và `owner` scope theo card
+reference trong workspace; `year` chọn cả năm; `year` + `month` chọn một tháng
+calendar và không được trộn với `from/to`. `month` bắt buộc có `year`; owner
+được trim và match theo owner snapshot của card. REST, MCP và frontend dùng
+cùng schema/range resolver. Orphan reconciliation và completeness report vẫn
+chưa nằm trong runtime contract. `creditStatements` trả compatibility field names nhưng
 amount semantics lấy persisted `creditDebt`/impact từ canonical statement DTO.
 
 ## 8. Calendar, profile and admin endpoints

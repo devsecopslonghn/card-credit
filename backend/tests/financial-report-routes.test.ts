@@ -80,8 +80,8 @@ test("REST and MCP report adapters pass one canonical explicit date range", asyn
 });
 
 test("REST and MCP report adapters pass the canonical optional card filter", async (t) => {
-  const observed: Array<{ range: { from: string; to: string }; filters?: { cardId: string } }> = [];
-  t.mock.method(FinancialReportService, "summary", async (_context: ServiceContext, range: { from: string; to: string }, filters?: { cardId: string }) => {
+  const observed: Array<{ range: { from: string; to: string }; filters?: { cardId?: string; owner?: string } }> = [];
+  t.mock.method(FinancialReportService, "summary", async (_context: ServiceContext, range: { from: string; to: string }, filters?: { cardId?: string; owner?: string }) => {
     observed.push({ range, ...(filters ? { filters } : {}) });
     return { range } as never;
   });
@@ -93,6 +93,24 @@ test("REST and MCP report adapters pass the canonical optional card filter", asy
   assert.equal(rest.statusCode, 200);
   assert.deepEqual(mcp, { range });
   assert.deepEqual(observed, [{ range, filters: { cardId: "card-1" } }, { range, filters: { cardId: "card-1" } }]);
+  await app.close();
+});
+
+test("REST and MCP report adapters resolve canonical owner and year/month filters", async (t) => {
+  const observed: Array<{ range: { from: string; to: string }; filters?: { cardId?: string; owner?: string } }> = [];
+  t.mock.method(FinancialReportService, "summary", async (_context: ServiceContext, range: { from: string; to: string }, filters?: { cardId?: string; owner?: string }) => {
+    observed.push({ range, ...(filters ? { filters } : {}) });
+    return { range } as never;
+  });
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerFinancialReportRoutes(app, secret, users);
+  const range = { from: "2026-08-01", to: "2026-08-31" };
+  const rest = await app.inject({ url: "/api/financial-reports/summary?year=2026&month=08&owner=T%C3%B4i", headers: { cookie } });
+  const mcp = await callMcpSummary({ year: "2026", month: "08", owner: "Tôi" });
+  assert.equal(rest.statusCode, 200);
+  assert.deepEqual(rest.json().data.range, range);
+  assert.deepEqual(mcp, { range });
+  assert.deepEqual(observed, [{ range, filters: { owner: "Tôi" } }, { range, filters: { owner: "Tôi" } }]);
   await app.close();
 });
 

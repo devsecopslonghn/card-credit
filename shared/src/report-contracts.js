@@ -13,14 +13,31 @@ export const reportDateRangeSchema = z.strictObject({
   if (range.from > range.to) context.addIssue({ code: "custom", path: ["to"], message: "The report range must be ordered from earliest to latest date" });
 });
 
-export const reportQuerySchema = z.strictObject({
+export const reportQueryInputSchema = z.strictObject({
   from: reportDateSchema.optional(),
   to: reportDateSchema.optional(),
   cardId: z.string().min(1).optional(),
+  owner: z.string().trim().min(1).max(120).optional(),
+  year: z.string().regex(/^\d{4}$/).optional(),
+  month: z.string().regex(/^(?:0?[1-9]|1[0-2])$/).optional(),
+});
+
+export const reportQuerySchema = reportQueryInputSchema.superRefine((query, context) => {
+  if (query.month && !query.year) context.addIssue({ code: "custom", path: ["year"], message: "A report month requires a report year" });
+  if ((query.year || query.month) && (query.from || query.to)) context.addIssue({ code: "custom", path: ["from"], message: "Use either calendar year/month or an explicit date range" });
 });
 
 /** Resolve the REST-compatible current-month-to-today default without transport concerns. */
 export const resolveReportDateRange = (input = {}, today = new Date()) => {
+  if (input.year) {
+    const year = input.year;
+    const month = input.month ? String(input.month).padStart(2, "0") : null;
+    const from = `${year}-${month ?? "01"}-01`;
+    const to = month
+      ? `${year}-${month}-${String(new Date(Number(year), Number(month), 0).getDate()).padStart(2, "0")}`
+      : `${year}-12-31`;
+    return reportDateRangeSchema.parse({ from, to });
+  }
   const todayValue = today instanceof Date && !Number.isNaN(today.valueOf())
     ? today.toISOString().slice(0, 10)
     : reportDateSchema.parse(today);

@@ -119,6 +119,24 @@ implemented yet.
   full filter completeness and orphan reconciliation.
 - Rollback: revert this commit; no runtime data mutation was executed.
 
+### Completed checkpoint: Add canonical report owner and calendar filters
+
+- Requirement/GAP: `REP-02`, `UI-02`, `MCP-01` cần cùng semantics cho owner và
+  calendar period trên REST, MCP và Reports UI.
+- Scope: shared report query nhận `owner`, `year`, `month`; `year`/`month`
+  resolve thành full-year hoặc single-month range và fail closed khi trộn với
+  `from/to`. Backend tìm card theo trusted workspace + owner, rồi scope account,
+  statement, transaction, cashback và fee sources bằng card references. MCP
+  manifest và frontend dùng cùng field contract; UI thêm owner/year/month
+  controls.
+- Tests: shared contract `26/26`; backend report adapter/service/schema tests
+  `13/13`, gồm REST/MCP parity, owner card-reference scope và leap-safe month
+  range; frontend report regression pass. Full package validation phải chạy lại
+  trước khi claim release.
+- Safety/limitations: read-only, không sửa ledger/database/index/cluster; orphan
+  reconciliation và production/runtime acceptance vẫn chưa được claim.
+- Commit/push: sẽ ghi commit chứa slice này sau full validation.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

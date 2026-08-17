@@ -190,7 +190,9 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
 - **DECISION-DATA-04 — Report source**: financial report/cash-flow đọc từ
   `FinancialTransaction` và statement projection; không rebuild từ card
   `monthlyData`. Card filter là filter theo statement/account reference; orphan
-  record được đưa vào reconciliation, không âm thầm cộng vào card khác.
+  record được đưa vào reconciliation, không âm thầm cộng vào card khác. Report
+  `owner` filter match card owner snapshot trong workspace; `year` và `year`+
+  `month` resolve thành calendar range, không trộn với `from/to`.
 - `/health` là liveness; `/ready` chỉ 200 khi Mongo connected. Logger redact
   authorization, cookie, password, token và URI. SIGTERM dừng job/server/DB sạch.
 - Production image chạy non-root; Jenkins dùng `Jenkinsfile` và `ci-platform`
@@ -242,8 +244,8 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | P0 | `GAP-OPS-01` | **CLOSED** — startup không còn silent catalog write; CLI/operator guard và regression test đã có | Giữ dry-run/apply guard |
 | P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | **IN_PROGRESS** — policy card soft-retire/restricted-merge, account retention và calendar partial-unique index đã chốt; code/index rollout và duplicate preflight còn cần chạy | Additive index dry-run/apply, lifecycle tests và reconciliation evidence |
 | P1 | `GAP-REP-01` | **PARTIAL** — benefits/fees report read parity và no-double-count formulas đã có test; legacy category và mutation source-of-truth còn mở | Chốt legacy source/mutation semantics và reconciliation evidence |
-| P1 | `GAP-REP-02` | **PARTIAL** — authoritative source là financial ledger + statement projection; `cardId` filter đã có REST/MCP/UI parity theo statement/account reference; owner/year/month semantics, completeness và orphan reconciliation còn mở | Chốt các filter còn lại, completeness tests và reconciliation evidence |
-| P1 | `GAP-UI-02`, `GAP-UI-03` | **PARTIAL** — Reports đã có canonical date-range filters; Budgets và recurring đã có canonical write/lifecycle UI, shared contracts và regression evidence; recurring transaction generation và UI acceptance runtime còn thiếu | Chốt generation policy, thêm preview/idempotency nếu triển khai và có owner/runtime UI acceptance |
+| P1 | `GAP-REP-02` | **PARTIAL** — authoritative source là financial ledger + statement projection; `cardId` và `owner/year/month` filters đã có REST/MCP/UI parity theo statement/account reference; completeness và orphan reconciliation còn mở | Thêm completeness tests và read-only orphan reconciliation evidence |
+| P1 | `GAP-UI-02`, `GAP-UI-03` | **PARTIAL** — Reports đã có canonical date-range/card/owner/calendar filters; Budgets và recurring đã có canonical write/lifecycle UI, shared contracts và regression evidence; recurring transaction generation và UI acceptance runtime còn thiếu | Chốt generation policy, thêm preview/idempotency nếu triển khai và có owner/runtime UI acceptance |
 | P1 | `GAP-AUTH-01` | **PARTIAL** — forgot-password đã nối MailService với generic response và test delivery; runtime SMTP config/owner evidence còn thiếu | Contract, runtime mail config và owner evidence |
 | P2 | `GAP-API-01`, `GAP-WEB-01` | Đã đóng: REST inventory drift gate và authorization metadata có runtime regression evidence | Giữ parity tests trong release gate |
 | P2 | `GAP-DOC-01` | Đã đóng cho production surface: không còn reference tới `/api/reports/summary`, `reportsCore` hoặc `docs/refactor*` ngoài historical execution ledger; canonical report docs/smoke path đã cập nhật | Giữ stale-reference check khi compatibility window thay đổi |

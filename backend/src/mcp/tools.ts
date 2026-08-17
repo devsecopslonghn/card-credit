@@ -12,7 +12,7 @@ import { AccountService } from "../services/account-service.js";
 import { FeeQueryService } from "../services/fee-query-service.js";
 import { MonthlyCashbackQueryService } from "../services/monthly-cashback-query-service.js";
 import { CashFlowQueryService } from "../services/cash-flow-query-service.js";
-import { financialTransactionListQuerySchema, reportDateRangeSchema, type CreateRealMoneyAccountInput, type FeeCategory, type FinancialTransactionListQuery } from "@card-credit/contracts";
+import { financialTransactionListQuerySchema, reportQuerySchema, resolveReportDateRange, type CreateRealMoneyAccountInput, type FeeCategory, type FinancialTransactionListQuery } from "@card-credit/contracts";
 import { statementPaymentInputSchema, statementPaymentPreviewSchema, type StatementPaymentInput } from "@card-credit/contracts";
 import { randomUUID } from "node:crypto";
 import { MCP_OPERATION, mcpToolMetadata, type McpWriterMode } from "./manifest.js";
@@ -22,6 +22,7 @@ import { paymentPreviewPayload } from "../payment-contract.js";
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
 
 type ContextProvider = ServiceContext | (() => Promise<ServiceContext>);
+type ReportQuery = { from?: string; to?: string; cardId?: string; owner?: string; year?: string; month?: string };
 
 const binding = (context: ServiceContext): PreviewBinding => ({ workspaceId: context.workspaceId, userId: context.userId, channel: context.channel });
 
@@ -43,9 +44,14 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
   server.registerTool("list_fee_center", mcpToolMetadata("list_fee_center"), async ({ cardId, category }: { cardId?: string; category?: FeeCategory }) => json(await FeeQueryService.listCenter(await invocationContext(), { ...(cardId ? { cardId } : {}), ...(category ? { category } : {}) })));
   server.registerTool("list_monthly_cashbacks", mcpToolMetadata("list_monthly_cashbacks"), async ({ cardId, year }: { cardId: string; year: string }) => json(await MonthlyCashbackQueryService.list(await invocationContext(), cardId, year)));
  server.registerTool("list_upcoming_statements", mcpToolMetadata("list_upcoming_statements"), async ({ limit }: { limit: number }) => json(await StatementQueryService.upcoming(await invocationContext(), limit)));
-  server.registerTool("get_personal_finance_summary", mcpToolMetadata("get_personal_finance_summary"), async ({ from, to, cardId }: { from: string; to: string; cardId?: string }) => {
-    const range = reportDateRangeSchema.parse({ from, to }) as { from: string; to: string };
-    return json(await FinancialReportService.summary(await invocationContext(), range, cardId ? { cardId } : undefined));
+  server.registerTool("get_personal_finance_summary", mcpToolMetadata("get_personal_finance_summary"), async (input: { from?: string; to?: string; cardId?: string; owner?: string; year?: string; month?: string }) => {
+    const query = reportQuerySchema.parse(input ?? {}) as ReportQuery;
+    const range = resolveReportDateRange(query) as { from: string; to: string };
+    const filters = {
+      ...(query.cardId ? { cardId: query.cardId } : {}),
+      ...(query.owner ? { owner: query.owner } : {}),
+    };
+    return json(await FinancialReportService.summary(await invocationContext(), range, Object.keys(filters).length ? filters : undefined));
   });
   if (writerMode === "write") {
     server.registerTool("preview_import_financial_transaction", mcpToolMetadata("preview_import_financial_transaction"), async (payload: CreateFinancialTransactionBatchInput) => { const context = await invocationContext(); const normalized = await FinancialTransactionService.preview(context, payload); const confirmationPayload = payload; const metadata = await previewService.issue(context, MCP_OPERATION.importFinancialTransactionBatch, confirmationPayload, codec()); return json({ operation: MCP_OPERATION.importFinancialTransactionBatch, payload: confirmationPayload, preview: normalized.items.map((item) => ({ amount: item.amount, serviceFeeRate: item.serviceFeeRate ?? 0, serviceFee: item.amount - Number(item.reimbursementExpected ?? 0), reimbursementExpected: item.reimbursementExpected ?? 0, impact: item.previewImpact })), ...metadata }); });

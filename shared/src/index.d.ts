@@ -344,9 +344,10 @@ export declare const creditStatementReportSchema: z.ZodObject<any>;
 export declare const creditStatementReportListSchema: z.ZodArray<typeof creditStatementReportSchema>;
 export declare const reportDateSchema: z.ZodString;
 export declare const reportDateRangeSchema: z.ZodObject<any>;
+export declare const reportQueryInputSchema: z.ZodObject<any>;
 export declare const reportQuerySchema: z.ZodObject<any>;
 export declare const resolveReportDateRange: (
-  input?: { from?: string; to?: string },
+  input?: { from?: string; to?: string; year?: string; month?: string },
   today?: Date,
 ) => { from: string; to: string };
 export type FinancialReportMetricDto = {
