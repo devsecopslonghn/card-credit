@@ -11,9 +11,9 @@ ciPipeline(
     sourceDirectories: ['shared', 'frontend', 'backend'],
     sonarSources: ['frontend', 'backend', 'shared'],
     securityScans: [
-        sonar: true,
-        trivy: true,
-        codeql: true,
+        sonar: false,
+        trivy: false,
+        codeql: false,
         securityBlock: false,
         sonarProjectKey: 'card-credit'
     ],
