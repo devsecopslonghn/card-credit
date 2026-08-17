@@ -211,6 +211,22 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
   rollback và reconciliation plan trước khi có implementation/persistence
   change. Đây là policy boundary, không phải evidence rằng một reversal đã
   được thực hiện.
+- **DECISION-SEC-01 — Local identity authority**: hệ thống hiện không dùng
+  external IdP. `users.workspaceId`, `role`, `active`, `lockedAt` và
+  `sessionVersion` trong authoritative user store là nguồn policy membership;
+  login phát HMAC `card_credit_session`, còn mọi private request và MCP
+  invocation phải revalidate user record. Một user chỉ thuộc một workspace tại
+  một thời điểm; “tất cả workspace” không biến thành tenant selector từ client.
+- **DECISION-MCP-WRITE-01 — Canonical writer scope**: cho phép canonical MCP
+  writer cho mọi workspace đã được cấu hình, nhưng mỗi MCP identity vẫn bị bind
+  bởi `MCP_USER_ID` + `MCP_WORKSPACE_ID`; không chạy mixed writers và không cho
+  payload chọn workspace. Writer chỉ đăng ký preview/confirm mutation tools,
+  giữ idempotency/audit/CAS guards; reversal và compensating transaction vẫn
+  fail-closed.
+- **DECISION-AUTH-01 — SMTP delivery**: cho phép SMTP delivery test tới
+  recipient được chỉ định và sender đã được owner xác nhận. Connectivity
+  success không thay thế delivery evidence; không ghi raw reset token vào log
+  hoặc response.
 - `/health` là liveness; `/ready` chỉ 200 khi Mongo connected. Logger redact
   authorization, cookie, password, token và URI. SIGTERM dừng job/server/DB sạch.
 - Production image chạy non-root; Jenkins dùng `Jenkinsfile` và `ci-platform`
@@ -257,8 +273,8 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | Priority | GAP ID | Hiện trạng | Điều kiện đóng |
 |---|---|---|---|
 | P0 | `GAP-CI-01` | **CLOSED** — Jenkins `#373` checkout đúng proxy source, shared/frontend/backend pass `25/45/135`, publish immutable images, GitOps handoff `952c0fc`, Argo candidate `Synced/Healthy`, pod Ready/restart 0, health/ready và read-only MCP smoke pass | Giữ regression gate trong các release sau |
-| P0 | `GAP-SEC-01`, `GAP-SEC-02` | **PARTIAL** — source guard, authoritative lookup, workspace/session checks, authoritative role refresh giữa MCP invocations, inactive/locked MCP rejection, atomic `$inc sessionVersion`, MCP provider bind/reject theo `sessionVersion` và deployed image `e003fb24c94f` đã có evidence; authoritative policy-membership runtime evidence còn thiếu | Backend/frontend tests và runtime authoritative policy membership |
-| P0 | `GAP-MCP-01` | **PARTIAL** — canonical manifest, preview/confirm/idempotency guard, config regression chứng minh fence flag đơn độc không bật writer, REST/MCP adapter tests, chart desired-state read-only guard và current pod `MCP_WRITER_MODE=read`/`MCP_OLD_WRITER_FENCED=true` đã có evidence; full-cluster inventory chỉ thấy canonical backend/frontend workload, không có application old-writer workload; source audit và regression `legacy-writer-fence.test.ts` xác nhận `McpMutationModel` chỉ còn `findOne` compatibility reads, không có create/update; current direct probe xác nhận health/readiness/docs `200` và unauthenticated `/mcp` `401`, còn authenticated `tools/list` `11` query tools là historical evidence; OpenClaw log ghi nhận external client từng probe `14` rồi `10` tools nhưng không chứng minh mode hoặc drain; vẫn chưa claim external old-writer traffic fence hoặc financial receipt/audit/reconciliation từ traffic/mutation thật | Xác minh external old-writer traffic fence, giữ preview/confirm/idempotency/audit và production receipt/reconciliation evidence; chỉ xóa legacy receipt read sau migration/reconciliation evidence |
+| P0 | `GAP-SEC-01`, `GAP-SEC-02` | **PARTIAL** — source guard, authoritative lookup, workspace/session checks, authoritative role refresh giữa MCP invocations, inactive/locked MCP rejection, atomic `$inc sessionVersion`, MCP provider bind/reject theo `sessionVersion` và deployed image `7a243ca86684` đã có evidence; authoritative policy-membership runtime evidence còn thiếu | Backend/frontend tests và runtime authoritative policy membership |
+| P0 | `GAP-MCP-01` | **PARTIAL** — canonical manifest, preview/confirm/idempotency guard, user-approved `DECISION-MCP-WRITE-01`, chart/live `MCP_WRITER_MODE=write`/`MCP_OLD_WRITER_FENCED=true`, current health/readiness/docs probes `200`, unauthenticated `/mcp` `401`, and OpenAPI mutation inventory are evidenced; full-cluster inventory has no application old-writer workload and source audit confirms `McpMutationModel` has no create/update; no mutation tool was called and `auditStatus` remains `PENDING`; external old-writer traffic and financial receipt/audit/reconciliation are still unproven | Evidence external old-writer fence/drain and production receipt/reconciliation; remove legacy receipt read only after those gates |
 | P0 | `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | **PARTIAL** — payment contract, state-machine guard, preview/CAS, command tests và `DECISION-PAY-REV-01` fail-closed boundary đã có; persistence/reconciliation evidence chưa có | Operation-specific approval cho persistence/reconciliation và evidence tương ứng |
 | P0 | `GAP-OPS-01` | **CLOSED** — startup không còn silent catalog write; CLI/operator guard và regression test đã có | Giữ dry-run/apply guard |
 | P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | **CLOSED** — source policy/tests cho card soft-retire/restricted-merge, account retention và calendar partial-unique index; live data-integrity dry-run xác nhận required indexes tồn tại, duplicate device groups `0`, duplicate card groups `0`, duplicate card IDs `0`; finance read-only audit xác nhận orphan account/card/transaction references đều `0` | Giữ dry-run/index verification và read-only reconciliation trước release |

@@ -9,7 +9,7 @@
 - [Requirements](requirements.md): current product behavior and constraints.
 - [Software Requirements Specification](SRS.md): source-derived AS-IS requirements by component, interfaces, data rules, traceability and known gaps.
 - [Frontend/MCP/Backend unification plan](frontend-mcp-backend-unification-plan.md): contract-first vertical-slice roadmap with one canonical backend service per capability.
-- [MCP preview writer rollout runbook](mcp-preview-rollout.md): read-mode candidate, old-writer fence, index dry-run and rollback gate before any approved writer rollout.
+- [MCP preview writer rollout runbook](mcp-preview-rollout.md): current writer status, old-writer fence, index dry-run and rollback gate for approved mutation operations.
 - [OpenClaw personal-finance-ledger skill](openclaw/skills/personal-finance-ledger/SKILL.md): external MCP consumer rules for previews, fee handling and financial responses.
 - The copy/paste session handoff prompt is maintained in the unification plan;
   it is the only resumable prompt to use after reading `AGENTS.md` and `SRS.md`.

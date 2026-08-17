@@ -11,15 +11,16 @@ lại để tránh đọc nhầm checkpoint cũ.
   trước khi bắt đầu slice mới.
 - Progress bảo thủ: **13/20 unique GAP đã CLOSED = 65%**.
 - Không claim 100% khi SRS còn `PARTIAL` hoặc runtime evidence chưa đủ.
-- MCP live giữ `MCP_WRITER_MODE=read`; không chạy mixed writers.
+- MCP live đang `MCP_WRITER_MODE=write` với `MCP_OLD_WRITER_FENCED=true`; không
+  chạy mixed writers.
 
 ### SRS GAP ledger
 
 | GAP | Status | Evidence hiện có | Còn thiếu |
 |---|---|---|---|
 | `GAP-CI-01` | `CLOSED` | Jenkins/source checkout, image/GitOps và read-only smoke evidence | Giữ regression gate |
-| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject, stale-session tests và deployed image `e003fb24c94f` | Runtime authoritative policy-membership evidence |
-| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, config regression proving fence flag alone does not enable writer, chart/live read mode, historical authenticated `tools/list` 11/11 query tools, current unauthenticated `/mcp` 401 và external OpenClaw probe evidence | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
+| `GAP-SEC-01/02` | `PARTIAL` | Trusted context, authoritative role/workspace, role-refresh regression, inactive/locked guard, sessionVersion bump, MCP provider bind/reject, stale-session tests và deployed image `7a243ca86684` | Runtime authoritative policy-membership evidence |
+| `GAP-MCP-01` | `PARTIAL` | Canonical manifest, preview/confirm/idempotency tests, user-approved `DECISION-MCP-WRITE-01`, chart/live `writerMode=write` with `MCP_OLD_WRITER_FENCED=true`, current unauthenticated `/mcp` 401 and OpenAPI mutation inventory; no mutation tool was called | External old-writer fence/drain và financial receipt/audit/reconciliation traffic evidence |
 | `GAP-PAY-01/02`, `GAP-STM-01` | `PARTIAL` | Shared payment contract, state machine, preview, CAS, idempotency, command tests và `DECISION-PAY-REV-01` fail-closed boundary | Persistence/reconciliation evidence |
 | `GAP-OPS-01` | `CLOSED` | Startup không silent-write; operator guard/test | Giữ dry-run/apply guard |
 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | `CLOSED` | Source/tests và live read-only index/duplicate/orphan audit | Giữ preflight |
@@ -55,18 +56,19 @@ lại để tránh đọc nhầm checkpoint cũ.
   image; Jenkins remains the image build/publish evidence. No local server,
   database or persistence side effect was run during this audit.
 - GitOps chart release gate is green from remote chart `origin/master`
-  `38a88b5`: `helm lint` and `helm template` pass; rendered backend/frontend
-  use immutable image tag `e003fb24c94f`, with
-  `MCP_WRITER_MODE=read` and `MCP_OLD_WRITER_FENCED=true`. The local chart
-  checkout remains stale at `9acfebc`/tag `5267c79cf437`, but it is not the
-  Argo source of truth; no chart branch or cluster resource was changed by
-  this task.
+  `45b578a`: `helm lint` and `helm template` pass; rendered backend/frontend
+  use immutable image tag `7a243ca86684`, with
+  `MCP_WRITER_MODE=write` and `MCP_OLD_WRITER_FENCED=true` after
+  `DECISION-MCP-WRITE-01`. The local chart checkout remains stale and is not
+  the Argo source of truth.
 - Argo read-only status is `Synced/Healthy` at revision
-  `38a88b502226303f7503657d373aeebe024c4fe1`; both deployments report one
-  available replica. The backend image digest is
-  `sha256:0f83839da96a7da659226fdd7cb5f1a53324b32c703569610210abfc42e8f0f5`.
-  This supplies deployed-image evidence for the source guards, but not
-  authoritative policy-membership or external-writer evidence.
+  `45b578a2ed03c28fd98992894a9669fe766d9362`; both deployments report one
+  available replica. Backend digest is
+  `sha256:42707b8aef2ed20925e2f12e630ac7ad02d0d30faca61ea7a8c34a3850004f83`
+  and frontend digest is
+  `sha256:81ffe269147b03387d9c8ad9311cef2764603702428538dbef03151079373cff`.
+  This supplies deployed writer-capability evidence, but not financial
+  receipt/reconciliation evidence or authenticated policy-membership proof.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
@@ -75,12 +77,12 @@ lại để tránh đọc nhầm checkpoint cũ.
 
 - Kubernetes context/namespace đã xác minh: `k8s-admin-public` / `card-credit`.
 - Backend/frontend `1/1 Ready`, backend restart `0`; live MCP config là
-  `MCP_WRITER_MODE=read`, `MCP_OLD_WRITER_FENCED=true`.
+  `MCP_WRITER_MODE=write`, `MCP_OLD_WRITER_FENCED=true`.
 - Current pod direct read-only probe through a temporary port-forward returned
   `/health=200`, `/ready=200`, `/docs/json=200`, and unauthenticated `/mcp=401`.
-  The earlier authenticated profile (`11/11` query tools) remains historical
-  evidence and was not re-used as a fresh authenticated current-pod claim.
-- Current backend pod started at `2026-08-17T16:14:17Z`, has restart `0`. A
+  OpenAPI hiện báo `writerMode=write`, mutation inventory preview/confirm và
+  `auditStatus=PENDING`; không gọi mutation tool.
+- Current backend pod started at `2026-08-17T17:11:39Z`, has restart `0`. A
   bounded `168h` pod-log query returned `556` lines, `2` GET `/mcp` entries
   (one external-host request and one local port-forward probe), no mutation or
   receipt/audit/writer terms, and no HTTP `5xx`. This is a bounded absence
@@ -122,8 +124,15 @@ nhầm, chưa phải evidence external writer đã drain.
 Security checkpoint: `createMcpContextProvider` giữ context authoritative giữa
 các invocation; lần đầu bind `sessionVersion`, lần sau fail-closed khi version
 đã bị bump. Test `context.test.ts` chứng minh revoke path; live image
-`e003fb24c94f` là descendant/ancestor-aligned với source guard và đang Ready.
+`7a243ca86684` là deployed source checkpoint và đang Ready.
 Runtime authoritative policy-membership evidence vẫn còn thiếu.
+
+Decision mới được chốt: local `users` store là policy authority vì hiện không
+có external IdP; `workspaceId`, `role`, `active`, `lockedAt` và `sessionVersion`
+được revalidate server-side. Canonical MCP writer được user cho phép cho mọi
+workspace đã cấu hình, nhưng vẫn bind từng `MCP_USER_ID` + `MCP_WORKSPACE_ID`;
+không cho payload chọn tenant, không mixed writers và không mở reversal/
+compensating transaction.
 
 ### Slice B — security evidence
 
@@ -135,11 +144,14 @@ Runtime authoritative policy-membership evidence vẫn còn thiếu.
 
 ### Slice C — MCP fence
 
-1. Giữ chart/live writer mode `read`.
-2. Kiểm tra read-only deployment/service/pod inventory và bounded logs.
-3. Không suy diễn external fence từ `MCP_OLD_WRITER_FENCED=true` hoặc absence
-   của pod nội bộ.
-4. Không gọi preview/confirm và không bật writer trong task này.
+1. **Đã hoàn tất capability rollout** bằng chart commit `45b578a`:
+   `writerMode: write`, `oldWriterFenced: true`, immutable image
+   `7a243ca86684`; không patch Kubernetes trực tiếp.
+2. Read-only verification sau rollout: Argo `Synced/Healthy`, pod Ready/restart
+   `0`, health/readiness/docs `200`, unauthenticated `/mcp` `401`, OpenAPI
+   writer inventory có preview/confirm và `auditStatus=PENDING`.
+3. Không gọi financial mutation smoke, không chạy mixed writers và không xóa
+   legacy receipt reads khi chưa có production receipt/reconciliation evidence.
 
 ### Slice D — financial boundary
 

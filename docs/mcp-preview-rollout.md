@@ -3,6 +3,16 @@
 This runbook is required before deploying an image that writes
 `commandpreviews` or `commandreceipts`.
 
+## Current deployment status
+
+Canonical MCP writer is currently enabled by chart commit `45b578a` under
+`DECISION-MCP-WRITE-01`: image `7a243ca86684`,
+`MCP_WRITER_MODE=write`, `MCP_OLD_WRITER_FENCED=true`, Argo
+`Synced/Healthy`. No mutation smoke or financial persistence was run during
+this activation. The preconditions below remain the rollback and future
+operation gate; they must not be treated as evidence that receipts or business
+data were written.
+
 ## Preconditions
 
 - Confirm the exact Kubernetes context, namespace, deployment and image digest.
