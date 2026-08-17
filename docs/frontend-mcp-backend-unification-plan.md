@@ -407,7 +407,7 @@ implemented yet.
 - Regression/evidence: source/runtime search ngoài test path không có consumer
   của hai export; frontend typecheck/lint, unit `80/80`, integration `6/6` và
   production build pass.
-- Commit/push: implementation `pending`.
+- Commit/push: `ca89199` đã push lên `origin/master`.
 
 ### Completed checkpoint: Paginate statement projections with stable cursors
 
