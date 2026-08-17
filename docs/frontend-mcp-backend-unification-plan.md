@@ -376,6 +376,8 @@ implemented yet.
 - Residual: live performance profile và completeness evidence trên workspace
   thật còn thiếu; các internal projections không có public page contract vẫn
   phải giữ bounded/read policy riêng.
+- Commit/push: implementation `fada443`; API documentation `a87d100` đã push
+  lên `origin/master`.
 
 ### Completed checkpoint: Bound workspace notes reads
 
