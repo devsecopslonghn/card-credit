@@ -54,6 +54,9 @@ lại để tránh đọc nhầm checkpoint cũ.
   `nextjs`, CMD `node server.js`). Frontend optional card-image fetch failures
   used the repository placeholder fallback; Next build still generated all
   `24` routes successfully.
+- A Docker-format backend build also passed as
+  `localhost/card-credit-backend:3d194ea-docker` (`607374fba31e`), retaining
+  `user=backend`, `CMD npm run start` and the declared `/health` HEALTHCHECK.
 - Chart release gate is green in `/home/longhn0710/workspace/k8s-namepsace-chart/card-credit`:
   `helm lint .` pass and `helm template` pass with immutable tag `8ceb3fe`;
   rendered backend keeps `MCP_WRITER_MODE=read` and
