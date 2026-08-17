@@ -60,7 +60,7 @@ const validId = (id: string) => {
 
 export class CardQueryService {
   static async list(ctx: ServiceContext, options: { activeOnly?: boolean; userId?: string } = {}): Promise<CardDto[]> {
-    const query = { workspaceId: ctx.workspaceId, ...(options.userId ? { userId: options.userId } : {}), ...(options.activeOnly ? { active: { $ne: false } } : {}) };
+    const query = { workspaceId: ctx.workspaceId, ...(options.userId ? { userId: options.userId } : {}), active: { $ne: false }, ...(options.activeOnly ? { active: { $ne: false } } : {}) };
     const cards = await CreditCardModel.find(query).sort({ createdAt: -1 }).lean();
     return cards.map(cardDtoFromDocument);
   }
@@ -77,7 +77,7 @@ export class CardQueryService {
  }
 
   static async listDuplicates(ctx: ServiceContext): Promise<CardDuplicateGroupDto[]> {
-    const cards = await CreditCardModel.find({ workspaceId: ctx.workspaceId }).sort({ createdAt: 1 }).lean();
+    const cards = await CreditCardModel.find({ workspaceId: ctx.workspaceId, active: { $ne: false } }).sort({ createdAt: 1 }).lean();
     const groups = new Map<string, { fingerprint: string; presetId: string; normalizedOwner: string; reason: string; cards: CardDto[] }>();
     for (const raw of cards) {
       const fingerprint = duplicateFingerprint(raw as Record<string, unknown>);

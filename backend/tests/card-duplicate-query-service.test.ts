@@ -25,7 +25,7 @@ const query = <T>(value: T) => {
 
 test("duplicate query groups canonical cards by exact preset and normalized owner", async (t) => {
   const find = t.mock.method(CreditCardModel, "find", (filter: Record<string, unknown>) => {
-    assert.deepEqual(filter, { workspaceId: "workspace-a" });
+    assert.deepEqual(filter, { workspaceId: "workspace-a", active: { $ne: false } });
     return query([
       card("507f1f77bcf86cd799439011", "  Tôi   ", "preset-a", false),
       card("507f1f77bcf86cd799439012", "Tôi", "preset-a"),

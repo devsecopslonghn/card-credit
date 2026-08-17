@@ -9,4 +9,12 @@ const CalendarSubscriptionSchema = new Schema({
   lastAccessedAt: { type: Date, default: null },
 }, { timestamps: true });
 CalendarSubscriptionSchema.index({ userId: 1, workspaceId: 1, createdAt: -1 });
+CalendarSubscriptionSchema.index(
+  { userId: 1, workspaceId: 1, deviceLabel: 1 },
+  {
+    name: "calendar_subscription_user_workspace_device_unique",
+    unique: true,
+    partialFilterExpression: { deviceLabel: { $type: "string" } },
+  },
+);
 export const CalendarSubscriptionModel = (mongoose.models.CalendarSubscription ?? mongoose.model("CalendarSubscription", CalendarSubscriptionSchema)) as mongoose.Model<Record<string, unknown>>;

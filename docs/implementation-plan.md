@@ -35,6 +35,17 @@ khi chỉnh code.
 - API/model inventory has no undocumented private route.
 - All conflicting assumptions are listed as questions or risks.
 
+### Data policy decision applied — demo data
+
+Demo data uses a non-destructive policy: cards are soft-retired, exact duplicate
+merge is restricted to cards without domain references, legacy monthly data is
+summed only into the selected target, and financial history is never reassigned
+by inference. Calendar subscriptions use a partial unique
+`(userId, workspaceId, deviceLabel)` index. The implementation is in
+`CardLifecycleService` and the Mongoose model indexes; the remaining operational
+step is packaged as `data-integrity-migration.yaml`, an Argo Sync hook that runs
+the compiled additive index script before the Deployments.
+
 ## Milestone 1 — Runtime and security hardening
 
 **Goal**: establish production-safe identity, browser boundary and operational

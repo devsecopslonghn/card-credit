@@ -8,6 +8,15 @@ import type { ServiceContext } from "../src/services/types/service-context.js";
 const context: ServiceContext = { workspaceId: "workspace-a", userId: "user-a", role: "user", channel: "browser", correlationId: "calendar-command-test" };
 const subscriptionId = "507f1f77bcf86cd799439011";
 
+test("calendar subscriptions enforce one non-empty device label per workspace", () => {
+  const indexes = CalendarSubscriptionModel.schema.indexes() as Array<[Record<string, unknown>, { name?: string; unique?: boolean; partialFilterExpression?: Record<string, unknown> }]>;
+  const index = indexes.find(([, options]) => options.name === "calendar_subscription_user_workspace_device_unique");
+  assert.deepEqual(index, [
+    { userId: 1, workspaceId: 1, deviceLabel: 1 },
+    { name: "calendar_subscription_user_workspace_device_unique", unique: true, partialFilterExpression: { deviceLabel: { $type: "string" } } },
+  ]);
+});
+
 test("calendar subscription create stores only a hash and returns the one-time feed path", async (t) => {
   const create = t.mock.method(CalendarSubscriptionModel, "create", async (value: Record<string, unknown>) => ({
     toObject: () => ({ _id: subscriptionId, ...value, createdAt: new Date("2026-08-16T00:00:00.000Z") }),

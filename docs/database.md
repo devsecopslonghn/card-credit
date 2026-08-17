@@ -43,8 +43,9 @@ Catalog snapshot: `presetId`, `providerCode`, `providerName`, `displayName`,
 
 Operational config: `statementDay`, `paymentDueDays`, `annualFeeWaiverTarget`,
 `cashbackCapAmount`, `cashbackCapPeriod`, reminder enabled/days/timezone/time.
-Legacy fields như `monthlyData` giữ để compatibility/recovery nhưng không phải
-nguồn chính cho debt/report mới.
+`retiredAt` và `mergedIntoCardId` là lifecycle/audit fields. `active=false` là
+retirement, không phải xóa vật lý. Legacy `monthlyData` giữ để
+compatibility/recovery nhưng không phải nguồn chính cho debt/report mới.
 
 ### CardProduct (`cardproducts`)
 
@@ -168,6 +169,7 @@ workspace trước mutation, đặc biệt `userCardId`, `statementId` và feed 
 | workspaces | `{ workspaceId: 1 }` unique | Resolve workspace. |
 | creditcards | `{ workspaceId: 1, createdAt: -1 }` | Card list. |
 | creditcards | `{ workspaceId: 1, owner: 1 }` | Owner filter. |
+| creditcards | `{ workspaceId: 1, mergedIntoCardId: 1 }` | Retired merge redirect/recovery. |
 | creditcards | `{ workspaceId: 1, presetId: 1 }` | Catalog/duplicate lookup. |
 | cardproducts | `{ presetId: 1 }` unique | Product detail/import idempotency. |
 | cardproducts | `{ providerCode: 1, active: 1, sortOrder: 1 }` | Picker/provider listing. |
@@ -181,6 +183,7 @@ workspace trước mutation, đặc biệt `userCardId`, `statementId` và feed 
 | cardfeepayments | `{ workspaceId: 1, userCardId: 1, paymentDate: -1, createdAt: -1 }` | Fee history/range. |
 | calendarsubscriptions | `{ tokenHash: 1 }` unique | Feed auth. |
 | calendarsubscriptions | `{ userId: 1, workspaceId: 1, createdAt: -1 }` | Subscription management. |
+| calendarsubscriptions | `{ userId: 1, workspaceId: 1, deviceLabel: 1 }` unique partial | Không tạo hai subscription cùng device label trong workspace. |
 | reminderdeliveries | `{ workspaceId: 1, statementId: 1, daysBefore: 1 }` unique | Idempotent delivery. |
 | reminderdeliveries | `{ status: 1, nextAttemptAt: 1, claimedAt: 1 }` | Worker claim/recovery. |
 | notes | `{ workspaceId: 1, date: 1 }` unique | Calendar note upsert. |
@@ -219,6 +222,22 @@ không thêm index tùy tiện trên high-write collections nếu không có que
    lịch sử từ `monthlyData`.
 3. Nếu không đủ dữ liệu, giữ card legacy và yêu cầu user nhập transaction mới.
 4. Validate counts/sums trước và sau, chạy read-only reconciliation.
+
+### Card lifecycle migration decision
+
+1. `DELETE /api/cards/:id` chỉ set `active=false`, `retiredAt`; không drop card
+   hoặc financial collections.
+2. Duplicate merge chỉ nhận exact duplicate không có account, statement,
+   cashback hoặc fee reference. Target nhận tổng `monthlyData` legacy; source
+   được giữ ở trạng thái retired và trỏ tới target.
+3. Nếu source có financial reference, không reassignment tự động vì có thể đổi
+   nghĩa debt/balance; operator giữ source retired hoặc xử lý bằng reconciliation
+   riêng.
+4. Calendar subscription index là additive. Trước apply phải dry-run duplicate
+   `(userId, workspaceId, deviceLabel)`; nếu có duplicate thì migration dừng
+   để operator chọn bản mới nhất và revoke bản cũ bằng backup, không xóa raw
+   token. Script mặc định dry-run và chỉ apply khi
+   `DATA_INTEGRITY_INDEX_APPLY=true`.
 
 ### Generic command guard rollout
 

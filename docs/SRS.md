@@ -174,6 +174,23 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
 - Mongo transaction/CAS/unique index/TTL phải bảo vệ payment, preview,
   idempotency và scheduler claim. Migration, delete/merge, reconcile và reversal
   cần dry-run, backup/recovery, rollback và DECISION riêng.
+- **DECISION-DATA-01 — Card lifecycle**: delete card là soft-retire (`active=false`,
+  giữ toàn bộ statements, accounts, transactions, fee/cashback và audit); không
+  hard-delete financial history. Merge chỉ áp dụng cho exact duplicate cùng
+  workspace/preset/owner và source chưa có domain references. Legacy `monthlyData`
+  được cộng vào target; source được giữ như redirect record với
+  `mergedIntoCardId`. Nếu source đã có history thì từ chối merge và cho phép
+  retire riêng.
+- **DECISION-DATA-02 — Calendar subscription uniqueness**: một user/workspace
+  chỉ có tối đa một subscription cho cùng `deviceLabel` không rỗng; label rỗng
+  vẫn cho phép nhiều subscription. Index partial unique là guard authoritative.
+- **DECISION-DATA-03 — Account lifecycle**: account không hard-delete; account
+  chỉ chuyển `active=false` sau khi không còn được chọn cho command mới. CREDIT
+  account và ledger history giữ nguyên để report/reconciliation không mất dữ liệu.
+- **DECISION-DATA-04 — Report source**: financial report/cash-flow đọc từ
+  `FinancialTransaction` và statement projection; không rebuild từ card
+  `monthlyData`. Card filter là filter theo statement/account reference; orphan
+  record được đưa vào reconciliation, không âm thầm cộng vào card khác.
 - `/health` là liveness; `/ready` chỉ 200 khi Mongo connected. Logger redact
   authorization, cookie, password, token và URI. SIGTERM dừng job/server/DB sạch.
 - Production image chạy non-root; Jenkins dùng `Jenkinsfile` và `ci-platform`
@@ -223,9 +240,9 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | P0 | `GAP-MCP-01` | **PARTIAL** — canonical manifest, preview/confirm/idempotency guard, REST/MCP adapter tests và runtime writer capability đã có evidence; chưa claim financial receipt/audit/reconciliation từ traffic hoặc mutation thật | Giữ preview/confirm/idempotency/audit, resource/HITL policy và production receipt/reconciliation evidence |
 | P0 | `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | **PARTIAL** — payment contract, state-machine guard, preview/CAS và command tests đã có; chưa ghi persistence/reconciliation và reversal policy chưa được quyết định | Operation-specific approval, persistence/reconciliation evidence và reversal decision |
 | P0 | `GAP-OPS-01` | **CLOSED** — startup không còn silent catalog write; CLI/operator guard và regression test đã có | Giữ dry-run/apply guard |
-| P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | **OPEN** — delete/merge orphan, account lifecycle race và calendar unique index chưa có decision/transaction/index rollout | DECISION + transaction/index/dry-run/backup/rollback |
+| P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | **IN_PROGRESS** — policy card soft-retire/restricted-merge, account retention và calendar partial-unique index đã chốt; code/index rollout và duplicate preflight còn cần chạy | Additive index dry-run/apply, lifecycle tests và reconciliation evidence |
 | P1 | `GAP-REP-01` | **PARTIAL** — benefits/fees report read parity và no-double-count formulas đã có test; legacy category và mutation source-of-truth còn mở | Chốt legacy source/mutation semantics và reconciliation evidence |
-| P1 | `GAP-REP-02` | **OPEN** — cash-flow join, owner/card/year/month filters và range balance semantics chưa chốt | Chốt source/filter semantics và reconciliation evidence |
+| P1 | `GAP-REP-02` | **PARTIAL** — authoritative source là financial ledger + statement projection; card filter không được lấy từ legacy monthlyData; implementation/filter completeness và orphan reconciliation còn mở | Query/filter contract, completeness tests và reconciliation evidence |
 | P1 | `GAP-UI-02`, `GAP-UI-03` | **OPEN** — report filters và planning/write UI còn thiếu contract/implementation | Contract/UI acceptance và owner evidence |
 | P1 | `GAP-AUTH-01` | **PARTIAL** — forgot-password đã nối MailService với generic response và test delivery; runtime SMTP config/owner evidence còn thiếu | Contract, runtime mail config và owner evidence |
 | P2 | `GAP-API-01`, `GAP-WEB-01` | Đã đóng: REST inventory drift gate và authorization metadata có runtime regression evidence | Giữ parity tests trong release gate |

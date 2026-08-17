@@ -19,6 +19,8 @@ const CreditCardSchema = new Schema({
   cashbackCapAmount: { type: Number, default: null, min: 0 },
   cashbackCapPeriod: { type: String, enum: ["STATEMENT", "CALENDAR_MONTH"], default: "STATEMENT" },
   active: { type: Boolean, default: true }, statementDate: { type: String, default: "" },
+  retiredAt: { type: Date, default: null },
+  mergedIntoCardId: { type: Schema.Types.ObjectId, ref: "CreditCard", default: null },
   reminderEnabled: { type: Boolean, default: false },
   reminderDaysBefore: { type: [Number], default: [7, 3, 1] },
   reminderTimezone: { type: String, default: "Asia/Ho_Chi_Minh" },
@@ -28,4 +30,5 @@ const CreditCardSchema = new Schema({
 }, { timestamps: true });
 CreditCardSchema.index({ workspaceId: 1, createdAt: -1 });
 CreditCardSchema.index({ workspaceId: 1, owner: 1 });
+CreditCardSchema.index({ workspaceId: 1, mergedIntoCardId: 1 });
 export const CreditCardModel = (mongoose.models.CreditCard ?? mongoose.model("CreditCard", CreditCardSchema)) as mongoose.Model<Record<string, unknown>>;
