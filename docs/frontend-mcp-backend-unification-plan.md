@@ -146,6 +146,17 @@ implemented yet.
   typecheck, lint, critical tests `153/153` và production build pass.
 - Commit/push: `53ff49d` đã push lên `origin/master`.
 
+### Completed checkpoint: Align report filter requirements documentation
+
+- Scope: cập nhật `docs/requirements.md` để phản ánh canonical report filters
+  hiện có (`from/to`, calendar `year/month`, `owner`, `card`) và shared
+  REST/MCP/frontend range resolver; không thay đổi runtime contract.
+- Independent review: GO cho documentation-only drift correction; stale phrase
+  về filter chưa mở không còn trong requirements document.
+- Evidence: `git diff --check` pass và targeted stale-reference search không còn
+  claim cũ; existing report/parity validation remains the source/test evidence.
+- Commit/push: `89d5fe4` đã push lên `origin/master`.
+
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
 - Scope: xóa các file frontend không còn production consumer:
