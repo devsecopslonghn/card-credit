@@ -54,17 +54,6 @@ export const getCatalogImageUrl = (product, manifest = {}) => {
   return CARD_IMAGE_PLACEHOLDER_URL;
 };
 
-export const toLegacyCardPreset = (product, manifest = {}) => ({
-  ...product,
-  id: product.presetId,
-  bank: product.providerCode,
-  bankName: product.providerName,
-  name: product.displayName,
-  type: product.network,
-  imageUrl: getCatalogImageUrl(product, manifest),
-  theme: product.theme ?? DEFAULT_THEME,
-});
-
 export const createCatalogService = (rawProducts, manifest = {}) => {
   const products = sortCatalogProducts(rawProducts).map((product) =>
     Object.freeze({
@@ -110,9 +99,6 @@ export const createCatalogService = (rawProducts, manifest = {}) => {
       providerName,
       products,
     }));
-  const getLegacyCardPresets = () =>
-    products.filter((product) => product.active).map((product) => toLegacyCardPreset(product, manifest));
-
   return {
     getAllCatalogProducts,
     getActiveCatalogProducts,
@@ -120,7 +106,6 @@ export const createCatalogService = (rawProducts, manifest = {}) => {
     getProductsByProvider,
     getPresetById,
     groupProductsByProvider,
-    getLegacyCardPresets,
   };
 };
 

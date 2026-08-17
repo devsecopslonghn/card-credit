@@ -396,6 +396,19 @@ implemented yet.
   còn hai wrapper; backend full validation phải pass trước commit.
 - Commit/push: `1194b06` đã push lên `origin/master`.
 
+### Completed checkpoint: Remove unreferenced frontend catalog adapter
+
+- Scope: xóa `toLegacyCardPreset` và `getLegacyCardPresets` cùng hai regression
+  tests chỉ phục vụ compatibility picker cũ; canonical picker hiện dùng
+  `CardCatalogProduct` từ `cardCatalogClient`.
+- Independent review: GO cho zero-consumer frontend cleanup; vẫn giữ
+  `LEGACY_FIELD_MAP` trong validator để fail closed khi catalog input có alias
+  lệch canonical fields.
+- Regression/evidence: source/runtime search ngoài test path không có consumer
+  của hai export; frontend typecheck/lint, unit `80/80`, integration `6/6` và
+  production build pass.
+- Commit/push: implementation `pending`.
+
 ### Completed checkpoint: Paginate statement projections with stable cursors
 
 - Requirement/GAP: `GAP-PERF-01` cần bounded public reads cho các projection

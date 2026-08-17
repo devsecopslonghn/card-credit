@@ -5,7 +5,6 @@ import {
   CARD_IMAGE_PLACEHOLDER_URL,
   createCatalogService,
   getCatalogImageUrl,
-  toLegacyCardPreset,
   validateCatalogProducts,
 } from "../lib/cardCatalogCore.mjs";
 import { parseDuplicateGroups } from "../lib/api/cardDuplicatesCore.mjs";
@@ -53,28 +52,10 @@ test("annualFee null is accepted", () => {
   assert.deepEqual(mbAnnualFeeIssues, []);
 });
 
-test("inactive product is not present in picker compatibility adapter", () => {
-  const service = createCatalogService(products);
-  const pickerIds = service.getLegacyCardPresets().map((preset) => preset.id);
-
-  assert.equal(pickerIds.includes("vpbank-shopee-platinum"), false);
-});
-
 test("image fallback uses stable placeholder for missing imageUrl", () => {
   const product = products.find((item) => item.presetId === "mb-visa-modern-youth");
 
   assert.equal(getCatalogImageUrl(product), CARD_IMAGE_PLACEHOLDER_URL);
-});
-
-test("legacy compatibility adapter maps canonical fields", () => {
-  const product = products.find((item) => item.presetId === "sacombank-platinum-american-express");
-  const legacy = toLegacyCardPreset(product);
-
-  assert.equal(legacy.id, product.presetId);
-  assert.equal(legacy.bank, product.providerCode);
-  assert.equal(legacy.bankName, product.providerName);
-  assert.equal(legacy.name, product.displayName);
-  assert.equal(legacy.type, product.network);
 });
 
 test("duplicate client parses canonical groups and maps card ids to the UI compatibility shape", () => {
