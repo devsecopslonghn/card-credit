@@ -1,10 +1,22 @@
 import mongoose from "mongoose";
 import { ApiError } from "../errors.js";
 import { CalendarSubscriptionModel } from "../models/calendar-subscription.js";
-import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel } from "../calendar-subscription.js";
+import { createSubscriptionToken, hashSubscriptionToken, normalizeDeviceLabel, validSubscriptionToken } from "../calendar-subscription.js";
+import { jobServiceContext } from "../context.js";
+import type { AuthRepository } from "../auth-repository.js";
 import type { ServiceContext } from "./types/service-context.js";
 
 type Data = Record<string, unknown>;
+
+export type CalendarSubscriptionFeedRepository = {
+  findActiveByTokenHash(tokenHash: string): Promise<Data | null>;
+  touch(id: unknown): Promise<unknown>;
+};
+
+const feedRepository: CalendarSubscriptionFeedRepository = {
+  findActiveByTokenHash: async (tokenHash) => CalendarSubscriptionModel.findOne({ tokenHash, revokedAt: null }).select("+tokenHash").lean() as Promise<Data | null>,
+  touch: async (id) => CalendarSubscriptionModel.updateOne({ _id: id }, { $set: { lastAccessedAt: new Date() } }),
+};
 
 export const safeCalendarSubscription = (doc: Data) => ({
   id: String(doc._id),
@@ -23,6 +35,17 @@ const label = (value: unknown) => {
 };
 
 export class CalendarSubscriptionService {
+  static async feedContext(token: string, users: Pick<AuthRepository, "findUserById">, requestId: string, subscriptions: CalendarSubscriptionFeedRepository = feedRepository) {
+    if (!validSubscriptionToken(token)) return null;
+    const subscription = await subscriptions.findActiveByTokenHash(hashSubscriptionToken(token));
+    if (!subscription) return null;
+    const user = await users.findUserById(String(subscription.userId));
+    if (!user || !user.active || user.lockedAt || user.workspaceId !== subscription.workspaceId) return null;
+    const context = jobServiceContext({ userId: user.id, workspaceId: user.workspaceId, role: user.role }, requestId);
+    void subscriptions.touch(subscription._id).catch(() => {});
+    return context;
+  }
+
   static async list(ctx: ServiceContext) {
     const docs = await CalendarSubscriptionModel.find({ userId: ctx.userId, workspaceId: ctx.workspaceId }).sort({ createdAt: -1 }).lean();
     return docs.map((doc) => safeCalendarSubscription(doc as Data));

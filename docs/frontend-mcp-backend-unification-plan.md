@@ -203,6 +203,30 @@ implemented yet.
 - Commit/push: execution-plan evidence và source slice được ghi trong commit
   application kế tiếp.
 
+### Completed checkpoint: Calendar subscription feed service boundary
+
+- Requirement/GAP: private calendar feed token lookup, owner/workspace
+  revalidation và access timestamp update phải nằm trong canonical service;
+  route không giữ direct `CalendarSubscriptionModel` persistence/query path.
+- Independent review: GO cho bounded non-financial slice. `feedContext` validates
+  token shape, hashes token for lookup, revalidates active/unlocked user and
+  workspace, creates a trusted job context, and best-effort touches
+  `lastAccessedAt`; route returns the same opaque 404 and keeps canonical card/
+  statement query composition.
+- Changed write-set: `backend/src/services/calendar-subscription-service.ts`
+  owns feed repository boundary; `calendar-subscription-routes.ts` is reduced
+  to adapter logic; curated backend test entrypoint includes the calendar
+  subscription regression file. No public envelope, token format, model schema,
+  index or business data semantics changed.
+- Verification: curated backend `npm run validate` pass `97/97` with
+  typecheck/lint/build; full `npm run test:all` pass `188/188`. Existing tests
+  prove malformed token/owner workspace mismatch stops before card reads and
+  valid feed batches canonical statement amounts.
+- Operational impact: no database/schema change, Kubernetes mutation, MCP
+  writer change, payment persistence, reversal or compensating transaction.
+- Commit/push: execution-plan evidence and source slice are included in the
+  next application commit.
+
 ### Completed checkpoint: Session version revocation and registration workspace policy
 
 - Requirement/GAP: `GAP-SEC-01` và `GAP-SEC-02` yêu cầu revoke/version guard
