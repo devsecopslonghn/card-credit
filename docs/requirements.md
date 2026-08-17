@@ -31,6 +31,9 @@
   fee và calendar subscription trong workspace của session.
 - Admin mới được quản lý user, role, Card Catalog write, masterdata write và
   audit log.
+- Public registration tạo workspace cô lập theo email chuẩn hóa; client không
+  được tự chọn `workspaceId`. Chỉ admin mới được chuyển user sang workspace
+  khác qua policy quản trị.
 - Backend là nơi enforce authorization; middleware frontend chỉ là UX guard.
 
 ### FR-03 — Card Catalog and user cards

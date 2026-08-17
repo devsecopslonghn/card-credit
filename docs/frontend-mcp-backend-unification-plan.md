@@ -10,7 +10,7 @@ implemented yet.
 | Phase | Status | Current checkpoint | Commit/push | Next action |
 |---|---|---|---|---|
 | Phase 0 — Contract freeze và compatibility ledger | `IN_PROGRESS` | Account, MCP manifest, Catalog, Card read/write, REST docs inventory, runtime REST parity, Statement Read v1, MCP preview hardening, SRS risk ledger, notification, calendar, reminder, one-off calendar email, creditStatements, frontend private-surface guard, smoke report, report UI/API cleanup, benefits report contract, account-card validation, fee read parity, monthly cashback read parity, MCP benefits read tools, duplicate REST/frontend read parity, duplicate MCP read parity, trusted private reads, cash-flow read contract, MCP cash-flow query, REST/MCP parity guard, Fee/Cashback REST command-service boundary, Calendar Subscription command boundary, Calendar Subscription list service, Notes trusted mutation context, Profile trusted mutation context, Workspace owner trusted mutation context, Masterdata trusted admin context, Admin users/audit trusted admin context, Catalog admin trusted admin context, Calendar email trusted identity context, Calendar Subscription contract parity, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Report date-range contract parity, Credit-statement report contract parity, shared calendar-date contract parity, persistent one-time MCP preview guard, command-previews index rollout, catalog startup write removal, frontend/backend clean linked-runtime image fixes, MCP read-default/fence acknowledgement guard và chart-controlled MCP writer rollout đã push | `c41d6ae` + catalog fix + `ee05cc9` + `7c4ae7d` + chart `6bfa41f` / `origin/master` | Xác minh legacy portfolio dates và external old-writer consumers trước application rollout rộng hơn |
-| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; session version và các direct mutation routes còn thiếu | `b75fb28` / `origin/master` | Chuẩn hóa session version sau DB decision và tiếp tục private mutation adapter coverage |
+| Phase 1 — Access & Tenancy + contract foundation | `IN_PROGRESS` | Trusted context, identity revalidation, absolute session expiry, session version/revoke guard, register workspace policy, private read adapter revalidation, Notes POST, Profile PATCH, Workspace owner PUT, Masterdata admin, Masterdata GET contract parity, User/Profile contract parity, Auth Session contract parity, Admin users/audit và Catalog admin trusted admin context đã push; một số direct mutation routes còn thiếu | `b75fb28` + current auth slice / `origin/master` | Rollout candidate để xác nhận session version runtime; tiếp tục private direct-model route coverage |
 | Phase 2 — Card Portfolio integrity | `IN_PROGRESS` | Catalog, Card read service, create/update command, canonical duplicate REST/frontend read và duplicate MCP query đã push; delete/merge policy còn thiếu | `318ba16` / `origin/master` | Chờ user chốt RESTRICT/REASSIGN/CASCADE trước delete/merge; làm REST inventory drift gate |
 | Phase 3 — Financial Ledger | `IN_PROGRESS` | Account/Financial Transaction contracts, HMAC preview token v2, persistent one-time consume, commandpreviews indexes applied/verified, honest MCP audit metadata, CREDIT account-card validation, financial transaction list query parity, generic guard và Account/Financial Transaction REST+MCP command wiring đã push; direct MCP manifest default read và write fence acknowledgement đã push; chart đã bật writer trên backend candidate sau inventory không còn workload card-credit cũ trong cluster | `87e7996` + DB rollout + `ee05cc9` + chart `6bfa41f` / `origin/master` | Xác minh external old-writer consumers/traffic; không chạy confirm tài chính trong smoke |
 | Phase 4 — Credit Billing & Settlement | `IN_PROGRESS` | Statement Read v1, malformed-id fail-closed correction, REST/Frontend payment command boundary, canonical browser preview contract, generic command guard và browser trusted one-time confirmation đã push; strict action, persisted-impact totals, real-money account selection, PAID lock, bounded unique-payment retry, receipt/audit cùng transaction, stable frontend retry key, exact preview metadata, HMAC domain/context binding, stale-version rejection và retry-safe hash đã code. Legacy payment reconciliation planner/quarantine và explicit operator mark-paid đã apply live; MCP payment preview/confirm đã code/parity-test; MCP writer đã đăng ký live ở mode `write` nhưng chưa gọi mutation; reversal còn mở | `1044636` + `ee05cc9` + chart `6bfa41f` / `origin/master` | Hoàn tất consumer/fence evidence, giữ preview-only smoke; xin user decision riêng trước reversal/compensating transaction |
@@ -44,6 +44,32 @@ implemented yet.
   transaction remains a separate financial decision and is not implemented.
 - Commit/push: chart `6bfa41f` pushed to `origin/master`; this execution-plan
   evidence is pending its own source-repo commit/push.
+
+### Completed checkpoint: Session version revocation and registration workspace policy
+
+- Requirement/GAP: `GAP-SEC-01` và `GAP-SEC-02` yêu cầu revoke/version guard
+  authoritative và không cho public client tự chọn workspace membership.
+- Independent review: GO cho bounded auth/tenancy slice. Signed cookie ghi
+  `sessionVersion` (cookie legacy thiếu claim đọc như `0`), browser context
+  đối chiếu version với user record; password reset và admin role/workspace
+  update bump version. Public registration reject `workspaceId` và cấp
+  workspace opaque ổn định từ toàn bộ normalized email để tránh collision
+  local-part giữa các domain.
+- Changed write-set: `backend/src/auth.ts`, `auth-repository.ts`,
+  `auth-routes.ts`, `context.ts`, auth/context tests, frontend registration page
+  và E2E contract, frontend registration regression test, `docs/api.md`,
+  `docs/requirements.md`, `docs/database.md`, `docs/SRS.md`. Không đổi ledger,
+  payment, financial collections, schema migration hoặc Kubernetes.
+- Verification: targeted backend auth/context tests pass (12/12), frontend
+  auth/registration tests pass (3/3); full shared validation pass (25/25),
+  backend validation pass (183/183, typecheck/lint/build), frontend
+  typecheck/lint pass, unit pass (86/86), integration pass (6/6) và build
+  pass.
+- Compatibility/rollout impact: user records không có `sessionVersion` đọc
+  như `0`; password reset hoặc role/workspace change làm cookie cũ
+  `401 UNAUTHENTICATED`. Registration payload cũ có `workspaceId` nhận lỗi
+  `WORKSPACE_SELECTION_NOT_ALLOWED`; frontend đã bỏ field này.
+- Commit/push: source-repo commit/push SHA sẽ được ghi ngay sau commit.
 
 ### Completed checkpoint: Clean frontend image dependency boundary và MCP writer fence guard
 

@@ -50,7 +50,7 @@ export const browserActorContext = async (
   const session = sessionFromRequest(request, secret);
   let user;
   try { user = await users.findUserById(session.userId); } catch { user = null; }
-  if (!user || !user.active || user.lockedAt || user.workspaceId !== session.workspaceId) {
+  if (!user || !user.active || user.lockedAt || user.workspaceId !== session.workspaceId || (user.sessionVersion ?? 0) !== (session.sessionVersion ?? 0)) {
     throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hợp lệ.");
   }
   return {

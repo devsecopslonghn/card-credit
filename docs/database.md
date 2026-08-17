@@ -18,7 +18,7 @@
 ### User (`users`)
 
 `_id`, `email` unique normalized lowercase, `passwordHash`, `role` (`admin|user`),
-`workspaceId`, `displayName`, `active`, `lockedAt`, `lastLoginAt`,
+`workspaceId`, `displayName`, `active`, `lockedAt`, `sessionVersion`, `lastLoginAt`,
 `passwordChangedAt`, timestamps.
 
 Không lưu PAN/CVV/OTP. Password hash và reset metadata không được trả về client.

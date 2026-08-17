@@ -12,7 +12,6 @@ test.describe("isolated split runtime", () => {
     await page.getByLabel("Tên hiển thị").fill("Phase 10 User");
     await page.getByLabel("Email").fill("phase10@example.test");
     await page.getByLabel("Mật khẩu").fill("phase10-password");
-    await page.getByLabel("Workspace").fill("phase10-workspace");
     await page.getByRole("button", { name: "Tạo tài khoản" }).click();
     await expect(page).toHaveURL(/\/cards$/);
     await expect(
@@ -40,8 +39,8 @@ test.describe("isolated split runtime", () => {
     expect(result.me.body.user).toMatchObject({
       email: "phase10@example.test",
       role: "admin",
-      workspaceId: "phase10-workspace",
     });
+    expect(result.me.body.user.workspaceId).toMatch(/^personal-[a-f0-9]{24}$/);
     expect(result.cards).toEqual({ status: 200, body: [] });
     expect(result.transactions).toEqual({ status: 200, body: { data: [] } });
     expect(result.reports.status).toBe(200);

@@ -20,7 +20,8 @@ const emailOf = (value: unknown) => typeof value === "string" ? value.trim().toL
 const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const requirePassword = (value: unknown): string => { if (typeof value !== "string" || value.length < 8) throw new ApiError(400, "INVALID_PASSWORD", "Mật khẩu không hợp lệ.", { password: "Mật khẩu phải có ít nhất 8 ký tự." }); return value; };
 const publicUser = (session: Session) => ({ email: session.email, role: session.role, workspaceId: session.workspaceId });
-const toSession = (user: AuthUser): Session => ({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId });
+const toSession = (user: AuthUser): Session => ({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId, sessionVersion: user.sessionVersion ?? 0 });
+const workspaceForEmail = (email: string) => `personal-${crypto.createHash("sha256").update(email).digest("hex").slice(0, 24)}`;
 const tokenHash = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
 
 export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) => {
@@ -35,13 +36,14 @@ export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) =
     try { const session = await authenticate(email, request.body?.password); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser }; }
     catch (error) { await audit("LOGIN_FAILURE", request, null, email, { type: "auth", action: "login", errorCode: error instanceof ApiError ? error.code : "UNKNOWN" }); throw error; }
   });
-  app.get("/api/auth/me", async (request) => { const context = await browserServiceContext(request, options.secret, options.repository); const user = await options.repository.findUserById(context.userId); if (!user) throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hợp lệ."); return { user: authSessionSchema.parse(publicUser({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId })) }; });
+  app.get("/api/auth/me", async (request) => { const context = await browserServiceContext(request, options.secret, options.repository); const user = await options.repository.findUserById(context.userId); if (!user) throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hợp lệ."); return { user: authSessionSchema.parse(publicUser(toSession(user))) }; });
   app.post("/api/auth/logout", async (request, reply) => { let actor: Session | null = null; try { actor = sessionFromRequest(request, options.secret); } catch { actor = null; } await audit("LOGOUT", request, actor, actor?.email, { type: "auth", action: "logout" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true }; });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/register", async (request, reply) => {
     const email = emailOf(request.body?.email); if (!validEmail(email)) throw new ApiError(400, "INVALID_EMAIL", "Email không hợp lệ.", { email: "Vui lòng nhập email hợp lệ." }); const password = requirePassword(request.body?.password);
+    if ("workspaceId" in (request.body ?? {})) throw new ApiError(400, "WORKSPACE_SELECTION_NOT_ALLOWED", "Workspace được cấp tự động khi đăng ký.");
     if (await options.repository.findUserByEmail(email)) throw new ApiError(409, "EMAIL_ALREADY_REGISTERED", "Email này đã được đăng ký.");
     const role = await options.repository.countUsers() === 0 ? "admin" : "user";
-    const workspaceId = typeof request.body?.workspaceId === "string" && request.body.workspaceId.trim() ? request.body.workspaceId.trim() : `${email.split("@")[0]!.replace(/[^a-z0-9]+/g, "-")}-workspace`;
+    const workspaceId = workspaceForEmail(email);
     const user = await options.repository.createUser({ email, passwordHash: await hashPassword(password), role, workspaceId, displayName: typeof request.body?.displayName === "string" ? request.body.displayName.trim() : email.split("@")[0]!, active: true, lockedAt: null });
     const session = toSession(user); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser };
   });

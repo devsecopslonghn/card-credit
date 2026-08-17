@@ -32,6 +32,10 @@ test("browser context rejects an inactive or moved user when a repository is pro
   const request = { id: "request-1", headers: { cookie } } as never;
   const inactive = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: false, lockedAt: null }) };
   await assert.rejects(() => browserServiceContext(request, secret, inactive), /không còn hợp lệ/);
+  const staleCookie = sessionCookie(signSession({ ...identity, email: "user@example.test", sessionVersion: 1 }, secret));
+  const staleRequest = { id: "request-stale", headers: { cookie: staleCookie } } as never;
+  const versioned = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null, sessionVersion: 2 }) };
+  await assert.rejects(() => browserServiceContext(staleRequest, secret, versioned), /không còn hợp lệ/);
 });
 
 test("browser actor context returns one safe audit actor with the trusted service context", async () => {

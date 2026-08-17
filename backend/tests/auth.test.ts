@@ -12,10 +12,10 @@ class MemoryAuth implements AuthRepository {
   async findUserById(id: string) { return this.users.find((u) => u.id === id) ?? null; }
   async createUser(user: Omit<AuthUser, "id">) { const created = { ...structuredClone(user), id: String(this.users.length + 1) }; this.users.push(created); return created; }
   async upsertUser(user: Omit<AuthUser, "id">) { const current = await this.findUserByEmail(user.email); if (current) { Object.assign(current, structuredClone(user)); return current; } return this.createUser(user); }
-  async updatePassword(id: string, hash: string) { (await this.findUserById(id))!.passwordHash = hash; }
+  async updatePassword(id: string, hash: string) { const user = (await this.findUserById(id))!; user.passwordHash = hash; user.sessionVersion = (user.sessionVersion ?? 0) + 1; }
   async touchLogin() {}
   async listUsers() { return structuredClone(this.users).sort((a, b) => a.email.localeCompare(b.email)); }
-  async updateUser(id: string, update: Partial<Pick<AuthUser, "displayName" | "role" | "workspaceId">>) { const user = await this.findUserById(id); if (!user) return null; Object.assign(user, update); return structuredClone(user); }
+  async updateUser(id: string, update: Partial<Pick<AuthUser, "displayName" | "role" | "workspaceId">>) { const user = await this.findUserById(id); if (!user) return null; if (update.role !== undefined || update.workspaceId !== undefined) user.sessionVersion = (user.sessionVersion ?? 0) + 1; Object.assign(user, update); return structuredClone(user); }
   async createResetToken(token: ResetToken) { this.tokens.push(structuredClone(token)); }
   async findResetToken(hash: string, now: Date) { return this.tokens.find((t) => t.tokenHash === hash && !t.usedAt && t.expiresAt > now) ?? null; }
   async consumeResetTokens(userId: string, now: Date) { this.tokens.filter((t) => t.userId === userId && !t.usedAt).forEach((t) => { t.usedAt = now; }); }
@@ -29,11 +29,15 @@ test("register, me, logout, login, and reset preserve cookie contracts", async (
   const registered = await app.inject({ method: "POST", url: "/api/auth/register", payload: { email: "admin@example.test", password: "valid-pass" } });
   assert.equal(registered.statusCode, 201); const cookie = String(registered.headers["set-cookie"]); assert.match(cookie, /HttpOnly/); assert.match(cookie, /Secure/); assert.match(cookie, /SameSite=Lax/);
 const me = await app.inject({ url: "/api/auth/me", headers: { cookie } }); assert.equal(me.statusCode, 200); assert.equal(me.json().user.role, "admin"); assert.deepEqual(Object.keys(me.json().user).sort(), ["email", "role", "workspaceId"]);
+  assert.match(me.json().user.workspaceId, /^personal-[a-f0-9]{24}$/);
+  const rejectedWorkspace = await app.inject({ method: "POST", url: "/api/auth/register", payload: { email: "other@example.test", password: "valid-pass", workspaceId: "cross-workspace" } });
+  assert.equal(rejectedWorkspace.statusCode, 400); assert.equal(rejectedWorkspace.json().error.code, "WORKSPACE_SELECTION_NOT_ALLOWED");
   repository.users[0]!.active = false; assert.equal((await app.inject({ url: "/api/auth/me", headers: { cookie } })).statusCode, 401); repository.users[0]!.active = true;
   const logout = await app.inject({ method: "POST", url: "/api/auth/logout", headers: { cookie } }); assert.match(String(logout.headers["set-cookie"]), /Max-Age=0/);
   const login = await app.inject({ method: "POST", url: "/api/auth/login", payload: { email: "admin@example.test", password: "valid-pass" } }); assert.equal(login.statusCode, 200);
   const forgot = await app.inject({ method: "POST", url: "/api/auth/forgot-password", headers: { "x-forwarded-host": "test.local", "x-forwarded-proto": "https" }, payload: { email: "admin@example.test" } }); assert.match(forgot.json().resetLink, /^https:\/\/test\.local\/forgot-password\?token=/); const token = new URL(forgot.json().resetLink).searchParams.get("token")!;
   const reset = await app.inject({ method: "POST", url: "/api/auth/reset-password", payload: { token, password: "new-valid-pass" } }); assert.equal(reset.statusCode, 200);
+  assert.equal((await app.inject({ url: "/api/auth/me", headers: { cookie } })).statusCode, 401);
   assert.equal((await app.inject({ method: "POST", url: "/api/auth/login", payload: { email: "admin@example.test", password: "new-valid-pass" } })).statusCode, 200);
   assert.ok(events.includes("LOGIN_SUCCESS")); assert.ok(events.includes("PASSWORD_RESET_COMPLETED")); await app.close();
 });

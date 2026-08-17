@@ -55,7 +55,7 @@ Không trả stack trace, Mongo URI, secret hoặc existence-sensitive detail.
 
 | Method/path | Auth | Request | Response |
 |---|---|---|---|
-| `POST /auth/register` | Public | `{email,password,displayName?,workspaceId?}` | `201 {user}` + Set-Cookie; first user policy có thể là admin. |
+| `POST /auth/register` | Public | `{email,password,displayName?}` | `201 {user}` + Set-Cookie; first user policy có thể là admin. Workspace được cấp tự động theo email chuẩn hóa; client không được tự chọn workspace. |
 | `POST /auth/login` | Public | `{email,password}` | `{user}` + Set-Cookie. |
 | `GET /auth/me` | Session | none | `{user}`. |
 | `POST /auth/logout` | Optional session | none | `{ok:true}` + cleared cookie. |

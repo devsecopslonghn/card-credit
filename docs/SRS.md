@@ -147,6 +147,9 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
 
 - `/mcp` là Streamable HTTP + Bearer timing-safe; context user/workspace lấy từ
   server config và revalidate mỗi invocation.
+- Browser session claim có `sessionVersion` (legacy cookie thiếu claim được
+  chuẩn hóa về `0`); mỗi request private phải khớp authoritative user record.
+  Password reset và thay đổi role/workspace bump version để revoke session cũ.
 - `MCP_WRITER_MODE` mặc định `read`; manifest/helper trực tiếp cũng mặc định
   read-only. `write` chỉ được phép khi operator đã fence old writer và đặt
   `MCP_OLD_WRITER_FENCED=true`; khi đó mới đăng ký preview/confirm mutation
@@ -165,6 +168,9 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
 - Auth/session, role, workspace và parent resource phải được revalidate server-side;
   client/AI không được chọn `userId`, `role`, `workspaceId`, account type, amount,
   payment state hoặc report total.
+- Public registration cấp một workspace opaque dẫn xuất ổn định từ normalized
+  email; request có `workspaceId` bị reject. Chỉ admin policy mới được chuyển
+  user sang workspace khác.
 - Mongo transaction/CAS/unique index/TTL phải bảo vệ payment, preview,
   idempotency và scheduler claim. Migration, delete/merge, reconcile và reversal
   cần dry-run, backup/recovery, rollback và DECISION riêng.
@@ -205,7 +211,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | Priority | GAP ID | Hiện trạng | Điều kiện đóng |
 |---|---|---|---|
 | P0 | `GAP-CI-01` | Đã sửa contract dependency; Jenkins app config nay validate `shared` → `frontend` → `backend` | Jenkins runtime phải xác nhận đúng checkout SHA/SCM/branch và pass source stages |
-| P0 | `GAP-SEC-01`, `GAP-SEC-02` | Một phần; session version và register workspace policy còn thiếu | Revalidate/revoke/version guard và policy membership rõ ràng |
+| P0 | `GAP-SEC-01`, `GAP-SEC-02` | Đã implement session version/revoke guard và register workspace policy; cần rollout candidate để xác nhận runtime | Backend/frontend tests, authoritative version bump và policy membership evidence |
 | P0 | `GAP-MCP-01`, `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | Preview/receipt/payment parity đã có; old writer, HITL/resource binding và reversal còn mở | Candidate image, fence/drain, resource/HITL policy và reversal decision |
 | P0 | `GAP-OPS-01` | Đã xử lý: startup không còn silent catalog write | Giữ CLI dry-run/apply guard và regression test |
 | P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | Delete/merge orphan, account lifecycle race, calendar unique index còn mở | DECISION + transaction/index/dry-run/backup/rollback |

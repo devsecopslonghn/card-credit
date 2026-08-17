@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import { ApiError } from "./errors.js";
 
-export type Session = { userId: string; email: string; role: string; workspaceId: string };
+export type Session = { userId: string; email: string; role: string; workspaceId: string; sessionVersion?: number };
 export const AUTH_COOKIE_NAME = "card_credit_session";
 export const DEFAULT_SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 export const sessionMaxAgeMs = (value = process.env.AUTH_SESSION_MAX_AGE_MS): number => {
@@ -13,7 +13,7 @@ export const sessionMaxAgeMs = (value = process.env.AUTH_SESSION_MAX_AGE_MS): nu
   return parsed;
 };
 export const signSession = (session: Session, secret: string, issuedAt = Date.now()) => {
-  const payload = Buffer.from(JSON.stringify({ ...session, issuedAt })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ ...session, sessionVersion: session.sessionVersion ?? 0, issuedAt })).toString("base64url");
   return `${payload}.${crypto.createHmac("sha256", secret).update(payload).digest("base64url")}`;
 };
 export const sessionCookie = (value: string, maxAge?: number) =>
@@ -28,8 +28,9 @@ export const sessionFromRequest = (request: FastifyRequest, secret: string, maxA
     const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Session & { issuedAt?: unknown };
     const now = Date.now();
     if (typeof session.issuedAt !== "number" || !Number.isSafeInteger(session.issuedAt) || session.issuedAt > now + 5 * 60_000 || now - session.issuedAt > maxAgeMs) throw new Error("expired session");
-    if (!session.userId || !session.workspaceId || !session.role) throw new Error("invalid session");
-    return { userId: session.userId, email: session.email, role: session.role, workspaceId: session.workspaceId };
+    const sessionVersion = (session as { sessionVersion?: unknown }).sessionVersion ?? 0;
+    if (!session.userId || !session.workspaceId || !session.role || typeof sessionVersion !== "number" || !Number.isSafeInteger(sessionVersion) || sessionVersion < 0) throw new Error("invalid session");
+    return { userId: session.userId, email: session.email, role: session.role, workspaceId: session.workspaceId, sessionVersion };
   } catch { throw new ApiError(401, "UNAUTHENTICATED", "Vui lòng đăng nhập."); }
 };
 export const requireAdmin = (request: FastifyRequest, secret: string): Session => {
