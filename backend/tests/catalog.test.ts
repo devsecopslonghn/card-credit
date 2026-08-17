@@ -25,6 +25,7 @@ test("admin authorization, create, duplicate, product update, and provider updat
   assert.equal((await app.inject({ url: "/api/admin/card-catalog/products", headers: { cookie: cookie("user", "u2") } })).statusCode, 403);
   const next = { ...product, presetId: "new-visa", sortOrder: 2 };
   const created = await app.inject({ method: "POST", url: "/api/admin/card-catalog/products", headers: { cookie: cookie() }, payload: next }); assert.equal(created.statusCode, 201); assert.equal(created.json().audit.updatedBy, "admin@example.test"); assert.equal(created.json().audit.storage, "mongodb:cardproducts");
+  assert.equal(created.json().data.id, undefined);
   assert.equal((await app.inject({ method: "POST", url: "/api/admin/card-catalog/products", headers: { cookie: cookie() }, payload: next })).statusCode, 409);
   const updated = await app.inject({ method: "PATCH", url: "/api/admin/card-catalog/products/new-visa", headers: { cookie: cookie() }, payload: { annualFee: 200 } }); assert.equal(updated.json().data.annualFee, 200);
   const provider = await app.inject({ method: "PATCH", url: "/api/admin/card-catalog/providers/TST", headers: { cookie: cookie() }, payload: { providerName: "Renamed" } }); assert.equal(provider.json().data.affectedProducts, 2); assert.deepEqual(auditEvents, ["CATALOG_PRODUCT_CREATED", "CATALOG_PRODUCT_UPDATED", "CATALOG_PROVIDER_BULK_UPDATED"]); assert.deepEqual(auditActors, ["u1:admin@example.test:admin:w1", "u1:admin@example.test:admin:w1", "u1:admin@example.test:admin:w1"]); await app.close();

@@ -68,7 +68,6 @@ export const normalizeCatalogProduct = (input: Record<string, unknown>): Catalog
   theme: input.theme as CatalogProduct["theme"],
 });
 
-export const withLegacyAliases = (product: CatalogProduct) => ({ ...product, id: product.presetId, bank: product.providerCode, bankName: product.providerName, name: product.displayName, type: product.network });
 export const invalidCatalogError = (issues: CatalogIssue[]) => new ApiError(400, "INVALID_REQUEST", "Catalog không hợp lệ.", { catalog: issues.map((i) => `${i.presetId}.${i.field}: ${i.code}`).join("; ") });
 
 export class InMemoryCatalogRepository implements CatalogRepository {
