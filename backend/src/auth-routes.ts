@@ -9,6 +9,7 @@ import { AuthSessionService } from "./services/auth-session-service.js";
 import { AuthRegistrationService } from "./services/auth-registration-service.js";
 import { ForgotPasswordService, PasswordResetService } from "./services/password-reset-service.js";
 import { AuthBootstrapService } from "./services/auth-bootstrap-service.js";
+import { normalizeEmail } from "./services/auth-policy.js";
 
 export type AuthOptions = {
   repository: AuthRepository;
@@ -20,21 +21,20 @@ export type AuthOptions = {
   sessionMaxAgeMs?: number;
   audit?: (event: string, request: FastifyRequest, actor?: Session | null, email?: string | null, resource?: Record<string, unknown>) => Promise<void>;
 };
-const emailOf = (value: unknown) => typeof value === "string" ? value.trim().toLowerCase() : "";
 const publicUser = (session: Session) => ({ email: session.email, role: session.role, workspaceId: session.workspaceId });
 const toSession = (user: AuthUser): Session => ({ userId: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId, sessionVersion: user.sessionVersion ?? 0 });
 
 export const registerAuthRoutes = (app: FastifyInstance, options: AuthOptions) => {
   const audit = options.audit ?? (async () => {});
   app.post<{ Body: Record<string, unknown> }>("/api/auth/login", async (request, reply) => {
-    const email = emailOf(request.body?.email);
+    const email = normalizeEmail(request.body?.email);
     try { const session = await AuthSessionService.login(email, request.body?.password, options.repository); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "login" }); reply.header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser }; }
     catch (error) { await audit("LOGIN_FAILURE", request, null, email, { type: "auth", action: "login", errorCode: error instanceof ApiError ? error.code : "UNKNOWN" }); throw error; }
   });
   app.get("/api/auth/me", async (request) => { const { actor } = await browserActorContext(request, options.secret, options.repository); return { user: authSessionSchema.parse(publicUser(actor)) }; });
   app.post("/api/auth/logout", async (request, reply) => { let actor: Session | null = null; try { actor = sessionFromRequest(request, options.secret); } catch { actor = null; } await audit("LOGOUT", request, actor, actor?.email, { type: "auth", action: "logout" }); reply.header("set-cookie", sessionCookie("", 0)); return { ok: true }; });
   app.post<{ Body: Record<string, unknown> }>("/api/auth/register", async (request, reply) => {
-    const email = emailOf(request.body?.email);
+    const email = normalizeEmail(request.body?.email);
     if ("workspaceId" in (request.body ?? {})) throw new ApiError(400, "WORKSPACE_SELECTION_NOT_ALLOWED", "Workspace được cấp tự động khi đăng ký.");
     const session = await AuthRegistrationService.register(email, request.body?.password, request.body?.displayName, options.repository); const safeUser = authSessionSchema.parse(publicUser(session)); await audit("LOGIN_SUCCESS", request, session, email, { type: "auth", action: "register" }); reply.status(201).header("set-cookie", sessionCookie(signSession(session, options.secret), Math.floor((options.sessionMaxAgeMs ?? DEFAULT_SESSION_MAX_AGE_MS) / 1000))); return { user: safeUser };
   });
