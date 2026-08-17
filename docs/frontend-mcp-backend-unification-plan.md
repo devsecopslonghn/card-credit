@@ -275,6 +275,25 @@ implemented yet.
   completeness contract riêng; legacy no-query admin response vẫn giữ nguyên.
 - Commit/push: `a286d00` đã push lên `origin/master`.
 
+### Completed checkpoint: Add deterministic card duplicate preflight
+
+- Requirement/GAP: `GAP-DATA-01`, `GAP-DATA-02` cần preflight trước khi áp dụng
+  data-integrity indexes hoặc xử lý card lifecycle.
+- Scope: `ensure-data-integrity-indexes.ts` đọc projection card và báo cáo số
+  exact duplicate groups/card IDs theo `workspaceId + presetId + normalized
+  owner`, bỏ qua card retired; helper trả kết quả sort ổn định để audit/hash
+  downstream không phụ thuộc query order.
+- Independent review: GO cho read-only preflight. Không merge/retire card,
+  không tạo index, không sửa account/statement/transaction, không database
+  mutation và không Kubernetes mutation.
+- Regression/validation evidence: duplicate/preflight tests pass `2/2`; backend
+  `npm run validate` pass typecheck, lint, build và `150/150` tests; shared
+  `26/26` và frontend unit `82/82`, integration `6/6`, typecheck, lint, build
+  đã pass trên cùng source baseline. Đây vẫn chưa là live preflight/index
+  evidence.
+- Residual: script chưa được chạy trên database target; source/test không thay
+  thế live dry-run hoặc reconciliation evidence.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

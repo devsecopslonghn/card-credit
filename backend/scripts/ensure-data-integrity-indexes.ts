@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { exactDuplicateCardGroups } from "../src/card-duplicate.js";
 
 const uri = process.env.MONGODB_URI?.trim();
 const apply = process.env.DATA_INTEGRITY_INDEX_APPLY === "true";
@@ -9,7 +10,7 @@ try {
   const db = mongoose.connection.db!;
   const cards = db.collection("creditcards");
   const subscriptions = db.collection("calendarsubscriptions");
-  const [cardIndexes, subscriptionIndexes, duplicateDevices] = await Promise.all([
+  const [cardIndexes, subscriptionIndexes, duplicateDevices, workspaceCards] = await Promise.all([
     cards.indexes().catch(() => []),
     subscriptions.indexes().catch(() => []),
     subscriptions.aggregate([
@@ -18,13 +19,17 @@ try {
       { $match: { count: { $gt: 1 } } },
       { $count: "groups" },
     ]).toArray().catch(() => []),
+    cards.find({}).project({ _id: 1, workspaceId: 1, presetId: 1, owner: 1, active: 1 }).toArray().catch(() => []),
   ]);
   const duplicateGroups = duplicateDevices[0]?.groups ?? 0;
+  const duplicateCardGroups = exactDuplicateCardGroups(workspaceCards);
   console.log(JSON.stringify({
     mode: apply ? "apply" : "dry-run",
     cardIndexes: cardIndexes.map((index) => index.name),
     subscriptionIndexes: subscriptionIndexes.map((index) => index.name),
     duplicateDeviceGroups: duplicateGroups,
+    duplicateCardGroups: duplicateCardGroups.length,
+    duplicateCardIds: duplicateCardGroups.reduce((total, group) => total + group.cardIds.length, 0),
     required: ["credit_card_merge_redirect", "calendar_subscription_user_workspace_device_unique"],
   }));
 

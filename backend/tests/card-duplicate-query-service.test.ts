@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { CardQueryService } from "../src/services/card-query-service.js";
+import { exactDuplicateCardGroups } from "../src/card-duplicate.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 
 const context: ServiceContext = { workspaceId: "workspace-a", userId: "user-a", role: "user", channel: "browser", correlationId: "duplicate-test" };
@@ -44,4 +45,13 @@ test("duplicate query groups canonical cards by exact preset and normalized owne
     "507f1f77bcf86cd799439012",
   ]);
   assert.equal(result[0]?.cards[0]?.active, false);
+});
+
+test("data integrity preflight groups only active exact duplicate cards deterministically", () => {
+  assert.deepEqual(exactDuplicateCardGroups([
+    { _id: "card-b", workspaceId: "workspace-a", presetId: "preset-a", owner: "  Tôi  " },
+    { _id: "card-a", workspaceId: "workspace-a", presetId: "preset-a", owner: "Tôi", active: true },
+    { _id: "card-retired", workspaceId: "workspace-a", presetId: "preset-a", owner: "Tôi", active: false },
+    { _id: "card-other", workspaceId: "workspace-b", presetId: "preset-a", owner: "Tôi" },
+  ]), [{ fingerprint: "workspace-a::preset-a::Tôi", cardIds: ["card-a", "card-b"] }]);
 });
