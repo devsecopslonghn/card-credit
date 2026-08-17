@@ -54,6 +54,16 @@ lại để tránh đọc nhầm checkpoint cũ.
 - MCP config regression also confirms `MCP_OLD_WRITER_FENCED=true` alone keeps
   the default mode `read`; write requires an explicit writer mode plus the
   fence acknowledgement.
+- Cleanup checkpoint at source `88a6cc2`: consumer audit found no TypeScript
+  consumer for `frontend/lib/api/statementCalendarEmailCore.d.ts`; the
+  declaration was removed while the runtime `.mjs`, client behavior and
+  `statementCalendarEmail.test.mjs` remain intact. The retained
+  `calendarSubscriptionsCore.d.ts` still has a TypeScript client consumer.
+- Post-cleanup validation: frontend `npm ci --include=optional`, lint,
+  typecheck, curated `npm test` `44/44`, `test:unit` `80/80`, integration
+  `6/6`, and production build all pass; shared `29/29` and backend `162/162`
+  with typecheck/lint/build also pass. CI entrypoint regression and chart
+  read-only lint/template remain green.
 - Local container artifact build was attempted read-only: Docker CLI exists but
   the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
   no `buildctl` is installed. No permission bypass was used; Jenkins remains
@@ -211,6 +221,8 @@ ordering.
 
 - `docs/product.md`
 - `docs/ui-design.md`
+- `frontend/lib/api/statementCalendarEmailCore.d.ts` (declaration không có
+  consumer TypeScript; runtime source là `.mjs` và vẫn có regression test)
 - legacy finance-category defaults endpoint/service
 - các alias/wrapper/catalog/cache/index repair path đã được ghi trong Git
   history và không còn consumer.
