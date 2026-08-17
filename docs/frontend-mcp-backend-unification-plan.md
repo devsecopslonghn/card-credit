@@ -384,6 +384,17 @@ implemented yet.
   `151/151` critical tests.
 - Commit/push: `be2658c` đã push lên `origin/master`.
 
+### Completed checkpoint: Remove unreferenced environment preview wrappers
+
+- Scope: xóa `createPreviewToken`, `verifyPreviewToken` và factory đọc trực tiếp
+  `process.env`; không có consumer nội bộ. Canonical runtime tiếp tục dùng
+  injected `createPreviewTokenCodec`, giúp test/runtime không có hidden global
+  secret dependency.
+- Independent review: GO cho zero-consumer source cleanup; giữ nguyên HMAC
+  claims, TTL, context binding, preview persistence và command guard.
+- Regression/evidence: source/test/runtime search ngoài execution ledger không
+  còn hai wrapper; backend full validation phải pass trước commit.
+
 ### Completed checkpoint: Paginate statement projections with stable cursors
 
 - Requirement/GAP: `GAP-PERF-01` cần bounded public reads cho các projection
