@@ -45,6 +45,11 @@ lại để tránh đọc nhầm checkpoint cũ.
   the daemon is unavailable (`permission denied` on `/var/run/docker.sock`) and
   no `buildctl` is installed. No permission bypass was used; Jenkins remains
   the authoritative image build/publish evidence.
+- Chart release gate is green in `/home/longhn0710/workspace/k8s-namepsace-chart/card-credit`:
+  `helm lint .` pass and `helm template` pass with immutable tag `8ceb3fe`;
+  rendered backend keeps `MCP_WRITER_MODE=read` and
+  `MCP_OLD_WRITER_FENCED=true`. This is desired-state evidence only; it is not
+  proof that the live pod has that image.
 - Stale-reference audit ngoài historical ledger không còn
   `/api/reports/summary`, `reportsCore`, `docs/refactor*`, legacy category
   defaults hoặc các document đã xóa.
