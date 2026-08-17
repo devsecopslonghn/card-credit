@@ -215,7 +215,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 
 | Priority | GAP ID | Hiện trạng | Điều kiện đóng |
 |---|---|---|---|
-| P0 | `GAP-CI-01` | Đã đóng: Jenkins build `#353` checkout đúng SCM/branch/SHA `7f04f18`, chạy `npm test` đúng một lần cho `shared`/`frontend`/`backend`, pass lần lượt 25/45/134, catalog validation 33 products và publish immutable images; candidate đã được CD/Argo reconcile read-only | Giữ regression gate; không suy diễn writer rollout từ Jenkins success |
+| P0 | `GAP-CI-01` | Đã đóng cho CI/source publication: Jenkins `#359` checkout đúng SHA `7ed8505`, chạy `npm test` đúng một lần cho `shared`/`frontend`/`backend`, pass lần lượt 25/45/135, publish immutable images và handoff GitOps `2edfeae`; Argo/runtime reconcile của batch mới vẫn pending | Giữ regression gate; không suy diễn runtime hoặc writer rollout từ Jenkins success |
 | P0 | `GAP-SEC-01`, `GAP-SEC-02` | Đã implement session version/revoke guard và register workspace policy; candidate read-only đã rollout và health/ready pass, nhưng authoritative version bump và policy membership runtime evidence còn thiếu | Backend/frontend tests, authoritative version bump và policy membership evidence |
 | P0 | `GAP-MCP-01`, `GAP-PAY-01`, `GAP-PAY-02`, `GAP-STM-01` | Preview/receipt/payment parity và candidate read-only runtime đã có; external old writer, HITL/resource binding và reversal còn mở | Independent fence/drain/traffic evidence, resource/HITL policy và reversal decision |
 | P0 | `GAP-OPS-01` | Đã xử lý: startup không còn silent catalog write | Giữ CLI dry-run/apply guard và regression test |
@@ -224,7 +224,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | P1 | `GAP-UI-02`, `GAP-UI-03`, `GAP-AUTH-01` | Filter semantics và write UI còn thiếu; forgot-password đã nối SMTP delivery với generic response | Contract/UI/mail runtime config và owner evidence |
 | P2 | `GAP-API-01`, `GAP-WEB-01` | Đã đóng: REST inventory drift gate và authorization metadata có runtime regression evidence | Giữ parity tests trong release gate |
 | P2 | `GAP-DOC-01` | Đã đóng cho production surface: không còn reference tới `/api/reports/summary`, `reportsCore` hoặc `docs/refactor*` ngoài historical execution ledger; canonical report docs/smoke path đã cập nhật | Giữ stale-reference check khi compatibility window thay đổi |
-| P2 | `GAP-PERF-01` | Đã có bounded transaction list, calendar subscription list, workspace notes list và legacy masterdata lists; các list khác và cursor pagination vẫn mở | Bounded/paginated coverage cho từng dataset trước release |
+| P2 | `GAP-PERF-01` | Đã có bounded transaction list, calendar subscription list, workspace notes list và legacy masterdata lists; audit giữ admin/card/recurring/category/fee/reporting reads mở vì chưa có completeness/cursor contract, cursor pagination vẫn mở | Bounded/paginated coverage và completeness regression cho từng dataset trước release |
 
 Execution order: (1) contract/drift gates, (2) trusted context + query parity,
 (3) generic preview/confirm/idempotency/audit, (4) payment state/reversal, (5)
