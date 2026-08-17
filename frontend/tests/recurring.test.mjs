@@ -10,6 +10,7 @@ test("recurring UI uses the canonical lifecycle client and monthly contract", ()
   assert.match(client, /saveRecurringExpense/);
   assert.match(client, /deactivateRecurringExpense/);
   assert.match(page, /recurring-category-options/);
+  assert.match(page, /không tự ghi financial transaction/);
   assert.match(page, /Khoản chi định kỳ/);
   assert.match(page, /Cập nhật/);
   assert.match(page, /Tắt/);

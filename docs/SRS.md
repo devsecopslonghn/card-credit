@@ -200,6 +200,11 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
   category cũ. Category CRUD không sửa giao dịch đã có; unknown/legacy
   `categoryId` vẫn được giữ và hiển thị. Endpoint tạo default categories cũ đã
   bị xóa vì không có consumer.
+- **DECISION-PLAN-01 — Recurring schedule**: recurring expense hiện là
+  schedule-only configuration; không có job tự sinh `FinancialTransaction`.
+  Ledger mutation chỉ xảy ra qua canonical transaction command do user chủ động
+  xác nhận. Nếu sau này bật generation, phải thêm preview/idempotency/audit và
+  acceptance riêng trước khi mở writer.
 - `/health` là liveness; `/ready` chỉ 200 khi Mongo connected. Logger redact
   authorization, cookie, password, token và URI. SIGTERM dừng job/server/DB sạch.
 - Production image chạy non-root; Jenkins dùng `Jenkinsfile` và `ci-platform`
@@ -252,7 +257,7 @@ ghi theo commit trong execution plan; không suy diễn từ tài liệu cũ.
 | P1 | `GAP-DATA-01`, `GAP-ACC-01`, `GAP-DATA-02` | **CLOSED** — source policy/tests cho card soft-retire/restricted-merge, account retention và calendar partial-unique index; live data-integrity dry-run xác nhận required indexes tồn tại, duplicate device groups `0`, duplicate card groups `0`, duplicate card IDs `0`; finance read-only audit xác nhận orphan account/card/transaction references đều `0` | Giữ dry-run/index verification và read-only reconciliation trước release |
 | P1 | `GAP-REP-01` | **CLOSED** — `DECISION-REP-01` chốt ledger `categoryId` là source authoritative, category catalogue chỉ là planning metadata; shared category input/list contracts, category REST trusted-context/tenant rejection tests và Budgets/Recurring client hints đã có; report regression chứng minh không đọc category catalogue/legacy `monthlyData`, endpoint default legacy đã xóa; live report read/reconciliation đã pass | Giữ ledger/category no-join guard và stale endpoint check trước release |
 | P1 | `GAP-REP-02` | **CLOSED** — authoritative source là financial ledger + statement projection; `cardId` và `owner/year/month` filters đã có REST/MCP/UI parity theo statement/account reference; live read-only audit cho workspace MCP cố định ghi nhận 5 cards, 11 statements, 45 financial transactions, `7/7` paid-statement payment sync, `missingPayments=0` và orphan counts cả 6 loại bằng `0` với source hash ổn định | Giữ read-only orphan/completeness audit trước release |
-| P1 | `GAP-UI-02`, `GAP-UI-03` | **PARTIAL** — Reports đã có canonical date-range/card/owner/calendar filters; Budgets và recurring đã có canonical write/lifecycle UI, REST adapter regression `6/6`, shared contracts và regression evidence; recurring transaction generation và UI acceptance runtime còn thiếu, schedule hiện vẫn intentionally không tự ghi financial transaction | Chốt generation policy, thêm preview/idempotency nếu triển khai và có owner/runtime UI acceptance |
+| P1 | `GAP-UI-02`, `GAP-UI-03` | **CLOSED** — Reports, Budgets và recurring có canonical filters/contracts/write lifecycle; Playwright runtime acceptance chứng minh report filter, budget upsert và recurring create/deactivate qua UI; `DECISION-PLAN-01` giữ recurring schedule-only, không có implicit financial writer | Giữ Playwright acceptance; nếu bật generation phải mở decision/preview/idempotency/audit mới |
 | P1 | `GAP-AUTH-01` | **PARTIAL** — forgot-password đã nối MailService với generic response và test delivery; runtime SMTP `transport.verify()` pass tới port `587`/`secure=false`, nhưng chưa có approved-recipient delivery hoặc sender-owner evidence | Gửi connectivity-safe delivery test tới recipient được phép và ghi sender-owner evidence |
 | P2 | `GAP-API-01`, `GAP-WEB-01` | Đã đóng: REST inventory drift gate và authorization metadata có runtime regression evidence | Giữ parity tests trong release gate |
 | P2 | `GAP-DOC-01` | Đã đóng cho production surface: không còn reference tới `/api/reports/summary`, `reportsCore` hoặc `docs/refactor*` ngoài historical execution ledger; canonical report docs/smoke path đã cập nhật | Giữ stale-reference check khi compatibility window thay đổi |
