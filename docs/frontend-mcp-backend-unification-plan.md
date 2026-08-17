@@ -122,6 +122,19 @@ implemented yet.
   preview/confirm, Secret value read, database operation, restart, scale,
   patch or rollout was executed.
 
+### Completed checkpoint: Restore chart MCP read-only desired state
+
+- Scope: chart repository `k8s-namepsace-chart` now renders
+  `MCP_WRITER_MODE=read` with `MCP_OLD_WRITER_FENCED=true`; image tag remains
+  the existing immutable candidate `5267c79cf437`.
+- Validation: `helm lint card-credit` passed (icon recommendation only), and
+  `helm template card-credit card-credit` rendered the expected read-only env.
+- Commit/push: chart commit `9acfebc` đã push lên `origin/master`; remote
+  deployment commit `cf4e3a7` was integrated before push, no force-push.
+- Runtime boundary: live pod metadata was not mutated; current pod still
+  reports `MCP_WRITER_MODE=write` until an explicitly authorized GitOps sync or
+  rollout. Desired-state evidence must not be reported as live-state evidence.
+
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
 - Scope: xóa các file frontend không còn production consumer:
