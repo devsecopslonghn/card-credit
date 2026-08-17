@@ -28,8 +28,9 @@ implemented yet.
   Backend env metadata là `MCP_WRITER_MODE=write` và
   `MCP_OLD_WRITER_FENCED=true`.
 - GitOps evidence: chart repository clean tại commit `33a4ad6`; source
-  repository hiện đã tiến tới `28f52fd`, vì vậy runtime hiện tại chưa chứng minh
-  các feature recurring/UI mới.
+  repository hiện đã tiến tới `109ee42` (gồm canonical report `cardId` filter
+  và regression-test fix), vì vậy runtime hiện tại chưa chứng minh các feature
+  recurring/report/UI mới.
 - Read-only endpoint evidence: `/health` và `/ready` trả `200`; `/docs/json`
   trả `200` với MCP `Streamable HTTP`, fixed context
   (`MCP_USER_ID`/`MCP_WORKSPACE_ID`), policy
