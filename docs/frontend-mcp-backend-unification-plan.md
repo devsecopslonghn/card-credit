@@ -88,6 +88,28 @@ implemented yet.
 - Commit/push: `6a1728a` (`refine REST authorization metadata`) đã push lên
   `origin/master`.
 
+### Completed checkpoint: Bounded financial transaction list
+
+- Requirement/GAP: `GAP-PERF-01` yêu cầu list query có giới hạn bounded dùng
+  chung cho REST, MCP và frontend; slice này không claim cursor pagination cho
+  các collection khác.
+- Independent review: GO cho read-only slice. Contract đặt `limit` mặc định
+  100, tối đa 100; REST chuyển query string sang number, MCP dùng cùng schema,
+  service áp dụng `.limit()` trước `.lean()`, response/envelope không đổi.
+- Changed write-set: shared transaction query contract/constants; REST/MCP
+  manifest và adapters; `FinancialTransactionService` read query; frontend
+  finance client; shared/backend/frontend regression tests; API docs. Không đổi
+  financial persistence, transaction state, schema, index, migration, database
+  data hoặc Kubernetes.
+- Verification: shared `npm run validate` pass 25/25; backend
+  `npm run validate` pass typecheck/lint, 185/185 tests và build; frontend
+  typecheck/lint, unit 86/86, integration 6/6 và build pass; targeted bounded
+  tests pass; `git diff --check` pass.
+- Residual risk: các list endpoint khác và cursor/next-cursor pagination vẫn là
+  phần mở của `GAP-PERF-01`.
+- Commit/push: `0ee1156` (`bound financial transaction list queries`) đã push lên
+  `origin/master`.
+
 ### Completed checkpoint: Clean frontend image dependency boundary và MCP writer fence guard
 
 - Requirement/GAP: `GAP-CI-01` cần chứng minh frontend image build được trong
