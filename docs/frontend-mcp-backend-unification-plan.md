@@ -34,6 +34,8 @@ lại để tránh đọc nhầm checkpoint cũ.
 
 - Shared: `npm run validate` — build pass, tests `29/29`.
 - Backend: `npm run validate` — typecheck/lint/build pass, tests `160/160`.
+- Backend exhaustive local suite: `npm run test:all` — tests `257/257` pass,
+  including non-blocking legacy/reconciliation/payment coverage.
 - Frontend: curated `npm test` `44/44`, integration `6/6`, typecheck/lint/build
   pass, production build renders `24` routes.
 - Latest full gate for the current source checkpoint (`d488379`): frontend
