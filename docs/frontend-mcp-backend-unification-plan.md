@@ -141,6 +141,22 @@ implemented yet.
 - Commit/push: `0a32cfd` đã push lên `origin/master`; runtime chưa rollout nên
   không claim production UI/MCP acceptance.
 
+### Completed checkpoint: Add deterministic orphan reference audit
+
+- Requirement/GAP: `REP-02`, `DATA-01`, `ACC-01` cần chứng minh orphan không bị
+  âm thầm gán sang card/account khác.
+- Scope: thêm pure `auditOrphanReferences` inventory cho statement-card,
+  account-card, transaction-account, transaction-statement, fee-card và
+  cashback-card references; kết quả gồm sorted records, per-kind counts và
+  source hash. `scripts/audit-finance-reconciliation.ts` chỉ đọc các collection
+  trong workspace và in inventory; không tạo reconciliation case, không mark
+  paid, không sửa/xóa dữ liệu.
+- Regression: 2 focused tests kiểm tra broken-reference classification,
+  immutability và deterministic hash; test này nằm trong curated backend
+  `npm test`.
+- Residual: chưa chạy live audit vì cần target/snapshot database được phép;
+  không dùng source/test để claim production data sạch.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

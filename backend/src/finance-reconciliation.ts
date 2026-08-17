@@ -57,6 +57,26 @@ export type LegacyPaymentPlan = {
   sourceHash: string;
 };
 
+export type OrphanReferenceKind =
+  | "STATEMENT_CARD"
+  | "ACCOUNT_CARD"
+  | "TRANSACTION_ACCOUNT"
+  | "TRANSACTION_STATEMENT"
+  | "FEE_CARD"
+  | "CASHBACK_CARD";
+
+export type OrphanReference = {
+  kind: OrphanReferenceKind;
+  recordId: string;
+  referenceId: string;
+};
+
+export type OrphanReconciliation = {
+  counts: Record<OrphanReferenceKind, number>;
+  records: OrphanReference[];
+  sourceHash: string;
+};
+
 export const reconciliationIdOf = (value: unknown) => {
   if (typeof value === "string") return value;
   if (!value || typeof value !== "object") return "";
@@ -106,6 +126,43 @@ export const reconciliationPlanPayload = (plan: LegacyPaymentPlan) => ({
 });
 
 export const reconciliationPlanHash = (plan: LegacyPaymentPlan) => canonicalPayloadHash(reconciliationPlanPayload(plan));
+
+/**
+ * Builds a deterministic, read-only inventory of broken workspace references.
+ * It intentionally reports only non-empty references that point outside the
+ * supplied parent sets; it never repairs, deletes or reassigns financial data.
+ */
+export const auditOrphanReferences = (input: {
+  cards: Data[];
+  statements: Data[];
+  accounts: Data[];
+  transactions: Data[];
+  fees: Data[];
+  cashbacks: Data[];
+}): OrphanReconciliation => {
+  const ids = (items: Data[]) => new Set(items.map((item) => idOf(item._id)).filter(Boolean));
+  const cardIds = ids(input.cards);
+  const statementIds = ids(input.statements);
+  const accountIds = ids(input.accounts);
+  const records: OrphanReference[] = [];
+  const add = (kind: OrphanReferenceKind, record: Data, reference: unknown) => {
+    const recordId = idOf(record._id);
+    const referenceId = idOf(reference);
+    if (recordId && referenceId) records.push({ kind, recordId, referenceId });
+  };
+  for (const statement of input.statements) if (idOf(statement.userCardId) && !cardIds.has(idOf(statement.userCardId))) add("STATEMENT_CARD", statement, statement.userCardId);
+  for (const account of input.accounts) if (idOf(account.creditCardId) && !cardIds.has(idOf(account.creditCardId))) add("ACCOUNT_CARD", account, account.creditCardId);
+  for (const transaction of input.transactions) {
+    if (idOf(transaction.accountId) && !accountIds.has(idOf(transaction.accountId))) add("TRANSACTION_ACCOUNT", transaction, transaction.accountId);
+    if (idOf(transaction.statementId) && !statementIds.has(idOf(transaction.statementId))) add("TRANSACTION_STATEMENT", transaction, transaction.statementId);
+  }
+  for (const fee of input.fees) if (idOf(fee.userCardId) && !cardIds.has(idOf(fee.userCardId))) add("FEE_CARD", fee, fee.userCardId);
+  for (const cashback of input.cashbacks) if (idOf(cashback.userCardId) && !cardIds.has(idOf(cashback.userCardId))) add("CASHBACK_CARD", cashback, cashback.userCardId);
+  records.sort((left, right) => left.kind.localeCompare(right.kind) || left.recordId.localeCompare(right.recordId) || left.referenceId.localeCompare(right.referenceId));
+  const kinds: OrphanReferenceKind[] = ["STATEMENT_CARD", "ACCOUNT_CARD", "TRANSACTION_ACCOUNT", "TRANSACTION_STATEMENT", "FEE_CARD", "CASHBACK_CARD"];
+  const counts = Object.fromEntries(kinds.map((kind) => [kind, records.filter((record) => record.kind === kind).length])) as Record<OrphanReferenceKind, number>;
+  return { counts, records, sourceHash: canonicalPayloadHash(records) };
+};
 
 /**
  * Plans only deterministic state repairs where the existing ledger proves that
