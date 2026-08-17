@@ -146,6 +146,10 @@ implemented yet.
   `MCP_OLD_WRITER_FENCED=true`. `/health`, `/ready` and `/docs/json` returned
   `200`; this proves liveness/readiness/API-doc availability, not financial
   traffic or receipt/reconciliation behavior.
+- Cluster-wide filtered deployment/pod inventory showed only the current
+  `card-credit-backend` and `card-credit-frontend` for this application; this
+  is evidence that no additional in-cluster card-credit writer pod was
+  observed, not proof that external clients stopped sending old-writer traffic.
 - Runtime environment presence check found `MONGODB_URI`, `SMTP_HOST` and
   `SMTP_USER` set without printing values; the finance audit workspace selector
   was absent, so no finance audit was executed. SMTP delivery/owner remains
