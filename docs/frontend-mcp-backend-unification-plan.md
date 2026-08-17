@@ -74,6 +74,7 @@ implemented yet.
   patch or rollout command was executed. This refresh therefore records only
   runtime health/config metadata and does not claim financial receipt/audit,
   orphan completeness or latest-source acceptance.
+- Commit/push: `f4f673b` đã push lên `origin/master`.
 
 ### Completed checkpoint: Remove unreferenced frontend compatibility adapters
 
@@ -226,6 +227,7 @@ implemented yet.
   completeness design riêng; không cắt các aggregation report trong slice này.
 - Rollback: revert source/docs commit của slice; không có database/schema/data
   hoặc Kubernetes change.
+- Commit/push: `dbe7fc3` đã push lên `origin/master`.
 
 ### Completed checkpoint: Add stable cursor to admin audit reads
 
@@ -242,6 +244,7 @@ implemented yet.
   `git diff --check` pass.
 - Residual: admin user roster và financial report aggregation vẫn giữ HOLD vì
   cần contract completeness riêng; slice này không claim chúng.
+- Commit/push: `544b700` đã push lên `origin/master`.
 
 ### Completed checkpoint: Remove superseded implementation plan
 
@@ -253,6 +256,7 @@ implemented yet.
   `README.md`, `docs/README.md` và `docs/SRS.md`.
 - Safety/rollback: docs-only cleanup, không source/runtime/database/index/data
   hoặc Kubernetes change; revert commit để khôi phục nếu cần.
+- Commit/push: `d991208` đã push lên `origin/master`.
 
 ### Completed checkpoint: Add bounded cursor page for admin users
 
@@ -269,6 +273,7 @@ implemented yet.
   `git diff --check` pass.
 - Residual: financial report aggregation vẫn HOLD vì cần aggregation/cursor
   completeness contract riêng; legacy no-query admin response vẫn giữ nguyên.
+- Commit/push: `a286d00` đã push lên `origin/master`.
 
 ### Completed checkpoint: Bound workspace notes reads
 
