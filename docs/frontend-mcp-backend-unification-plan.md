@@ -106,6 +106,41 @@ implemented yet.
   session-version runtime evidence và các financial decisions vẫn mở;
   production statement-payment MCP writer rollout tiếp tục **NO-GO**.
 
+### Audit checkpoint: External old-writer inventory and traffic — NO-GO
+
+- Independent inventory: read-only cluster scan found only the two
+  `card-credit` Deployments; the only writer-related environment names are
+  `MCP_WRITER_MODE` and `MCP_OLD_WRITER_FENCED` on the backend. No separate
+  workload, Service or Ingress for an old statement-payment writer was found.
+- Traffic evidence: the ingress controller aggregate for the previous 24h
+  contained `174` requests for `card-credit.apps.drgdevlab.com` and `0` requests
+  whose request path was `/mcp`. The `13` statement/payment text matches were
+  REST/UI paths (`/api/accounts`, `/api/card-statements` and `/payments`), not
+  MCP writer traffic. This is useful negative evidence, not proof that an
+  external client or writer is absent outside this ingress.
+- Desired/live boundary: chart remote `master` is `2edfeae`, while Argo still
+  reconciles `127bb6b...` and the live backend remains
+  `MCP_WRITER_MODE=read`, `MCP_OLD_WRITER_FENCED=false`. No fence, drain,
+  enable, scale, restart, patch, database change or MCP mutation was done.
+- Decision: **NO-GO** for statement-payment MCP writer rollout. Independent
+  owner/consumer and traffic accounting evidence is still required before any
+  fence acknowledgement or write-mode change.
+
+### Audit checkpoint: Session-version and revocation evidence — source GO, runtime PENDING
+
+- Source/test evidence: signed browser sessions carry `sessionVersion`,
+  `browserActorContext` compares it with the authoritative user record, and
+  password/role/workspace changes increment the Mongo repository version. The
+  backend curated `npm test` passed `135/135`, including stale-session,
+  inactive/locked and moved-workspace regressions.
+- Runtime boundary: no authoritative live version-bump/revocation check was
+  run against production data. MCP fixed identity revalidation currently checks
+  active/locked/workspace state, but has no browser session version to compare;
+  changing that requires an explicit MCP identity/version contract and is not a
+  safe inference from the existing tests.
+- Decision: retain source implementation, mark runtime evidence **PENDING**,
+  and do not modify persistence or deploy configuration in this audit slice.
+
 ### Completed checkpoint: Jenkins #353 candidate image publication
 
 - Requirement/GAP: xác nhận source checkout, curated CI regression và image
