@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { creditStatementReportListSchema, financialReportSchema, reportDateRangeSchema, reportDateSchema, resolveReportDateRange } from "../src/index.js";
+import { creditStatementReportListSchema, financialReportSchema, reportDateRangeSchema, reportDateSchema, reportQuerySchema, resolveReportDateRange } from "../src/index.js";
 
 const metric = { personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0, transactionCount: 0 };
 
@@ -35,6 +35,11 @@ test("report date range keeps REST defaults in the shared contract", () => {
   assert.deepEqual(resolveReportDateRange({}, today), { from: "2026-08-01", to: "2026-08-16" });
   assert.deepEqual(resolveReportDateRange({ from: "2026-07-10" }, today), { from: "2026-07-10", to: "2026-08-16" });
   assert.deepEqual(resolveReportDateRange({ to: "2026-08-10" }, today), { from: "2026-08-01", to: "2026-08-10" });
+});
+
+test("report query accepts only the canonical optional card filter", () => {
+  assert.deepEqual(reportQuerySchema.parse({ from: "2026-08-01", to: "2026-08-31", cardId: "card-1" }), { from: "2026-08-01", to: "2026-08-31", cardId: "card-1" });
+  assert.throws(() => reportQuerySchema.parse({ from: "2026-08-01", to: "2026-08-31", ownerId: "owner-1" }));
 });
 
 test("credit statement report projection is strict and uses canonical statement semantics", () => {

@@ -79,6 +79,23 @@ test("REST and MCP report adapters pass one canonical explicit date range", asyn
   await app.close();
 });
 
+test("REST and MCP report adapters pass the canonical optional card filter", async (t) => {
+  const observed: Array<{ range: { from: string; to: string }; filters?: { cardId: string } }> = [];
+  t.mock.method(FinancialReportService, "summary", async (_context: ServiceContext, range: { from: string; to: string }, filters?: { cardId: string }) => {
+    observed.push({ range, ...(filters ? { filters } : {}) });
+    return { range } as never;
+  });
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerFinancialReportRoutes(app, secret, users);
+  const range = { from: "2026-08-01", to: "2026-08-16" };
+  const rest = await app.inject({ url: `/api/financial-reports/summary?from=${range.from}&to=${range.to}&cardId=card-1`, headers: { cookie } });
+  const mcp = await callMcpSummary({ ...range, cardId: "card-1" });
+  assert.equal(rest.statusCode, 200);
+  assert.deepEqual(mcp, { range });
+  assert.deepEqual(observed, [{ range, filters: { cardId: "card-1" } }, { range, filters: { cardId: "card-1" } }]);
+  await app.close();
+});
+
 test("REST credit-statement projection keeps the canonical shared list contract", async (t) => {
   const data = [{
     statementId: "statement-1", statementDate: "2026-08-01", periodStartDate: "2026-07-02", periodEndDate: "2026-08-01",
@@ -92,4 +109,11 @@ test("REST credit-statement projection keeps the canonical shared list contract"
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.json().data, data);
   await app.close();
+});
+
+test("financial report card filter rejects malformed identifiers before model access", async () => {
+  await assert.rejects(
+    () => FinancialReportService.summary(mcpContext, { from: "2026-08-01", to: "2026-08-31" }, { cardId: "not-an-object-id" }),
+    (error: unknown) => error instanceof Error && "code" in error && error.code === "INVALID_REPORT_FILTER",
+  );
 });

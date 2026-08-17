@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { FinanceShell, Metric, vnd } from "@/components/finance/FinanceShell";
 import { getFinancialSummary } from "@/lib/api/financeClient";
+import { fetchCards } from "@/lib/api/cardsClient";
+import { getDisplayName, getProviderName } from "@/components/cards/cardTypes";
+import type { CreditCardView } from "@/components/cards/cardTypes";
 import type { FinancialReportDto } from "@card-credit/contracts";
 const today = () => new Date().toISOString().slice(0, 10);
 const monthStart = (value: string) => `${value.slice(0, 7)}-01`;
@@ -10,15 +13,19 @@ export default function ReportsPage() {
   const initialToday = today();
   const [from, setFrom] = useState(monthStart(initialToday));
   const [to, setTo] = useState(initialToday);
+  const [cardId, setCardId] = useState("");
+  const [cards, setCards] = useState<CreditCardView[]>([]);
   const [data, setData] = useState<FinancialReportDto | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    void getFinancialSummary(from, to).then((value) => { setData(value); setError(""); }).catch(() => setError("Không thể tải báo cáo cho khoảng ngày đã chọn."));
-  }, [from, to]);
+    void getFinancialSummary(from, to, cardId || undefined).then((value) => { setData(value); setError(""); }).catch(() => setError("Không thể tải báo cáo cho khoảng ngày đã chọn."));
+  }, [from, to, cardId]);
+  useEffect(() => { void fetchCards().then((value) => setCards(value.filter((card) => card.active))).catch(() => setCards([])); }, []);
   return <FinanceShell title="Báo cáo tài chính">
     <section className="cc-section mb-6 flex flex-wrap items-end gap-4 p-5">
       <label className="flex min-w-44 flex-1 flex-col gap-2 text-sm font-semibold">Từ ngày<input aria-label="Từ ngày" type="date" value={from} max={to} onChange={(event) => setFrom(event.target.value)} className="cc-control rounded-lg px-3 py-2" /></label>
       <label className="flex min-w-44 flex-1 flex-col gap-2 text-sm font-semibold">Đến ngày<input aria-label="Đến ngày" type="date" value={to} min={from} max={today()} onChange={(event) => setTo(event.target.value)} className="cc-control rounded-lg px-3 py-2" /></label>
+      <label className="flex min-w-56 flex-1 flex-col gap-2 text-sm font-semibold">Theo thẻ<select aria-label="Lọc theo thẻ" value={cardId} onChange={(event) => setCardId(event.target.value)} className="cc-control rounded-lg px-3 py-2"><option value="">Tất cả thẻ</option>{cards.map((card) => <option key={card._id} value={card._id}>{getProviderName(card)} · {getDisplayName(card)}</option>)}</select></label>
     </section>
     {error ? <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-700">{error}</p> : null}
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Metric label="Personal spending" value={data?.totals.personalSpending ?? 0}/><Metric label="Debit/Cash/E-wallet flow" value={data?.totals.debitCashflow ?? 0} tone="positive"/><Metric label="Credit debt" value={data?.totals.creditDebt ?? 0} tone="debt"/><Metric label="Khoản phải thu" value={data?.totals.outstandingReceivable ?? 0} tone="receivable"/></div>

@@ -13,6 +13,12 @@ export const reportDateRangeSchema = z.strictObject({
   if (range.from > range.to) context.addIssue({ code: "custom", path: ["to"], message: "The report range must be ordered from earliest to latest date" });
 });
 
+export const reportQuerySchema = z.strictObject({
+  from: reportDateSchema.optional(),
+  to: reportDateSchema.optional(),
+  cardId: z.string().min(1).optional(),
+});
+
 /** Resolve the REST-compatible current-month-to-today default without transport concerns. */
 export const resolveReportDateRange = (input = {}, today = new Date()) => {
   const todayValue = today instanceof Date && !Number.isNaN(today.valueOf())

@@ -166,7 +166,7 @@ Summary response nên có:
 | `POST /cards/:cardId/fee-payments` | Session | `{paymentDate,amount,note?}`. |
 | `PUT /cards/:cardId/fee-payments/:feePaymentId` | Session | Sửa actual fee. |
 | `DELETE /cards/:cardId/fee-payments/:feePaymentId` | Session | Xóa fee. |
-| `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Financial report theo khoảng ngày; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category. |
+| `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&cardId=` | Session | Financial report theo khoảng ngày, tùy chọn card filter theo statement/account reference; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category. |
 | `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD` | Session | Credit statement projection dùng canonical `StatementQueryService` và shared `CreditStatementReportDto[]`; `from/to` tùy chọn, thiếu một đầu vẫn all-time. |
 | `GET /cash-flow/monthly?period=YYYY-MM&cardId=` | Session | Financial Domain cash-flow theo card/tháng; output `{data,period}`. |
 | `GET /notes?limit=1..100` | Session | List tối đa 100 notes mới nhất trong workspace; response raw array được giữ nguyên để tương thích. |
@@ -215,9 +215,10 @@ client cũ. Công thức extraction giữ nguyên Financial Domain hiện tại 
 follow `reimbursementForTransactionId` sang expense CREDIT; semantic repair này
 phải là slice riêng.
 
-Owner/card/year/month filters và fee/cashback report parity chưa nằm trong
-runtime contract hiện tại; phải mở thành contract slice riêng trước khi thêm
-query parameters. `creditStatements` trả compatibility field names nhưng
+Owner/year/month filters và orphan reconciliation chưa nằm trong runtime
+contract hiện tại; `cardId` đã được thêm vào shared REST/MCP/frontend report
+contract theo statement/account reference. Fee/cashback report parity vẫn cần
+slice riêng trước khi thêm query parameters. `creditStatements` trả compatibility field names nhưng
 amount semantics lấy persisted `creditDebt`/impact từ canonical statement DTO.
 
 ## 8. Calendar, profile and admin endpoints

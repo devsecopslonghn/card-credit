@@ -1,8 +1,12 @@
+import mongoose from "mongoose";
 import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { AccountModel } from "../models/account.js";
 import { CardFeePaymentModel } from "../models/card-fee-payment.js";
 import { MonthlyCardCashbackModel } from "../models/monthly-card-cashback.js";
+import { CardStatementModel } from "../models/card-statement.js";
+import { CreditCardModel } from "../models/credit-card.js";
 import type { ServiceContext } from "./types/service-context.js";
+import { ApiError } from "../errors.js";
 import { StatementQueryService } from "./statement-query-service.js";
 import { creditStatementReportListSchema, financialReportSchema, reportDateRangeSchema } from "@card-credit/contracts";
 import type { CreditStatementReportDto, FinancialReportDto } from "@card-credit/contracts";
@@ -39,21 +43,43 @@ export class FinancialReportService {
     return StatementQueryService.upcoming(ctx, limit);
   }
 
-  static async summary(ctx: ServiceContext, range: Range) {
+  static async summary(ctx: ServiceContext, range: Range, filters: { cardId?: string } = {}) {
     range = reportDateRangeSchema.parse(range) as Range;
+    let transactionScope: Record<string, unknown> = { workspaceId: ctx.workspaceId, transactionDate: { $gte: range.from, $lte: range.to } };
+    const accountScope: Record<string, unknown> = { workspaceId: ctx.workspaceId, active: { $ne: false } };
+    const cardScope: Record<string, unknown> = { workspaceId: ctx.workspaceId };
+    let cardAccountIds: unknown[] = [];
+    if (filters.cardId) {
+      if (!mongoose.isValidObjectId(filters.cardId)) throw new ApiError(400, "INVALID_REPORT_FILTER", "Bộ lọc thẻ không hợp lệ.");
+      const card = await CreditCardModel.findOne({ ...cardScope, _id: filters.cardId }).select({ _id: 1 }).lean();
+      if (!card) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
+      const [cardAccounts, cardStatements] = await Promise.all([
+        AccountModel.find({ ...accountScope, creditCardId: filters.cardId }).select({ _id: 1 }).lean(),
+        CardStatementModel.find({ ...cardScope, userCardId: filters.cardId }).select({ _id: 1 }).lean(),
+      ]);
+      cardAccountIds = cardAccounts.map((account) => account._id);
+      transactionScope = { ...transactionScope, $or: [
+        { accountId: { $in: cardAccountIds } },
+        { statementId: { $in: cardStatements.map((statement) => statement._id) } },
+      ] };
+    }
     const [items, accounts, monthlyCashbacks, feePayments] = await Promise.all([
-      FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionDate: { $gte: range.from, $lte: range.to } }).lean(),
-      AccountModel.find({ workspaceId: ctx.workspaceId, active: { $ne: false } }).lean(),
-      MonthlyCardCashbackModel.find({ workspaceId: ctx.workspaceId, period: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } }).lean(),
+      FinancialTransactionModel.find(transactionScope).lean(),
+      AccountModel.find(accountScope).lean(),
+      MonthlyCardCashbackModel.find({ workspaceId: ctx.workspaceId, ...(filters.cardId ? { userCardId: filters.cardId } : {}), period: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } }).lean(),
       CardFeePaymentModel.find({
         workspaceId: ctx.workspaceId,
+        ...(filters.cardId ? { userCardId: filters.cardId } : {}),
         paymentDate: { $gte: range.from, $lte: range.to },
         category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] },
       }).lean(),
     ]);
+    const reportAccounts = filters.cardId
+      ? accounts.filter((account) => cardAccountIds.some((id) => String(id) === String(account._id)) || items.some((item) => String(item.accountId) === String(account._id)))
+      : accounts;
     const byCategory = new Map<string, ReturnType<typeof empty>>();
     const byAccountType = new Map<string, ReturnType<typeof empty>>();
-    const accountNames = new Map(accounts.map((account) => [String(account._id), String(account.name)]));
+    const accountNames = new Map(reportAccounts.map((account) => [String(account._id), String(account.name)]));
     const byAccount = new Map<string, ReturnType<typeof empty>>();
     for (const item of items) {
       const value = item as Record<string, unknown>;
@@ -96,8 +122,8 @@ export class FinancialReportService {
     const sourceIds = items.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").map((item) => item._id);
     const reimbursements = sourceIds.length ? await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 }).lean() : [];
     totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
-    const netAssets = accounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
-    const creditDebtBalance = accounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;
+    const netAssets = reportAccounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
+    const creditDebtBalance = reportAccounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;
     return financialReportSchema.parse({
       range,
       totals,

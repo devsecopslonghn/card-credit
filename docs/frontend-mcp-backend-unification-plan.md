@@ -102,6 +102,22 @@ implemented yet.
 - Rollback: revert this commit to remove the new lifecycle surface; no runtime
   financial mutation was executed.
 
+### Completed checkpoint: Add canonical card filter to financial reports
+
+- Scope: shared `reportQuerySchema` accepts optional `cardId`; REST and MCP
+  `get_personal_finance_summary` pass the same filter to
+  `FinancialReportService`; report service scopes transactions by the card's
+  credit account or statement reference and scopes cashback/fee records by card.
+  Frontend Reports exposes the active-card selector.
+- Safety: malformed or cross-workspace card IDs fail closed; no legacy
+  `monthlyData` aggregation, no persistence write, no database/index change.
+- Validation: shared `npm run validate` pass `26/26`; backend typecheck/lint,
+  build and curated `npm test` pass `143/143`; frontend critical pass `46/46`,
+  typecheck, lint and build pass.
+- Residual: `GAP-REP-02` remains `PARTIAL` for owner/year/month semantics,
+  full filter completeness and orphan reconciliation.
+- Rollback: revert this commit; no runtime data mutation was executed.
+
 ### Completed checkpoint: Bound workspace notes reads
 
 - Requirement/GAP: `GAP-PERF-01` còn một read collection không bounded trong

@@ -43,9 +43,9 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
   server.registerTool("list_fee_center", mcpToolMetadata("list_fee_center"), async ({ cardId, category }: { cardId?: string; category?: FeeCategory }) => json(await FeeQueryService.listCenter(await invocationContext(), { ...(cardId ? { cardId } : {}), ...(category ? { category } : {}) })));
   server.registerTool("list_monthly_cashbacks", mcpToolMetadata("list_monthly_cashbacks"), async ({ cardId, year }: { cardId: string; year: string }) => json(await MonthlyCashbackQueryService.list(await invocationContext(), cardId, year)));
  server.registerTool("list_upcoming_statements", mcpToolMetadata("list_upcoming_statements"), async ({ limit }: { limit: number }) => json(await StatementQueryService.upcoming(await invocationContext(), limit)));
-  server.registerTool("get_personal_finance_summary", mcpToolMetadata("get_personal_finance_summary"), async ({ from, to }: { from: string; to: string }) => {
+  server.registerTool("get_personal_finance_summary", mcpToolMetadata("get_personal_finance_summary"), async ({ from, to, cardId }: { from: string; to: string; cardId?: string }) => {
     const range = reportDateRangeSchema.parse({ from, to }) as { from: string; to: string };
-    return json(await FinancialReportService.summary(await invocationContext(), range));
+    return json(await FinancialReportService.summary(await invocationContext(), range, cardId ? { cardId } : undefined));
   });
   if (writerMode === "write") {
     server.registerTool("preview_import_financial_transaction", mcpToolMetadata("preview_import_financial_transaction"), async (payload: CreateFinancialTransactionBatchInput) => { const context = await invocationContext(); const normalized = await FinancialTransactionService.preview(context, payload); const confirmationPayload = payload; const metadata = await previewService.issue(context, MCP_OPERATION.importFinancialTransactionBatch, confirmationPayload, codec()); return json({ operation: MCP_OPERATION.importFinancialTransactionBatch, payload: confirmationPayload, preview: normalized.items.map((item) => ({ amount: item.amount, serviceFeeRate: item.serviceFeeRate ?? 0, serviceFee: item.amount - Number(item.reimbursementExpected ?? 0), reimbursementExpected: item.reimbursementExpected ?? 0, impact: item.previewImpact })), ...metadata }); });

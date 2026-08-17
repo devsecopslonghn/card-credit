@@ -88,6 +88,7 @@ export {
   creditStatementReportListSchema,
   reportDateSchema,
   reportDateRangeSchema,
+  reportQuerySchema,
   resolveReportDateRange,
   financialReportMetricSchema,
   financialReportTotalsSchema,

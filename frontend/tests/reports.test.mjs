@@ -27,6 +27,8 @@ test("financial reports page renders separated financial KPIs and category break
   assert.match(page, /Đến ngày/);
   assert.match(page, /setFrom/);
   assert.match(page, /setTo/);
+  assert.match(page, /Lọc theo thẻ/);
+  assert.match(client, /cardId/);
 });
 
 test("cards navigation and JSON export point to canonical report surfaces", () => {
