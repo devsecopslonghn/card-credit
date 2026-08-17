@@ -71,6 +71,23 @@ implemented yet.
   `WORKSPACE_SELECTION_NOT_ALLOWED`; frontend đã bỏ field này.
 - Commit/push: `4578eb7` đã push thành công lên `origin/master`.
 
+### Completed checkpoint: REST authorization metadata refinement
+
+- Requirement/GAP: `GAP-WEB-01` cần REST/OpenAPI inventory phân biệt session
+  thường, admin role, bootstrap bearer và private calendar token.
+- Independent review: GO cho metadata-only slice; route authorization runtime
+  không đổi, `x-authorization` chỉ là truthful documentation extension.
+- Changed write-set: `backend/src/rest-manifest.ts` đổi security taxonomy;
+  `backend/src/api-docs.ts` phát metadata admin/bootstrap/path-token; manifest
+  và runtime OpenAPI regression tests; `docs/api.md` và SRS ledger. Không đổi
+  model, schema, index, migration, database data hoặc Kubernetes.
+- Verification: shared `npm run validate` pass 25/25; backend
+  `npm run validate` pass typecheck/lint, 184/184 tests và build; frontend
+  typecheck/lint, unit 86/86, integration 6/6 và build pass; targeted REST
+  metadata test pass 4/4; `git diff --check` pass.
+- Commit/push: `6a1728a` (`refine REST authorization metadata`) đã push lên
+  `origin/master`.
+
 ### Completed checkpoint: Clean frontend image dependency boundary và MCP writer fence guard
 
 - Requirement/GAP: `GAP-CI-01` cần chứng minh frontend image build được trong
