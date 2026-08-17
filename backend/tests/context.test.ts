@@ -56,7 +56,12 @@ test("MCP context revalidates the fixed identity and workspace on each provider 
   const refreshed = await revalidateMcpContext(context, active);
   assert.equal(refreshed.channel, "mcp");
   assert.equal(refreshed.userId, identity.userId);
+  assert.equal(refreshed.role, "admin");
   assert.notEqual(refreshed.correlationId, context.correlationId);
   const moved = { findUserById: async () => ({ ...identity, id: identity.userId, workspaceId: "workspace-2", email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: null }) };
   await assert.rejects(() => revalidateMcpContext(context, moved), /không còn hợp lệ/);
+  const inactive = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: false, lockedAt: null }) };
+  await assert.rejects(() => revalidateMcpContext(context, inactive), /không còn hợp lệ/);
+  const locked = { findUserById: async () => ({ ...identity, id: identity.userId, email: "user@example.test", passwordHash: "unused", displayName: "User", active: true, lockedAt: new Date() }) };
+  await assert.rejects(() => revalidateMcpContext(context, locked), /không còn hợp lệ/);
 });
