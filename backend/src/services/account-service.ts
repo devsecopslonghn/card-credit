@@ -10,6 +10,7 @@ import type { AccountDto, CreateAccountInput } from "@card-credit/contracts";
 import mongoose from "mongoose";
 import { canonicalPayloadHash, legacyPayloadHash, payloadHashMatches } from "../command-hash.js";
 import { commandGuardService, type CommandInvocation } from "./command-guard-service.js";
+import { StatementQueryService } from "./statement-query-service.js";
 
 const serialize = (value: unknown): AccountDto => {
   const item = plain(value) as Record<string, unknown>;
@@ -32,20 +33,35 @@ export class AccountService {
     const accounts = await AccountModel.find({ workspaceId: ctx.workspaceId })
       .sort({ active: -1, createdAt: -1 })
       .lean();
-    const [balances] = await Promise.all([FinancialTransactionModel.aggregate([
-      { $match: { workspaceId: ctx.workspaceId } },
-      { $group: { _id: "$accountId", debitCashflow: { $sum: "$debitCashflow" }, creditDebt: { $sum: "$creditDebt" } } },
-    ])]);
+    const hasLinkedCreditAccount = accounts.some((account) => String(account.type) === "CREDIT" && account.creditCardId);
+    const [balances, statements] = await Promise.all([
+      FinancialTransactionModel.aggregate([
+        { $match: { workspaceId: ctx.workspaceId } },
+        { $group: { _id: "$accountId", debitCashflow: { $sum: "$debitCashflow" }, creditDebt: { $sum: "$creditDebt" } } },
+      ]),
+      hasLinkedCreditAccount ? StatementQueryService.list(ctx, { includeTransactions: false }) : Promise.resolve([]),
+    ]);
     const balanceById = new Map(balances.map((item) => [String(item._id), item]));
+    const outstandingByCardId = new Map<string, number>();
+    for (const statement of statements) {
+      const cardId = String(statement.cardId ?? "");
+      if (!cardId) continue;
+      const outstanding = Number(statement.summary?.outstandingAmount ?? 0);
+      outstandingByCardId.set(cardId, (outstandingByCardId.get(cardId) ?? 0) + Math.max(0, outstanding));
+    }
     return accounts.map((account): AccountDto => {
       const totals = balanceById.get(String(account._id)) ?? { debitCashflow: 0, creditDebt: 0 };
       const openingBalance = Number(account.openingBalance ?? 0);
+      const isLinkedCreditAccount = String(account.type) === "CREDIT" && account.creditCardId;
       return {
         ...serialize(account),
         currentBalance: openingBalance + (String(account.type) === "CREDIT" ? 0 : Number(totals.debitCashflow ?? 0)),
-        // `creditDebt` already contains the negative impact of STATEMENT_PAYMENT.
-        // Do not subtract the payment projection a second time here.
-        currentDebt: Math.max(0, openingBalance + Number(totals.creditDebt ?? 0)),
+        // Statement payments belong to the repayment account, but their statementId
+        // points to the CREDIT account's statement. Use the statement ledger for
+        // linked cards so payments reduce the card debt exactly once.
+        currentDebt: isLinkedCreditAccount
+          ? Math.max(0, openingBalance + (outstandingByCardId.get(String(account.creditCardId)) ?? 0))
+          : Math.max(0, openingBalance + Number(totals.creditDebt ?? 0)),
       };
     });
   }

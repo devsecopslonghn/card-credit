@@ -5,6 +5,8 @@ import { AccountService } from "../src/services/account-service.js";
 import { AccountModel } from "../src/models/account.js";
 import { CreditCardModel } from "../src/models/credit-card.js";
 import { McpMutationModel } from "../src/models/mcp-mutation.js";
+import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
+import { StatementQueryService } from "../src/services/statement-query-service.js";
 import type { ServiceContext } from "../src/services/types/service-context.js";
 import { canonicalPayloadHash, legacyPayloadHash } from "../src/command-hash.js";
 import { commandGuardService, type CommandGuardSpec } from "../src/services/command-guard-service.js";
@@ -113,4 +115,29 @@ test("new account commands use the persistent guard and keep the adapter metadat
   assert.equal(accountCreate.mock.callCount(), 1);
   assert.equal(observed?.operation, "create_account");
   assert.equal(observed?.endpointOrTool, "confirm_create_account");
+});
+
+test("linked CREDIT accounts calculate current debt from statement outstanding, including payments made from another account", async (t) => {
+  const creditAccount = {
+    _id: "account-max",
+    name: "Credit: Max Card",
+    type: "CREDIT",
+    creditCardId: cardId,
+    openingBalance: 0,
+    active: true,
+  };
+  t.mock.method(AccountModel, "find", () => ({
+    sort: () => ({ lean: async () => [creditAccount] }),
+  }) as never);
+  t.mock.method(FinancialTransactionModel, "aggregate", async () => [
+    { _id: "account-max", creditDebt: 31_062_840, debitCashflow: 0 },
+  ] as never);
+  t.mock.method(StatementQueryService, "list", async () => [{
+    cardId,
+    summary: { statementAmount: 16_193_000, paymentAmount: 16_193_000, outstandingAmount: 0 },
+  }] as never);
+
+  const [result] = await AccountService.list(context);
+
+  assert.equal(result?.currentDebt, 0);
 });
