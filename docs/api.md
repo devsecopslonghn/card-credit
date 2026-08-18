@@ -166,7 +166,7 @@ Summary response nên có:
 | `POST /cards/:cardId/fee-payments` | Session | `{paymentDate,amount,note?}`. |
 | `PUT /cards/:cardId/fee-payments/:feePaymentId` | Session | Sửa actual fee. |
 | `DELETE /cards/:cardId/fee-payments/:feePaymentId` | Session | Xóa fee. |
-| `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&cardId=` | Session | Financial report theo khoảng ngày, tùy chọn card filter theo statement/account reference; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category. |
+| `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&cardId=` | Session | Financial report theo khoảng ngày, tùy chọn card filter theo statement/account reference; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category và `creditDebtLedger` gồm tất cả statement trong range, kể cả `PAID`. |
 | `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD&limit=1..100&cursor=` | Session | Credit statement projection dùng canonical `StatementQueryService`; `from/to` tùy chọn, thiếu một đầu vẫn all-time. Có `limit`/`cursor` trả page `{items,nextCursor,limit}`; không có query vẫn giữ `CreditStatementReportDto[]`. |
 | `GET /cash-flow/monthly?period=YYYY-MM&cardId=` | Session | Financial Domain cash-flow theo card/tháng; output `{data,period}`. |
 | `GET /notes?limit=1..100` | Session | List tối đa 100 notes mới nhất trong workspace; response raw array được giữ nguyên để tương thích. |
@@ -206,6 +206,11 @@ bucket theo tháng giao với `from/to`; chỉ `RECEIVED` dùng `actualAmount`, 
 `PARTNER_REFUND` không được cộng vào paid card fees. Với expense
 `PAID_FOR_OTHER`, phí dịch vụ là
 `max(amount - reimbursementExpected - refundReceived, 0)` từ persisted impact.
+
+`creditDebtLedger` giữ một row cho mỗi card statement với `cardId`, `statementId`,
+thông tin card, ngày chốt/hạn trả, trạng thái và ba số tiền `grossDebt`,
+`paidDebt`, `outstandingDebt`. Đây là danh sách đầy đủ khoản nợ; các màn hình
+“cần thanh toán” chỉ được lọc thêm theo `outstandingDebt > 0`.
 
 `GET /cash-flow/monthly` dùng canonical `MonthlyCashFlowRowDto`/`MonthlyCashFlowResponseDto`.
 Các row giữ `cardId`, tổng out/in, statement payments, actual fees, partner

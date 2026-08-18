@@ -11,6 +11,9 @@ description: Parse Vietnamese personal-finance messages for card-credit. Use for
 - Present `DEBIT`, `CASH` and `E_WALLET` as one net-asset group: `TÀI SẢN RÒNG`. Do not force the user to manage many cash accounts; use one default `Tiền mặt` account when the source is unspecified.
 - Present `CREDIT` as a separate debt group: `NỢ CREDIT`. Never add credit to net assets.
 - Never treat credit debt as available cash.
+- When listing debt, use the backend `creditDebtLedger`: show every statement,
+  including `PAID`, with gross debt, paid debt and outstanding debt. Use
+  `outstandingDebt` alone only when the user asks what remains to pay.
 - Backend calculates all impacts. Do not calculate or write data outside MCP.
 - Treat `previewImpact`/`preview` returned by MCP as authoritative. Never calculate a fee or receivable yourself; display `reimbursementExpected` exactly as returned.
 - New mutations always use `preview -> one human confirmation -> confirm`.

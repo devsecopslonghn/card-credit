@@ -23,6 +23,8 @@ declare module "@/lib/cards/uiCore.mjs" {
     statementDate: string;
     paymentDueDate: string;
     currentOutstandingBalance: number;
+    totalGrossDebt: number;
+    totalPaidDebt: number;
     statementAmountDue: number;
   };
   export const getProviderName: (card: Record<string, unknown>) => string;

@@ -8,7 +8,7 @@ import { CreditCardModel } from "../models/credit-card.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { ApiError } from "../errors.js";
 import { StatementQueryService } from "./statement-query-service.js";
-import { creditStatementReportListSchema, financialReportSchema, reportDateRangeSchema } from "@card-credit/contracts";
+import { creditDebtLedgerListSchema, creditStatementReportListSchema, financialReportSchema, reportDateRangeSchema } from "@card-credit/contracts";
 import type { FinancialReportDto } from "@card-credit/contracts";
 
 type Range = { from: string; to: string };
@@ -56,6 +56,46 @@ export class FinancialReportService {
 
   static async upcomingStatements(ctx: ServiceContext, limit = 20) {
     return StatementQueryService.upcoming(ctx, limit);
+  }
+
+  /**
+   * Return the canonical debt ledger by card statement. A paid statement remains
+   * visible: grossDebt is the original charge, paidDebt is the settled amount,
+   * and outstandingDebt is what remains payable.
+   */
+  static async creditDebtLedger(ctx: ServiceContext, range: Range, filters: { cardId?: string; owner?: string } = {}) {
+    range = reportDateRangeSchema.parse(range) as Range;
+    if (filters.cardId && !mongoose.isValidObjectId(filters.cardId)) throw new ApiError(400, "INVALID_REPORT_FILTER", "Bộ lọc thẻ không hợp lệ.");
+    const cards = await readReportCollection<Data>(CreditCardModel.find({
+      workspaceId: ctx.workspaceId,
+      ...(filters.cardId ? { _id: filters.cardId } : {}),
+      ...(filters.owner ? { owner: filters.owner.trim() } : {}),
+    }).select({ _id: 1, providerName: 1, displayName: 1, bank: 1, name: 1, owner: 1 }));
+    if (filters.cardId && !cards.length) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ.");
+    const cardById = new Map(cards.map((card) => [String(card._id), card]));
+    const statements = await StatementQueryService.list(ctx, {
+      statementDateFrom: range.from,
+      statementDateTo: range.to,
+      includeTransactions: false,
+    });
+    return creditDebtLedgerListSchema.parse(statements.flatMap((statement) => {
+      const card = cardById.get(String(statement.cardId));
+      if (!card) return [];
+      return [{
+        cardId: statement.cardId,
+        statementId: statement.id,
+        providerName: String(card.providerName ?? card.bank ?? ""),
+        displayName: String(card.displayName ?? card.name ?? ""),
+        owner: String(card.owner ?? "Tôi"),
+        statementDate: statement.statementDate,
+        paymentDueDate: statement.paymentDueDate,
+        paymentStatus: statement.paymentStatus,
+        grossDebt: statement.summary.statementAmount,
+        paidDebt: statement.summary.paymentAmount,
+        outstandingDebt: statement.summary.outstandingAmount,
+        transactionCount: statement.summary.transactionCount,
+      }];
+    }));
   }
 
   static async summary(ctx: ServiceContext, range: Range, filters: { cardId?: string; owner?: string } = {}) {
@@ -143,6 +183,7 @@ export class FinancialReportService {
     const sourceIds = items.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").map((item) => item._id);
     const reimbursements = sourceIds.length ? await readReportCollection<Data>(FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 })) : [];
     totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
+    const creditDebtLedger = await this.creditDebtLedger(ctx, range, filters);
     const netAssets = reportAccounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
     const creditDebtBalance = reportAccounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;
     return financialReportSchema.parse({
@@ -155,6 +196,7 @@ export class FinancialReportService {
       eWallet: byAccountType.get("E_WALLET") ?? empty(),
       realMoney: ["DEBIT", "CASH", "E_WALLET"].reduce((total, type) => { const value = byAccountType.get(type); if (value) { total.personalSpending += value.personalSpending; total.debitCashflow += value.debitCashflow; total.creditDebt += value.creditDebt; total.outstandingReceivable += value.outstandingReceivable; total.reimbursementReceived += value.reimbursementReceived; total.transactionCount += value.transactionCount; } return total; }, empty()),
       credit: byAccountType.get("CREDIT") ?? empty(),
+      creditDebtLedger,
       byCategory: Object.fromEntries(byCategory),
       byAccount: Object.fromEntries([...byAccount.entries()].map(([id, value]) => [id, { name: accountNames.get(id) ?? "", ...value }])),
     }) as FinancialReportDto;

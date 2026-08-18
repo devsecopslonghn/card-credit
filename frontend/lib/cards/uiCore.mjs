@@ -87,6 +87,17 @@ const getStatementAmountDue = (statement) => {
   return Math.max(0, total - (Number.isFinite(paid) ? paid : 0));
 };
 
+const getStatementGrossDebt = (statement) => Math.max(0, Number(statement?.summary?.totalAmountDue ?? 0));
+
+const getStatementPaidDebt = (statement) => {
+  const gross = getStatementGrossDebt(statement);
+  const explicitPaid = Number(statement?.paidAmount);
+  if (Number.isFinite(explicitPaid)) return Math.min(gross, Math.max(0, explicitPaid));
+  if (isPaidStatement(statement)) return gross;
+  const outstanding = Number(statement?.summary?.outstandingAmount);
+  return Number.isFinite(outstanding) ? Math.min(gross, Math.max(0, gross - outstanding)) : 0;
+};
+
 export const buildCardSummary = (card, statements = [], selectedPeriod = {}) => {
   const year = Number(selectedPeriod.year);
   const month = Number(selectedPeriod.month);
@@ -105,6 +116,8 @@ export const buildCardSummary = (card, statements = [], selectedPeriod = {}) => 
     if (isPaidStatement(statement) || amountDue <= 0) return sum;
     return sum + amountDue;
   }, 0);
+  const totalGrossDebt = statements.reduce((sum, statement) => sum + getStatementGrossDebt(statement), 0);
+  const totalPaidDebt = statements.reduce((sum, statement) => sum + getStatementPaidDebt(statement), 0);
   const configuredOutstandingBalance = Number(card?.currentOutstandingBalance);
   const configuredStatementAmountDue = Number(card?.statementAmountDue ?? card?.amountDueThisMonth);
   const useLegacyPaymentPeriod = !selectedStatement && Number.isFinite(configuredStatementAmountDue) && configuredStatementAmountDue > 0 && !card?.isPaidThisMonth;
@@ -115,6 +128,8 @@ export const buildCardSummary = (card, statements = [], selectedPeriod = {}) => 
     currentOutstandingBalance: Number.isFinite(configuredOutstandingBalance)
       ? configuredOutstandingBalance
       : derivedOutstandingBalance,
+    totalGrossDebt,
+    totalPaidDebt,
     statementAmountDue: selectedStatement
       ? getStatementAmountDue(selectedStatement)
       : useLegacyPaymentPeriod ? configuredStatementAmountDue : 0,

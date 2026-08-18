@@ -7,6 +7,7 @@ import { CardList } from "@/components/cards/CardList";
 import { DuplicateResolver } from "@/components/cards/DuplicateResolver";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { UpcomingPayments, paymentActionKey } from "@/components/cards/UpcomingPayments";
+import { DebtLedger } from "@/components/cards/DebtLedger";
 import type { DueStatementRow } from "@/lib/cards/dueStatementsCore.mjs";
 import { loadDashboardResources } from "@/lib/cards/dashboardLoadCore.mjs";
 import {
@@ -135,12 +136,14 @@ export default function CardsPage() {
   );
   const dashboardTotals = useMemo(() => {
     const summaries = filteredCards.map((card) => cardSummaries[card._id]).filter(Boolean);
+    const totalDebt = summaries.reduce((total, summary) => total + summary.totalGrossDebt, 0);
+    const paidDebt = summaries.reduce((total, summary) => total + summary.totalPaidDebt, 0);
     const currentDebt = summaries.reduce((total, summary) => total + summary.currentOutstandingBalance, 0);
     const amountDue = dashboardStatements.reduce((total, statement) => {
       if (statement.paymentStatus === "PAID" || statement.effectivePaymentStatus === "PAID") return total;
       return total + Number(statement.summary?.outstandingAmount ?? 0);
     }, 0);
-    return { currentDebt, amountDue };
+    return { totalDebt, paidDebt, currentDebt, amountDue };
   }, [cardSummaries, dashboardStatements, filteredCards]);
   const reportExportUrl = useMemo(() => {
     const from = `${calendarPeriod.year}-${String(calendarPeriod.month + 1).padStart(2, "0")}-01`;
@@ -271,9 +274,9 @@ export default function CardsPage() {
 
         <section className="mb-7 grid gap-4 md:grid-cols-2" aria-label="Tổng quan tài chính">
           <article className="cc-section rounded-xl p-5">
-            <p className="text-sm font-medium cc-text-muted">Tổng dư nợ hiện tại</p>
-            <p className="mt-2 text-3xl font-bold tracking-tight cc-text-primary">{formatVnd(dashboardTotals.currentDebt)}</p>
-            <p className="mt-2 text-xs font-medium cc-text-subtle">Tổng các kỳ sao kê chưa thanh toán</p>
+            <p className="text-sm font-medium cc-text-muted">Tổng nợ phát sinh</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight cc-text-primary">{formatVnd(dashboardTotals.totalDebt)}</p>
+            <p className="mt-2 text-xs font-medium cc-text-subtle">Đã thanh toán {formatVnd(dashboardTotals.paidDebt)} · Còn phải trả {formatVnd(dashboardTotals.currentDebt)}</p>
           </article>
           <article className={`rounded-xl border p-5 shadow-sm ${dashboardTotals.amountDue > 0 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
             <p className={`text-sm font-bold uppercase tracking-wide ${dashboardTotals.amountDue > 0 ? "text-amber-800" : "text-emerald-800"}`}>Cần thanh toán</p>
@@ -302,6 +305,7 @@ export default function CardsPage() {
           </div>
         )}
         <UpcomingPayments statements={dashboardStatements} cards={filteredCards} cardSummaries={cardSummaries} selectedOwner={selectedOwner} pendingActions={pendingPaymentActions} onPaymentAction={handlePaymentAction} />
+        <DebtLedger statements={dashboardStatements} cards={filteredCards} />
         <DuplicateResolver
           refreshKey={duplicateRefreshKey}
           onMerged={refreshCardsAndDuplicates}

@@ -64,6 +64,9 @@
 
 ### FR-05 — Payment visibility and reminders
 
+- Dashboard và report phải liệt kê toàn bộ khoản nợ theo từng kỳ sao kê, kể cả
+  kỳ đã `PAID`. Mỗi row phân biệt rõ `grossDebt` (tổng phát sinh), `paidDebt`
+  (đã thanh toán) và `outstandingDebt` (còn phải trả).
 - Dashboard hiển thị tổng dư nợ chưa paid có due date không vượt quá hôm nay,
   tổng đến hạn trong tháng hiện tại và tháng kế tiếp.
 - User có thể bật/tắt reminder theo card, chọn `daysBefore`, timezone và send
@@ -103,6 +106,8 @@
 - Runtime contract hiện cung cấp các KPI trên với `from/to` hoặc calendar
   `year/month`, cùng `owner` và `card` filter; REST, MCP và frontend dùng chung
   schema/range resolver và giữ matching cards với zero totals.
+- `FinancialReportDto.creditDebtLedger` là projection canonical dùng chung cho
+  REST, MCP và UI; không được loại bỏ row chỉ vì statement đã thanh toán.
 - User có thể export JSON theo đúng filter đang chọn.
 - User có thể upsert/xóa note theo ngày; note rỗng được coi là delete.
 

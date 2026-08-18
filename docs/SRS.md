@@ -123,6 +123,10 @@ receivable = reimbursementExpected của EXPENSE + PAID_FOR_OTHER
 - Statement duy nhất theo `workspaceId + userCardId + statementDate`.
 - Kỳ dùng `(previousStatementDate, statementDate]`; statement snapshot ngày chốt
   và hạn thanh toán.
+- Debt reporting đọc theo statement projection và luôn giữ cả kỳ `PAID`:
+  `grossDebt` là tổng phát sinh, `paidDebt` là phần đã trả và `outstandingDebt`
+  là phần còn phải trả. `outstandingDebt` chỉ dùng cho payment queue/reminder,
+  không được dùng làm danh sách toàn bộ nợ.
 - `PAID` cần repayment account tiền thật, outstanding > 0 và tối đa một payment
   transaction; kỳ `PAID` không được reopen trực tiếp.
 - Cashback ngân hàng, fee thực trả, transaction cashback/refund/reimbursement là

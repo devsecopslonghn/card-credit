@@ -74,7 +74,19 @@ export function CardItem({ card, summary, statementsAvailable, busy, onDelete }:
             </dd>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-            <dt className="min-w-0 font-medium cc-text-muted">Dư nợ hiện tại</dt>
+            <dt className="min-w-0 font-medium cc-text-muted">Tổng nợ phát sinh</dt>
+            <dd className="max-w-[11rem] text-right font-bold cc-danger">
+              {statementsAvailable ? formatVnd(summary.totalGrossDebt) : "--"}
+            </dd>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <dt className="min-w-0 font-medium cc-text-muted">Đã thanh toán</dt>
+            <dd className="max-w-[11rem] text-right font-bold text-emerald-700">
+              {statementsAvailable ? formatVnd(summary.totalPaidDebt) : "--"}
+            </dd>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <dt className="min-w-0 font-medium cc-text-muted">Còn phải trả</dt>
             <dd className="max-w-[11rem] text-right font-bold cc-danger">
               {statementsAvailable ? formatVnd(summary.currentOutstandingBalance) : "--"}
             </dd>

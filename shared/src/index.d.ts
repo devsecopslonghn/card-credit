@@ -351,6 +351,8 @@ export type StatementPaymentPreviewDataDto = Omit<StatementPaymentPreviewDto, "p
 export declare const financialReportMetricSchema: z.ZodObject<any>;
 export declare const financialReportTotalsSchema: z.ZodObject<any>;
 export declare const financialReportSchema: z.ZodObject<any>;
+export declare const creditDebtLedgerItemSchema: z.ZodObject<any>;
+export declare const creditDebtLedgerListSchema: z.ZodArray<typeof creditDebtLedgerItemSchema>;
 export declare const creditStatementReportSchema: z.ZodObject<any>;
 export declare const creditStatementReportListSchema: z.ZodArray<typeof creditStatementReportSchema>;
 export declare const creditStatementReportPageSchema: z.ZodObject<any>;
@@ -389,8 +391,23 @@ export type FinancialReportDto = {
   eWallet: FinancialReportMetricDto;
   realMoney: FinancialReportMetricDto;
   credit: FinancialReportMetricDto;
+  creditDebtLedger: CreditDebtLedgerItemDto[];
   byCategory: Record<string, FinancialReportMetricDto>;
   byAccount: Record<string, FinancialReportMetricDto & { name: string }>;
+};
+export type CreditDebtLedgerItemDto = {
+  cardId: string;
+  statementId: string;
+  providerName: string;
+  displayName: string;
+  owner: string;
+  statementDate: string;
+  paymentDueDate: string;
+  paymentStatus: "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
+  grossDebt: number;
+  paidDebt: number;
+  outstandingDebt: number;
+  transactionCount: number;
 };
 export type CreditStatementReportDto = {
   statementId: string;

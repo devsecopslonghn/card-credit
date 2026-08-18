@@ -56,6 +56,8 @@ test("summary reads benefit sources once, keeps ledger groups stable and avoids 
     { category: "BANK_CASHBACK", amount: 900 },
   ]) as never);
   const categoryFind = t.mock.method(FinanceCategoryModel, "find", () => chain([{ _id: "legacy-category", name: "LEGACY" }]) as never);
+  t.mock.method(CreditCardModel, "find", () => chain([]) as never);
+  t.mock.method(StatementQueryService, "list", async () => [] as never);
 
   const result = await FinancialReportService.summary(context, { from: "2026-07-01", to: "2026-07-31" });
 
@@ -85,6 +87,7 @@ test("summary owner filter scopes ledger, cashback and fee sources by card refer
   const transactionFind = t.mock.method(FinancialTransactionModel, "find", () => chain([]) as never);
   const cashbackFind = t.mock.method(MonthlyCardCashbackModel, "find", () => chain([]) as never);
   const feeFind = t.mock.method(CardFeePaymentModel, "find", () => chain([]) as never);
+  t.mock.method(StatementQueryService, "list", async () => [] as never);
 
   await FinancialReportService.summary(context, { from: "2026-08-01", to: "2026-08-31" }, { owner: "Tôi" });
 
@@ -99,6 +102,29 @@ test("summary owner filter scopes ledger, cashback and fee sources by card refer
   assert.deepEqual(cashbackFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", userCardId: { $in: cardIds }, period: { $gte: "2026-08", $lte: "2026-08" } });
   assert.deepEqual(feeFind.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", userCardId: { $in: cardIds }, paymentDate: { $gte: "2026-08-01", $lte: "2026-08-31" }, category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] } });
   assert.equal(transactionFind.mock.callCount(), 1);
+});
+
+test("credit debt ledger keeps paid statements and exposes gross, paid and outstanding amounts", async (t) => {
+  t.mock.method(CreditCardModel, "find", () => chain([{ _id: statement.cardId, providerName: "VIB", displayName: "Max Card", owner: "Tôi" }]) as never);
+  t.mock.method(StatementQueryService, "list", async (_ctx: ServiceContext, options: Record<string, unknown>) => {
+    assert.deepEqual(options, { statementDateFrom: "2026-07-01", statementDateTo: "2026-07-31", includeTransactions: false });
+    return [{ ...statement, paymentStatus: "PAID", effectivePaymentStatus: "PAID" }] as never;
+  });
+
+  assert.deepEqual(await FinancialReportService.creditDebtLedger(context, { from: "2026-07-01", to: "2026-07-31" }), [{
+    cardId: statement.cardId,
+    statementId: statement.id,
+    providerName: "VIB",
+    displayName: "Max Card",
+    owner: "Tôi",
+    statementDate: "2026-07-31",
+    paymentDueDate: "2026-08-15",
+    paymentStatus: "PAID",
+    grossDebt: 600_000,
+    paidDebt: 100_000,
+    outstandingDebt: 500_000,
+    transactionCount: 2,
+  }]);
 });
 
 test("credit statement report delegates date range and canonicalizes persisted impact", async (t) => {

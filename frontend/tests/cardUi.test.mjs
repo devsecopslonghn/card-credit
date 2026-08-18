@@ -93,6 +93,8 @@ test("card summary uses selected statement month and real payment due date", () 
   assert.equal(summary.statementDate, "2026-12-25");
   assert.equal(summary.paymentDueDate, "2027-01-04");
   assert.equal(summary.currentOutstandingBalance, 1_700_000);
+  assert.equal(summary.totalGrossDebt, 2_000_000);
+  assert.equal(summary.totalPaidDebt, 300_000);
   assert.equal(summary.statementAmountDue, 1_200_000);
 });
 

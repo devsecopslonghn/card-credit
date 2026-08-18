@@ -74,6 +74,23 @@ export const financialReportTotalsSchema = financialReportMetricSchema.extend({
 
 const accountMetricSchema = financialReportMetricSchema.extend({ name: z.string() });
 
+export const creditDebtLedgerItemSchema = z.strictObject({
+  cardId: z.string().min(1),
+  statementId: z.string().min(1),
+  providerName: z.string(),
+  displayName: z.string(),
+  owner: z.string(),
+  statementDate: reportDateSchema,
+  paymentDueDate: reportDateSchema,
+  paymentStatus: statementPaymentStatusSchema,
+  grossDebt: safeNonNegativeInteger,
+  paidDebt: safeNonNegativeInteger,
+  outstandingDebt: safeNonNegativeInteger,
+  transactionCount: safeNonNegativeInteger,
+});
+
+export const creditDebtLedgerListSchema = z.array(creditDebtLedgerItemSchema);
+
 export const financialReportSchema = z.object({
   range: reportDateRangeSchema,
   totals: financialReportTotalsSchema,
@@ -84,6 +101,7 @@ export const financialReportSchema = z.object({
   eWallet: financialReportMetricSchema,
   realMoney: financialReportMetricSchema,
   credit: financialReportMetricSchema,
+  creditDebtLedger: creditDebtLedgerListSchema.default([]),
   byCategory: z.record(z.string(), financialReportMetricSchema),
   byAccount: z.record(z.string(), accountMetricSchema),
 });

@@ -10,6 +10,7 @@ test("financial report contract keeps benefit KPIs on totals", () => {
     totals: { ...metric, totalServiceFee: 100, transactionCashbackActual: 50, monthlyBankCashbackExpected: 500, monthlyBankCashbackActual: 450, monthlyBankCashbackRejected: 25, totalPaidCardFees: 75, actualNetBenefit: 275 },
     netAssets: 0,
     creditDebtBalance: 0,
+    creditDebtLedger: [],
     debit: metric,
     cash: metric,
     eWallet: metric,

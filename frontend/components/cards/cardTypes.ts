@@ -70,6 +70,8 @@ export type CreditCardView = {
 export type CardSummaryView = {
   statementDate: string;
   paymentDueDate: string;
+  totalGrossDebt: number;
+  totalPaidDebt: number;
   currentOutstandingBalance: number;
   statementAmountDue: number;
 };
