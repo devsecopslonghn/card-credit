@@ -4,7 +4,6 @@ import { FinancialTransactionModel } from "../models/financial-transaction.js";
 import { ApiError } from "../errors.js";
 import { idOf, plain } from "../statement-domain.js";
 import { accountGroup, type AccountType } from "../financial-domain.js";
-import { CardStatementModel } from "../models/card-statement.js";
 import type { ServiceContext } from "./types/service-context.js";
 import { McpMutationModel } from "../models/mcp-mutation.js";
 import type { AccountDto, CreateAccountInput } from "@card-credit/contracts";
@@ -33,30 +32,20 @@ export class AccountService {
     const accounts = await AccountModel.find({ workspaceId: ctx.workspaceId })
       .sort({ active: -1, createdAt: -1 })
       .lean();
-    const [balances, payments] = await Promise.all([FinancialTransactionModel.aggregate([
+    const [balances] = await Promise.all([FinancialTransactionModel.aggregate([
       { $match: { workspaceId: ctx.workspaceId } },
       { $group: { _id: "$accountId", debitCashflow: { $sum: "$debitCashflow" }, creditDebt: { $sum: "$creditDebt" } } },
-    ]), FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "STATEMENT_PAYMENT", statementId: { $ne: null } }).select({ amount: 1, statementId: 1 }).lean()]);
+    ])]);
     const balanceById = new Map(balances.map((item) => [String(item._id), item]));
-    const statementIds = payments.map((item) => item.statementId).filter(Boolean);
-    const statements = statementIds.length
-      ? await CardStatementModel.find({ _id: { $in: statementIds }, workspaceId: ctx.workspaceId }).select({ _id: 1, userCardId: 1 }).lean()
-      : [];
-    const statementCardById = new Map(statements.map((item) => [String(item._id), String(item.userCardId)]));
-    const creditAccountByCardId = new Map(accounts.filter((account) => String(account.type) === "CREDIT" && account.creditCardId).map((account) => [String(account.creditCardId), String(account._id)]));
-    const paidByCreditAccount = new Map<string, number>();
-    for (const payment of payments) {
-      const cardId = statementCardById.get(String(payment.statementId));
-      const accountId = cardId ? creditAccountByCardId.get(cardId) : undefined;
-      if (accountId) paidByCreditAccount.set(accountId, (paidByCreditAccount.get(accountId) ?? 0) + Number(payment.amount ?? 0));
-    }
     return accounts.map((account): AccountDto => {
       const totals = balanceById.get(String(account._id)) ?? { debitCashflow: 0, creditDebt: 0 };
       const openingBalance = Number(account.openingBalance ?? 0);
       return {
         ...serialize(account),
         currentBalance: openingBalance + (String(account.type) === "CREDIT" ? 0 : Number(totals.debitCashflow ?? 0)),
-        currentDebt: Math.max(0, openingBalance + Number(totals.creditDebt ?? 0) - (paidByCreditAccount.get(String(account._id)) ?? 0)),
+        // `creditDebt` already contains the negative impact of STATEMENT_PAYMENT.
+        // Do not subtract the payment projection a second time here.
+        currentDebt: Math.max(0, openingBalance + Number(totals.creditDebt ?? 0)),
       };
     });
   }

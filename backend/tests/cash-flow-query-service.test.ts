@@ -9,6 +9,8 @@ import { CreditCardModel } from "../src/models/credit-card.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 import { CashFlowQueryService } from "../src/services/cash-flow-query-service.js";
 import { registerCashFlowRoutes } from "../src/cash-flow-routes.js";
+import { CardFeePaymentModel } from "../src/models/card-fee-payment.js";
+import { MonthlyCardCashbackModel } from "../src/models/monthly-card-cashback.js";
 
 const context: ServiceContext = { workspaceId: "workspace-a", userId: "user-a", role: "user", channel: "browser", correlationId: "cash-flow-test" };
 const card1 = "507f1f77bcf86cd799439011";
@@ -42,12 +44,21 @@ test("cash-flow query service preserves the Financial Domain joins and formulas"
       { accountType: "DEBIT", accountId: "other", transactionType: "REFUND", amount: 999 },
     ]) as never;
   });
+  t.mock.method(CardFeePaymentModel, "find", (filter: Record<string, unknown>) => {
+    assert.equal(filter.workspaceId, "workspace-a");
+    return query([{ userCardId: card1, category: "ANNUAL_CARD_FEE", amount: 80 }]) as never;
+  });
+  t.mock.method(MonthlyCardCashbackModel, "find", (filter: Record<string, unknown>) => {
+    assert.equal(filter.workspaceId, "workspace-a");
+    assert.equal(filter.period, "2026-08");
+    return query([{ userCardId: card1, status: "RECEIVED", actualAmount: 3 }]) as never;
+  });
 
   const result = await CashFlowQueryService.list(context, { period: "2026-08" });
   assert.deepEqual(result.data[0], {
-    cardId: card1, period: "2026-08", totalOut: 150, totalIn: 25,
+    cardId: card1, period: "2026-08", totalOut: 230, totalIn: 28,
     statementPayments: 150, actualFees: 80, partnerReturns: 25,
-    bankCashbackActual: 3, netResult: -125,
+    bankCashbackActual: 3, netResult: -202,
     card: { id: card1, providerName: "Bank", displayName: "Visa", owner: "Tôi" },
   });
   assert.equal(result.data[1]?.totalOut, 0);

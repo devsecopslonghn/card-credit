@@ -117,6 +117,8 @@ Resource không tồn tại hoặc ngoài workspace đều xử lý như `404 CA
 |---|---|---|
 | `GET /financial-transactions?accountId=&categoryId=&from=&to=&limit=` | Session | Unified transactions scoped to workspace; shared strict query rejects invalid calendar dates, reversed ranges and unknown filters. `limit` mặc định 100, tối đa 100; response giữ nguyên `{data:[...]}` để tương thích. |
 | `POST /financial-transactions` | Session | Creates a Financial Domain transaction through the canonical command service. Requires `Idempotency-Key` (8+ chars); REST/MCP use the same receipt/audit guard and payload hash. |
+| `PATCH /financial-transactions/:id` | Session | Sửa giao dịch thường, tính lại persisted impact và statement liên quan; không cho sửa trực tiếp `STATEMENT_PAYMENT`/`TRANSFER`; yêu cầu `Idempotency-Key`. |
+| `DELETE /financial-transactions/:id` | Session | Xóa giao dịch thường trong workspace; chặn payment và giao dịch đang có khoản hoàn tiền liên kết; yêu cầu `Idempotency-Key`. |
 | `GET /card-statements` | Session | Statements của tất cả card trong workspace; thêm `limit=1..100` hoặc `cursor` trả page `{items,nextCursor,limit}` với sort ổn định theo `statementDate DESC, _id DESC`, chỉ gồm projection/summary (không nested transactions). Không có query phân trang vẫn giữ `{data:[...]}`. |
 | `GET /cards/:id/statements` | Session | Statements của card; hỗ trợ cùng page contract `limit`/opaque `cursor`, chỉ gồm projection/summary khi phân trang. |
 | `GET /cards/:id/statements/:statementId` | Session | Statement + transactions + summary. |
@@ -162,30 +164,25 @@ Summary response nên có:
 | `GET /cards/:cardId/monthly-cashbacks/:period` | Session | Read one month. |
 | `PUT /cards/:cardId/monthly-cashbacks/:period` | Session | Upsert `{expectedAmount,actualAmount?,status,note}`; `RECEIVED` cần actual. |
 | `DELETE /cards/:cardId/monthly-cashbacks/:period` | Session | Xóa record. |
-| `GET /cards/:cardId/fee-payments?limit=1..100` | Session | Tối đa 100 fee history records. |
-| `POST /cards/:cardId/fee-payments` | Session | `{paymentDate,amount,note?}`. |
-| `PUT /cards/:cardId/fee-payments/:feePaymentId` | Session | Sửa actual fee. |
-| `DELETE /cards/:cardId/fee-payments/:feePaymentId` | Session | Xóa fee. |
 | `GET /financial-reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&cardId=` | Session | Financial report theo khoảng ngày, tùy chọn card filter theo statement/account reference; output `range`, `totals`, `netAssets`, `creditDebtBalance`, nhóm account/category và `creditDebtLedger` gồm tất cả statement trong range, kể cả `PAID`. |
-| `GET /financial-reports/credit-statements?from=YYYY-MM-DD&to=YYYY-MM-DD&limit=1..100&cursor=` | Session | Credit statement projection dùng canonical `StatementQueryService`; `from/to` tùy chọn, thiếu một đầu vẫn all-time. Có `limit`/`cursor` trả page `{items,nextCursor,limit}`; không có query vẫn giữ `CreditStatementReportDto[]`. |
 | `GET /cash-flow/monthly?period=YYYY-MM&cardId=` | Session | Financial Domain cash-flow theo card/tháng; output `{data,period}`. |
 | `GET /notes?limit=1..100` | Session | List tối đa 100 notes mới nhất trong workspace; response raw array được giữ nguyên để tương thích. |
 | `POST /notes` | Session | `{date,content}`; content rỗng là delete. |
 
 Fee read responses are canonical and shared across backend/frontend:
 
-- `GET /cards/:cardId/fee-payments?limit=1..100` returns up to 100 `FeePaymentDto[]` with
-  `id`, `cardId`, `category`, `paymentDate`, `amount`, and `note`.
 - `GET /fee-center?limit=1..100` returns up to 100 `FeeCenterRecordDto[]`, which extends the same
   payment fields with `card: {id, providerName, displayName, owner} | null`.
 - `GET /cards/:cardId/monthly-cashbacks?year=YYYY` returns
   `MonthlyCashbackDto[]` with `id`, `cardId`, `period`,
   `expectedAmount`, `actualAmount`, `status`, `receivedAt`, and
   `note`; `receivedAt` is an ISO string or `null`.
-- The REST `{data}` envelope and existing mutation response aliases are
-  transport/compatibility adapters only. Read MCP tools are listed in the
-  runtime manifest; fee/cashback write routes remain legacy and are not
-  exposed as MCP commands.
+- The old card-scoped fee-payment REST adapter was removed after a zero-
+  first-party-consumer audit. Before rollout, check ingress/access telemetry for
+  external callers. `/fee-center` is now the canonical browser REST
+  surface for fee CRUD; the MCP `list_card_fee_payments` tool continues to use
+  the shared read service. Monthly cashback write routes remain legacy and are
+  not exposed as MCP commands.
 
 Report query hiện tại:
 
@@ -225,8 +222,10 @@ reference trong workspace; `year` chọn cả năm; `year` + `month` chọn mộ
 calendar và không được trộn với `from/to`. `month` bắt buộc có `year`; owner
 được trim và match theo owner snapshot của card. REST, MCP và frontend dùng
 cùng schema/range resolver. Orphan reconciliation và completeness report vẫn
-chưa nằm trong runtime contract. `creditStatements` trả compatibility field names nhưng
-amount semantics lấy persisted `creditDebt`/impact từ canonical statement DTO.
+chưa nằm trong runtime contract. Compatibility projection
+`/financial-reports/credit-statements` đã được xóa sau audit zero-consumer;
+client dùng `creditDebtLedger` trên summary để nhận đầy đủ statement và
+phân biệt `grossDebt`, `paidDebt`, `outstandingDebt`.
 
 ## 8. Calendar, profile and admin endpoints
 

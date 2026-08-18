@@ -178,3 +178,12 @@ test("remote card images bypass the server optimizer and retain client fallback"
   assert.match(source, /setFailed\(true\)/);
   assert.match(source, /CATALOG_IMAGE_HOSTS/);
 });
+
+test("cards dashboard scopes all card widgets to the selected card id", () => {
+  const source = readFileSync(new URL("../app/cards/page.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /selectedCardId/);
+  assert.match(source, /card\._id === selectedCardId/);
+  assert.match(source, /filteredCardIds\.has\(item\.cardId\)/);
+  assert.match(source, /cardId=\$\{encodeURIComponent\(selectedCardId\)\}/);
+});

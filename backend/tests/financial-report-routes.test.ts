@@ -114,32 +114,6 @@ test("REST and MCP report adapters resolve canonical owner and year/month filter
   await app.close();
 });
 
-test("REST credit-statement projection keeps the canonical shared list contract", async (t) => {
-  const data = [{
-    statementId: "statement-1", statementDate: "2026-08-01", periodStartDate: "2026-07-02", periodEndDate: "2026-08-01",
-    paymentDueDate: "2026-08-16", paymentStatus: "OPEN", outstandingDebt: 800, grossCharges: 1000, payments: 200,
-    personalSpending: 700, outstandingReceivable: 50, transactionCount: 3,
-  }];
-  t.mock.method(FinancialReportService, "creditStatements", async () => data as never);
-  const app = buildApp({ isReady: () => true }, "silent");
-  registerFinancialReportRoutes(app, secret, users);
-  const response = await app.inject({ url: "/api/financial-reports/credit-statements", headers: { cookie } });
-  assert.equal(response.statusCode, 200);
-  assert.deepEqual(response.json().data, data);
-  await app.close();
-});
-
-test("REST credit-statement projection exposes a bounded page contract", async (t) => {
-  const page = { items: [{ statementId: "statement-1" }], nextCursor: "opaque", limit: 1 };
-  t.mock.method(FinancialReportService, "creditStatementsPage", async () => page as never);
-  const app = buildApp({ isReady: () => true }, "silent");
-  registerFinancialReportRoutes(app, secret, users);
-  const response = await app.inject({ url: "/api/financial-reports/credit-statements?limit=1", headers: { cookie } });
-  assert.equal(response.statusCode, 200);
-  assert.deepEqual(response.json().data, page);
-  await app.close();
-});
-
 test("financial report card filter rejects malformed identifiers before model access", async () => {
   await assert.rejects(
     () => FinancialReportService.summary(mcpContext, { from: "2026-08-01", to: "2026-08-31" }, { cardId: "not-an-object-id" }),

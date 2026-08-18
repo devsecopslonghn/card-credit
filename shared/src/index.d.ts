@@ -195,6 +195,7 @@ export declare const ownershipSchema: z.ZodEnum<any>;
 export declare const FINANCIAL_TRANSACTION_DEFAULT_LIMIT: 100;
 export declare const FINANCIAL_TRANSACTION_MAX_LIMIT: 100;
 export declare const createFinancialTransactionInputSchema: z.ZodObject<any>;
+export declare const updateFinancialTransactionInputSchema: z.ZodObject<any>;
 export declare const createFinancialTransactionBatchInputSchema: z.ZodObject<any>;
 export declare const financialTransactionListQuerySchema: z.ZodObject<any>;
 export declare const financialImpactSchema: z.ZodObject<any>;
@@ -217,6 +218,7 @@ export type CreateFinancialTransactionInput = {
   statementId?: string;
   reimbursementForTransactionId?: string;
 };
+  export type UpdateFinancialTransactionInput = Partial<Omit<CreateFinancialTransactionInput, "statementId" | "reimbursementForTransactionId">>;
 export type CreateFinancialTransactionBatchInput = { items: CreateFinancialTransactionInput[] };
 export type FinancialTransactionListQuery = {
   from?: string;
@@ -291,7 +293,6 @@ export type RecurringExpenseInput = Omit<RecurringExpenseDto, "id" | "active">;
 export declare const statementSummarySchema: z.ZodObject<any>;
 export declare const statementSchema: z.ZodObject<any>;
 export declare const statementListSchema: z.ZodArray<typeof statementSchema>;
-export declare const statementPageSchema: z.ZodObject<any>;
 export declare const statementPaymentStatusSchema: z.ZodEnum<any>;
 export declare const statementPaymentActionSchema: z.ZodEnum<any>;
 export declare const statementPaymentInputSchema: z.ZodObject<any>;
@@ -353,9 +354,6 @@ export declare const financialReportTotalsSchema: z.ZodObject<any>;
 export declare const financialReportSchema: z.ZodObject<any>;
 export declare const creditDebtLedgerItemSchema: z.ZodObject<any>;
 export declare const creditDebtLedgerListSchema: z.ZodArray<typeof creditDebtLedgerItemSchema>;
-export declare const creditStatementReportSchema: z.ZodObject<any>;
-export declare const creditStatementReportListSchema: z.ZodArray<typeof creditStatementReportSchema>;
-export declare const creditStatementReportPageSchema: z.ZodObject<any>;
 export declare const reportDateSchema: z.ZodString;
 export declare const reportDateRangeSchema: z.ZodObject<any>;
 export declare const reportQueryInputSchema: z.ZodObject<any>;
@@ -409,21 +407,6 @@ export type CreditDebtLedgerItemDto = {
   outstandingDebt: number;
   transactionCount: number;
 };
-export type CreditStatementReportDto = {
-  statementId: string;
-  statementDate: string;
-  periodStartDate: string;
-  periodEndDate: string;
-  paymentDueDate: string;
-  paymentStatus: "OPEN" | "STATEMENT_CLOSED" | "PAID" | "OVERDUE";
-  outstandingDebt: number;
-  grossCharges: number;
-  payments: number;
-  personalSpending: number;
-  outstandingReceivable: number;
-  transactionCount: number;
-};
-
 export declare const feeCategorySchema: z.ZodEnum<any>;
 export declare const feePaymentSchema: z.ZodObject<any>;
 export declare const feeCardSummarySchema: z.ZodObject<any>;

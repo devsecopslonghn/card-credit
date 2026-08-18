@@ -53,6 +53,7 @@ export {
   FINANCIAL_TRANSACTION_DEFAULT_LIMIT,
   FINANCIAL_TRANSACTION_MAX_LIMIT,
   createFinancialTransactionInputSchema,
+  updateFinancialTransactionInputSchema,
   createFinancialTransactionBatchInputSchema,
   financialTransactionListQuerySchema,
   financialImpactSchema,
@@ -87,12 +88,8 @@ export {
   statementSummarySchema,
   statementSchema,
   statementListSchema,
-  statementPageSchema,
 } from "./statement-contracts.js";
 export {
-  creditStatementReportSchema,
-  creditStatementReportListSchema,
-  creditStatementReportPageSchema,
   reportDateSchema,
   reportDateRangeSchema,
   reportQueryInputSchema,

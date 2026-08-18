@@ -9,28 +9,6 @@ const context: ServiceContext = { workspaceId: "workspace-a", userId: "user-a", 
 const cardId = "507f1f77bcf86cd799439011";
 const paymentId = "507f1f77bcf86cd799439012";
 
-test("fee command service scopes card payment commands through canonical card ownership", async (t) => {
-  const cardGet = t.mock.method(CardQueryService, "get", async (ctx: ServiceContext, requestedCardId: string) => {
-    assert.equal(ctx.workspaceId, context.workspaceId);
-    assert.equal(requestedCardId, cardId);
-    return { id: cardId } as never;
-  });
-  const create = t.mock.method(CardFeePaymentModel, "create", async (value: Record<string, unknown>) => ({ _id: paymentId, ...value }) as never);
-  const created = await FeeCommandService.createCardPayment(context, cardId, { paymentDate: "2026-07-23", amount: 299000, note: "  Phí năm  " });
-  assert.equal(cardGet.mock.callCount(), 1);
-  assert.deepEqual(create.mock.calls[0]?.arguments[0], { workspaceId: "workspace-a", userId: "user-a", userCardId: cardId, paymentDate: "2026-07-23", amount: 299000, note: "Phí năm" });
-  assert.equal((created as { _id: string })._id, paymentId);
-
-  const update = t.mock.method(CardFeePaymentModel, "findOneAndUpdate", async (_filter: unknown, value: unknown) => ({ _id: paymentId, ...(value as { $set: object }).$set }) as never);
-  await FeeCommandService.updateCardPayment(context, cardId, paymentId, { paymentDate: "2026-07-24", amount: 300000, note: "Thanh toán" });
-  assert.deepEqual(update.mock.calls[0]?.arguments[0], { _id: paymentId, workspaceId: "workspace-a", userCardId: cardId });
-  assert.deepEqual(update.mock.calls[0]?.arguments[2], { returnDocument: "after", runValidators: true });
-
-  const remove = t.mock.method(CardFeePaymentModel, "deleteOne", async () => ({ deletedCount: 1 }));
-  await FeeCommandService.deleteCardPayment(context, cardId, paymentId);
-  assert.deepEqual(remove.mock.calls[0]?.arguments[0], { _id: paymentId, workspaceId: "workspace-a", userCardId: cardId });
-});
-
 test("Fee Center commands preserve compatibility payload and delete response", async (t) => {
   t.mock.method(CardQueryService, "get", async () => ({ id: cardId } as never));
   const create = t.mock.method(CardFeePaymentModel, "create", async (value: Record<string, unknown>) => value as never);

@@ -251,6 +251,26 @@ ordering.
   current dry-run, backup and rollback policy)
 - `frontend/lib/api/statementCalendarEmailCore.d.ts` (declaration không có
   consumer TypeScript; runtime source là `.mjs` và vẫn có regression test)
+- Frontend API helpers không có production caller: `getCreditStatements`,
+  `getCreditStatementsPage`, `fetchCardStatements`, `fetchCardStatementsPage`,
+  `fetchStatementDetail`, `fetchCard` và `updateCardOperational`; các import,
+  schema import và contract assertion chỉ phục vụ các helper này cũng đã được
+  dọn. Compatibility REST projection
+  `/api/financial-reports/credit-statements` và các schema/page projection chỉ
+  phục vụ nó cũng đã được xóa sau khi xác nhận không có first-party caller và
+  ingress 168 giờ không có request.
+- Card-scoped fee-payment REST adapter (`GET/POST/PUT/DELETE
+  /api/cards/:cardId/fee-payments`) và các command wrapper riêng đã được xóa
+  sau zero-first-party-consumer audit. Fee Center REST và MCP
+  `list_card_fee_payments` vẫn dùng chung model/query logic cần thiết cho
+  report. Read-only ingress check on `k8s-admin-public` found `0`
+  `fee-payments` request log matches in the available 168-hour window; this
+  is the rollout evidence for the breaking 404 compatibility removal.
+- Financial-report compatibility projection
+  `GET /api/financial-reports/credit-statements` cùng
+  `creditStatementReport*`, `statementPageSchema` và mapper/service tests đã
+  được xóa. Summary `creditDebtLedger` là contract canonical duy nhất cho
+  report debt; ingress 168 giờ có 0 request tới endpoint cũ.
 - Các declaration còn lại trong `frontend/types/` và `frontend/lib/api/*.d.ts`/
   `*.d.mts` đã được đối chiếu với export/consumer; chúng là ambient module hoặc
   type contract đang được TypeScript/JS sử dụng, nên không có file nào an toàn
@@ -277,6 +297,37 @@ ordering.
 - `docs/mcp-preview-rollout.md` vì là operational gate bắt buộc cho future
   writer rollout; đã được index trong `docs/README.md`, không phải historical
   document.
+
+Current API audit clarification:
+
+- `/api/notes` không bị coi là dead chỉ vì chưa thấy frontend caller: `FR-08`
+  vẫn yêu cầu upsert/delete note và `docs/api.md`/SRS đang công bố contract.
+  Đây là GAP về UI consumer cần xử lý riêng, không phải lý do xóa API.
+- `/api/workspace/owner`, `POST /api/accounts` và
+  `POST /api/financial-transactions` vẫn giữ vì còn REST manifest/docs,
+  admin/scheduler dependency hoặc canonical REST/MCP command contract. Chỉ
+  xóa sau external-consumer/compatibility audit riêng.
+
+API consumer inventory (current source audit):
+
+| Surface | Current consumer/evidence | Decision |
+|---|---|---|
+| Auth, profile, admin users/audit/catalog | Login/register/profile/admin pages, bootstrap job contract, REST tests | KEEP |
+| Card list/create/delete/duplicate | Cards UI, AddCardModal, DuplicateResolver, smoke/e2e | KEEP |
+| Card detail/update and card-scoped statement reads | Card detail UI, REST manifest, backend contract tests, smoke/compatibility DTO | KEEP-CANONICAL |
+| Statement payment preview/execute | Cards and Payments pages, MCP payment tools, REST/MCP parity tests | KEEP |
+| Calendar email and notes | SRS `FR-07`/`FR-08`, backend services/tests/docs; current UI caller is missing | KEEP-SRS; track UI coverage separately |
+| Accounts and financial transactions | Accounts list in UI; REST command tests and MCP canonical command adapters | KEEP-CANONICAL |
+| Summary report / `creditDebtLedger` | Summary UI, MCP and REST summary use one canonical debt projection | KEEP-CANONICAL |
+| `/api/financial-reports/credit-statements` | No first-party caller; ingress 168-hour window has 0 requests; superseded by `creditDebtLedger` | REMOVED |
+| Planning, recurring, fee-center, cashback, cash-flow, notifications | Corresponding frontend pages/clients and backend/MCP tests | KEEP |
+| Card-scoped fee-payment routes | No first-party caller; UI uses Fee Center and MCP keeps shared read tool; ingress window has 0 matches | REMOVED |
+| Workspace owner | Admin REST tests, workspace service, reminder scheduler fallback | KEEP-SERVICE; API requires external/admin audit |
+| Masterdata and calendar subscriptions | Masterdata pages and calendar settings component | KEEP |
+
+The route list remains authoritative in `backend/src/rest-manifest.ts` (74
+entries after this removal), runtime parity is enforced by `rest-runtime-inventory.test.ts`, and
+the MCP list remains authoritative in `backend/src/mcp/manifest.ts` (17 tools).
 
 ## 6. Safety and definition of done
 

@@ -192,7 +192,7 @@ test("transaction list batch-loads unique workspace-scoped references without ch
   await app.close();
 }); */
 
-test("card statement dashboard batch-loads cards, statements, and transactions", async (t) => {
+test("card statement dashboard returns bounded summaries without nested transactions", async (t) => {
   const cardA = "507f1f77bcf86cd799439011";
   const cardB = "507f1f77bcf86cd799439012";
   const statementA = "507f1f77bcf86cd799439021";
@@ -231,13 +231,8 @@ test("card statement dashboard batch-loads cards, statements, and transactions",
   assert.equal(body.data[0].summary.statementAmount, 100);
   assert.equal(body.data[1].summary.statementAmount, 500);
   assert.equal(body.data[0].effectivePaymentStatus, "OPEN");
-  assert.deepEqual(body.data[1].transactions.map((item: { id: string }) => item.id), [
-    "507f1f77bcf86cd799439031",
-    "507f1f77bcf86cd799439032",
-  ]);
-  assert.deepEqual(body.data[0].transactions.map((item: { id: string }) => item.id), [
-    "507f1f77bcf86cd799439033",
-  ]);
+  assert.equal("transactions" in body.data[0], false);
+  assert.equal("transactions" in body.data[1], false);
   assert.equal(cardFind.mock.callCount(), 1);
   assert.equal(statementFind.mock.callCount(), 1);
   assert.equal(transactionFind.mock.callCount(), 1);

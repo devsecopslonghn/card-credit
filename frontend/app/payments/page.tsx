@@ -65,6 +65,7 @@ export default function PaymentsPage() {
     row,
     card: cardById.get(row.userCardId),
     amount: Math.max(0, Number(row.summary?.outstandingAmount ?? 0)),
+    paidAmount: Math.max(0, Number(row.paidAmount ?? 0)),
     effectiveStatus: row.effectivePaymentStatus || row.paymentStatus,
   })), [cardById, rows]);
   const repaymentAccounts = useMemo(() => accounts.filter((account) => account.active && account.group === "REAL_MONEY"), [accounts]);
@@ -78,7 +79,7 @@ export default function PaymentsPage() {
   }), [cardId, enriched, fromDate, query, status, toDate]);
   const totals = useMemo(() => enriched.reduce((result, item) => {
     result.total += item.amount;
-    if (item.effectiveStatus === "PAID") result.paid += item.amount;
+    result.paid += item.paidAmount;
     if (item.effectiveStatus === "OVERDUE") result.overdue += item.amount;
     if (item.effectiveStatus !== "PAID") result.unpaid += item.amount;
     return result;

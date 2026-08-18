@@ -127,53 +127,6 @@ test("credit debt ledger keeps paid statements and exposes gross, paid and outst
   }]);
 });
 
-test("credit statement report delegates date range and canonicalizes persisted impact", async (t) => {
-  const query = t.mock.method(StatementQueryService, "list", async (_ctx: ServiceContext, options: { statementDateFrom?: string; statementDateTo?: string; order?: "statementDate" | "paymentDueDate"; includeTransactions?: boolean }) => {
-    assert.deepEqual(options, { statementDateFrom: "2026-07-01", statementDateTo: "2026-07-31", order: "paymentDueDate", includeTransactions: false });
-    return [statement] as never;
-  });
-  const result = await FinancialReportService.creditStatements(context, { from: "2026-07-01", to: "2026-07-31" });
-  assert.deepEqual(result, [{
-    statementId: statement.id,
-    statementDate: statement.statementDate,
-    periodStartDate: statement.periodStartDate,
-    periodEndDate: statement.periodEndDate,
-    paymentDueDate: statement.paymentDueDate,
-    paymentStatus: statement.paymentStatus,
-    outstandingDebt: 500_000,
-    grossCharges: 600_000,
-    payments: 100_000,
-    personalSpending: 600_000,
-    outstandingReceivable: 25_000,
-    transactionCount: 2,
-  }]);
-  assert.equal(query.mock.callCount(), 1);
-});
-
-test("credit statement report reads all canonical statements when no range is supplied", async (t) => {
-  const query = t.mock.method(StatementQueryService, "list", async (_ctx: ServiceContext, options: { statementDateFrom?: string; statementDateTo?: string; order?: "statementDate" | "paymentDueDate"; includeTransactions?: boolean }) => {
-    assert.deepEqual(options, { statementDateFrom: undefined, statementDateTo: undefined, order: "paymentDueDate", includeTransactions: false });
-    return [];
-  });
-  assert.deepEqual(await FinancialReportService.creditStatements(context), []);
-  assert.equal(query.mock.callCount(), 1);
-});
-
-test("credit statement report page forwards cursor options and preserves projection metadata", async (t) => {
-  const query = t.mock.method(StatementQueryService, "listPage", async (_ctx: ServiceContext, options: { statementDateFrom?: string; statementDateTo?: string; order?: "statementDate" | "paymentDueDate"; includeTransactions?: boolean; limit?: number; cursor?: string }) => {
-    assert.deepEqual(options, { statementDateFrom: "2026-07-01", statementDateTo: "2026-07-31", order: "paymentDueDate", includeTransactions: false, limit: 1, cursor: "opaque" });
-    return { data: [statement], nextCursor: "next", limit: 1 } as never;
-  });
-  assert.deepEqual(await FinancialReportService.creditStatementsPage(context, { from: "2026-07-01", to: "2026-07-31" }, { limit: 1, cursor: "opaque" }), {
-    items: [{
-      statementId: statement.id, statementDate: statement.statementDate, periodStartDate: statement.periodStartDate, periodEndDate: statement.periodEndDate,
-      paymentDueDate: statement.paymentDueDate, paymentStatus: statement.paymentStatus, outstandingDebt: 500_000, grossCharges: 600_000,
-      payments: 100_000, personalSpending: 600_000, outstandingReceivable: 25_000, transactionCount: 2,
-    }], nextCursor: "next", limit: 1,
-  });
-  assert.equal(query.mock.callCount(), 1);
-});
-
 test("summary rejects malformed and reversed date ranges before reading models", async () => {
   await assert.rejects(() => FinancialReportService.summary(context, { from: "2026-02-30", to: "2026-03-01" }));
   await assert.rejects(() => FinancialReportService.summary(context, { from: "2026-09-01", to: "2026-08-31" }));

@@ -10,7 +10,6 @@ import { registerFinancialReportRoutes } from "./financial-report-routes.js";
 import { registerFinanceRoutes } from "./finance-routes.js";
 import { registerRecurringExpenseRoutes } from "./recurring-expense-routes.js";
 import { registerMonthlyCardCashbackRoutes } from "./monthly-card-cashback-routes.js";
-import { registerCardFeePaymentRoutes } from "./card-fee-payment-routes.js";
 import { registerNotificationRoutes } from "./notification-routes.js";
 import { registerFeeCenterRoutes } from "./fee-center-routes.js";
 import { registerCashFlowRoutes } from "./cash-flow-routes.js";
@@ -47,7 +46,6 @@ export const registerRuntimeRoutes = ({ app, auth, authRepository, catalogReposi
   registerFinanceRoutes(app, auth.secret, authRepository);
   registerRecurringExpenseRoutes(app, auth.secret, authRepository);
   registerMonthlyCardCashbackRoutes(app, auth.secret, authRepository);
-  registerCardFeePaymentRoutes(app, auth.secret, authRepository);
   registerNotificationRoutes(app, auth.secret, authRepository);
   registerFeeCenterRoutes(app, auth.secret, authRepository);
   registerCashFlowRoutes(app, auth.secret, authRepository);

@@ -57,12 +57,6 @@ export const fetchCards = async (): Promise<CreditCardView[]> => {
   return body.map(normalizeCard);
 };
 
-export const fetchCard = async (cardId: string): Promise<CreditCardView> => {
-  const response = await fetch(`/api/cards/${cardId}?timestamp=${Date.now()}`, { cache: "no-store" });
-  if (!response.ok) throw new Error(await parseApiError(response, "Không thể tải thông tin thẻ."));
-  return normalizeCard(await response.json());
-};
-
 export const createCard = async (payload: { presetId: string; owner: string }): Promise<CreditCardView> => {
   const response = await fetch("/api/cards", {
     method: "POST",
@@ -74,39 +68,20 @@ export const createCard = async (payload: { presetId: string; owner: string }): 
   return (await response.json()) as CreditCardView;
 };
 
-export const updateCardOperational = async (
-  cardId: string,
-  payload: Partial<
-    Pick<
-      CreditCardView,
-      | "owner"
-      | "targetSpendForWaiver"
-      | "annualFeeWaiverTarget"
-      | "statementDay"
-      | "paymentDueDays"
-      | "cashbackCapAmount"
-      | "cashbackCapPeriod"
-      | "active"
-      | "reminderEnabled"
-      | "reminderDaysBefore"
-      | "reminderTimezone"
-      | "reminderTime"
-    >
-  >,
-): Promise<CreditCardView> => {
-  const response = await fetch(`/api/cards/${cardId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) throw new Error(await parseApiError(response, "Không thể cập nhật thẻ."));
-  return (await response.json()) as CreditCardView;
-};
-
 export const deleteCard = async (cardId: string) => {
   const response = await fetch(`/api/cards/${cardId}`, { method: "DELETE" });
   if (!response.ok) throw new Error(await parseApiError(response, "Không thể xóa thẻ."));
+};
+
+export const updateCardOperational = async (cardId: string, input: Record<string, unknown>): Promise<CreditCardView> => {
+  const { buildOperationalUpdatePayload } = await import("@/lib/cards/uiCore.mjs");
+  const response = await fetch(`/api/cards/${encodeURIComponent(cardId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildOperationalUpdatePayload(input)),
+  });
+  if (!response.ok) throw new Error(await parseApiError(response, "Không thể cập nhật thẻ."));
+  return normalizeCard(await response.json());
 };
 
 export const fetchDuplicateCards = async (): Promise<DuplicateCardGroup[]> => {

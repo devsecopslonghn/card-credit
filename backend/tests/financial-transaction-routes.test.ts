@@ -96,3 +96,28 @@ test("REST transaction command requires and forwards the idempotency boundary", 
   assert.equal(create.mock.callCount(), 1);
   await app.close();
 });
+
+test("REST transaction update/delete require idempotency and delegate canonical commands", async (t) => {
+  const update = t.mock.method(FinancialTransactionService, "update", async (_context: ServiceContext, id: string, input: Record<string, unknown>, invocation: { idempotencyKey: string; endpointOrTool: string }) => {
+    assert.equal(id, "transaction-1");
+    assert.deepEqual(input, { note: "updated" });
+    assert.deepEqual(invocation, { idempotencyKey: "transaction-update-1", endpointOrTool: "PATCH /api/financial-transactions/:id" });
+    return { id } as never;
+  });
+  const remove = t.mock.method(FinancialTransactionService, "delete", async (_context: ServiceContext, id: string, invocation: { idempotencyKey: string; endpointOrTool: string }) => {
+    assert.equal(id, "transaction-1");
+    assert.deepEqual(invocation, { idempotencyKey: "transaction-delete-1", endpointOrTool: "DELETE /api/financial-transactions/:id" });
+    return { id } as never;
+  });
+  const app = buildApp({ isReady: () => true }, "silent");
+  registerFinancialTransactionRoutes(app, secret, users);
+  const missing = await app.inject({ method: "PATCH", url: "/api/financial-transactions/transaction-1", headers: { cookie }, payload: { note: "updated" } });
+  assert.equal(missing.statusCode, 400);
+  const patched = await app.inject({ method: "PATCH", url: "/api/financial-transactions/transaction-1", headers: { cookie, "idempotency-key": " transaction-update-1 " }, payload: { note: "updated" } });
+  assert.equal(patched.statusCode, 200);
+  const deleted = await app.inject({ method: "DELETE", url: "/api/financial-transactions/transaction-1", headers: { cookie, "idempotency-key": " transaction-delete-1 " } });
+  assert.equal(deleted.statusCode, 200);
+  assert.equal(update.mock.callCount(), 1);
+  assert.equal(remove.mock.callCount(), 1);
+  await app.close();
+});

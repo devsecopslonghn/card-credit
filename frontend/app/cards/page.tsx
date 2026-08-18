@@ -42,6 +42,7 @@ export default function CardsPage() {
   const [repaymentAccounts, setRepaymentAccounts] = useState<FinanceAccount[]>([]);
   const [repaymentAccountId, setRepaymentAccountId] = useState("");
   const [selectedOwner, setSelectedOwner] = useState("");
+  const [selectedCardId, setSelectedCardId] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<CreditCardView | null>(null);
   const [busyCardId, setBusyCardId] = useState("");
@@ -105,7 +106,10 @@ export default function CardsPage() {
   }, [calendarPeriod.month, calendarPeriod.year]);
 
   const ownerOptions = useMemo(() => getUniqueOwners(cards), [cards]);
-  const filteredCards = useMemo(() => filterCardsByOwner(cards, selectedOwner), [cards, selectedOwner]);
+  const filteredCards = useMemo(
+    () => filterCardsByOwner(cards, selectedOwner).filter((card) => !selectedCardId || card._id === selectedCardId),
+    [cards, selectedCardId, selectedOwner],
+  );
   const providerGroups = useMemo(() => groupCardsByProvider(filteredCards), [filteredCards]);
   const filteredCardIds = useMemo(() => new Set(filteredCards.map((card) => card._id)), [filteredCards]);
   const statementsByCardId = useMemo(() => {
@@ -148,8 +152,10 @@ export default function CardsPage() {
   const reportExportUrl = useMemo(() => {
     const from = `${calendarPeriod.year}-${String(calendarPeriod.month + 1).padStart(2, "0")}-01`;
     const to = new Date().toISOString().slice(0, 10);
-    return `/api/financial-reports/summary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-  }, [calendarPeriod.month, calendarPeriod.year]);
+    const owner = selectedOwner ? `&owner=${encodeURIComponent(selectedOwner)}` : "";
+    const card = selectedCardId ? `&cardId=${encodeURIComponent(selectedCardId)}` : "";
+    return `/api/financial-reports/summary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${owner}${card}`;
+  }, [calendarPeriod.month, calendarPeriod.year, selectedCardId, selectedOwner]);
 
   const closeAddModal = useCallback(() => {
     setIsAddModalOpen(false);
@@ -226,7 +232,7 @@ export default function CardsPage() {
           <div className="flex w-full flex-wrap items-center gap-3 md:w-auto">
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <label htmlFor="owner-filter" className="whitespace-nowrap text-sm font-semibold cc-text-muted">
-                Thẻ của:
+                Chủ thẻ:
               </label>
               <select
                 id="owner-filter"
@@ -238,6 +244,24 @@ export default function CardsPage() {
                 {ownerOptions.map((owner) => (
                   <option key={owner} value={owner}>
                     {owner}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <label htmlFor="card-filter" className="whitespace-nowrap text-sm font-semibold cc-text-muted">
+                Định danh thẻ:
+              </label>
+              <select
+                id="card-filter"
+                value={selectedCardId}
+                onChange={(event) => setSelectedCardId(event.target.value)}
+                className="cc-control min-w-56 rounded-lg p-2.5 text-sm font-semibold"
+              >
+                <option value="">Tất cả thẻ</option>
+                {cards.map((card) => (
+                  <option key={card._id} value={card._id}>
+                    {getDisplayName(card)} · {card._id.slice(-8)}
                   </option>
                 ))}
               </select>
@@ -258,7 +282,7 @@ export default function CardsPage() {
               rel="noopener noreferrer"
               className="cc-control flex w-full justify-center rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-surface-elevated sm:w-auto"
             >
-              Xuất JSON (toàn workspace)
+              Xuất JSON theo bộ lọc
             </a>
             <button
               ref={addButtonRef}
@@ -292,7 +316,7 @@ export default function CardsPage() {
             <div><p className="text-xs font-bold uppercase tracking-wider text-[#00687a]">DÒNG TIỀN THỰC TẾ</p><h2 id="cash-flow-title" className="mt-1 text-xl font-bold">Tổng quan tháng {calendarPeriod.month + 1}/{calendarPeriod.year}</h2></div>
             <Link href="/fees" className="text-sm font-bold text-[#00687a] hover:underline">Quản lý phí</Link>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">{monthlyCashFlow.filter((item) => !selectedOwner || item.card?.owner === selectedOwner).map((item) => <article key={item.cardId} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}><p className="truncate text-sm font-bold">{item.card?.providerName ?? item.card?.bank ?? "Thẻ"} · {item.card?.displayName ?? item.card?.name ?? item.cardId.slice(-6)}</p><div className="mt-4 grid grid-cols-3 gap-2 text-sm"><div><p className="text-xs cc-text-muted">Tiền Out</p><p className="mt-1 font-bold cc-tabular">{formatVnd(item.totalOut)}</p></div><div><p className="text-xs cc-text-muted">Tiền In</p><p className="mt-1 font-bold text-emerald-600 cc-tabular">{formatVnd(item.totalIn)}</p></div><div><p className="text-xs cc-text-muted">Kết quả</p><p className={`mt-1 font-bold cc-tabular ${item.netResult >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatVnd(item.netResult)}</p></div></div><p className="mt-3 text-xs cc-text-muted">Phí thực tế: {formatVnd(item.actualFees)} · Không có phí thì 0 ₫</p></article>)}{monthlyCashFlow.length === 0 && <p className="text-sm cc-text-muted">Chưa có dữ liệu dòng tiền thực tế cho tháng này.</p>}</div>
+          <div className="grid gap-3 md:grid-cols-3">{monthlyCashFlow.filter((item) => filteredCardIds.has(item.cardId)).map((item) => <article key={item.cardId} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}><p className="truncate text-sm font-bold">{item.card?.providerName ?? item.card?.bank ?? "Thẻ"} · {item.card?.displayName ?? item.card?.name ?? item.cardId.slice(-6)}</p><div className="mt-4 grid grid-cols-3 gap-2 text-sm"><div><p className="text-xs cc-text-muted">Tiền Out</p><p className="mt-1 font-bold cc-tabular">{formatVnd(item.totalOut)}</p></div><div><p className="text-xs cc-text-muted">Tiền In</p><p className="mt-1 font-bold text-emerald-600 cc-tabular">{formatVnd(item.totalIn)}</p></div><div><p className="text-xs cc-text-muted">Kết quả</p><p className={`mt-1 font-bold cc-tabular ${item.netResult >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatVnd(item.netResult)}</p></div></div><p className="mt-3 text-xs cc-text-muted">Phí thực tế: {formatVnd(item.actualFees)} · Không có phí thì 0 ₫</p></article>)}{monthlyCashFlow.filter((item) => filteredCardIds.has(item.cardId)).length === 0 && <p className="text-sm cc-text-muted">Chưa có dữ liệu dòng tiền thực tế cho bộ lọc hiện tại.</p>}</div>
         </section>
 
         {statementsError && (

@@ -105,25 +105,3 @@ export const financialReportSchema = z.object({
   byCategory: z.record(z.string(), financialReportMetricSchema),
   byAccount: z.record(z.string(), accountMetricSchema),
 });
-
-export const creditStatementReportSchema = z.strictObject({
-  statementId: z.string().min(1),
-  statementDate: reportDateSchema,
-  periodStartDate: reportDateSchema,
-  periodEndDate: reportDateSchema,
-  paymentDueDate: reportDateSchema,
-  paymentStatus: statementPaymentStatusSchema,
-  outstandingDebt: safeNonNegativeInteger,
-  grossCharges: safeNonNegativeInteger,
-  payments: safeNonNegativeInteger,
-  personalSpending: safeNonNegativeInteger,
-  outstandingReceivable: safeNonNegativeInteger,
-  transactionCount: safeNonNegativeInteger,
-});
-
-export const creditStatementReportListSchema = z.array(creditStatementReportSchema);
-export const creditStatementReportPageSchema = z.strictObject({
-  items: creditStatementReportListSchema,
-  nextCursor: z.string().nullable(),
-  limit: safePositiveInteger,
-});

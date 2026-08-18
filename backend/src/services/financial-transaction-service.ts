@@ -9,7 +9,7 @@ import { idOf, plain, statementPeriod, validDate } from "../statement-domain.js"
 import type { ServiceContext } from "./types/service-context.js";
 import { McpMutationModel } from "../models/mcp-mutation.js";
 import { FINANCIAL_TRANSACTION_DEFAULT_LIMIT, FINANCIAL_TRANSACTION_MAX_LIMIT, financialTransactionListSchema, financialTransactionSchema } from "@card-credit/contracts";
-import type { CreateFinancialTransactionInput as SharedCreateFinancialTransactionInput, CreateFinancialTransactionBatchInput as SharedCreateFinancialTransactionBatchInput, FinancialTransactionDto } from "@card-credit/contracts";
+import type { CreateFinancialTransactionInput as SharedCreateFinancialTransactionInput, CreateFinancialTransactionBatchInput as SharedCreateFinancialTransactionBatchInput, UpdateFinancialTransactionInput, FinancialTransactionDto } from "@card-credit/contracts";
 import { canonicalPayloadHash, legacyPayloadHash, payloadHashMatches } from "../command-hash.js";
 import { commandGuardService, type CommandInvocation } from "./command-guard-service.js";
 
@@ -123,6 +123,58 @@ export class FinancialTransactionService {
     });
   }
 
+  static async update(ctx: ServiceContext, transactionId: string, input: UpdateFinancialTransactionInput, invocation: CommandInvocation) {
+    if (!mongoose.isValidObjectId(transactionId)) throw new ApiError(400, "INVALID_TRANSACTION_ID", "Transaction id không hợp lệ.");
+    const operation = "update_financial_transaction";
+    const payload = { transactionId, input };
+    const payloadHash = canonicalPayloadHash(payload);
+    const legacyHash = legacyPayloadHash(payload);
+    const idempotencyKey = invocation.idempotencyKey.trim();
+    return commandGuardService.execute(ctx, {
+      operation,
+      idempotencyKey,
+      payloadHash,
+      endpointOrTool: invocation.endpointOrTool,
+      previewId: invocation.previewId,
+      confirmationTokenHash: invocation.confirmationTokenHash,
+      previewPayloadHash: invocation.previewPayloadHash,
+      resource: { type: "financial_transaction", id: transactionId },
+    }, async (session) => {
+      const existingMutation = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();
+      if (existingMutation) {
+        if (!payloadHashMatches(existingMutation.payloadHash, payloadHash, legacyHash)) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
+        return existingMutation.result as FinancialTransactionDto;
+      }
+      return this.updateInternal(ctx, transactionId, input, session);
+    });
+  }
+
+  static async delete(ctx: ServiceContext, transactionId: string, invocation: CommandInvocation) {
+    if (!mongoose.isValidObjectId(transactionId)) throw new ApiError(400, "INVALID_TRANSACTION_ID", "Transaction id không hợp lệ.");
+    const operation = "delete_financial_transaction";
+    const payload = { transactionId };
+    const payloadHash = canonicalPayloadHash(payload);
+    const legacyHash = legacyPayloadHash(payload);
+    const idempotencyKey = invocation.idempotencyKey.trim();
+    return commandGuardService.execute(ctx, {
+      operation,
+      idempotencyKey,
+      payloadHash,
+      endpointOrTool: invocation.endpointOrTool,
+      previewId: invocation.previewId,
+      confirmationTokenHash: invocation.confirmationTokenHash,
+      previewPayloadHash: invocation.previewPayloadHash,
+      resource: { type: "financial_transaction", id: transactionId },
+    }, async (session) => {
+      const existingMutation = await McpMutationModel.findOne({ workspaceId: ctx.workspaceId, operation, idempotencyKey }).session(session).lean();
+      if (existingMutation) {
+        if (!payloadHashMatches(existingMutation.payloadHash, payloadHash, legacyHash)) throw new ApiError(409, "IDEMPOTENCY_PAYLOAD_MISMATCH", "Idempotency key đã dùng cho payload khác.");
+        return existingMutation.result as { id: string };
+      }
+      return this.deleteInternal(ctx, transactionId, session);
+    });
+  }
+
   private static async createInternal(ctx: ServiceContext, input: CreateFinancialTransactionInput, session?: mongoose.ClientSession) {
     if (input.transactionType === "STATEMENT_PAYMENT") {
       throw new ApiError(409, "STATEMENT_PAYMENT_COMMAND_REQUIRED", "Thanh toán sao kê phải đi qua command thanh toán sao kê.");
@@ -195,6 +247,73 @@ export class FinancialTransactionService {
       ...impact,
     }], { session });
     return serialize(created[0]);
+  }
+
+  private static async updateInternal(ctx: ServiceContext, transactionId: string, input: UpdateFinancialTransactionInput, session?: mongoose.ClientSession) {
+    const existing = await FinancialTransactionModel.findOne({ _id: transactionId, workspaceId: ctx.workspaceId }).session(session ?? null).lean();
+    if (!existing) throw new ApiError(404, "TRANSACTION_NOT_FOUND", "Không tìm thấy giao dịch.");
+    if (existing.transactionType === "STATEMENT_PAYMENT") throw new ApiError(409, "STATEMENT_PAYMENT_IMMUTABLE", "Giao dịch thanh toán sao kê phải được sửa qua payment command.");
+    if (input.transactionType === "STATEMENT_PAYMENT" || input.transactionType === "TRANSFER") throw new ApiError(400, input.transactionType === "TRANSFER" ? "TRANSFER_NOT_SUPPORTED" : "STATEMENT_PAYMENT_COMMAND_REQUIRED", input.transactionType === "TRANSFER" ? "Chuyển tiền cần chỉ định tài khoản nguồn và đích." : "Thanh toán sao kê phải đi qua command thanh toán sao kê.");
+
+    const accountId = input.accountId ?? String(existing.accountId);
+    if (!mongoose.isValidObjectId(accountId)) throw new ApiError(400, "INVALID_ACCOUNT_ID", "accountId không hợp lệ.");
+    const account = await AccountModel.findOne({ _id: accountId, workspaceId: ctx.workspaceId, active: { $ne: false } }).session(session ?? null).lean();
+    if (!account) throw new ApiError(404, "ACCOUNT_NOT_FOUND", "Không tìm thấy tài khoản.");
+    const accountType = String(account.type) as AccountType;
+    const transactionType = (input.transactionType ?? String(existing.transactionType)) as SharedCreateFinancialTransactionInput["transactionType"];
+    const ownership = (input.ownership ?? String(existing.ownership ?? "PERSONAL")) as SharedCreateFinancialTransactionInput["ownership"];
+    const amount = input.amount ?? Number(existing.amount);
+    const transactionDate = input.transactionDate ?? String(existing.transactionDate);
+    if (transactionType === "STATEMENT_PAYMENT") throw new ApiError(409, "STATEMENT_PAYMENT_COMMAND_REQUIRED", "Thanh toán sao kê phải đi qua command thanh toán sao kê.");
+    if (transactionType === "TRANSFER") throw new ApiError(400, "TRANSFER_NOT_SUPPORTED", "Chuyển tiền cần chỉ định tài khoản nguồn và đích.");
+    if (!validDate(transactionDate)) throw new ApiError(400, "INVALID_DATE", "Ngày giao dịch phải theo YYYY-MM-DD.");
+    if (!Number.isSafeInteger(amount) || amount <= 0) throw new ApiError(400, "INVALID_TRANSACTION", "Số tiền giao dịch không hợp lệ.");
+    const isPaidForOtherCredit = accountType === "CREDIT" && ownership === "PAID_FOR_OTHER";
+    const serviceFeeRate = input.serviceFeeRate ?? (typeof existing.serviceFeeRate === "number" ? existing.serviceFeeRate : 0);
+    if (isPaidForOtherCredit && input.serviceFeeRate === undefined && typeof existing.serviceFeeRate !== "number") throw new ApiError(400, "SERVICE_FEE_REQUIRED", "Thanh toán hộ Credit phải có serviceFeeRate.");
+    const reimbursementExpected = isPaidForOtherCredit
+      ? Math.round(amount * (1 - Number(serviceFeeRate) / 100))
+      : input.reimbursementExpected ?? Number(existing.reimbursementExpected ?? 0);
+    const refundReceived = input.refundReceived ?? Number(existing.refundReceived ?? 0);
+    const cashbackReceived = input.cashbackReceived ?? Number(existing.cashbackReceived ?? 0);
+    const impact = calculateFinancialImpact({ accountType, transactionType, ownership, amount, reimbursementExpected, refundReceived, cashbackReceived, serviceFeeRate });
+    let statementId: mongoose.Types.ObjectId | null = null;
+    if (accountType === "CREDIT") {
+      if (!account.creditCardId) throw new ApiError(409, "ACCOUNT_CARD_NOT_LINKED", "Tài khoản CREDIT chưa liên kết thẻ.");
+      const card = await CreditCardModel.findOne({ _id: account.creditCardId, workspaceId: ctx.workspaceId, active: { $ne: false } }).session(session ?? null).lean();
+      if (!card) throw new ApiError(404, "CARD_NOT_FOUND", "Không tìm thấy thẻ liên kết với tài khoản.");
+      const period = statementPeriod(transactionDate, Number(card.statementDay ?? 1), Number(card.paymentDueDays ?? 15));
+      const statement = await CardStatementModel.findOneAndUpdate(
+        { workspaceId: ctx.workspaceId, userCardId: card._id, statementDate: period.statementDate },
+        { $setOnInsert: { userId: ctx.userId, workspaceId: ctx.workspaceId, userCardId: card._id, ...period, paymentStatus: "OPEN", paidAt: null, paidAmount: null } },
+        { upsert: true, returnDocument: "after", session },
+      ).lean();
+      statementId = statement?._id ? new mongoose.Types.ObjectId(String(statement._id)) : null;
+    }
+    const updated = await FinancialTransactionModel.findOneAndUpdate(
+      { _id: transactionId, workspaceId: ctx.workspaceId },
+      { $set: {
+        accountId: account._id, accountType, transactionType, ownership, amount, transactionDate,
+        statementId, reimbursementExpected, refundReceived, cashbackReceived,
+        categoryId: input.categoryId?.trim() || String(existing.categoryId ?? "OTHER"),
+        note: input.note === undefined ? String(existing.note ?? "") : normalizedNote(input.note),
+        serviceFeeRate, ...impact,
+      } },
+      { new: true, session },
+    ).lean();
+    if (!updated) throw new ApiError(404, "TRANSACTION_NOT_FOUND", "Không tìm thấy giao dịch.");
+    return serialize(updated);
+  }
+
+  private static async deleteInternal(ctx: ServiceContext, transactionId: string, session?: mongoose.ClientSession) {
+    const existing = await FinancialTransactionModel.findOne({ _id: transactionId, workspaceId: ctx.workspaceId }).session(session ?? null).lean();
+    if (!existing) throw new ApiError(404, "TRANSACTION_NOT_FOUND", "Không tìm thấy giao dịch.");
+    if (existing.transactionType === "STATEMENT_PAYMENT") throw new ApiError(409, "STATEMENT_PAYMENT_IMMUTABLE", "Giao dịch thanh toán sao kê phải được sửa qua payment command.");
+    const child = await FinancialTransactionModel.findOne({ workspaceId: ctx.workspaceId, reimbursementForTransactionId: transactionId }).session(session ?? null).lean();
+    if (child) throw new ApiError(409, "TRANSACTION_HAS_REIMBURSEMENT", "Không thể xóa giao dịch đang có khoản hoàn tiền liên kết.");
+    const result = await FinancialTransactionModel.deleteOne({ _id: transactionId, workspaceId: ctx.workspaceId }).session(session ?? null);
+    if (!result.deletedCount) throw new ApiError(404, "TRANSACTION_NOT_FOUND", "Không tìm thấy giao dịch.");
+    return { id: transactionId };
   }
 
   static async list(ctx: ServiceContext, filters: { accountId?: string; categoryId?: string; from?: string; to?: string; limit?: number } = {}) {

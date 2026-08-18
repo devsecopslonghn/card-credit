@@ -66,7 +66,9 @@ test("statement cashback cap resets when summaries are calculated per statement 
   assert.equal(august.remainingCashback, 100_000);
 });
 
-test("card detail redirects to the unified financial screens", () => {
+test("card detail exposes operational and statement actions", () => {
   const source = readFileSync(new URL("../app/cards/[id]/page.tsx", import.meta.url), "utf8");
-  assert.match(source, /redirect\("\/cards"\)/);
+  assert.match(source, /updateCardOperational/);
+  assert.match(source, /fetchCardStatements/);
+  assert.match(source, /sendStatementCalendarEmailRequest/);
 });

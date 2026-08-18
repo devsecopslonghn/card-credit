@@ -22,6 +22,10 @@ export const createFinancialTransactionInputSchema = z.object({
   statementId: z.string().trim().min(1).optional(),
   reimbursementForTransactionId: z.string().trim().min(1).optional(),
 });
+export const updateFinancialTransactionInputSchema = createFinancialTransactionInputSchema.omit({ statementId: true, reimbursementForTransactionId: true }).partial().strict().refine(
+  (input) => Object.keys(input).length > 0,
+  "At least one transaction field is required",
+);
 export const createFinancialTransactionBatchInputSchema = z.object({ items: z.array(createFinancialTransactionInputSchema).min(1).max(50) });
 export const financialTransactionListQuerySchema = z.object({
   from: isoDateSchema.optional(),

@@ -5,14 +5,12 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import {
   cardDuplicateGroupListSchema,
   feeCenterRecordListSchema,
-  feePaymentListSchema,
   monthlyCashbackListSchema,
   monthlyCashFlowResponseSchema,
 } from "@card-credit/contracts";
 import { buildApp } from "../src/app.js";
 import { signSession, sessionCookie } from "../src/auth.js";
 import { registerCardRoutes } from "../src/card-routes.js";
-import { registerCardFeePaymentRoutes } from "../src/card-fee-payment-routes.js";
 import { registerFeeCenterRoutes } from "../src/fee-center-routes.js";
 import { registerMonthlyCardCashbackRoutes } from "../src/monthly-card-cashback-routes.js";
 import { registerCashFlowRoutes } from "../src/cash-flow-routes.js";
@@ -93,24 +91,18 @@ test("REST and MCP fee, Fee Center and cashback adapters parse to the same DTOs"
   const payment = { id: "fee-1", cardId, category: "ANNUAL_CARD_FEE" as const, paymentDate: "2026-08-01", amount: 299000, note: "" };
   const center = { ...payment, card: { id: cardId, providerName: "Bank", displayName: "Visa", owner: "Tôi" } };
   const cashback = { id: "cashback-1", cardId, period: "2026-08", expectedAmount: 100000, actualAmount: null, status: "REJECTED" as const, receivedAt: null, note: "" };
-  const payments = t.mock.method(FeeQueryService, "listCardPayments", async (ctx: ServiceContext, requestedCardId: string) => { assert.equal(ctx.workspaceId, user.workspaceId); assert.equal(requestedCardId, cardId); return [payment]; });
   const centerService = t.mock.method(FeeQueryService, "listCenter", async (ctx: ServiceContext, options: { cardId?: string; category?: string }) => { assert.equal(ctx.workspaceId, user.workspaceId); assert.deepEqual(options, { category: "MANAGEMENT_FEE" }); return [{ ...center, category: "MANAGEMENT_FEE" as const }]; });
   const cashbackService = t.mock.method(MonthlyCashbackQueryService, "list", async (ctx: ServiceContext, requestedCardId: string, year: string) => { assert.equal(ctx.workspaceId, user.workspaceId); assert.equal(requestedCardId, cardId); assert.equal(year, "2026"); return [cashback]; });
   const app = buildApp({ isReady: () => true }, "silent");
-  registerCardFeePaymentRoutes(app, secret, users);
   registerFeeCenterRoutes(app, secret, users);
   registerMonthlyCardCashbackRoutes(app, secret, users);
   const headers = { cookie: browserCookie };
-  const restPayment = await app.inject({ url: `/api/cards/${cardId}/fee-payments`, headers });
-  const mcpPayment = await callMcp("list_card_fee_payments", { cardId });
-  assert.deepEqual(feePaymentListSchema.parse(restPayment.json().data), feePaymentListSchema.parse(mcpPayment));
   const restCenter = await app.inject({ url: "/api/fee-center?category=MANAGEMENT_FEE", headers });
   const mcpCenter = await callMcp("list_fee_center", { category: "MANAGEMENT_FEE" });
   assert.deepEqual(feeCenterRecordListSchema.parse(restCenter.json().data), feeCenterRecordListSchema.parse(mcpCenter));
   const restCashback = await app.inject({ url: `/api/cards/${cardId}/monthly-cashbacks?year=2026`, headers });
   const mcpCashback = await callMcp("list_monthly_cashbacks", { cardId, year: "2026" });
   assert.deepEqual(monthlyCashbackListSchema.parse(restCashback.json().data), monthlyCashbackListSchema.parse(mcpCashback));
-  assert.equal(payments.mock.callCount(), 2);
   assert.equal(centerService.mock.callCount(), 2);
   assert.equal(cashbackService.mock.callCount(), 2);
   await app.close();

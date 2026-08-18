@@ -1,7 +1,8 @@
-import { accountListSchema, budgetStatusListSchema, creditStatementReportListSchema, creditStatementReportPageSchema, financeCategoryListSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, reportQuerySchema, reportDateRangeSchema } from "@card-credit/contracts";
-import type { AccountDto, BudgetStatusDto, CreditStatementReportDto, FinanceCategoryDto, FinancialReportDto, FinancialTransactionDto, FinancialTransactionListQuery } from "@card-credit/contracts";
+import { accountListSchema, budgetStatusListSchema, createFinancialTransactionInputSchema, financeCategoryListSchema, financialReportSchema, financialTransactionListQuerySchema, financialTransactionListSchema, financialTransactionSchema, reportQuerySchema, reportDateRangeSchema, updateFinancialTransactionInputSchema } from "@card-credit/contracts";
+import type { AccountDto, BudgetStatusDto, CreateFinancialTransactionInput, FinanceCategoryDto, FinancialReportDto, FinancialTransactionDto, FinancialTransactionListQuery, UpdateFinancialTransactionInput } from "@card-credit/contracts";
 
 export type FinancialTransaction = FinancialTransactionDto;
+const mutationKey = (prefix: string) => `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(path, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -20,6 +21,17 @@ export const listFinancialTransactions = async (input: FinancialTransactionListQ
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return financialTransactionListSchema.parse(await request<unknown>(`/api/financial-transactions${suffix}`)) as FinancialTransaction[];
 };
+export const createFinancialTransaction = async (input: CreateFinancialTransactionInput): Promise<FinancialTransactionDto> => {
+  const payload = createFinancialTransactionInputSchema.parse(input);
+  return financialTransactionSchema.parse(await request<unknown>("/api/financial-transactions", { method: "POST", headers: { "Idempotency-Key": mutationKey("transaction-create") }, body: JSON.stringify(payload) })) as FinancialTransactionDto;
+};
+export const updateFinancialTransaction = async (id: string, input: UpdateFinancialTransactionInput): Promise<FinancialTransactionDto> => {
+  const payload = updateFinancialTransactionInputSchema.parse(input);
+  return financialTransactionSchema.parse(await request<unknown>(`/api/financial-transactions/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Idempotency-Key": mutationKey("transaction-update") }, body: JSON.stringify(payload) })) as FinancialTransactionDto;
+};
+export const deleteFinancialTransaction = async (id: string) => {
+  await request<unknown>(`/api/financial-transactions/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Idempotency-Key": mutationKey("transaction-delete") } });
+};
 export type FinancialSummaryQuery = { from?: string; to?: string; cardId?: string; owner?: string; year?: string; month?: string };
 export const getFinancialSummary = async (fromOrQuery: string | FinancialSummaryQuery, to?: string, cardId?: string): Promise<FinancialReportDto> => {
   const input = typeof fromOrQuery === "string"
@@ -29,14 +41,6 @@ export const getFinancialSummary = async (fromOrQuery: string | FinancialSummary
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) if (value !== undefined) params.set(key, String(value));
   return financialReportSchema.parse(await request<unknown>(`/api/financial-reports/summary?${params.toString()}`)) as FinancialReportDto;
-};
-export const getCreditStatements = async (from?: string, to?: string): Promise<CreditStatementReportDto[]> => creditStatementReportListSchema.parse(await request<unknown>(`/api/financial-reports/credit-statements${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`)) as CreditStatementReportDto[];
-export const getCreditStatementsPage = async (limit = 100, cursor?: string, from?: string, to?: string) => {
-  const params = new URLSearchParams({ limit: String(limit) });
-  if (cursor) params.set("cursor", cursor);
-  if (from) params.set("from", from);
-  if (to) params.set("to", to);
-  return creditStatementReportPageSchema.parse(await request<unknown>(`/api/financial-reports/credit-statements?${params.toString()}`));
 };
 export const getBudgetStatus = async (month: string): Promise<BudgetStatusDto[]> => budgetStatusListSchema.parse(await request<unknown>(`/api/finance/budgets/status?month=${encodeURIComponent(month)}`)) as BudgetStatusDto[];
 export const listFinanceCategories = async (): Promise<FinanceCategoryDto[]> => financeCategoryListSchema.parse(await request<unknown>("/api/finance/categories")) as FinanceCategoryDto[];

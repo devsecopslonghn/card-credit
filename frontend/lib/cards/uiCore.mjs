@@ -273,5 +273,9 @@ export const buildOperationalUpdatePayload = (input) => {
   }
   if ("cashbackCapPeriod" in input) payload.cashbackCapPeriod = input.cashbackCapPeriod === "CALENDAR_MONTH" ? "CALENDAR_MONTH" : "STATEMENT";
   if ("active" in input) payload.active = Boolean(input.active);
+  if ("reminderEnabled" in input) payload.reminderEnabled = Boolean(input.reminderEnabled);
+  if ("reminderDaysBefore" in input) payload.reminderDaysBefore = input.reminderDaysBefore;
+  if ("reminderTimezone" in input) payload.reminderTimezone = input.reminderTimezone;
+  if ("reminderTime" in input) payload.reminderTime = input.reminderTime;
   return payload;
 };

@@ -203,7 +203,7 @@ test("cards page sends persisted card and statement ids and replaces successful 
   assert.match(source, /loadDashboardResources/);
   assert.match(source, /setStatements\(result\.statements\)/);
   assert.match(source, /setStatementsError\(result\.statementsError\)/);
-  assert.equal(source.includes("loadedCards.map((card) => fetchCardStatements"), false);
+  assert.doesNotMatch(source, /loadedCards\.map/);
   assert.match(source, /updateStatementPayment\(statement\.userCardId, statement\._id, action, preview\.repaymentAccountId \?\? undefined, commandKey, preview\.version \?\? undefined, preview\)/);
   assert.match(source, /previewStatementPayment\(statement\.userCardId, statement\._id, action, repaymentAccountId \|\| undefined\)/);
   assert.match(source, /paymentCommandKeysRef/);
