@@ -149,19 +149,20 @@ export class AccountService {
     });
   }
 
-  static async previewMerge(ctx: ServiceContext, input: { sourceAccountIds: string[]; targetAccountId?: string; targetName?: string; keepTargetAsCash?: boolean; expectedVersion?: number }) {
+  static async previewMerge(ctx: ServiceContext, input: { sourceAccountIds: string[]; targetAccountId?: string; targetName?: string; targetType?: AccountType; keepTargetAsCash?: boolean; expectedVersion?: number }) {
     const ids = [...new Set(input.sourceAccountIds)];
     if (ids.some((id) => !mongoose.isValidObjectId(id)) || (input.targetAccountId && !mongoose.isValidObjectId(input.targetAccountId))) throw new ApiError(400, "INVALID_ACCOUNT_ID", "Account ID không hợp lệ.");
     if (input.targetAccountId && ids.includes(input.targetAccountId)) throw new ApiError(409, "ACCOUNT_TARGET_SOURCE_SAME", "Target không được là source.");
     const accounts = await AccountModel.find({ workspaceId: ctx.workspaceId, _id: { $in: [...ids, ...(input.targetAccountId ? [input.targetAccountId] : [])] } }).lean();
-    const target = input.targetAccountId ? accounts.find((a) => String(a._id) === input.targetAccountId) : null;
+    const target = input.targetAccountId ? accounts.find((a) => String(a._id) === input.targetAccountId) : ({ _id: "NEW", workspaceId: ctx.workspaceId, type: input.keepTargetAsCash ? "CASH" : (input.targetType ?? "CASH"), currency: "VND", openingBalance: 0, active: true } as Record<string, unknown>);
     const sources = accounts.filter((a) => ids.includes(String(a._id)));
-    if (sources.length !== ids.length || !target) throw new ApiError(404, "ACCOUNT_NOT_FOUND", "Không tìm thấy account trong workspace.");
+    if (sources.length !== ids.length || (!target && !input.targetName)) throw new ApiError(404, "ACCOUNT_NOT_FOUND", "Không tìm thấy account trong workspace.");
+    if (!target) throw new ApiError(404, "ACCOUNT_NOT_FOUND", "Không tìm thấy target account.");
     if (sources.some((a) => a.active === false) || target.active === false) throw new ApiError(409, "ACCOUNT_ARCHIVED", "Không thể merge account archived.");
     if (sources.some((a) => a.type === "CREDIT" || a.creditCardId) || target.type === "CREDIT" || target.creditCardId) throw new ApiError(409, "INVALID_MERGE_ACCOUNT", "Merge chỉ hỗ trợ REAL_MONEY không liên kết card.");
     const all = [target, ...sources];
     if (new Set(all.map((a) => String(a.currency ?? "VND"))).size !== 1 || new Set(all.map((a) => String(a.workspaceId))).size !== 1) throw new ApiError(409, "ACCOUNT_SCOPE_MISMATCH", "Currency/workspace không đồng nhất.");
-    const idsForBalance = all.map((a) => a._id);
+    const idsForBalance = all.filter((a) => String(a._id) !== "NEW").map((a) => a._id);
     const rows = await FinancialTransactionModel.aggregate([{ $match: { workspaceId: ctx.workspaceId, accountId: { $in: idsForBalance } } }, { $group: { _id: "$accountId", cashflow: { $sum: "$debitCashflow" }, count: { $sum: 1 } } }]);
     const by = new Map(rows.map((r) => [String(r._id), r]));
     const balance = (a: Record<string, unknown>) => Number(a.openingBalance ?? 0) + Number(by.get(String(a._id))?.cashflow ?? 0);
@@ -169,16 +170,23 @@ export class AccountService {
     return { sourceAccountIds: ids, targetAccountId: String(target._id), transactionCount: rows.reduce((n, r) => n + Number(r.count), 0), before: { sourceBalance, targetBalance, totalBalance: sourceBalance + targetBalance }, after: { targetBalance: sourceBalance + targetBalance, totalBalance: sourceBalance + targetBalance }, warnings: ["Source accounts sẽ được archive; transaction IDs và ledger impacts được giữ nguyên."] };
   }
 
-  static async merge(ctx: ServiceContext, input: { sourceAccountIds: string[]; targetAccountId: string; expectedVersion?: number }, invocation: CommandInvocation) {
+  static async merge(ctx: ServiceContext, input: { sourceAccountIds: string[]; targetAccountId?: string; targetName?: string; targetType?: AccountType; keepTargetAsCash?: boolean; expectedVersion?: number }, invocation: CommandInvocation) {
     const payloadHash = canonicalPayloadHash(input);
-    return commandGuardService.execute(ctx, { operation: "merge_accounts", idempotencyKey: invocation.idempotencyKey, payloadHash, endpointOrTool: invocation.endpointOrTool, previewId: invocation.previewId, confirmationTokenHash: invocation.confirmationTokenHash, previewPayloadHash: invocation.previewPayloadHash, resource: { type: "account", accountId: input.targetAccountId, sourceAccountIds: input.sourceAccountIds.join(",") } }, async (session) => {
+    const auditPreview = await this.previewMerge(ctx, input);
+    return commandGuardService.execute(ctx, { operation: "merge_accounts", idempotencyKey: invocation.idempotencyKey, payloadHash, endpointOrTool: invocation.endpointOrTool, previewId: invocation.previewId, confirmationTokenHash: invocation.confirmationTokenHash, previewPayloadHash: invocation.previewPayloadHash, resource: { type: "account", accountId: input.targetAccountId ?? "new", sourceAccountIds: input.sourceAccountIds.join(","), transactionCount: auditPreview.transactionCount, beforeBalance: auditPreview.before.totalBalance, afterBalance: auditPreview.after.totalBalance } }, async (session) => {
       const preview = await this.previewMerge(ctx, input);
+      let targetAccountId = input.targetAccountId;
+      if (!targetAccountId) {
+        if (!input.targetName) throw new ApiError(400, "INVALID_ACCOUNT", "Cần targetAccountId hoặc targetName.");
+        const created = await this.createInternal(ctx, { name: input.targetName, type: input.keepTargetAsCash ? "CASH" : (input.targetType ?? "CASH"), openingBalance: 0 }, session);
+        targetAccountId = created.id;
+      }
       const versionFilter = input.expectedVersion === undefined ? {} : { version: input.expectedVersion };
-      const target = await AccountModel.findOneAndUpdate({ _id: input.targetAccountId, workspaceId: ctx.workspaceId, active: { $ne: false }, ...versionFilter }, { $inc: { version: 1 } }, { new: true, session }).lean();
+      const target = await AccountModel.findOneAndUpdate({ _id: targetAccountId, workspaceId: ctx.workspaceId, active: { $ne: false }, ...versionFilter }, { $inc: { version: 1 } }, { new: true, session }).lean();
       if (!target) throw new ApiError(409, "ACCOUNT_VERSION_CONFLICT", "Account đã thay đổi; hãy preview lại.");
-      const moved = await FinancialTransactionModel.updateMany({ workspaceId: ctx.workspaceId, accountId: { $in: input.sourceAccountIds } }, { $set: { accountId: input.targetAccountId } }, { session });
+      const moved = await FinancialTransactionModel.updateMany({ workspaceId: ctx.workspaceId, accountId: { $in: input.sourceAccountIds } }, { $set: { accountId: targetAccountId } }, { session });
       await AccountModel.updateMany({ workspaceId: ctx.workspaceId, _id: { $in: input.sourceAccountIds }, active: { $ne: false } }, { $set: { active: false, archivedAt: new Date() }, $inc: { version: 1 } }, { session });
-      return { ...preview, transactionCount: Number(moved.modifiedCount ?? preview.transactionCount), targetAccountId: input.targetAccountId };
+      return { ...preview, transactionCount: Number(moved.modifiedCount ?? preview.transactionCount), targetAccountId };
     });
   }
 }

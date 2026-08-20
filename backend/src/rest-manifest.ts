@@ -38,6 +38,8 @@ export const REST_ENDPOINTS: readonly RestEndpointDefinition[] = [
   { method: "post", path: "/api/notes", summary: "Upsert note", security: "session" },
   { method: "get", path: "/api/accounts", summary: "List financial accounts", security: "session" },
   { method: "post", path: "/api/accounts", summary: "Create financial account", security: "session" },
+  { method: "post", path: "/api/accounts/merge/preview", summary: "Preview financial account merge", security: "session" },
+  { method: "post", path: "/api/accounts/merge/confirm", summary: "Confirm financial account merge", security: "session" },
   { method: "get", path: "/api/financial-transactions", summary: "List unified financial transactions", security: "session" },
   { method: "post", path: "/api/financial-transactions", summary: "Create unified financial transaction", security: "session" },
   { method: "patch", path: "/api/financial-transactions/{id}", summary: "Update unified financial transaction", security: "session" },
