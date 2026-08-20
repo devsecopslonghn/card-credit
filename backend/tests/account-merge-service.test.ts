@@ -61,3 +61,20 @@ test("merge does not archive sources when transaction move fails", async (t) => 
   await assert.rejects(AccountService.merge(context, { sourceAccountIds: [sourceId], targetAccountId: targetId }, invocation), /write failed/);
   assert.equal(archived, false);
 });
+
+test("concurrent merge with stale expectedVersion is rejected before ledger move", async (t) => {
+  const source = { _id: sourceId, workspaceId: context.workspaceId, type: "CASH", currency: "VND", openingBalance: 0, active: true, version: 0 };
+  const target = { _id: targetId, workspaceId: context.workspaceId, type: "DEBIT", currency: "VND", openingBalance: 0, active: true, version: 0 };
+  let targetUpdates = 0;
+  let transactionMoves = 0;
+  t.mock.method(AccountModel, "find", () => chain([source, target]) as never);
+  t.mock.method(FinancialTransactionModel, "aggregate", async () => [] as never);
+  t.mock.method(AccountModel, "findOneAndUpdate", () => { targetUpdates += 1; return chain(targetUpdates === 1 ? { ...target, version: 1 } : null) as never; });
+  t.mock.method(FinancialTransactionModel, "updateMany", async () => { transactionMoves += 1; return { modifiedCount: 0 } as never; });
+  t.mock.method(AccountModel, "updateMany", async () => ({ modifiedCount: 1 }) as never);
+  t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, _spec: unknown, work: (session: unknown) => Promise<unknown>) => work({}));
+  const first = await AccountService.merge(context, { sourceAccountIds: [sourceId], targetAccountId: targetId, expectedVersion: 0 }, { ...invocation, idempotencyKey: "merge-concurrent-1" });
+  assert.equal(first.targetAccountId, targetId);
+  await assert.rejects(AccountService.merge(context, { sourceAccountIds: [sourceId], targetAccountId: targetId, expectedVersion: 0 }, { ...invocation, idempotencyKey: "merge-concurrent-2" }), (error: unknown) => (error as { code?: string }).code === "ACCOUNT_VERSION_CONFLICT");
+  assert.equal(transactionMoves, 1);
+});
