@@ -1,5 +1,5 @@
 import { z, type ZodRawShape } from "zod";
-import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInputSchema, feeCategorySchema, financialTransactionListQuerySchema, reportQueryInputSchema, statementPaymentInputSchema, mergeAccountsInputSchema } from "@card-credit/contracts";
+import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInputSchema, feeCategorySchema, financialTransactionListQuerySchema, reportQueryInputSchema, statementPaymentInputSchema, mergeAccountsInputSchema, settleReceivableInputSchema } from "@card-credit/contracts";
 import { PAYMENT_OPERATION } from "../payment-contract.js";
 
 export type McpToolKind = "query" | "preview" | "confirm";
@@ -17,6 +17,7 @@ export const MCP_OPERATION = {
   createAccount: "create_account",
   payStatement: PAYMENT_OPERATION,
   mergeAccounts: "merge_accounts",
+  settleReceivable: "settle_receivable",
 } as const;
 
 const definitions = [
@@ -39,6 +40,8 @@ const definitions = [
   { name: "confirm_create_account", description: "Confirm a previously previewed real-money account. Retries are idempotent and return the existing account.", kind: "confirm", operation: MCP_OPERATION.createAccount, inputSchema: { payload: createRealMoneyAccountInputSchema, confirmationToken: z.string().min(1), idempotencyKey: z.string().min(8) } },
   { name: "preview_pay_statement", description: "Preview a statement payment using the canonical statement payment service. Does not write the ledger.", kind: "preview", operation: MCP_OPERATION.payStatement, inputSchema: { cardId: z.string().trim().min(1), statementId: z.string().trim().min(1), input: statementPaymentInputSchema } },
   { name: "confirm_pay_statement", description: "Confirm a previously previewed statement payment with the canonical payment command and idempotency guard.", kind: "confirm", operation: MCP_OPERATION.payStatement, inputSchema: { cardId: z.string().trim().min(1), statementId: z.string().trim().min(1), input: statementPaymentInputSchema, previewId: z.string().trim().min(1), confirmationToken: z.string().min(1), idempotencyKey: z.string().trim().min(8).max(200) } },
+  { name: "preview_settle_receivable", description: "Preview a status-only receivable repair. It never creates a reimbursement transaction or changes cash/debt.", kind: "preview", operation: MCP_OPERATION.settleReceivable, inputSchema: settleReceivableInputSchema.shape },
+  { name: "confirm_settle_receivable", description: "Confirm a status-only receivable repair atomically and idempotently.", kind: "confirm", operation: MCP_OPERATION.settleReceivable, inputSchema: { payload: settleReceivableInputSchema, confirmationToken: z.string().min(1), idempotencyKey: z.string().min(8), previewId: z.string().min(1) } },
 ] satisfies readonly McpToolDefinition[];
 
 export const mcpToolManifest = definitions;

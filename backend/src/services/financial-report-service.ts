@@ -213,7 +213,7 @@ export class FinancialReportService {
     const receivableBySource = new Map<string, number>();
     const sourceStatementById = new Map<string, string>();
     for (const item of allAccountTransactions) {
-      if (item.transactionType !== "EXPENSE" || item.ownership !== "PAID_FOR_OTHER") continue;
+      if (item.transactionType !== "EXPENSE" || item.ownership !== "PAID_FOR_OTHER" || ["SETTLED", "COLLECTED"].includes(String(item.receivableStatus))) continue;
       // reimbursementExpected is the gross claim. The retained impact field
       // may be stale after historical repairs, so it is only a legacy fallback.
       receivableBySource.set(String(item._id), Math.max(0, Number(item.reimbursementExpected ?? item.outstandingReceivable ?? 0)));

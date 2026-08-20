@@ -491,6 +491,7 @@ export type UserDto = {
 };
 export declare const authSessionSchema: z.ZodObject<any>;
 export declare const authSessionListSchema: z.ZodArray<typeof authSessionSchema>;
+export declare const settleReceivableInputSchema: z.ZodObject<any>;
 export type AuthSessionDto = {
   email: string;
   role: "admin" | "user";

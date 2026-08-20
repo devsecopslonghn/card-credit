@@ -18,6 +18,8 @@ import { randomUUID } from "node:crypto";
 import { MCP_OPERATION, mcpToolMetadata, type McpWriterMode } from "./manifest.js";
 import { ApiError } from "../errors.js";
 import { paymentPreviewPayload } from "../payment-contract.js";
+import { ReceivableRepairService } from "../services/receivable-repair-service.js";
+import { settleReceivableInputSchema } from "@card-credit/contracts";
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
 
@@ -90,6 +92,20 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
       if (verification.previewId !== previewId) throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
       await StatementPaymentCommandService.execute(context, cardId, statementId, parsed, { idempotencyKey, endpointOrTool: "confirm_pay_statement", previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(paymentPreviewPayload(cardId, statementId, parsed)) });
       return json(await StatementQueryService.get(context, cardId, statementId));
+    });
+    server.registerTool("preview_settle_receivable", mcpToolMetadata("preview_settle_receivable"), async (payload: unknown) => {
+      const context = await invocationContext();
+      const parsed = settleReceivableInputSchema.parse(payload);
+      const preview = await ReceivableRepairService.preview(context, parsed);
+      const metadata = await previewService.issue(context, MCP_OPERATION.settleReceivable, parsed, codec());
+      return json({ operation: MCP_OPERATION.settleReceivable, ...preview, ...metadata });
+    });
+    server.registerTool("confirm_settle_receivable", mcpToolMetadata("confirm_settle_receivable"), async ({ payload, previewId, confirmationToken, idempotencyKey }: { payload: unknown; previewId: string; confirmationToken: string; idempotencyKey: string }) => {
+      const context = await invocationContext();
+      const parsed = settleReceivableInputSchema.parse(payload);
+      const verification = codec().verify(confirmationToken, MCP_OPERATION.settleReceivable, parsed, binding(context));
+      if (verification.previewId !== previewId) throw new ApiError(409, "PREVIEW_NOT_AVAILABLE", "Preview không còn khả dụng; hãy tạo preview mới.");
+      return json(await ReceivableRepairService.confirm(context, parsed, { idempotencyKey, endpointOrTool: "confirm_settle_receivable", previewId, confirmationTokenHash: confirmationTokenHash(confirmationToken), previewPayloadHash: canonicalPayloadHash(parsed) }));
     });
   }
 };
