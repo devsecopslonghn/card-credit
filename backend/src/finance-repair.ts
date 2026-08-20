@@ -1,5 +1,5 @@
 export type RepairAccount = { _id: unknown; workspaceId?: unknown; type?: unknown; active?: unknown; openingBalance?: unknown };
-export type RepairTransaction = { _id: unknown; workspaceId?: unknown; accountId?: unknown; accountType?: unknown; transactionType?: unknown; ownership?: unknown; amount?: unknown; statementId?: unknown; reimbursementForTransactionId?: unknown; personalSpending?: unknown; debitCashflow?: unknown; creditDebt?: unknown; outstandingReceivable?: unknown; transactionDate?: unknown; note?: unknown };
+export type RepairTransaction = { _id: unknown; workspaceId?: unknown; accountId?: unknown; accountType?: unknown; transactionType?: unknown; ownership?: unknown; amount?: unknown; reimbursementExpected?: unknown; statementId?: unknown; reimbursementForTransactionId?: unknown; personalSpending?: unknown; debitCashflow?: unknown; creditDebt?: unknown; outstandingReceivable?: unknown; transactionDate?: unknown; note?: unknown };
 export type RepairStatement = { _id: unknown; paymentStatus?: unknown; paidAmount?: unknown; summary?: { outstandingAmount?: unknown; paymentAmount?: unknown } };
 const id = (value: unknown) => String(value ?? "");
 const n = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -23,7 +23,7 @@ export const reconcileFinanceMonth = (accounts: RepairAccount[], transactions: R
   const activeCashBalance = activeMoney.filter((account) => account.type === "CASH").reduce((sum, account) => sum + balance(account), 0);
   const activeBankBalance = activeMoney.filter((account) => account.type === "DEBIT").reduce((sum, account) => sum + balance(account), 0);
   const sourceReceivable = new Map<string, number>();
-  for (const tx of transactions) if (tx.transactionType === "EXPENSE" && tx.ownership === "PAID_FOR_OTHER") sourceReceivable.set(id(tx._id), Math.max(0, n(tx.outstandingReceivable)));
+  for (const tx of transactions) if (tx.transactionType === "EXPENSE" && tx.ownership === "PAID_FOR_OTHER") sourceReceivable.set(id(tx._id), Math.max(0, n(tx.reimbursementExpected ?? tx.outstandingReceivable)));
   for (const tx of transactions) if (tx.transactionType === "REIMBURSEMENT" && tx.reimbursementForTransactionId) sourceReceivable.set(id(tx.reimbursementForTransactionId), Math.max(0, (sourceReceivable.get(id(tx.reimbursementForTransactionId)) ?? 0) - n(tx.amount)));
   const outstandingReceivable = [...sourceReceivable.values()].reduce((sum, value) => sum + value, 0);
   const currentCardDebt = statements.reduce((sum, statement) => sum + Math.max(0, n(statement.summary?.outstandingAmount)), 0);

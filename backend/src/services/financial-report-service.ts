@@ -42,6 +42,9 @@ const emptyTotals = () => ({
   activeBankBalance: 0,
   currentCardDebt: 0,
   paidStatementDebt: 0,
+  grossReceivable: 0,
+  collectedReceivable: 0,
+  paidStatementReceivable: 0,
   realIncome: 0,
   technicalAdjustments: 0,
   operatingCashflow: 0,
@@ -205,9 +208,24 @@ export class FinancialReportService {
     totals.currentCardDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.outstandingAmount ?? 0)), 0);
     totals.paidStatementDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.paymentAmount ?? 0)), 0);
     const receivableBySource = new Map<string, number>();
-    for (const item of allAccountTransactions) if (item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER") receivableBySource.set(String(item._id), Math.max(0, Number(item.outstandingReceivable ?? 0)));
-    for (const item of allAccountTransactions) if (item.transactionType === "REIMBURSEMENT" && item.reimbursementForTransactionId) receivableBySource.set(String(item.reimbursementForTransactionId), Math.max(0, (receivableBySource.get(String(item.reimbursementForTransactionId)) ?? 0) - Number(item.amount ?? item.reimbursementReceived ?? 0)));
-    totals.outstandingReceivable = [...receivableBySource.values()].reduce((sum, value) => sum + value, 0);
+    const sourceStatementById = new Map<string, string>();
+    for (const item of allAccountTransactions) {
+      if (item.transactionType !== "EXPENSE" || item.ownership !== "PAID_FOR_OTHER") continue;
+      // reimbursementExpected is the gross claim. The retained impact field
+      // may be stale after historical repairs, so it is only a legacy fallback.
+      receivableBySource.set(String(item._id), Math.max(0, Number(item.reimbursementExpected ?? item.outstandingReceivable ?? 0)));
+      if (item.statementId) sourceStatementById.set(String(item._id), String(item.statementId));
+    }
+    const collectedBySource = new Map<string, number>();
+    for (const item of allAccountTransactions) if (item.transactionType === "REIMBURSEMENT" && item.reimbursementForTransactionId) {
+      const sourceId = String(item.reimbursementForTransactionId);
+      collectedBySource.set(sourceId, (collectedBySource.get(sourceId) ?? 0) + Math.max(0, Number(item.amount ?? item.reimbursementReceived ?? 0)));
+    }
+    const paidStatementIds = new Set(allStatements.filter((statement) => String(statement.paymentStatus) === "PAID").map((statement) => String(statement.id)));
+    totals.grossReceivable = [...receivableBySource.values()].reduce((sum, value) => sum + value, 0);
+    totals.collectedReceivable = [...collectedBySource.values()].reduce((sum, value) => sum + value, 0);
+    totals.paidStatementReceivable = [...collectedBySource.entries()].reduce((sum, [sourceId, value]) => sum + (paidStatementIds.has(sourceStatementById.get(sourceId) ?? "") ? value : 0), 0);
+    totals.outstandingReceivable = [...receivableBySource.entries()].reduce((sum, [sourceId, value]) => sum + Math.max(0, value - (collectedBySource.get(sourceId) ?? 0)), 0);
     const netAssets = activeRealMoney + totals.outstandingReceivable - totals.currentCardDebt;
     const creditDebtBalance = totals.currentCardDebt;
     return financialReportSchema.parse({
