@@ -113,6 +113,29 @@ test("payment execute rejects a stale preview version before ledger work", async
   );
 });
 
+test("REOPEN correction voids an erroneous statement payment and reopens atomically", async (t) => {
+  const payment = { _id: "507f1f77bcf86cd799439099", accountId: "507f1f77bcf86cd799439031", statementId, transactionType: "STATEMENT_PAYMENT", amount: 16_193_000, creditDebt: -16_193_000 };
+  let voidUpdate: Record<string, unknown> | undefined;
+  let statementUpdate: Record<string, unknown> | undefined;
+  t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, _spec: CommandGuardSpec, work: (session: never) => Promise<unknown>) => work({} as never));
+  t.mock.method(CardStatementModel, "findOne", () => ({ session: () => ({ lean: async () => ({ _id: statementId, userCardId: cardId, workspaceId: user.workspaceId, paymentStatus: "PAID", paidAmount: 16_193_000, updatedAt: new Date("2026-08-16T00:00:00.000Z") }) }) }) as never);
+  t.mock.method(FinancialTransactionModel, "find", () => ({ session: () => ({ lean: async () => [payment] }) }) as never);
+  t.mock.method(FinancialTransactionModel, "updateMany", async (_filter: Record<string, unknown>, update: Record<string, unknown>) => { voidUpdate = update; return { modifiedCount: 1 } as never; });
+  t.mock.method(CardStatementModel, "findOneAndUpdate", (_filter: Record<string, unknown>, update: Record<string, unknown>) => { statementUpdate = update; return { lean: async () => ({ _id: statementId, paymentStatus: "OPEN", paidAmount: null, paidAt: null }) } as never; });
+  const reason = "Correction: reimbursement was incorrectly treated as statement payment";
+  const correctionDate = new Date("2026-08-20T00:00:00.000Z");
+  const result = await StatementPaymentCommandService.execute(
+    { userId: user.id, workspaceId: user.workspaceId, role: user.role, channel: "browser", correlationId: "payment-correction-test" },
+    cardId,
+    statementId,
+    { action: "REOPEN", reason, reverseErroneousPayment: true, expectedVersion: "2026-08-16T00:00:00.000Z" },
+    { idempotencyKey: "payment-correction-1", endpointOrTool: "confirm_pay_statement", ...browserPreviewInvocation }, correctionDate,
+  );
+  assert.equal(result.paymentStatus, "OPEN");
+  assert.deepEqual(voidUpdate, { $set: { voidedAt: correctionDate, voidReason: reason } });
+  assert.deepEqual(statementUpdate, { $set: { paymentStatus: "OPEN", paidAt: null, paidAmount: null } });
+});
+
 test("payment command binds statement identity and safe result metadata to the generic guard", async (t) => {
   let observed: CommandGuardSpec | undefined;
   t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, spec: CommandGuardSpec) => {
