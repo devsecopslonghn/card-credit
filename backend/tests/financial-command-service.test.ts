@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import { FinancialTransactionService } from "../src/services/financial-transaction-service.js";
 import { AccountModel } from "../src/models/account.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
-import { CardStatementModel } from "../src/models/card-statement.js";
+import { AccountService } from "../src/services/account-service.js";
 import { McpMutationModel } from "../src/models/mcp-mutation.js";
 import { commandGuardService, type CommandGuardSpec } from "../src/services/command-guard-service.js";
 import { legacyPayloadHash } from "../src/command-hash.js";
@@ -36,9 +36,10 @@ test("technical adjustment preview targets currentDebt for CREDIT accounts", asy
     lean: async () => accounts[String(filter._id)],
   })) as never);
   t.mock.method(FinancialTransactionModel, "find", () => ({ lean: async () => [] }) as never);
-  t.mock.method(CardStatementModel, "find", ((filter: Record<string, unknown>) => ({
-    lean: async () => [{ summary: { outstandingAmount: String(filter.userCardId) === "card-shinhan" ? 16_290_100 : 5_355_000 } }],
-  })) as never);
+  t.mock.method(AccountService, "list", async () => [
+    { id: "shinhan", currentDebt: 16_290_100 },
+    { id: "amex", currentDebt: 5_355_000 },
+  ] as never);
   const result = await FinancialTransactionService.preview(context, { items: [
     { accountId: "shinhan", transactionDate: "2026-08-20", amount: 368_372, transactionType: "BALANCE_ADJUSTMENT", direction: "INCREASE" },
     { accountId: "amex", transactionDate: "2026-08-20", amount: 1_000, transactionType: "OPENING_BALANCE_ADJUSTMENT", direction: "DECREASE" },

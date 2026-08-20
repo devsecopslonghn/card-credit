@@ -12,6 +12,7 @@ import { FINANCIAL_TRANSACTION_DEFAULT_LIMIT, FINANCIAL_TRANSACTION_MAX_LIMIT, f
 import type { CreateFinancialTransactionInput as SharedCreateFinancialTransactionInput, CreateFinancialTransactionBatchInput as SharedCreateFinancialTransactionBatchInput, UpdateFinancialTransactionInput, FinancialTransactionDto } from "@card-credit/contracts";
 import { canonicalPayloadHash, legacyPayloadHash, payloadHashMatches } from "../command-hash.js";
 import { commandGuardService, type CommandInvocation } from "./command-guard-service.js";
+import { AccountService } from "./account-service.js";
 
 export type CreateFinancialTransactionInput = SharedCreateFinancialTransactionInput;
 export type CreateFinancialTransactionBatchInput = SharedCreateFinancialTransactionBatchInput;
@@ -72,9 +73,11 @@ export class FinancialTransactionService {
       const targetMetric = accountType === "CREDIT" ? "currentDebt" : "currentBalance";
       const accountKey = String(account._id);
       const existingTechnical = technicalAdjustment ? (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.technicalDelta ?? 0), 0) : 0;
-      const statementDebt = technicalAdjustment && accountType === "CREDIT" ? (await CardStatementModel.find({ workspaceId: ctx.workspaceId, userCardId: account.creditCardId, paymentStatus: { $ne: "PAID" } }).lean() as Array<Record<string, unknown>>).reduce((sum, statement) => sum + Math.max(0, Number((statement.summary as Record<string, unknown> | undefined)?.outstandingAmount ?? 0)), 0) : 0;
+      const canonicalAccount = technicalAdjustment && accountType === "CREDIT"
+        ? (await AccountService.list(ctx)).find((candidate) => candidate.id === accountKey)
+        : undefined;
       const balanceBefore = technicalAdjustment
-        ? (balanceByAccount.get(accountKey) ?? (targetMetric === "currentDebt" ? Number(account.openingBalance ?? 0) + statementDebt + existingTechnical : Number(account.openingBalance ?? 0) + (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.debitCashflow ?? 0), 0)))
+        ? (balanceByAccount.get(accountKey) ?? (targetMetric === "currentDebt" ? Number(canonicalAccount?.currentDebt ?? 0) : Number(account.openingBalance ?? 0) + (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.debitCashflow ?? 0), 0)))
         : undefined;
       const balanceDelta = technicalAdjustment ? impact.debitCashflow : undefined;
       const technicalDelta = technicalAdjustment ? (item.direction === "DECREASE" ? -item.amount : item.amount) : 0;
