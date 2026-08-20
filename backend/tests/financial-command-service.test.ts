@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import mongoose from "mongoose";
 import { FinancialTransactionService } from "../src/services/financial-transaction-service.js";
+import { AccountModel } from "../src/models/account.js";
+import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
 import { McpMutationModel } from "../src/models/mcp-mutation.js";
 import { commandGuardService, type CommandGuardSpec } from "../src/services/command-guard-service.js";
 import { legacyPayloadHash } from "../src/command-hash.js";
@@ -10,6 +12,19 @@ import type { ServiceContext } from "../src/services/types/service-context.js";
 const context: ServiceContext = { workspaceId: "workspace-a", userId: "user-a", role: "user", channel: "browser", correlationId: "transaction-command-test" };
 const input = { accountId: "account-1", transactionDate: "2026-08-16", amount: 1000 };
 const query = <T>(value: T) => ({ session() { return this; }, lean: async () => value });
+
+test("technical adjustment preview exposes zero service fee and balance snapshot delta", async (t) => {
+  t.mock.method(AccountModel, "findOne", () => ({ lean: async () => ({ _id: "cash", type: "CASH", openingBalance: 47_314_918 }) }) as never);
+  t.mock.method(FinancialTransactionModel, "find", () => ({ lean: async () => [] }) as never);
+  const result = await FinancialTransactionService.preview(context, { items: [{ accountId: "cash", transactionDate: "2026-08-20", amount: 16_314_918, transactionType: "BALANCE_ADJUSTMENT", direction: "DECREASE" }] });
+  const item = result.items[0] as typeof result.items[number] & Record<string, unknown>;
+  assert.equal(item.serviceFee, 0);
+  assert.equal(item.technicalAdjustment, true);
+  assert.equal(item.balanceBefore, 47_314_918);
+  assert.equal(item.balanceAfter, 31_000_000);
+  assert.equal(item.balanceDelta, -16_314_918);
+  assert.deepEqual(item.previewImpact, { grossAmount: 16_314_918, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0 });
+});
 
 test("financial transaction command computes its hash and delegates to the persistent guard", async (t) => {
   t.mock.method(McpMutationModel, "findOne", () => query(null) as never);

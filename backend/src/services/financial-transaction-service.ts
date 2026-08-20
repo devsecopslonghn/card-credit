@@ -49,6 +49,7 @@ const normalizedNote = (note: unknown) => {
   }
   return note.trim();
 };
+const technicalAdjustmentTypes = new Set(["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"]);
 
 export class FinancialTransactionService {
   static async preview(ctx: ServiceContext, input: CreateFinancialTransactionBatchInput) {
@@ -56,6 +57,7 @@ export class FinancialTransactionService {
       throw new ApiError(409, "STATEMENT_PAYMENT_COMMAND_REQUIRED", "Thanh toán sao kê phải đi qua command thanh toán sao kê.");
     }
     const items = [];
+    const balanceByAccount = new Map<string, number>();
     for (const item of input.items) {
       const account = await AccountModel.findOne({ _id: item.accountId, workspaceId: ctx.workspaceId, active: { $ne: false } }).lean();
       if (!account) throw new ApiError(404, "ACCOUNT_NOT_FOUND", "Không tìm thấy tài khoản.");
@@ -66,7 +68,15 @@ export class FinancialTransactionService {
         ? Math.round(item.amount * (1 - Number(item.serviceFeeRate) / 100))
         : item.reimbursementExpected;
       const impact = calculateFinancialImpact({ accountType, transactionType: item.transactionType, direction: item.direction, ownership: item.ownership, amount: item.amount, reimbursementExpected, refundReceived: item.refundReceived, cashbackReceived: item.cashbackReceived, serviceFeeRate: item.serviceFeeRate });
-      items.push({ ...item, reimbursementExpected, previewImpact: impact });
+      const technicalAdjustment = technicalAdjustmentTypes.has(String(item.transactionType));
+      const accountKey = String(account._id);
+      const balanceBefore = technicalAdjustment
+        ? (balanceByAccount.get(accountKey) ?? (Number(account.openingBalance ?? 0) + (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.debitCashflow ?? 0), 0)))
+        : undefined;
+      const balanceDelta = technicalAdjustment ? impact.debitCashflow : undefined;
+      const previewImpact = technicalAdjustment ? { ...impact, debitCashflow: 0 } : impact;
+      if (technicalAdjustment) balanceByAccount.set(accountKey, Number(balanceBefore) + Number(balanceDelta));
+      items.push({ ...item, reimbursementExpected, previewImpact, ...(technicalAdjustment ? { technicalAdjustment: true, serviceFee: 0, balanceBefore, balanceAfter: Number(balanceBefore) + Number(balanceDelta), balanceDelta, direction: item.direction } : {}) });
     }
     return { items };
   }

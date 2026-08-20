@@ -1,5 +1,5 @@
 export type RepairAccount = { _id: unknown; workspaceId?: unknown; type?: unknown; active?: unknown; openingBalance?: unknown };
-export type RepairTransaction = { _id: unknown; workspaceId?: unknown; accountId?: unknown; accountType?: unknown; transactionType?: unknown; ownership?: unknown; amount?: unknown; reimbursementExpected?: unknown; statementId?: unknown; reimbursementForTransactionId?: unknown; personalSpending?: unknown; debitCashflow?: unknown; creditDebt?: unknown; outstandingReceivable?: unknown; transactionDate?: unknown; note?: unknown };
+export type RepairTransaction = { _id: unknown; workspaceId?: unknown; accountId?: unknown; accountType?: unknown; transactionType?: unknown; ownership?: unknown; amount?: unknown; reimbursementExpected?: unknown; serviceFeeRate?: unknown; statementId?: unknown; reimbursementForTransactionId?: unknown; personalSpending?: unknown; debitCashflow?: unknown; creditDebt?: unknown; outstandingReceivable?: unknown; transactionDate?: unknown; note?: unknown };
 export type RepairStatement = { _id: unknown; paymentStatus?: unknown; paidAmount?: unknown; summary?: { outstandingAmount?: unknown; paymentAmount?: unknown } };
 const id = (value: unknown) => String(value ?? "");
 const n = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -48,6 +48,8 @@ export const inspectFinanceRepair = (accounts: RepairAccount[], transactions: Re
   }
   const duplicates = [...duplicateGroups.values()].filter((group) => group.length > 1);
   const technicalIncome = transactions.filter((tx) => tx.transactionType === "INCOME" && /adjust|opening|số dư|so du/i.test(String((tx as Record<string, unknown>).note ?? ""))).map((tx) => id(tx._id));
+  const technicalAdjustmentFees = transactions.filter((tx) => technicalTypes.has(String(tx.transactionType)) && n(tx.serviceFeeRate) !== 0).map((tx) => ({ transactionId: id(tx._id), serviceFeeRate: n(tx.serviceFeeRate) }));
+  const adjustmentLikeWrongType = transactions.filter((tx) => !technicalTypes.has(String(tx.transactionType)) && /adjust|opening|số dư|so du/i.test(String(tx.note ?? ""))).map((tx) => ({ transactionId: id(tx._id), transactionType: String(tx.transactionType) }));
   const archivedBalances = accounts.filter((account) => account.active === false).map((account) => ({ accountId: id(account._id), openingBalance: n(account.openingBalance), ledgerBalance: transactions.filter((tx) => id(tx.accountId) === id(account._id)).reduce((sum, tx) => sum + n(tx.debitCashflow), 0) })).filter((item) => item.openingBalance !== 0 || item.ledgerBalance !== 0);
   const reimbursementOnPaidStatement = statements.filter((statement) => statement.paymentStatus === "PAID").map((statement) => {
     const statementTransactions = transactions.filter((tx) => id(tx.statementId) === id(statement._id));
@@ -61,5 +63,5 @@ export const inspectFinanceRepair = (accounts: RepairAccount[], transactions: Re
     const paid = ledger.reduce((sum, tx) => sum + (tx.transactionType === "STATEMENT_PAYMENT" ? Math.max(0, n(tx.amount)) : Math.max(0, -n(tx.creditDebt))), 0);
     return { statementId: id(statement._id), outstandingAmount: Math.max(n(statement.summary?.outstandingAmount), gross - paid), paidAmount: n(statement.paidAmount), ledgerPaymentAmount: paid };
   }).filter((item) => item.outstandingAmount > 0 || (item.paidAmount > 0 && item.ledgerPaymentAmount === 0));
-  return { counts: { accounts: accounts.length, transactions: transactions.length, statements: statements.length }, staleAccountType, duplicates, technicalIncome, archivedBalances, paidStatementConflicts, reimbursementOnPaidStatement, writeRequired: staleAccountType.length + duplicates.length + technicalIncome.length + archivedBalances.length + paidStatementConflicts.length + reimbursementOnPaidStatement.length > 0 };
+  return { counts: { accounts: accounts.length, transactions: transactions.length, statements: statements.length }, staleAccountType, duplicates, technicalIncome, technicalAdjustmentFees, adjustmentLikeWrongType, archivedBalances, paidStatementConflicts, reimbursementOnPaidStatement, writeRequired: staleAccountType.length + duplicates.length + technicalIncome.length + technicalAdjustmentFees.length + adjustmentLikeWrongType.length + archivedBalances.length + paidStatementConflicts.length + reimbursementOnPaidStatement.length > 0 };
 };

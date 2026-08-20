@@ -20,6 +20,8 @@ test("dry-run repair detects stale type, duplicate, technical income, archived b
   assert.equal(report.archivedBalances[0]?.accountId, "archived");
   assert.equal(report.paidStatementConflicts[0]?.statementId, "statement-1");
   assert.equal(report.reimbursementOnPaidStatement[0]?.statementId, "statement-1");
+  assert.deepEqual(report.technicalAdjustmentFees, []);
+  assert.deepEqual(report.adjustmentLikeWrongType, [{ transactionId: "tx-1", transactionType: "INCOME" }]);
   assert.equal(report.writeRequired, true);
 });
 
