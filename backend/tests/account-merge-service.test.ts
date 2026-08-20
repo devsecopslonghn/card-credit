@@ -78,3 +78,15 @@ test("concurrent merge with stale expectedVersion is rejected before ledger move
   await assert.rejects(AccountService.merge(context, { sourceAccountIds: [sourceId], targetAccountId: targetId, expectedVersion: 0 }, { ...invocation, idempotencyKey: "merge-concurrent-2" }), (error: unknown) => (error as { code?: string }).code === "ACCOUNT_VERSION_CONFLICT");
   assert.equal(transactionMoves, 1);
 });
+
+test("merge accepts adapter objects containing omitted optional keys as undefined", async (t) => {
+  const source = { _id: sourceId, workspaceId: context.workspaceId, type: "CASH", currency: "VND", openingBalance: 0, active: true, version: 0 };
+  const target = { _id: targetId, workspaceId: context.workspaceId, type: "DEBIT", currency: "VND", openingBalance: 0, active: true, version: 0 };
+  t.mock.method(AccountModel, "find", () => chain([source, target]) as never);
+  t.mock.method(FinancialTransactionModel, "aggregate", async () => [] as never);
+  t.mock.method(AccountModel, "findOneAndUpdate", () => chain(target) as never);
+  t.mock.method(FinancialTransactionModel, "updateMany", async () => ({ modifiedCount: 0 }) as never);
+  t.mock.method(AccountModel, "updateMany", async () => ({ modifiedCount: 1 }) as never);
+  t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, _spec: unknown, work: (session: unknown) => Promise<unknown>) => work({}));
+  await assert.doesNotReject(AccountService.merge(context, { sourceAccountIds: [sourceId], targetAccountId: targetId, targetName: undefined, targetType: undefined, keepTargetAsCash: false, expectedVersion: undefined }, { ...invocation, idempotencyKey: "merge-undefined-1" }));
+});

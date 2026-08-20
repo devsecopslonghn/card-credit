@@ -171,7 +171,12 @@ export class AccountService {
   }
 
   static async merge(ctx: ServiceContext, input: { sourceAccountIds: string[]; targetAccountId?: string; targetName?: string; targetType?: AccountType; keepTargetAsCash?: boolean; expectedVersion?: number }, invocation: CommandInvocation) {
-    const payloadHash = canonicalPayloadHash(input);
+    // MCP adapters may construct an object with optional keys explicitly set to
+    // undefined. canonicalPayloadHash intentionally rejects undefined values;
+    // normalize the already-schema-validated command so preview and confirm use
+    // the same canonical payload without weakening validation.
+    const normalizedInput = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as typeof input;
+    const payloadHash = canonicalPayloadHash(normalizedInput);
     const auditPreview = await this.previewMerge(ctx, input);
     return commandGuardService.execute(ctx, { operation: "merge_accounts", idempotencyKey: invocation.idempotencyKey, payloadHash, endpointOrTool: invocation.endpointOrTool, previewId: invocation.previewId, confirmationTokenHash: invocation.confirmationTokenHash, previewPayloadHash: invocation.previewPayloadHash, resource: { type: "account", accountId: input.targetAccountId ?? "new", sourceAccountIds: input.sourceAccountIds.join(","), transactionCount: auditPreview.transactionCount, beforeBalance: auditPreview.before.totalBalance, afterBalance: auditPreview.after.totalBalance } }, async (session) => {
       const preview = await this.previewMerge(ctx, input);
