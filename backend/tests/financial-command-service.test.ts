@@ -23,7 +23,7 @@ test("technical adjustment preview exposes zero service fee and balance snapshot
   assert.equal(item.balanceBefore, 47_314_918);
   assert.equal(item.balanceAfter, 31_000_000);
   assert.equal(item.balanceDelta, -16_314_918);
-  assert.deepEqual(item.previewImpact, { grossAmount: 16_314_918, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0 });
+  assert.deepEqual(item.previewImpact, { grossAmount: 0, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0 });
 });
 
 test("financial transaction command computes its hash and delegates to the persistent guard", async (t) => {

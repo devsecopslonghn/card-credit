@@ -74,7 +74,7 @@ export class FinancialTransactionService {
         ? (balanceByAccount.get(accountKey) ?? (Number(account.openingBalance ?? 0) + (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.debitCashflow ?? 0), 0)))
         : undefined;
       const balanceDelta = technicalAdjustment ? impact.debitCashflow : undefined;
-      const previewImpact = technicalAdjustment ? { ...impact, debitCashflow: 0 } : impact;
+      const previewImpact = technicalAdjustment ? { ...impact, grossAmount: 0, debitCashflow: 0 } : impact;
       if (technicalAdjustment) balanceByAccount.set(accountKey, Number(balanceBefore) + Number(balanceDelta));
       items.push({ ...item, reimbursementExpected, previewImpact, ...(technicalAdjustment ? { technicalAdjustment: true, serviceFee: 0, balanceBefore, balanceAfter: Number(balanceBefore) + Number(balanceDelta), balanceDelta, direction: item.direction } : {}) });
     }
