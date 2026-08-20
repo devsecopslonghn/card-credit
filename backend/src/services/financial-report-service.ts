@@ -14,6 +14,7 @@ import type { FinancialReportDto } from "@card-credit/contracts";
 type Range = { from: string; to: string };
 type Data = Record<string, unknown>;
 const REPORT_CURSOR_BATCH_SIZE = 100;
+const technicalTypes = new Set(["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"]);
 
 /** Consume a complete report source with a bounded Mongo cursor when available. */
 export const readReportCollection = async <T>(query: unknown): Promise<T[]> => {
@@ -51,11 +52,14 @@ const emptyTotals = () => ({
 });
 
 const add = (target: ReturnType<typeof empty>, item: Record<string, unknown>) => {
-  target.personalSpending += Number(item.personalSpending ?? 0);
-  target.debitCashflow += Number(item.debitCashflow ?? 0);
-  target.creditDebt += Number(item.creditDebt ?? 0);
-  target.outstandingReceivable += Number(item.outstandingReceivable ?? 0);
-  target.reimbursementReceived += Number(item.reimbursementReceived ?? 0);
+  const technical = technicalTypes.has(String(item.transactionType));
+  if (!technical) {
+    target.personalSpending += Number(item.personalSpending ?? 0);
+    target.debitCashflow += Number(item.debitCashflow ?? 0);
+    target.creditDebt += Number(item.creditDebt ?? 0);
+    target.outstandingReceivable += Number(item.outstandingReceivable ?? 0);
+    target.reimbursementReceived += Number(item.reimbursementReceived ?? 0);
+  }
   target.transactionCount += 1;
 };
 
@@ -192,7 +196,6 @@ export class FinancialReportService {
       return sum + (paidFeeCategories.has(String(value.category)) ? Math.max(0, Number(value.amount ?? 0)) : 0);
     }, 0);
     totals.actualNetBenefit = totals.monthlyBankCashbackActual - totals.totalServiceFee - totals.totalPaidCardFees;
-    const technicalTypes = new Set(["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"]);
     totals.realIncome = items.reduce((sum, item) => sum + (item.transactionType === "INCOME" ? Math.max(0, Number(item.amount ?? 0)) : 0), 0);
     totals.technicalAdjustments = allAccountTransactions.reduce((sum, item) => sum + (technicalTypes.has(String(item.transactionType)) ? Number(item.amount ?? 0) : 0), 0);
     totals.operatingCashflow = items.reduce((sum, item) => sum + (technicalTypes.has(String(item.transactionType)) ? 0 : Number(item.debitCashflow ?? 0)), 0);
@@ -210,13 +213,17 @@ export class FinancialReportService {
       .reduce((sum, item) => sum + Number(item.technicalDelta ?? 0), 0);
     totals.currentCardDebt = Math.max(0, allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.outstandingAmount ?? 0)), 0) + technicalDebtDelta);
     totals.paidStatementDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.paymentAmount ?? 0)), 0);
-    const receivableBySource = new Map<string, number>();
+    const grossReceivableBySource = new Map<string, number>();
+    const openReceivableBySource = new Map<string, number>();
     const sourceStatementById = new Map<string, string>();
     for (const item of allAccountTransactions) {
-      if (item.transactionType !== "EXPENSE" || item.ownership !== "PAID_FOR_OTHER" || ["SETTLED", "COLLECTED"].includes(String(item.receivableStatus))) continue;
+      if (item.transactionType !== "EXPENSE" || item.ownership !== "PAID_FOR_OTHER") continue;
       // reimbursementExpected is the gross claim. The retained impact field
       // may be stale after historical repairs, so it is only a legacy fallback.
-      receivableBySource.set(String(item._id), Math.max(0, Number(item.reimbursementExpected ?? item.outstandingReceivable ?? 0)));
+      const sourceId = String(item._id);
+      const gross = Math.max(0, Number(item.reimbursementExpected ?? item.outstandingReceivable ?? 0));
+      grossReceivableBySource.set(sourceId, gross);
+      if (!["SETTLED", "COLLECTED"].includes(String(item.receivableStatus))) openReceivableBySource.set(sourceId, gross);
       if (item.statementId) sourceStatementById.set(String(item._id), String(item.statementId));
     }
     const collectedBySource = new Map<string, number>();
@@ -224,11 +231,16 @@ export class FinancialReportService {
       const sourceId = String(item.reimbursementForTransactionId);
       collectedBySource.set(sourceId, (collectedBySource.get(sourceId) ?? 0) + Math.max(0, Number(item.amount ?? item.reimbursementReceived ?? 0)));
     }
+    for (const item of allAccountTransactions) {
+      if (item.transactionType !== "EXPENSE" || item.ownership !== "PAID_FOR_OTHER" || !["SETTLED", "COLLECTED"].includes(String(item.receivableStatus))) continue;
+      const sourceId = String(item._id);
+      collectedBySource.set(sourceId, Math.max(collectedBySource.get(sourceId) ?? 0, Number(item.receivableSettledAmount ?? item.reimbursementExpected ?? item.outstandingReceivable ?? 0)));
+    }
     const paidStatementIds = new Set(allStatements.filter((statement) => String(statement.paymentStatus) === "PAID").map((statement) => String(statement.id)));
-    totals.grossReceivable = [...receivableBySource.values()].reduce((sum, value) => sum + value, 0);
+    totals.grossReceivable = [...grossReceivableBySource.values()].reduce((sum, value) => sum + value, 0);
     totals.collectedReceivable = [...collectedBySource.values()].reduce((sum, value) => sum + value, 0);
     totals.paidStatementReceivable = [...collectedBySource.entries()].reduce((sum, [sourceId, value]) => sum + (paidStatementIds.has(sourceStatementById.get(sourceId) ?? "") ? value : 0), 0);
-    totals.outstandingReceivable = [...receivableBySource.entries()].reduce((sum, [sourceId, value]) => sum + Math.max(0, value - (collectedBySource.get(sourceId) ?? 0)), 0);
+    totals.outstandingReceivable = [...openReceivableBySource.entries()].reduce((sum, [sourceId, value]) => sum + Math.max(0, value - (collectedBySource.get(sourceId) ?? 0)), 0);
     const netAssets = activeRealMoney + totals.outstandingReceivable - totals.currentCardDebt;
     const creditDebtBalance = totals.currentCardDebt;
     return financialReportSchema.parse({

@@ -104,6 +104,33 @@ test("summary owner filter scopes ledger, cashback and fee sources by card refer
   assert.equal(transactionFind.mock.callCount(), 2);
 });
 
+test("summary keeps settled receivables audit-only and excludes technical cashflow", async (t) => {
+  const transactions = [
+    { _id: "settled-a", accountId: "credit", accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PAID_FOR_OTHER", amount: 15_626_797, reimbursementExpected: 15_626_797, receivableStatus: "SETTLED", receivableSettledAmount: 15_626_797, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 15_626_797, reimbursementReceived: 0 },
+    { _id: "settled-b", accountId: "credit", accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PAID_FOR_OTHER", amount: 174_600, reimbursementExpected: 174_600, receivableStatus: "COLLECTED", receivableSettledAmount: 174_600, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 174_600, reimbursementReceived: 0 },
+    { _id: "technical-cash", accountId: "cash", accountType: "CASH", transactionType: "BALANCE_ADJUSTMENT", amount: 100, personalSpending: 0, debitCashflow: 100, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0 },
+  ];
+  t.mock.method(FinancialTransactionModel, "find", (query: Record<string, unknown>) => chain(query.transactionType === "REIMBURSEMENT" ? [] : transactions) as never);
+  t.mock.method(AccountModel, "find", () => chain([
+    { _id: "cash", name: "Cash", type: "CASH", openingBalance: 30_999_900 },
+    { _id: "credit", name: "Credit", type: "CREDIT", openingBalance: 0 },
+  ]) as never);
+  t.mock.method(MonthlyCardCashbackModel, "find", () => chain([]) as never);
+  t.mock.method(CardFeePaymentModel, "find", () => chain([]) as never);
+  t.mock.method(CreditCardModel, "find", () => chain([]) as never);
+  t.mock.method(StatementQueryService, "list", async (_ctx: ServiceContext, options: Record<string, unknown>) => options.includeTransactions === false ? [{ ...statement, summary: { ...statement.summary, outstandingAmount: 58_449_472 } }] as never : [] as never);
+
+  const result = await FinancialReportService.summary(context, { from: "2026-08-01", to: "2026-08-31" });
+  assert.equal(result.totals.activeCashBalance, 31_000_000);
+  assert.equal(result.totals.currentCardDebt, 58_449_472);
+  assert.equal((result.totals as typeof result.totals & { grossReceivable: number; collectedReceivable: number }).grossReceivable, 15_801_397);
+  assert.equal((result.totals as typeof result.totals & { grossReceivable: number; collectedReceivable: number }).collectedReceivable, 15_801_397);
+  assert.equal(result.totals.outstandingReceivable, 0);
+  assert.equal(result.netAssets, -27_449_472);
+  assert.equal(result.totals.debitCashflow, 0);
+  assert.equal(result.totals.operatingCashflow, 0);
+});
+
 test("credit debt ledger keeps paid statements and exposes gross, paid and outstanding amounts", async (t) => {
   t.mock.method(CreditCardModel, "find", () => chain([{ _id: statement.cardId, providerName: "VIB", displayName: "Max Card", owner: "Tôi" }]) as never);
   t.mock.method(StatementQueryService, "list", async (_ctx: ServiceContext, options: Record<string, unknown>) => {
