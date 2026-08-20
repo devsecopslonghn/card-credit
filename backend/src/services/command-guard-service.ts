@@ -86,7 +86,7 @@ const mongoRepository: CommandGuardRepository = {
   },
 };
 
-const validResourceKeys = new Set(["type", "id", "resourceType", "resourceId", "cardId", "statementId", "accountId"]);
+const validResourceKeys = new Set(["type", "id", "resourceType", "resourceId", "cardId", "statementId", "accountId", "sourceAccountIds", "transactionCount", "beforeBalance", "afterBalance"]);
 const safeResource = (resource: Record<string, unknown> | undefined) => {
   if (!resource) return null;
   const entries = Object.entries(resource);

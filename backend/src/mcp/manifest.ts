@@ -1,5 +1,5 @@
 import { z, type ZodRawShape } from "zod";
-import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInputSchema, feeCategorySchema, financialTransactionListQuerySchema, reportQueryInputSchema, statementPaymentInputSchema } from "@card-credit/contracts";
+import { createFinancialTransactionBatchInputSchema, createRealMoneyAccountInputSchema, feeCategorySchema, financialTransactionListQuerySchema, reportQueryInputSchema, statementPaymentInputSchema, mergeAccountsInputSchema } from "@card-credit/contracts";
 import { PAYMENT_OPERATION } from "../payment-contract.js";
 
 export type McpToolKind = "query" | "preview" | "confirm";
@@ -16,6 +16,7 @@ export const MCP_OPERATION = {
   importFinancialTransactionBatch: "import_financial_transaction_batch",
   createAccount: "create_account",
   payStatement: PAYMENT_OPERATION,
+  mergeAccounts: "merge_accounts",
 } as const;
 
 const definitions = [
@@ -31,7 +32,9 @@ const definitions = [
   { name: "get_personal_finance_summary", description: "Read canonical ledger totals, benefit reconciliation and creditDebtLedger rows for every statement (including paid debt), optionally scoped by card or owner and calendar year/month.", kind: "query", inputSchema: { ...reportQueryInputSchema.shape } },
   { name: "preview_import_financial_transaction", description: "Prepare transactions and return backend-calculated impacts. The caller must present previewImpact exactly; do not recalculate fees or receivables.", kind: "preview", operation: MCP_OPERATION.importFinancialTransactionBatch, inputSchema: createFinancialTransactionBatchInputSchema.shape },
   { name: "confirm_import_financial_transaction", description: "Confirm the whole financial transaction batch once after human review.", kind: "confirm", operation: MCP_OPERATION.importFinancialTransactionBatch, inputSchema: { payload: createFinancialTransactionBatchInputSchema, confirmationToken: z.string().min(1), idempotencyKey: z.string().min(8) } },
-  { name: "list_accounts", description: "List accounts grouped as REAL_MONEY (DEBIT, CASH, E_WALLET) or DEBT (CREDIT), with balances calculated from financial transactions.", kind: "query", inputSchema: {} },
+  { name: "list_accounts", description: "List accounts grouped as REAL_MONEY (DEBIT, CASH, E_WALLET) or DEBT (CREDIT), with balances calculated from financial transactions.", kind: "query", inputSchema: { includeArchived: z.boolean().optional() } },
+  { name: "preview_merge_accounts", description: "Preview an atomic REAL_MONEY account merge without writing data.", kind: "preview", operation: MCP_OPERATION.mergeAccounts, inputSchema: mergeAccountsInputSchema.shape },
+  { name: "confirm_merge_accounts", description: "Atomically move transactions, archive sources and audit a confirmed account merge.", kind: "confirm", operation: MCP_OPERATION.mergeAccounts, inputSchema: { payload: mergeAccountsInputSchema, confirmationToken: z.string().min(1), idempotencyKey: z.string().min(8), previewId: z.string().min(1) } },
   { name: "preview_create_account", description: "Prepare a debit, cash or e-wallet account. Does not write data.", kind: "preview", operation: MCP_OPERATION.createAccount, inputSchema: createRealMoneyAccountInputSchema.shape },
   { name: "confirm_create_account", description: "Confirm a previously previewed real-money account. Retries are idempotent and return the existing account.", kind: "confirm", operation: MCP_OPERATION.createAccount, inputSchema: { payload: createRealMoneyAccountInputSchema, confirmationToken: z.string().min(1), idempotencyKey: z.string().min(8) } },
   { name: "preview_pay_statement", description: "Preview a statement payment using the canonical statement payment service. Does not write the ledger.", kind: "preview", operation: MCP_OPERATION.payStatement, inputSchema: { cardId: z.string().trim().min(1), statementId: z.string().trim().min(1), input: statementPaymentInputSchema } },

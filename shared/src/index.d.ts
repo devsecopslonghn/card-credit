@@ -63,6 +63,16 @@ export declare const createAccountInputSchema: z.ZodObject<any>;
 export declare const createRealMoneyAccountInputSchema: z.ZodObject<any>;
 export declare const accountSchema: z.ZodObject<any>;
 export declare const accountListSchema: z.ZodArray<typeof accountSchema>;
+export declare const mergeAccountsInputSchema: z.ZodObject<any>;
+export declare const mergeAccountsPreviewSchema: z.ZodObject<any>;
+export type MergeAccountsInput = {
+  sourceAccountIds: string[];
+  targetAccountId?: string;
+  targetName?: string;
+  targetType?: Exclude<AccountType, "CREDIT">;
+  keepTargetAsCash: boolean;
+  expectedVersion?: number;
+};
 
 export declare const catalogNetworkSchema: z.ZodEnum<{
   Visa: "Visa";

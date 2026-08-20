@@ -8,6 +8,8 @@ const AccountSchema = new Schema(
     type: { type: String, enum: ["DEBIT", "CASH", "E_WALLET", "CREDIT"], required: true },
     currency: { type: String, default: "VND", enum: ["VND"] },
     active: { type: Boolean, default: true },
+    archivedAt: { type: Date, default: null },
+    version: { type: Number, default: 0, min: 0 },
     // Only CREDIT accounts use these fields. They are snapshots of card terms.
     creditCardId: { type: Schema.Types.ObjectId, ref: "CreditCard" },
     openingBalance: { type: Number, default: 0, min: 0 },

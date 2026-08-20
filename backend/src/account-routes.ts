@@ -7,8 +7,8 @@ import type { AuthRepository } from "./auth-repository.js";
 import { ApiError } from "./errors.js";
 
 export const registerAccountRoutes = (app: FastifyInstance, secret: string, users?: Pick<AuthRepository, "findUserById">) => {
-  app.get("/api/accounts", async (request) => {
-    return { data: await AccountService.list(await browserServiceContext(request, secret, users)) };
+  app.get<{ Querystring: { includeArchived?: string } }>("/api/accounts", async (request) => {
+    return { data: await AccountService.list(await browserServiceContext(request, secret, users), { includeArchived: request.query.includeArchived === "true" }) };
   });
 
   app.post("/api/accounts", async (request, reply) => {

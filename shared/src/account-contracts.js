@@ -39,3 +39,21 @@ export const accountSchema = z.object({
 
 export const accountListSchema = z.array(accountSchema);
 
+export const mergeAccountsInputSchema = z.object({
+  sourceAccountIds: z.array(z.string().trim().min(1)).min(1).max(20),
+  targetAccountId: z.string().trim().min(1).optional(),
+  targetName: accountName.optional(),
+  targetType: realMoneyAccountTypeSchema.optional(),
+  keepTargetAsCash: z.boolean().default(false),
+  expectedVersion: z.number().int().nonnegative().optional(),
+}).superRefine((value, ctx) => {
+  if (!value.targetAccountId && !value.targetName) ctx.addIssue({ code: "custom", path: ["targetAccountId"], message: "Cần targetAccountId hoặc targetName." });
+  if (new Set(value.sourceAccountIds).size !== value.sourceAccountIds.length) ctx.addIssue({ code: "custom", path: ["sourceAccountIds"], message: "sourceAccountIds không được trùng." });
+});
+
+export const mergeAccountsPreviewSchema = z.object({
+  operation: z.literal("merge_accounts"), previewId: z.string(), confirmationToken: z.string(), expiresAt: z.string(),
+  sourceAccountIds: z.array(z.string()), targetAccountId: z.string(), transactionCount: z.number().int().nonnegative(),
+  before: z.object({ sourceBalance: z.number().int(), targetBalance: z.number().int(), totalBalance: z.number().int() }),
+  after: z.object({ targetBalance: z.number().int(), totalBalance: z.number().int() }), warnings: z.array(z.string()),
+});

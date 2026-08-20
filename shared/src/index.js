@@ -33,6 +33,8 @@ export {
   createRealMoneyAccountInputSchema,
   accountSchema,
   accountListSchema,
+  mergeAccountsInputSchema,
+  mergeAccountsPreviewSchema,
 } from "./account-contracts.js";
 export {
   catalogNetworkSchema,
