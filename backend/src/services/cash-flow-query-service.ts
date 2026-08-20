@@ -42,7 +42,7 @@ export class CashFlowQueryService {
     const data: MonthlyCashFlowRowDto[] = cards.map((card) => {
       const cardId = idOf(card._id);
       const own = transactions.filter((item) =>
-        (item.accountType === "CREDIT" && accountToCard.get(idOf(item.accountId)) === cardId)
+        (accountToCard.has(idOf(item.accountId)) && accountToCard.get(idOf(item.accountId)) === cardId)
         || (item.transactionType === "STATEMENT_PAYMENT" && item.statementId && statementToCard.get(idOf(item.statementId)) === cardId));
       const statementPayments = own.filter((item) => item.transactionType === "STATEMENT_PAYMENT").reduce((sum, item) => sum + amount(item.amount), 0);
       const partnerReturns = own.filter((item) => item.transactionType === "REIMBURSEMENT" || item.transactionType === "REFUND").reduce((sum, item) => sum + amount(item.amount), 0);

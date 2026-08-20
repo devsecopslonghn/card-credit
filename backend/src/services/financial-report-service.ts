@@ -204,8 +204,10 @@ export class FinancialReportService {
     totals.activeBankBalance = accounts.filter((account) => String(account.type) === "DEBIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
     totals.currentCardDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.outstandingAmount ?? 0)), 0);
     totals.paidStatementDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.paymentAmount ?? 0)), 0);
-    const canonicalReceivable = allAccountTransactions.reduce((sum, item) => sum + Math.max(0, Number(item.outstandingReceivable ?? 0)), 0) - allAccountTransactions.reduce((sum, item) => sum + (item.transactionType === "REIMBURSEMENT" ? Math.max(0, Number(item.amount ?? item.reimbursementReceived ?? 0)) : 0), 0);
-    totals.outstandingReceivable = Math.max(0, canonicalReceivable);
+    const receivableBySource = new Map<string, number>();
+    for (const item of allAccountTransactions) if (item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER") receivableBySource.set(String(item._id), Math.max(0, Number(item.outstandingReceivable ?? 0)));
+    for (const item of allAccountTransactions) if (item.transactionType === "REIMBURSEMENT" && item.reimbursementForTransactionId) receivableBySource.set(String(item.reimbursementForTransactionId), Math.max(0, (receivableBySource.get(String(item.reimbursementForTransactionId)) ?? 0) - Number(item.amount ?? item.reimbursementReceived ?? 0)));
+    totals.outstandingReceivable = [...receivableBySource.values()].reduce((sum, value) => sum + value, 0);
     const netAssets = activeRealMoney + totals.outstandingReceivable - totals.currentCardDebt;
     const creditDebtBalance = totals.currentCardDebt;
     return financialReportSchema.parse({

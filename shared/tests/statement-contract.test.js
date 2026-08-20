@@ -27,6 +27,8 @@ test("statement payment input is strict and never defaults an unknown action", (
   assert.throws(() => statementPaymentInputSchema.parse({}));
   assert.throws(() => statementPaymentInputSchema.parse({ action: "INVALID" }));
   assert.throws(() => statementPaymentInputSchema.parse({ action: "PAID", unexpected: true }));
+  assert.throws(() => statementPaymentInputSchema.parse({ action: "REOPEN" }));
+  assert.deepEqual(statementPaymentInputSchema.parse({ action: "REOPEN", reason: "Correction: reimbursement was incorrectly treated as payment", reverseErroneousPayment: true }), { action: "REOPEN", reason: "Correction: reimbursement was incorrectly treated as payment", reverseErroneousPayment: true });
 });
 
 test("statement payment preview is canonical and exposes exact persisted impact", () => {
