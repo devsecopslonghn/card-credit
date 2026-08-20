@@ -71,6 +71,7 @@ export const registerMcpTools = (server: McpServer, ctx: ContextProvider, previe
         action: preview.action,
         ...(preview.repaymentAccountId ? { repaymentAccountId: preview.repaymentAccountId } : {}),
         ...(parsed.reason ? { reason: parsed.reason } : {}),
+        ...(parsed.reverseErroneousPayment ? { reverseErroneousPayment: true } : {}),
         ...(preview.version ? { expectedVersion: preview.version } : {}),
       };
       const payload = paymentPreviewPayload(cardId, statementId, previewInput);

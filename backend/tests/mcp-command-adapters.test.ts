@@ -98,3 +98,19 @@ test("MCP payment preview and confirm use the canonical payment service and exac
   assert.equal(execute.mock.callCount(), 1);
   assert.equal(get.mock.callCount(), 1);
 });
+
+test("MCP REOPEN preview binds reverseErroneousPayment into the confirmation payload", async (t) => {
+  const cardId = "507f1f77bcf86cd799439011";
+  const statementId = "507f1f77bcf86cd799439021";
+  const input = { action: "REOPEN" as const, reason: "Correction: reimbursement was not statement payment", reverseErroneousPayment: true };
+  t.mock.method(StatementPaymentCommandService, "preview", async () => ({
+    operation: "pay_statement", cardId, statementId, action: "REOPEN", paymentStatus: "PAID", nextPaymentStatus: "OPEN",
+    statementAmount: 16_193_000, paymentAmount: 16_193_000, outstandingAmount: 0, amountToPay: 0,
+    repaymentAccountId: null, version: "2026-08-20T00:00:00.000Z", requiresRepaymentAccount: false, warnings: [],
+  }));
+  let issuedPayload: unknown;
+  const previewService = { issue: async (_ctx: ServiceContext, operation: string, payload: unknown) => { assert.equal(operation, "pay_statement"); issuedPayload = payload; return { previewId: "00000000-0000-4000-8000-000000000001", confirmationToken: "token", expiresAt: Date.parse("2026-08-20T00:05:00.000Z"), expiresInSeconds: 300 }; } } as unknown as PreviewConfirmationService;
+  const response = await call("preview_pay_statement", { cardId, statementId, input }, previewService);
+  assert.equal((response as { action: string }).action, "REOPEN");
+  assert.deepEqual(issuedPayload, { cardId, statementId, input: { action: "REOPEN", reason: input.reason, reverseErroneousPayment: true, expectedVersion: "2026-08-20T00:00:00.000Z" } });
+});
