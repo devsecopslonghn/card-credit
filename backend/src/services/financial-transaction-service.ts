@@ -72,7 +72,6 @@ export class FinancialTransactionService {
       const technicalAdjustment = technicalAdjustmentTypes.has(String(item.transactionType));
       const targetMetric = accountType === "CREDIT" ? "currentDebt" : "currentBalance";
       const accountKey = String(account._id);
-      const existingTechnical = technicalAdjustment ? (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.technicalDelta ?? 0), 0) : 0;
       const canonicalAccount = technicalAdjustment && accountType === "CREDIT"
         ? (await AccountService.list(ctx)).find((candidate) => candidate.id === accountKey)
         : undefined;
