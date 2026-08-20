@@ -4,7 +4,8 @@
 
 - `INCOME` is real income only.
 - `BALANCE_ADJUSTMENT` and `OPENING_BALANCE_ADJUSTMENT` are technical ledger
-  events: zero personal spending, zero operating cashflow and zero card debt.
+  events: they may increase/decrease the balance snapshot via `direction`, but
+  have zero personal spending, zero operating cashflow and zero card debt.
 - `EXPENSE + PAID_FOR_OTHER` creates card debt and receivable.
 - `REIMBURSEMENT` increases the receiving real-money account and reduces the
   receivable; it does not settle card debt or change statement payment state.
@@ -37,6 +38,21 @@ reconciliation snapshot. `beforeRepair` is the observed ledger state;
 `afterRepair` is intentionally `null` until a separately reviewed
 preview/confirm migration exists, so the dry-run cannot imply a write or invent
 post-repair numbers.
+
+For a real-money balance correction, the preview payload uses a positive
+`amount` plus an explicit direction; it never encodes a negative transaction
+amount:
+
+```json
+{
+  "accountId": "<cash-or-card-account-id>",
+  "transactionDate": "2026-08-20",
+  "amount": 16314918,
+  "transactionType": "BALANCE_ADJUSTMENT",
+  "direction": "DECREASE",
+  "note": "Approved balance snapshot correction"
+}
+```
 
 ## Current workspace baseline
 

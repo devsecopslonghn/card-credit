@@ -201,7 +201,7 @@ export class FinancialReportService {
     totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
     const creditDebtLedger = await this.creditDebtLedger(ctx, range, filters);
     const allCashflowByAccount = new Map<string, number>();
-    for (const item of allAccountTransactions) allCashflowByAccount.set(String(item.accountId), (allCashflowByAccount.get(String(item.accountId)) ?? 0) + (technicalTypes.has(String(item.transactionType)) ? 0 : Number(item.debitCashflow ?? 0)));
+    for (const item of allAccountTransactions) allCashflowByAccount.set(String(item.accountId), (allCashflowByAccount.get(String(item.accountId)) ?? 0) + Number(item.debitCashflow ?? 0));
     const activeRealMoney = accounts.filter((account) => ["DEBIT", "CASH", "E_WALLET"].includes(String(account.type))).reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
     totals.activeCashBalance = accounts.filter((account) => String(account.type) === "CASH").reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
     totals.activeBankBalance = accounts.filter((account) => String(account.type) === "DEBIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);

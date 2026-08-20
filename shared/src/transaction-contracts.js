@@ -3,16 +3,18 @@ import { isoDateSchema } from "./date-contracts.js";
 
 export const financialTransactionTypeSchema = z.enum(["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT", "BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"]);
 export const ownershipSchema = z.enum(["PERSONAL", "PAID_FOR_OTHER"]);
+export const balanceAdjustmentDirectionSchema = z.enum(["INCREASE", "DECREASE"]);
 export const FINANCIAL_TRANSACTION_DEFAULT_LIMIT = 100;
 export const FINANCIAL_TRANSACTION_MAX_LIMIT = 100;
 const safePositiveInteger = z.number().int().positive().refine(Number.isSafeInteger, "Must be a safe integer");
 const safeNonNegativeInteger = z.number().int().nonnegative().refine(Number.isSafeInteger, "Must be a safe integer");
-export const createFinancialTransactionInputSchema = z.object({
+const createFinancialTransactionBaseSchema = z.object({
   accountId: z.string().trim().min(1),
   transactionDate: isoDateSchema,
   amount: safePositiveInteger,
   categoryId: z.string().trim().min(1).optional(),
   transactionType: financialTransactionTypeSchema.optional(),
+  direction: balanceAdjustmentDirectionSchema.optional(),
   ownership: ownershipSchema.optional(),
   reimbursementExpected: safeNonNegativeInteger.optional(),
   serviceFeeRate: z.number().min(0).max(100).optional(),
@@ -22,7 +24,11 @@ export const createFinancialTransactionInputSchema = z.object({
   statementId: z.string().trim().min(1).optional(),
   reimbursementForTransactionId: z.string().trim().min(1).optional(),
 });
-export const updateFinancialTransactionInputSchema = createFinancialTransactionInputSchema.omit({ statementId: true, reimbursementForTransactionId: true }).partial().strict().refine(
+export const createFinancialTransactionInputSchema = createFinancialTransactionBaseSchema.superRefine((input, context) => {
+  if (["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"].includes(input.transactionType ?? "") && !input.direction) context.addIssue({ code: "custom", path: ["direction"], message: "Balance adjustment cần direction INCREASE hoặc DECREASE." });
+  if (input.direction && !["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"].includes(input.transactionType ?? "")) context.addIssue({ code: "custom", path: ["direction"], message: "direction chỉ được dùng cho balance adjustment." });
+});
+export const updateFinancialTransactionInputSchema = createFinancialTransactionBaseSchema.omit({ statementId: true, reimbursementForTransactionId: true }).partial().strict().refine(
   (input) => Object.keys(input).length > 0,
   "At least one transaction field is required",
 );
@@ -52,6 +58,7 @@ export const financialTransactionSchema = z.object({
   reimbursementForTransactionId: z.string().nullable(),
   accountType: z.enum(["DEBIT", "CASH", "E_WALLET", "CREDIT"]),
   transactionType: financialTransactionTypeSchema,
+  direction: balanceAdjustmentDirectionSchema.optional(),
   ownership: ownershipSchema,
   amount: z.number().int(),
   serviceFeeRate: z.number().nullable(),

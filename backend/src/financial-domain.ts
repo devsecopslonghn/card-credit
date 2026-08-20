@@ -18,6 +18,7 @@ export type FinancialTransactionType =
 export type FinancialTransactionInput = {
   accountType: AccountType;
   transactionType?: FinancialTransactionType;
+  direction?: "INCREASE" | "DECREASE";
   ownership?: Ownership;
   amount: number;
   reimbursementExpected?: number;
@@ -57,6 +58,7 @@ export const calculateFinancialImpact = (
     throw new ApiError(400, "INVALID_AMOUNT", "Số tiền phải lớn hơn 0.");
   }
   const type = input.transactionType ?? "EXPENSE";
+  const isBalanceAdjustment = type === "BALANCE_ADJUSTMENT" || type === "OPENING_BALANCE_ADJUSTMENT";
   const ownership = input.ownership ?? "PERSONAL";
   const serviceFeeRate = input.serviceFeeRate ?? 0;
   if (!Number.isFinite(serviceFeeRate) || serviceFeeRate < 0 || serviceFeeRate > 100) throw new ApiError(400, "INVALID_SERVICE_FEE_RATE", "Tỷ lệ phí dịch vụ phải từ 0 đến 100%.");
@@ -96,7 +98,7 @@ export const calculateFinancialImpact = (
   return {
     grossAmount: amount,
     personalSpending,
-    debitCashflow: isDebitOutflow ? -amount : isDebitInflow ? amount : 0,
+    debitCashflow: isBalanceAdjustment && input.direction ? (input.direction === "DECREASE" ? -amount : amount) : isDebitOutflow ? -amount : isDebitInflow ? amount : 0,
     creditDebt: isCreditCharge ? amount : type === "STATEMENT_PAYMENT" ? -amount : 0,
     outstandingReceivable:
       type === "EXPENSE" && ownership === "PAID_FOR_OTHER"

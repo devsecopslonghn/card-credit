@@ -213,12 +213,14 @@ export declare const financialTransactionSchema: z.ZodObject<any>;
 export declare const financialTransactionListSchema: z.ZodArray<typeof financialTransactionSchema>;
 export type FinancialTransactionType = "EXPENSE" | "TRANSFER" | "REIMBURSEMENT" | "REFUND" | "CASHBACK" | "INCOME" | "STATEMENT_PAYMENT" | "BALANCE_ADJUSTMENT" | "OPENING_BALANCE_ADJUSTMENT";
 export type Ownership = "PERSONAL" | "PAID_FOR_OTHER";
+export type BalanceAdjustmentDirection = "INCREASE" | "DECREASE";
 export type CreateFinancialTransactionInput = {
   accountId: string;
   transactionDate: string;
   amount: number;
   categoryId?: string;
   transactionType?: FinancialTransactionType;
+  direction?: BalanceAdjustmentDirection;
   ownership?: Ownership;
   reimbursementExpected?: number;
   serviceFeeRate?: number;
@@ -251,6 +253,7 @@ export type FinancialTransactionDto = {
   reimbursementForTransactionId: string | null;
   accountType: "DEBIT" | "CASH" | "E_WALLET" | "CREDIT";
   transactionType: FinancialTransactionType;
+  direction?: BalanceAdjustmentDirection;
   ownership: Ownership;
   amount: number;
   serviceFeeRate: number | null;

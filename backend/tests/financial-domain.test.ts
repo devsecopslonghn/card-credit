@@ -81,6 +81,17 @@ test("reimbursement is debit inflow, not personal spending", () => {
   );
 });
 
+test("signed balance adjustments change snapshot balance without operating impact", () => {
+  assert.deepEqual(calculateFinancialImpact({ accountType: "CASH", transactionType: "BALANCE_ADJUSTMENT", direction: "DECREASE", amount: 16_314_918 }), {
+    grossAmount: 16_314_918,
+    personalSpending: 0,
+    debitCashflow: -16_314_918,
+    creditDebt: 0,
+    outstandingReceivable: 0,
+    reimbursementReceived: 0,
+  });
+});
+
 test("paid-for-other fee rate is supplied by the caller", () => {
   assert.deepEqual(
     calculateFinancialImpact({ accountType: "CREDIT", amount: 1000000, ownership: "PAID_FOR_OTHER", serviceFeeRate: 5 }),

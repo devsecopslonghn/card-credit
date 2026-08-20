@@ -13,6 +13,7 @@ const FinancialTransactionSchema = new Schema(
       enum: ["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT", "BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"],
       required: true,
     },
+    direction: { type: String, enum: ["INCREASE", "DECREASE"], default: null },
     ownership: { type: String, enum: ["PERSONAL", "PAID_FOR_OTHER"], default: "PERSONAL" },
     amount: { type: Number, required: true, min: 1 },
     reimbursementExpected: { type: Number, default: 0, min: 0 },

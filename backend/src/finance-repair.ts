@@ -17,7 +17,7 @@ export const reconcileFinanceMonth = (accounts: RepairAccount[], transactions: R
   const activeMoney = active.filter((account) => ["CASH", "DEBIT", "E_WALLET"].includes(String(account.type)));
   const inRange = transactions.filter((tx) => String(tx.transactionDate ?? "") >= range.from && String(tx.transactionDate ?? "") <= range.to);
   const cashflowByAccount = new Map<string, number>();
-  for (const tx of transactions) if (!technicalTypes.has(String(tx.transactionType))) cashflowByAccount.set(id(tx.accountId), (cashflowByAccount.get(id(tx.accountId)) ?? 0) + n(tx.debitCashflow));
+  for (const tx of transactions) cashflowByAccount.set(id(tx.accountId), (cashflowByAccount.get(id(tx.accountId)) ?? 0) + n(tx.debitCashflow));
   const balance = (account: RepairAccount) => n(account.openingBalance) + (cashflowByAccount.get(id(account._id)) ?? 0);
   const activeRealMoney = activeMoney.reduce((sum, account) => sum + balance(account), 0);
   const activeCashBalance = activeMoney.filter((account) => account.type === "CASH").reduce((sum, account) => sum + balance(account), 0);

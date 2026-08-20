@@ -25,6 +25,7 @@ const serialize = (value: unknown, normalizedAccountType?: string): FinancialTra
     reimbursementForTransactionId: item.reimbursementForTransactionId ? idOf(item.reimbursementForTransactionId) : null,
     accountType: normalizedAccountType ?? item.accountType,
     transactionType: item.transactionType,
+    ...(item.direction ? { direction: item.direction } : {}),
     ownership: item.ownership,
     amount: item.amount,
     serviceFeeRate: typeof item.serviceFeeRate === "number" ? item.serviceFeeRate : null,
@@ -64,7 +65,7 @@ export class FinancialTransactionService {
       const reimbursementExpected = paidForOtherCredit
         ? Math.round(item.amount * (1 - Number(item.serviceFeeRate) / 100))
         : item.reimbursementExpected;
-      const impact = calculateFinancialImpact({ accountType, transactionType: item.transactionType, ownership: item.ownership, amount: item.amount, reimbursementExpected, refundReceived: item.refundReceived, cashbackReceived: item.cashbackReceived, serviceFeeRate: item.serviceFeeRate });
+      const impact = calculateFinancialImpact({ accountType, transactionType: item.transactionType, direction: item.direction, ownership: item.ownership, amount: item.amount, reimbursementExpected, refundReceived: item.refundReceived, cashbackReceived: item.cashbackReceived, serviceFeeRate: item.serviceFeeRate });
       items.push({ ...item, reimbursementExpected, previewImpact: impact });
     }
     return { items };
@@ -197,6 +198,7 @@ export class FinancialTransactionService {
     const impact = calculateFinancialImpact({
       accountType,
       transactionType: input.transactionType,
+      direction: input.direction,
       ownership: input.ownership,
       amount: input.amount,
       serviceFeeRate: input.serviceFeeRate ?? 0,
@@ -236,6 +238,7 @@ export class FinancialTransactionService {
       reimbursementForTransactionId,
       accountType,
       transactionType: input.transactionType ?? "EXPENSE",
+      direction: input.direction ?? null,
       ownership: input.ownership ?? "PERSONAL",
       amount: input.amount,
       reimbursementExpected: effectiveReimbursementExpected ?? 0,
@@ -276,7 +279,7 @@ export class FinancialTransactionService {
       : input.reimbursementExpected ?? Number(existing.reimbursementExpected ?? 0);
     const refundReceived = input.refundReceived ?? Number(existing.refundReceived ?? 0);
     const cashbackReceived = input.cashbackReceived ?? Number(existing.cashbackReceived ?? 0);
-    const impact = calculateFinancialImpact({ accountType, transactionType, ownership, amount, reimbursementExpected, refundReceived, cashbackReceived, serviceFeeRate });
+    const impact = calculateFinancialImpact({ accountType, transactionType, ownership, amount, direction: input.direction ?? String(existing.direction ?? "") as "INCREASE" | "DECREASE" | undefined, reimbursementExpected, refundReceived, cashbackReceived, serviceFeeRate });
     let statementId: mongoose.Types.ObjectId | null = null;
     if (accountType === "CREDIT") {
       if (!account.creditCardId) throw new ApiError(409, "ACCOUNT_CARD_NOT_LINKED", "Tài khoản CREDIT chưa liên kết thẻ.");
@@ -294,7 +297,7 @@ export class FinancialTransactionService {
       { _id: transactionId, workspaceId: ctx.workspaceId },
       { $set: {
         accountId: account._id, accountType, transactionType, ownership, amount, transactionDate,
-        statementId, reimbursementExpected, refundReceived, cashbackReceived,
+        statementId, direction: input.direction ?? (existing.direction ?? null), reimbursementExpected, refundReceived, cashbackReceived,
         categoryId: input.categoryId?.trim() || String(existing.categoryId ?? "OTHER"),
         note: input.note === undefined ? String(existing.note ?? "") : normalizedNote(input.note),
         serviceFeeRate, ...impact,
