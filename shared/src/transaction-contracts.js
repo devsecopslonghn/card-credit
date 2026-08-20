@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isoDateSchema } from "./date-contracts.js";
 
-export const financialTransactionTypeSchema = z.enum(["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT"]);
+export const financialTransactionTypeSchema = z.enum(["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT", "BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"]);
 export const ownershipSchema = z.enum(["PERSONAL", "PAID_FOR_OTHER"]);
 export const FINANCIAL_TRANSACTION_DEFAULT_LIMIT = 100;
 export const FINANCIAL_TRANSACTION_MAX_LIMIT = 100;

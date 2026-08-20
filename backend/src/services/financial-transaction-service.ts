@@ -16,14 +16,14 @@ import { commandGuardService, type CommandInvocation } from "./command-guard-ser
 export type CreateFinancialTransactionInput = SharedCreateFinancialTransactionInput;
 export type CreateFinancialTransactionBatchInput = SharedCreateFinancialTransactionBatchInput;
 
-const serialize = (value: unknown): FinancialTransactionDto => {
+const serialize = (value: unknown, normalizedAccountType?: string): FinancialTransactionDto => {
   const item = plain(value);
   return financialTransactionSchema.parse({
     id: idOf(item._id),
     accountId: idOf(item.accountId),
     statementId: item.statementId ? idOf(item.statementId) : null,
     reimbursementForTransactionId: item.reimbursementForTransactionId ? idOf(item.reimbursementForTransactionId) : null,
-    accountType: item.accountType,
+    accountType: normalizedAccountType ?? item.accountType,
     transactionType: item.transactionType,
     ownership: item.ownership,
     amount: item.amount,
@@ -323,6 +323,9 @@ export class FinancialTransactionService {
     if (filters.from || filters.to) query.transactionDate = { ...(filters.from ? { $gte: filters.from } : {}), ...(filters.to ? { $lte: filters.to } : {}) };
     const limit = Math.min(Math.max(filters.limit ?? FINANCIAL_TRANSACTION_DEFAULT_LIMIT, 1), FINANCIAL_TRANSACTION_MAX_LIMIT);
     const items = await FinancialTransactionModel.find(query).sort({ transactionDate: -1, createdAt: -1 }).limit(limit).lean();
-    return financialTransactionListSchema.parse(items.map(serialize)) as FinancialTransactionDto[];
+    const accountIds = [...new Set(items.map((item) => String(item.accountId)).filter((accountId) => mongoose.isValidObjectId(accountId)))];
+    const accounts = accountIds.length ? await AccountModel.find({ workspaceId: ctx.workspaceId, _id: { $in: accountIds } }).select({ _id: 1, type: 1 }).lean() : [];
+    const accountTypes = new Map(accounts.map((account) => [String(account._id), String(account.type)]));
+    return financialTransactionListSchema.parse(items.map((item) => serialize(item, accountTypes.get(String(item.accountId))))) as FinancialTransactionDto[];
   }
 }

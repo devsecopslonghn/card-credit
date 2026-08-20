@@ -70,6 +70,13 @@ export const financialReportTotalsSchema = financialReportMetricSchema.extend({
   monthlyBankCashbackRejected: safeNonNegativeInteger,
   totalPaidCardFees: safeNonNegativeInteger,
   actualNetBenefit: safeInteger,
+  activeCashBalance: safeInteger,
+  activeBankBalance: safeInteger,
+  currentCardDebt: safeNonNegativeInteger,
+  paidStatementDebt: safeNonNegativeInteger,
+  realIncome: safeNonNegativeInteger,
+  technicalAdjustments: safeInteger,
+  operatingCashflow: safeInteger,
 });
 
 const accountMetricSchema = financialReportMetricSchema.extend({ name: z.string() });

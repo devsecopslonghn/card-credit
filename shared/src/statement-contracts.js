@@ -9,8 +9,13 @@ export const statementPaymentActionSchema = z.enum(["CLOSED", "PAID", "REOPEN"])
 export const statementPaymentInputSchema = z.object({
   action: statementPaymentActionSchema,
   repaymentAccountId: z.string().trim().min(1).optional(),
+  reason: z.string().trim().min(10).max(500).optional(),
+  reverseErroneousPayment: z.boolean().optional(),
   expectedVersion: z.iso.datetime().optional(),
-}).strict();
+}).strict().superRefine((input, context) => {
+  if (input.action === "REOPEN" && !input.reason) context.addIssue({ code: "custom", path: ["reason"], message: "REOPEN cần reason để audit correction." });
+  if (input.reverseErroneousPayment && input.action !== "REOPEN") context.addIssue({ code: "custom", path: ["reverseErroneousPayment"], message: "Chỉ được reverse payment khi REOPEN correction." });
+});
 export const statementPaymentPreviewWarningSchema = z.enum(["ALREADY_SETTLED", "NO_OUTSTANDING_BALANCE", "REPAYMENT_ACCOUNT_REQUIRED"]);
 const statementPaymentPreviewDataFields = {
   operation: z.literal("pay_statement"),

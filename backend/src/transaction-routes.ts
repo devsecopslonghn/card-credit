@@ -56,6 +56,7 @@ export const registerTransactionRoutes = (
       const previewInput: StatementPaymentInput = {
         action: preview.action,
         ...(preview.repaymentAccountId ? { repaymentAccountId: preview.repaymentAccountId } : {}),
+        ...(typeof parsed.data.reason === "string" && parsed.data.reason ? { reason: parsed.data.reason } : {}),
         ...(preview.version ? { expectedVersion: preview.version } : {}),
       };
       const metadata = await previewService.issue(context, PAYMENT_OPERATION, paymentPreviewPayload(request.params.id, request.params.statementId, previewInput), browserPreviewCodec);

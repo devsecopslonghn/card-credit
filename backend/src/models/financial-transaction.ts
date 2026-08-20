@@ -10,7 +10,7 @@ const FinancialTransactionSchema = new Schema(
     accountType: { type: String, enum: ["DEBIT", "CASH", "E_WALLET", "CREDIT"], required: true },
     transactionType: {
       type: String,
-      enum: ["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT"],
+      enum: ["EXPENSE", "TRANSFER", "REIMBURSEMENT", "REFUND", "CASHBACK", "INCOME", "STATEMENT_PAYMENT", "BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"],
       required: true,
     },
     ownership: { type: String, enum: ["PERSONAL", "PAID_FOR_OTHER"], default: "PERSONAL" },
@@ -28,9 +28,14 @@ const FinancialTransactionSchema = new Schema(
     creditDebt: { type: Number, required: true },
     outstandingReceivable: { type: Number, required: true, min: 0 },
     reimbursementReceived: { type: Number, required: true, min: 0 },
+    voidedAt: { type: Date, default: null },
+    voidReason: { type: String, default: null, maxlength: 500 },
   },
   { timestamps: true },
 );
+
+FinancialTransactionSchema.pre(/^find/, function () { (this as unknown as { where: (filter: Record<string, unknown>) => unknown }).where({ voidedAt: null }); });
+FinancialTransactionSchema.pre("aggregate", function () { this.pipeline().unshift({ $match: { voidedAt: null } }); });
 
 FinancialTransactionSchema.index({ workspaceId: 1, transactionDate: -1, createdAt: -1 });
 FinancialTransactionSchema.index({ workspaceId: 1, accountId: 1, transactionDate: -1 });

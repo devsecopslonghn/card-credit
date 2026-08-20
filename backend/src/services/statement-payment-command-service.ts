@@ -67,15 +67,17 @@ export const paymentCommandPayloadHash = (cardId: string, statementId: string, i
   input: {
     action: input.action,
     ...(input.repaymentAccountId ? { repaymentAccountId: input.repaymentAccountId } : {}),
+    ...(input.reason ? { reason: input.reason } : {}),
+    ...(input.reverseErroneousPayment ? { reverseErroneousPayment: true } : {}),
   },
 });
 
 /** Stored state transition; effective OVERDUE is represented by OPEN at rest. */
-export const nextPaymentState = (current: string, action: StatementPaymentAction) => {
+export const nextPaymentState = (current: string, action: StatementPaymentAction, reason?: string) => {
   const parsedAction = statementPaymentActionSchema.safeParse(action);
   if (!parsedAction.success) throw new ApiError(400, "INVALID_PAYMENT_ACTION", "Thao tác thanh toán không hợp lệ.");
   if (parsedAction.data === "PAID") return "PAID" as const;
-  if (current === "PAID") throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Kỳ sao kê đã thanh toán; không hỗ trợ hoàn tác tự động.");
+  if (current === "PAID" && !(parsedAction.data === "REOPEN" && reason?.trim())) throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Kỳ sao kê đã thanh toán; REOPEN cần lý do correction rõ ràng.");
   return parsedAction.data === "CLOSED" ? "STATEMENT_CLOSED" as const : "OPEN" as const;
 };
 
@@ -91,7 +93,8 @@ export class StatementPaymentCommandService {
     const paymentTransactions = transactions.filter((item) => String(item.transactionType) === "STATEMENT_PAYMENT");
     if (paymentTransactions.length > 1) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê có nhiều giao dịch thanh toán.");
     const paymentStatus = String(statement.paymentStatus ?? "OPEN") as StatementPaymentPreviewDataDto["paymentStatus"];
-    const nextPaymentStatus = nextPaymentState(paymentStatus, command.action);
+    const nextPaymentStatus = nextPaymentState(paymentStatus, command.action, command.reason);
+    if (command.action === "REOPEN" && paymentStatus === "PAID" && paymentTransactions.length > 0 && !command.reverseErroneousPayment) throw new ApiError(409, "STATEMENT_PAYMENT_REVERSAL_REQUIRED", "Không thể REOPEN khi đã có giao dịch thanh toán; cần xác nhận reverseErroneousPayment riêng.");
     const totals = paymentTotals(transactions);
     if (command.action === "PAID" && paymentStatus === "PAID") {
       if (!paidLedgerIsConsistent(statement, transactions)) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Trạng thái paid không khớp với ledger sao kê.");
@@ -145,7 +148,7 @@ export class StatementPaymentCommandService {
       previewId: invocation.previewId,
       confirmationTokenHash: invocation.confirmationTokenHash,
       previewPayloadHash: invocation.previewPayloadHash,
-      resource: { type: "statement", cardId, statementId },
+      resource: { type: "statement", cardId, statementId, ...(command.action === "REOPEN" ? { correctionType: "STATEMENT_REOPEN", reason: command.reason ?? "" } : {}) },
     } as const;
     const expectedVersion = command.expectedVersion ? new Date(command.expectedVersion) : undefined;
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -167,7 +170,7 @@ export class StatementPaymentCommandService {
         const paymentTransactions = transactions.filter((item) => String(item.transactionType) === "STATEMENT_PAYMENT");
         if (paymentTransactions.length > 1) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê có nhiều giao dịch thanh toán.");
 
-        const next = nextPaymentState(String(statement.paymentStatus ?? "OPEN"), input.action);
+        const next = nextPaymentState(String(statement.paymentStatus ?? "OPEN"), input.action, input.reason);
         const totals = paymentTotals(transactions);
         if (input.action === "PAID" && String(statement.paymentStatus) === "PAID") {
           if (!paidLedgerIsConsistent(statement, transactions)) throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Trạng thái paid không khớp với ledger sao kê.");
@@ -183,12 +186,15 @@ export class StatementPaymentCommandService {
           throw new ApiError(409, "PAYMENT_STATE_CONFLICT", "Kỳ sao kê đã paid nhưng thiếu giao dịch thanh toán.");
         }
         if (input.action !== "PAID") {
+          if (input.action === "REOPEN" && input.reverseErroneousPayment && paymentTransactions.length > 0) {
+            await FinancialTransactionModel.updateMany({ _id: { $in: paymentTransactions.map((item) => item._id) }, workspaceId: ctx.workspaceId, statementId }, { $set: { voidedAt: paidAt, voidReason: input.reason } }, { session });
+          }
           const result = await CardStatementModel.findOneAndUpdate(
-            { _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId, paymentStatus: { $ne: "PAID" }, ...(expectedVersion ? { updatedAt: expectedVersion } : {}) },
+            { _id: statementId, userCardId: cardId, workspaceId: ctx.workspaceId, ...(input.action === "REOPEN" && input.reason ? { paymentStatus: "PAID" } : { paymentStatus: { $ne: "PAID" } }), ...(expectedVersion ? { updatedAt: expectedVersion } : {}) },
             { $set: { paymentStatus: next, paidAt: null, paidAmount: null } },
             { returnDocument: "after", session },
           ).lean() as Data | null;
-          if (!result) throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Kỳ sao kê đã thanh toán; không hỗ trợ hoàn tác tự động.");
+          if (!result) throw new ApiError(409, "STATEMENT_PAID_LOCKED", "Không thể chuyển trạng thái sao kê; kiểm tra reason, payment reversal và expectedVersion.");
           return paymentReceiptResult(result, statementId, input.action);
         }
 

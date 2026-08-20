@@ -9,6 +9,8 @@ export const paymentPreviewPayload = (cardId: string, statementId: string, input
   input: {
     action: input.action,
     ...(input.repaymentAccountId ? { repaymentAccountId: input.repaymentAccountId } : {}),
+    ...(input.reason ? { reason: input.reason } : {}),
+    ...(input.reverseErroneousPayment ? { reverseErroneousPayment: true } : {}),
     ...(input.expectedVersion ? { expectedVersion: input.expectedVersion } : {}),
   },
 });

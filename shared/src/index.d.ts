@@ -211,7 +211,7 @@ export declare const financialTransactionListQuerySchema: z.ZodObject<any>;
 export declare const financialImpactSchema: z.ZodObject<any>;
 export declare const financialTransactionSchema: z.ZodObject<any>;
 export declare const financialTransactionListSchema: z.ZodArray<typeof financialTransactionSchema>;
-export type FinancialTransactionType = "EXPENSE" | "TRANSFER" | "REIMBURSEMENT" | "REFUND" | "CASHBACK" | "INCOME" | "STATEMENT_PAYMENT";
+export type FinancialTransactionType = "EXPENSE" | "TRANSFER" | "REIMBURSEMENT" | "REFUND" | "CASHBACK" | "INCOME" | "STATEMENT_PAYMENT" | "BALANCE_ADJUSTMENT" | "OPENING_BALANCE_ADJUSTMENT";
 export type Ownership = "PERSONAL" | "PAID_FOR_OTHER";
 export type CreateFinancialTransactionInput = {
   accountId: string;
@@ -336,7 +336,7 @@ export type StatementDto = {
   transactions?: FinancialTransactionDto[];
 };
 export type StatementPaymentAction = "CLOSED" | "PAID" | "REOPEN";
-export type StatementPaymentInput = { action: StatementPaymentAction; repaymentAccountId?: string; expectedVersion?: string };
+export type StatementPaymentInput = { action: StatementPaymentAction; repaymentAccountId?: string; reason?: string; reverseErroneousPayment?: boolean; expectedVersion?: string };
 export type StatementPaymentPreviewWarning = "ALREADY_SETTLED" | "NO_OUTSTANDING_BALANCE" | "REPAYMENT_ACCOUNT_REQUIRED";
 export type StatementPaymentPreviewDto = {
   operation: "pay_statement";
@@ -388,6 +388,13 @@ export type FinancialReportTotalsDto = FinancialReportMetricDto & {
   monthlyBankCashbackRejected: number;
   totalPaidCardFees: number;
   actualNetBenefit: number;
+  activeCashBalance: number;
+  activeBankBalance: number;
+  currentCardDebt: number;
+  paidStatementDebt: number;
+  realIncome: number;
+  technicalAdjustments: number;
+  operatingCashflow: number;
 };
 export type FinancialReportDto = {
   range: { from: string; to: string };

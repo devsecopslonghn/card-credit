@@ -7,7 +7,7 @@ const metric = { personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandi
 test("financial report contract keeps benefit KPIs on totals", () => {
   const report = {
     range: { from: "2026-08-01", to: "2026-08-31" },
-    totals: { ...metric, totalServiceFee: 100, transactionCashbackActual: 50, monthlyBankCashbackExpected: 500, monthlyBankCashbackActual: 450, monthlyBankCashbackRejected: 25, totalPaidCardFees: 75, actualNetBenefit: 275 },
+    totals: { ...metric, totalServiceFee: 100, transactionCashbackActual: 50, monthlyBankCashbackExpected: 500, monthlyBankCashbackActual: 450, monthlyBankCashbackRejected: 25, totalPaidCardFees: 75, actualNetBenefit: 275, activeCashBalance: 0, activeBankBalance: 0, currentCardDebt: 0, paidStatementDebt: 0, realIncome: 0, technicalAdjustments: 0, operatingCashflow: 0 },
     netAssets: 0,
     creditDebtBalance: 0,
     creditDebtLedger: [],

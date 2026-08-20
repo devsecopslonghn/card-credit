@@ -38,6 +38,13 @@ const emptyTotals = () => ({
   monthlyBankCashbackRejected: 0,
   totalPaidCardFees: 0,
   actualNetBenefit: 0,
+  activeCashBalance: 0,
+  activeBankBalance: 0,
+  currentCardDebt: 0,
+  paidStatementDebt: 0,
+  realIncome: 0,
+  technicalAdjustments: 0,
+  operatingCashflow: 0,
 });
 
 const add = (target: ReturnType<typeof empty>, item: Record<string, unknown>) => {
@@ -124,7 +131,7 @@ export class FinancialReportService {
         { statementId: { $in: cardStatements.map((statement) => statement._id) } },
       ] };
     }
-    const [items, accounts, monthlyCashbacks, feePayments] = await Promise.all([
+    const [items, accounts, monthlyCashbacks, feePayments, allAccountTransactions, allStatements] = await Promise.all([
       readReportCollection<Data>(FinancialTransactionModel.find(transactionScope)),
       readReportCollection<Data>(AccountModel.find(accountScope)),
       readReportCollection<Data>(MonthlyCardCashbackModel.find({ workspaceId: ctx.workspaceId, ...(reportCardIds ? { userCardId: { $in: reportCardIds } } : {}), period: { $gte: range.from.slice(0, 7), $lte: range.to.slice(0, 7) } })),
@@ -134,6 +141,8 @@ export class FinancialReportService {
         paymentDate: { $gte: range.from, $lte: range.to },
         category: { $in: ["ANNUAL_CARD_FEE", "MANAGEMENT_FEE", "OTHER_FEE"] },
       })),
+      readReportCollection<Data>(FinancialTransactionModel.find({ workspaceId: ctx.workspaceId })),
+      StatementQueryService.list(ctx, { includeTransactions: false }),
     ]);
     const reportAccounts = reportCardIds
       ? accounts.filter((account) => cardAccountIds.some((id) => String(id) === String(account._id)) || items.some((item) => String(item.accountId) === String(account._id)))
@@ -180,12 +189,25 @@ export class FinancialReportService {
       return sum + (paidFeeCategories.has(String(value.category)) ? Math.max(0, Number(value.amount ?? 0)) : 0);
     }, 0);
     totals.actualNetBenefit = totals.monthlyBankCashbackActual - totals.totalServiceFee - totals.totalPaidCardFees;
+    const technicalTypes = new Set(["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"]);
+    totals.realIncome = items.reduce((sum, item) => sum + (item.transactionType === "INCOME" ? Math.max(0, Number(item.amount ?? 0)) : 0), 0);
+    totals.technicalAdjustments = allAccountTransactions.reduce((sum, item) => sum + (technicalTypes.has(String(item.transactionType)) ? Number(item.amount ?? 0) : 0), 0);
+    totals.operatingCashflow = items.reduce((sum, item) => sum + (technicalTypes.has(String(item.transactionType)) ? 0 : Number(item.debitCashflow ?? 0)), 0);
     const sourceIds = items.filter((item) => item.transactionType === "EXPENSE" && item.ownership === "PAID_FOR_OTHER").map((item) => item._id);
     const reimbursements = sourceIds.length ? await readReportCollection<Data>(FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, transactionType: "REIMBURSEMENT", reimbursementForTransactionId: { $in: sourceIds } }).select({ amount: 1 })) : [];
     totals.outstandingReceivable = Math.max(0, totals.outstandingReceivable - reimbursements.reduce((sum, item) => sum + Number(item.amount ?? 0), 0));
     const creditDebtLedger = await this.creditDebtLedger(ctx, range, filters);
-    const netAssets = reportAccounts.filter((account) => String(account.type) !== "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.debitCashflow;
-    const creditDebtBalance = reportAccounts.filter((account) => String(account.type) === "CREDIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0), 0) + totals.creditDebt;
+    const allCashflowByAccount = new Map<string, number>();
+    for (const item of allAccountTransactions) allCashflowByAccount.set(String(item.accountId), (allCashflowByAccount.get(String(item.accountId)) ?? 0) + (technicalTypes.has(String(item.transactionType)) ? 0 : Number(item.debitCashflow ?? 0)));
+    const activeRealMoney = accounts.filter((account) => ["DEBIT", "CASH", "E_WALLET"].includes(String(account.type))).reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
+    totals.activeCashBalance = accounts.filter((account) => String(account.type) === "CASH").reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
+    totals.activeBankBalance = accounts.filter((account) => String(account.type) === "DEBIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
+    totals.currentCardDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.outstandingAmount ?? 0)), 0);
+    totals.paidStatementDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.paymentAmount ?? 0)), 0);
+    const canonicalReceivable = allAccountTransactions.reduce((sum, item) => sum + Math.max(0, Number(item.outstandingReceivable ?? 0)), 0) - allAccountTransactions.reduce((sum, item) => sum + (item.transactionType === "REIMBURSEMENT" ? Math.max(0, Number(item.amount ?? item.reimbursementReceived ?? 0)) : 0), 0);
+    totals.outstandingReceivable = Math.max(0, canonicalReceivable);
+    const netAssets = activeRealMoney + totals.outstandingReceivable - totals.currentCardDebt;
+    const creditDebtBalance = totals.currentCardDebt;
     return financialReportSchema.parse({
       range,
       totals,

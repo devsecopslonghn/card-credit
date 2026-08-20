@@ -11,7 +11,9 @@ export type FinancialTransactionType =
   | "REFUND"
   | "CASHBACK"
   | "INCOME"
-  | "STATEMENT_PAYMENT";
+  | "STATEMENT_PAYMENT"
+  | "BALANCE_ADJUSTMENT"
+  | "OPENING_BALANCE_ADJUSTMENT";
 
 export type FinancialTransactionInput = {
   accountType: AccountType;

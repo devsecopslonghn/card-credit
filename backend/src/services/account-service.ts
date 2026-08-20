@@ -166,8 +166,9 @@ export class AccountService {
     const rows = await FinancialTransactionModel.aggregate([{ $match: { workspaceId: ctx.workspaceId, accountId: { $in: idsForBalance } } }, { $group: { _id: "$accountId", cashflow: { $sum: "$debitCashflow" }, count: { $sum: 1 } } }]);
     const by = new Map(rows.map((r) => [String(r._id), r]));
     const balance = (a: Record<string, unknown>) => Number(a.openingBalance ?? 0) + Number(by.get(String(a._id))?.cashflow ?? 0);
+    const sourceOpeningBalance = sources.reduce((n, a) => n + Number(a.openingBalance ?? 0), 0);
     const sourceBalance = sources.reduce((n, a) => n + balance(a), 0); const targetBalance = balance(target);
-    return { sourceAccountIds: ids, targetAccountId: String(target._id), transactionCount: rows.reduce((n, r) => n + Number(r.count), 0), before: { sourceBalance, targetBalance, totalBalance: sourceBalance + targetBalance }, after: { targetBalance: sourceBalance + targetBalance, totalBalance: sourceBalance + targetBalance }, warnings: ["Source accounts sẽ được archive; transaction IDs và ledger impacts được giữ nguyên."] };
+    return { sourceAccountIds: ids, targetAccountId: String(target._id), sourceOpeningBalance, transactionCount: rows.reduce((n, r) => n + Number(r.count), 0), before: { sourceBalance, targetBalance, totalBalance: sourceBalance + targetBalance }, after: { targetBalance: sourceBalance + targetBalance, totalBalance: sourceBalance + targetBalance }, warnings: ["Source accounts sẽ được archive; openingBalance được chuyển vào target, không tạo income/cashflow."] };
   }
 
   static async merge(ctx: ServiceContext, input: { sourceAccountIds: string[]; targetAccountId?: string; targetName?: string; targetType?: AccountType; keepTargetAsCash?: boolean; expectedVersion?: number }, invocation: CommandInvocation) {
@@ -187,10 +188,10 @@ export class AccountService {
         targetAccountId = created.id;
       }
       const versionFilter = input.expectedVersion === undefined ? {} : { version: input.expectedVersion };
-      const target = await AccountModel.findOneAndUpdate({ _id: targetAccountId, workspaceId: ctx.workspaceId, active: { $ne: false }, ...versionFilter }, { $inc: { version: 1 } }, { new: true, session }).lean();
+      const target = await AccountModel.findOneAndUpdate({ _id: targetAccountId, workspaceId: ctx.workspaceId, active: { $ne: false }, ...versionFilter }, { $inc: { version: 1, openingBalance: auditPreview.sourceOpeningBalance } }, { new: true, session }).lean();
       if (!target) throw new ApiError(409, "ACCOUNT_VERSION_CONFLICT", "Account đã thay đổi; hãy preview lại.");
-      const moved = await FinancialTransactionModel.updateMany({ workspaceId: ctx.workspaceId, accountId: { $in: input.sourceAccountIds } }, { $set: { accountId: targetAccountId } }, { session });
-      await AccountModel.updateMany({ workspaceId: ctx.workspaceId, _id: { $in: input.sourceAccountIds }, active: { $ne: false } }, { $set: { active: false, archivedAt: new Date() }, $inc: { version: 1 } }, { session });
+      const moved = await FinancialTransactionModel.updateMany({ workspaceId: ctx.workspaceId, accountId: { $in: input.sourceAccountIds } }, { $set: { accountId: targetAccountId, accountType: target.type } }, { session });
+      await AccountModel.updateMany({ workspaceId: ctx.workspaceId, _id: { $in: input.sourceAccountIds }, active: { $ne: false } }, { $set: { active: false, archivedAt: new Date(), openingBalance: 0 }, $inc: { version: 1 } }, { session });
       return { ...preview, transactionCount: Number(moved.modifiedCount ?? preview.transactionCount), targetAccountId };
     });
   }

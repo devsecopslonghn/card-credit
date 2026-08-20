@@ -13,7 +13,7 @@ const invocation = { idempotencyKey: "merge-command-1", endpointOrTool: "confirm
 const chain = <T>(value: T) => ({ lean: async () => value });
 
 test("merge updates accountId only and preserves ledger identity/impacts", async (t) => {
-  const source = { _id: sourceId, workspaceId: context.workspaceId, type: "CASH", currency: "VND", openingBalance: 0, active: true, version: 2 };
+  const source = { _id: sourceId, workspaceId: context.workspaceId, type: "CASH", currency: "VND", openingBalance: 200, active: true, version: 2 };
   const target = { _id: targetId, workspaceId: context.workspaceId, type: "DEBIT", currency: "VND", openingBalance: 1000, active: true, version: 4 };
   const transactions = [
     { _id: "507f1f77bcf86cd799439021", accountId: sourceId, transactionType: "EXPENSE", amount: 500, debitCashflow: -500, personalSpending: 500, statementId: null, reimbursementForTransactionId: null },
@@ -23,23 +23,25 @@ test("merge updates accountId only and preserves ledger identity/impacts", async
   ];
   let transactionFilter: Record<string, unknown> | undefined;
   let targetFilter: Record<string, unknown> | undefined;
+  let targetUpdate: Record<string, unknown> | undefined;
   let update: Record<string, unknown> | undefined;
   let archived = false;
   t.mock.method(AccountModel, "find", () => chain([source, target]) as never);
   t.mock.method(FinancialTransactionModel, "aggregate", async () => [
     { _id: sourceId, cashflow: 300, count: 4 }, { _id: targetId, cashflow: 0, count: 0 },
   ] as never);
-  t.mock.method(AccountModel, "findOneAndUpdate", (filter: Record<string, unknown>) => { targetFilter = filter; return chain({ ...target, version: 5 }) as never; });
+  t.mock.method(AccountModel, "findOneAndUpdate", (filter: Record<string, unknown>, value: Record<string, unknown>) => { targetFilter = filter; targetUpdate = value; return chain({ ...target, version: 5 }) as never; });
   t.mock.method(FinancialTransactionModel, "updateMany", async (filter: Record<string, unknown>, value: Record<string, unknown>) => { transactionFilter = filter; update = value; return { modifiedCount: transactions.length } as never; });
   t.mock.method(AccountModel, "updateMany", async () => { archived = true; return { modifiedCount: 1 } as never; });
   t.mock.method(commandGuardService, "execute", async (_ctx: ServiceContext, _spec: unknown, work: (session: unknown) => Promise<unknown>) => work({}));
 
   const result = await AccountService.merge(context, { sourceAccountIds: [sourceId], targetAccountId: targetId, expectedVersion: 4 }, invocation);
   assert.equal(result.transactionCount, 4);
-  assert.equal(result.before.totalBalance, 1300);
-  assert.equal(result.after.totalBalance, 1300);
-  assert.deepEqual(update, { $set: { accountId: targetId } });
+  assert.equal(result.before.totalBalance, 1500);
+  assert.equal(result.after.totalBalance, 1500);
+  assert.deepEqual(update, { $set: { accountId: targetId, accountType: "DEBIT" } });
   assert.deepEqual(transactionFilter?.accountId, { $in: [sourceId] });
+  assert.deepEqual(targetUpdate, { $inc: { version: 1, openingBalance: 200 } });
   assert.equal(archived, true);
   assert.equal((targetFilter as { version?: number } | undefined)?.version, 4);
   assert.deepEqual(transactions.map((item) => item._id), ["507f1f77bcf86cd799439021", "507f1f77bcf86cd799439022", "507f1f77bcf86cd799439023", "507f1f77bcf86cd799439024"]);
