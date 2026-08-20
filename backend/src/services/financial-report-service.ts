@@ -221,7 +221,9 @@ export class FinancialReportService {
       // reimbursementExpected is the gross claim. The retained impact field
       // may be stale after historical repairs, so it is only a legacy fallback.
       const sourceId = String(item._id);
-      const gross = Math.max(0, Number(item.reimbursementExpected ?? item.outstandingReceivable ?? 0));
+      // `outstandingReceivable` is a historical calculated impact and is not a
+      // current receivable source. Only the source claim is valid for audit.
+      const gross = Math.max(0, Number(item.reimbursementExpected ?? 0));
       grossReceivableBySource.set(sourceId, gross);
       if (!["SETTLED", "COLLECTED"].includes(String(item.receivableStatus))) openReceivableBySource.set(sourceId, gross);
       if (item.statementId) sourceStatementById.set(String(item._id), String(item.statementId));
@@ -234,7 +236,7 @@ export class FinancialReportService {
     for (const item of allAccountTransactions) {
       if (item.transactionType !== "EXPENSE" || item.ownership !== "PAID_FOR_OTHER" || !["SETTLED", "COLLECTED"].includes(String(item.receivableStatus))) continue;
       const sourceId = String(item._id);
-      collectedBySource.set(sourceId, Math.max(collectedBySource.get(sourceId) ?? 0, Number(item.receivableSettledAmount ?? item.reimbursementExpected ?? item.outstandingReceivable ?? 0)));
+      collectedBySource.set(sourceId, Math.max(collectedBySource.get(sourceId) ?? 0, Number(item.receivableSettledAmount ?? item.reimbursementExpected ?? 0)));
     }
     const paidStatementIds = new Set(allStatements.filter((statement) => String(statement.paymentStatus) === "PAID").map((statement) => String(statement.id)));
     totals.grossReceivable = [...grossReceivableBySource.values()].reduce((sum, value) => sum + value, 0);

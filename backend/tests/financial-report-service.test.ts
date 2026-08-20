@@ -106,7 +106,7 @@ test("summary owner filter scopes ledger, cashback and fee sources by card refer
 
 test("summary keeps settled receivables audit-only and excludes technical cashflow", async (t) => {
   const transactions = [
-    { _id: "settled-a", accountId: "credit", accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PAID_FOR_OTHER", amount: 15_626_797, reimbursementExpected: 15_626_797, receivableStatus: "SETTLED", receivableSettledAmount: 15_626_797, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 15_626_797, reimbursementReceived: 0 },
+    { _id: "settled-a", accountId: "credit", accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PAID_FOR_OTHER", amount: 15_626_797, reimbursementExpected: 15_626_797, receivableStatus: "SETTLED", receivableSettledAmount: 15_626_797, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 99_999_999, reimbursementReceived: 0 },
     { _id: "settled-b", accountId: "credit", accountType: "CREDIT", transactionType: "EXPENSE", ownership: "PAID_FOR_OTHER", amount: 174_600, reimbursementExpected: 174_600, receivableStatus: "COLLECTED", receivableSettledAmount: 174_600, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 174_600, reimbursementReceived: 0 },
     { _id: "technical-cash", accountId: "cash", accountType: "CASH", transactionType: "BALANCE_ADJUSTMENT", amount: 100, personalSpending: 0, debitCashflow: 100, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0 },
   ];
