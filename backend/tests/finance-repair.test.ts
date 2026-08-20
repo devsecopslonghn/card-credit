@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { inspectFinanceRepair } from "../src/finance-repair.js";
+import { inspectFinanceRepair, reconcileFinanceMonth } from "../src/finance-repair.js";
 
 test("dry-run repair detects stale type, duplicate, technical income, archived balance and paid conflict", () => {
   const report = inspectFinanceRepair([
@@ -21,4 +21,19 @@ test("dry-run repair detects stale type, duplicate, technical income, archived b
   assert.equal(report.paidStatementConflicts[0]?.statementId, "statement-1");
   assert.equal(report.reimbursementOnPaidStatement[0]?.statementId, "statement-1");
   assert.equal(report.writeRequired, true);
+});
+
+test("monthly reconciliation excludes archived accounts and technical adjustments from operating cashflow", () => {
+  const result = reconcileFinanceMonth([
+    { _id: "cash", type: "CASH", active: true, openingBalance: 100 },
+    { _id: "archived", type: "DEBIT", active: false, openingBalance: 900 },
+  ], [
+    { _id: "income", accountId: "cash", transactionDate: "2026-08-10", transactionType: "INCOME", amount: 50, debitCashflow: 50, personalSpending: 0 },
+    { _id: "opening", accountId: "cash", transactionDate: "2026-08-11", transactionType: "OPENING_BALANCE_ADJUSTMENT", amount: 900, debitCashflow: 900, personalSpending: 0 },
+  ], [{ _id: "statement", paymentStatus: "OPEN", summary: { outstandingAmount: 40, paymentAmount: 0 } }], { from: "2026-08-01", to: "2026-08-31" });
+  assert.equal(result.activeRealMoney, 150);
+  assert.equal(result.realIncome, 50);
+  assert.equal(result.operatingCashflow, 50);
+  assert.equal(result.technicalAdjustments, 900);
+  assert.equal(result.netAssets, 110);
 });

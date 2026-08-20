@@ -20,12 +20,23 @@ Run from a controlled environment with a read-only database identity:
 
 ```bash
 REPAIR_WORKSPACE_ID=<workspace-id> npm run repair:finance:dry-run
+
+# August 2026 reconciliation (read-only)
+REPAIR_WORKSPACE_ID=<workspace-id> \
+REPAIR_FROM=2026-08-01 REPAIR_TO=2026-08-31 \
+npm run repair:finance:dry-run
 ```
 
 The command reads accounts, financial transactions and statements only. It
 reports stale `accountType`, duplicate fingerprints, likely technical income,
 archived balances and PAID statements with outstanding debt. It never updates,
 deletes, archives, voids or inserts data.
+
+When `REPAIR_FROM` and `REPAIR_TO` are supplied, it also prints a monthly
+reconciliation snapshot. `beforeRepair` is the observed ledger state;
+`afterRepair` is intentionally `null` until a separately reviewed
+preview/confirm migration exists, so the dry-run cannot imply a write or invent
+post-repair numbers.
 
 ## Current workspace baseline
 
