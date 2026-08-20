@@ -14,6 +14,8 @@ const FinancialTransactionSchema = new Schema(
       required: true,
     },
     direction: { type: String, enum: ["INCREASE", "DECREASE"], default: null },
+    targetMetric: { type: String, enum: ["currentBalance", "currentDebt"], default: null },
+    technicalDelta: { type: Number, default: 0 },
     ownership: { type: String, enum: ["PERSONAL", "PAID_FOR_OTHER"], default: "PERSONAL" },
     amount: { type: Number, required: true, min: 1 },
     reimbursementExpected: { type: Number, default: 0, min: 0 },

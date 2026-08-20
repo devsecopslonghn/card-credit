@@ -205,7 +205,10 @@ export class FinancialReportService {
     const activeRealMoney = accounts.filter((account) => ["DEBIT", "CASH", "E_WALLET"].includes(String(account.type))).reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
     totals.activeCashBalance = accounts.filter((account) => String(account.type) === "CASH").reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
     totals.activeBankBalance = accounts.filter((account) => String(account.type) === "DEBIT").reduce((sum, account) => sum + Number(account.openingBalance ?? 0) + (allCashflowByAccount.get(String(account._id)) ?? 0), 0);
-    totals.currentCardDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.outstandingAmount ?? 0)), 0);
+    const technicalDebtDelta = allAccountTransactions
+      .filter((item) => String(item.accountType) === "CREDIT" && technicalTypes.has(String(item.transactionType)))
+      .reduce((sum, item) => sum + Number(item.technicalDelta ?? 0), 0);
+    totals.currentCardDebt = Math.max(0, allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.outstandingAmount ?? 0)), 0) + technicalDebtDelta);
     totals.paidStatementDebt = allStatements.reduce((sum, statement) => sum + Math.max(0, Number(statement.summary?.paymentAmount ?? 0)), 0);
     const receivableBySource = new Map<string, number>();
     const sourceStatementById = new Map<string, string>();

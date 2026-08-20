@@ -69,14 +69,18 @@ export class FinancialTransactionService {
         : item.reimbursementExpected;
       const impact = calculateFinancialImpact({ accountType, transactionType: item.transactionType, direction: item.direction, ownership: item.ownership, amount: item.amount, reimbursementExpected, refundReceived: item.refundReceived, cashbackReceived: item.cashbackReceived, serviceFeeRate: item.serviceFeeRate });
       const technicalAdjustment = technicalAdjustmentTypes.has(String(item.transactionType));
+      const targetMetric = accountType === "CREDIT" ? "currentDebt" : "currentBalance";
       const accountKey = String(account._id);
+      const existingTechnical = technicalAdjustment ? (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.technicalDelta ?? 0), 0) : 0;
+      const statementDebt = technicalAdjustment && accountType === "CREDIT" ? (await CardStatementModel.find({ workspaceId: ctx.workspaceId, userCardId: account.creditCardId, paymentStatus: { $ne: "PAID" } }).lean() as Array<Record<string, unknown>>).reduce((sum, statement) => sum + Math.max(0, Number((statement.summary as Record<string, unknown> | undefined)?.outstandingAmount ?? 0)), 0) : 0;
       const balanceBefore = technicalAdjustment
-        ? (balanceByAccount.get(accountKey) ?? (Number(account.openingBalance ?? 0) + (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.debitCashflow ?? 0), 0)))
+        ? (balanceByAccount.get(accountKey) ?? (targetMetric === "currentDebt" ? Number(account.openingBalance ?? 0) + statementDebt + existingTechnical : Number(account.openingBalance ?? 0) + (await FinancialTransactionModel.find({ workspaceId: ctx.workspaceId, accountId: account._id }).lean() as Array<Record<string, unknown>>).reduce((sum, tx) => sum + Number(tx.debitCashflow ?? 0), 0)))
         : undefined;
       const balanceDelta = technicalAdjustment ? impact.debitCashflow : undefined;
+      const technicalDelta = technicalAdjustment ? (item.direction === "DECREASE" ? -item.amount : item.amount) : 0;
       const previewImpact = technicalAdjustment ? { ...impact, grossAmount: 0, debitCashflow: 0 } : impact;
       if (technicalAdjustment) balanceByAccount.set(accountKey, Number(balanceBefore) + Number(balanceDelta));
-      items.push({ ...item, reimbursementExpected, previewImpact, ...(technicalAdjustment ? { technicalAdjustment: true, serviceFee: 0, balanceBefore, balanceAfter: Number(balanceBefore) + Number(balanceDelta), balanceDelta, direction: item.direction } : {}) });
+      items.push({ ...item, reimbursementExpected, previewImpact, ...(technicalAdjustment ? { technicalAdjustment: true, targetMetric, serviceFee: 0, balanceBefore: targetMetric === "currentBalance" ? balanceBefore : undefined, balanceAfter: targetMetric === "currentBalance" ? Number(balanceBefore) + Number(technicalDelta) : undefined, balanceDelta: targetMetric === "currentBalance" ? technicalDelta : undefined, beforeDebt: targetMetric === "currentDebt" ? balanceBefore : undefined, afterDebt: targetMetric === "currentDebt" ? Number(balanceBefore) + Number(technicalDelta) : undefined, debtDelta: targetMetric === "currentDebt" ? technicalDelta : undefined, direction: item.direction } : {}) });
     }
     return { items };
   }
@@ -258,6 +262,7 @@ export class FinancialTransactionService {
       transactionDate: input.transactionDate,
       note: normalizedNote(input.note),
       ...impact,
+      ...(technicalAdjustmentTypes.has(String(input.transactionType)) ? { targetMetric: accountType === "CREDIT" ? "currentDebt" : "currentBalance", technicalDelta: input.direction === "DECREASE" ? -input.amount : input.amount, serviceFeeRate: 0 } : {}),
     }], { session });
     return serialize(created[0]);
   }
@@ -290,6 +295,7 @@ export class FinancialTransactionService {
     const refundReceived = input.refundReceived ?? Number(existing.refundReceived ?? 0);
     const cashbackReceived = input.cashbackReceived ?? Number(existing.cashbackReceived ?? 0);
     const impact = calculateFinancialImpact({ accountType, transactionType, ownership, amount, direction: input.direction ?? String(existing.direction ?? "") as "INCREASE" | "DECREASE" | undefined, reimbursementExpected, refundReceived, cashbackReceived, serviceFeeRate });
+    const isTechnicalAdjustment = technicalAdjustmentTypes.has(String(transactionType));
     let statementId: mongoose.Types.ObjectId | null = null;
     if (accountType === "CREDIT") {
       if (!account.creditCardId) throw new ApiError(409, "ACCOUNT_CARD_NOT_LINKED", "Tài khoản CREDIT chưa liên kết thẻ.");
@@ -310,7 +316,9 @@ export class FinancialTransactionService {
         statementId, direction: input.direction ?? (existing.direction ?? null), reimbursementExpected, refundReceived, cashbackReceived,
         categoryId: input.categoryId?.trim() || String(existing.categoryId ?? "OTHER"),
         note: input.note === undefined ? String(existing.note ?? "") : normalizedNote(input.note),
-        serviceFeeRate, ...impact,
+        serviceFeeRate: isTechnicalAdjustment ? 0 : serviceFeeRate,
+        ...(isTechnicalAdjustment ? { targetMetric: accountType === "CREDIT" ? "currentDebt" : "currentBalance", technicalDelta: (input.direction ?? existing.direction) === "DECREASE" ? -amount : amount } : {}),
+        ...impact,
       } },
       { new: true, session },
     ).lean();

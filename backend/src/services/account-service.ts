@@ -37,7 +37,7 @@ export class AccountService {
     const [balances, statements] = await Promise.all([
       FinancialTransactionModel.aggregate([
         { $match: { workspaceId: ctx.workspaceId } },
-        { $group: { _id: "$accountId", debitCashflow: { $sum: "$debitCashflow" }, creditDebt: { $sum: "$creditDebt" } } },
+        { $group: { _id: "$accountId", debitCashflow: { $sum: "$debitCashflow" }, creditDebt: { $sum: "$creditDebt" }, technicalDelta: { $sum: "$technicalDelta" } } },
       ]),
       hasLinkedCreditAccount ? StatementQueryService.list(ctx, { includeTransactions: false }) : Promise.resolve([]),
     ]);
@@ -60,7 +60,7 @@ export class AccountService {
         // points to the CREDIT account's statement. Use the statement ledger for
         // linked cards so payments reduce the card debt exactly once.
         currentDebt: isLinkedCreditAccount
-          ? Math.max(0, openingBalance + (outstandingByCardId.get(String(account.creditCardId)) ?? 0))
+          ? Math.max(0, openingBalance + (outstandingByCardId.get(String(account.creditCardId)) ?? 0) + Number(totals.technicalDelta ?? 0))
           : Math.max(0, openingBalance + Number(totals.creditDebt ?? 0)),
       };
     });

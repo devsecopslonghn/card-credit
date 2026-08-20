@@ -25,7 +25,9 @@ const createFinancialTransactionBaseSchema = z.object({
   reimbursementForTransactionId: z.string().trim().min(1).optional(),
 });
 export const createFinancialTransactionInputSchema = createFinancialTransactionBaseSchema.superRefine((input, context) => {
-  if (["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"].includes(input.transactionType ?? "") && !input.direction) context.addIssue({ code: "custom", path: ["direction"], message: "Balance adjustment cần direction INCREASE hoặc DECREASE." });
+  const technical = ["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"].includes(input.transactionType ?? "");
+  if (technical && !input.direction) context.addIssue({ code: "custom", path: ["direction"], message: "Balance adjustment cần direction INCREASE hoặc DECREASE." });
+  if (technical && input.serviceFeeRate !== undefined && input.serviceFeeRate !== 0) context.addIssue({ code: "custom", path: ["serviceFeeRate"], message: "Technical adjustment không được có service fee." });
   if (input.direction && !["BALANCE_ADJUSTMENT", "OPENING_BALANCE_ADJUSTMENT"].includes(input.transactionType ?? "")) context.addIssue({ code: "custom", path: ["direction"], message: "direction chỉ được dùng cho balance adjustment." });
 });
 export const updateFinancialTransactionInputSchema = createFinancialTransactionBaseSchema.omit({ statementId: true, reimbursementForTransactionId: true }).partial().strict().refine(

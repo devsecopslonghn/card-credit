@@ -54,6 +54,26 @@ amount:
 }
 ```
 
+The currently approved three-item repair must be previewed as one batch. The
+Shinhan and Amex IDs are intentionally placeholders here; resolve them with
+`list_accounts` and verify their currency/workspace before previewing:
+
+```json
+{
+  "items": [
+    { "accountId": "6a7ca642b1078f06bc4ff34d", "transactionDate": "2026-08-20", "amount": 16314918, "transactionType": "BALANCE_ADJUSTMENT", "direction": "DECREASE", "note": "Approved cash balance snapshot correction" },
+    { "accountId": "<shinhan-account-id>", "transactionDate": "2026-08-20", "amount": 368372, "transactionType": "BALANCE_ADJUSTMENT", "direction": "INCREASE", "note": "Approved Shinhan debt snapshot correction" },
+    { "accountId": "<amex-account-id>", "transactionDate": "2026-08-20", "amount": 1000, "transactionType": "BALANCE_ADJUSTMENT", "direction": "DECREASE", "note": "Approved Amex debt snapshot correction" }
+  ]
+}
+```
+
+Expected dry-run invariants are CASH `currentBalance 47,314,918 ->
+31,000,000`, Shinhan `currentDebt 16,290,100 -> 16,658,472`, and Amex
+`currentDebt 5,355,000 -> 5,354,000`. Every item must report
+`technicalAdjustment=true`, `serviceFee=0`, and zero income, spending,
+operating-cashflow, receivable, reimbursement, and `creditDebt` impacts.
+
 ## Current workspace baseline
 
 The local Kubernetes read-only probe found 8 accounts, 53 transactions and 13

@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { FinancialTransactionService } from "../src/services/financial-transaction-service.js";
 import { AccountModel } from "../src/models/account.js";
 import { FinancialTransactionModel } from "../src/models/financial-transaction.js";
+import { CardStatementModel } from "../src/models/card-statement.js";
 import { McpMutationModel } from "../src/models/mcp-mutation.js";
 import { commandGuardService, type CommandGuardSpec } from "../src/services/command-guard-service.js";
 import { legacyPayloadHash } from "../src/command-hash.js";
@@ -24,6 +25,39 @@ test("technical adjustment preview exposes zero service fee and balance snapshot
   assert.equal(item.balanceAfter, 31_000_000);
   assert.equal(item.balanceDelta, -16_314_918);
   assert.deepEqual(item.previewImpact, { grossAmount: 0, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0 });
+});
+
+test("technical adjustment preview targets currentDebt for CREDIT accounts", async (t) => {
+  const accounts: Record<string, Record<string, unknown>> = {
+    shinhan: { _id: "shinhan", type: "CREDIT", creditCardId: "card-shinhan", openingBalance: 0 },
+    amex: { _id: "amex", type: "CREDIT", creditCardId: "card-amex", openingBalance: 0 },
+  };
+  t.mock.method(AccountModel, "findOne", ((filter: Record<string, unknown>) => ({
+    lean: async () => accounts[String(filter._id)],
+  })) as never);
+  t.mock.method(FinancialTransactionModel, "find", () => ({ lean: async () => [] }) as never);
+  t.mock.method(CardStatementModel, "find", ((filter: Record<string, unknown>) => ({
+    lean: async () => [{ summary: { outstandingAmount: String(filter.userCardId) === "card-shinhan" ? 16_290_100 : 5_355_000 } }],
+  })) as never);
+  const result = await FinancialTransactionService.preview(context, { items: [
+    { accountId: "shinhan", transactionDate: "2026-08-20", amount: 368_372, transactionType: "BALANCE_ADJUSTMENT", direction: "INCREASE" },
+    { accountId: "amex", transactionDate: "2026-08-20", amount: 1_000, transactionType: "OPENING_BALANCE_ADJUSTMENT", direction: "DECREASE" },
+  ] });
+  const [shinhan, amex] = result.items as Array<Record<string, unknown>>;
+  assert.ok(shinhan);
+  assert.ok(amex);
+  assert.equal(shinhan.targetMetric, "currentDebt");
+  assert.equal(shinhan.beforeDebt, 16_290_100);
+  assert.equal(shinhan.afterDebt, 16_658_472);
+  assert.equal(shinhan.afterBalance, undefined);
+  assert.equal(amex.targetMetric, "currentDebt");
+  assert.equal(amex.beforeDebt, 5_355_000);
+  assert.equal(amex.afterDebt, 5_354_000);
+  for (const item of [shinhan, amex]) {
+    assert.equal(item.serviceFee, 0);
+    assert.equal(item.technicalAdjustment, true);
+    assert.deepEqual(item.previewImpact, { grossAmount: 0, personalSpending: 0, debitCashflow: 0, creditDebt: 0, outstandingReceivable: 0, reimbursementReceived: 0 });
+  }
 });
 
 test("financial transaction command computes its hash and delegates to the persistent guard", async (t) => {
