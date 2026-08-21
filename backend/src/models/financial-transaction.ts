@@ -48,6 +48,8 @@ FinancialTransactionSchema.pre("aggregate", function () { this.pipeline().unshif
 FinancialTransactionSchema.index({ workspaceId: 1, transactionDate: -1, createdAt: -1 });
 FinancialTransactionSchema.index({ workspaceId: 1, accountId: 1, transactionDate: -1 });
 FinancialTransactionSchema.index({ workspaceId: 1, categoryId: 1, transactionDate: -1 });
+FinancialTransactionSchema.index({ workspaceId: 1, transactionType: 1, ownership: 1, receivableStatus: 1 }, { name: "receivable_status_lookup" });
+FinancialTransactionSchema.index({ workspaceId: 1, transactionType: 1, reimbursementForTransactionId: 1 }, { name: "reimbursement_source_lookup" });
 FinancialTransactionSchema.index(
   { workspaceId: 1, statementId: 1, transactionType: 1 },
   {

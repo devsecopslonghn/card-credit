@@ -46,6 +46,12 @@ test("financial transaction model declares one payment transaction per workspace
   ]);
 });
 
+test("financial transaction model indexes receivable status and reimbursement linkage", () => {
+  const indexes = FinancialTransactionModel.schema.indexes() as Array<[Record<string, unknown>, { name?: string; [key: string]: unknown }] >;
+  assert.ok(indexes.some(([, options]) => options.name === "receivable_status_lookup"));
+  assert.ok(indexes.some(([, options]) => options.name === "reimbursement_source_lookup"));
+});
+
 test("payment state transitions keep PAID locked and reopen only a closed statement", () => {
   assert.equal(nextPaymentState("OPEN", "CLOSED"), "STATEMENT_CLOSED");
   assert.equal(nextPaymentState("STATEMENT_CLOSED", "REOPEN"), "OPEN");
