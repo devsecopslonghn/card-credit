@@ -31,12 +31,16 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENV NODE_OPTIONS="--experimental-loader=@opentelemetry/instrumentation/hook.mjs --import @opentelemetry/auto-instrumentations-node/register"
 
 RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 
 COPY --chown=nextjs:nextjs --from=builder /workspace/frontend/.next/standalone ./
 COPY --chown=nextjs:nextjs --from=builder /workspace/frontend/.next/static ./frontend/.next/static
 COPY --chown=nextjs:nextjs --from=builder /workspace/frontend/public ./frontend/public
+# The standalone server does not include packages loaded through NODE_OPTIONS.
+# Keep the auto-instrumentation runtime dependencies available at startup.
+COPY --chown=nextjs:nextjs --from=deps /workspace/frontend/node_modules ./node_modules
 
 USER nextjs
 WORKDIR /app/frontend

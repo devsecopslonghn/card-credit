@@ -22,6 +22,7 @@ ENV NODE_ENV=production
 ENV BACKEND_HOST=0.0.0.0
 ENV BACKEND_PORT=3001
 ENV CARD_CATALOG_PATH=/app/catalog/card-presets.json
+ENV NODE_OPTIONS="--experimental-loader=@opentelemetry/instrumentation/hook.mjs --import @opentelemetry/auto-instrumentations-node/register"
 RUN addgroup -S backend && adduser -S backend -G backend
 COPY shared/package.json shared/package-lock.json /shared/
 RUN --mount=type=cache,id=card-credit-shared-npm,target=/root/.npm npm --prefix /shared ci --omit=dev
