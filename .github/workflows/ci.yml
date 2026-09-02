@@ -51,10 +51,10 @@ jobs:
       matrix:
         include:
           - name: frontend
-            image: ghcr.io/devsecopslonghn/card-credit-frontend
+            image: card-credit-frontend
             dockerfile: frontend/Dockerfile
           - name: backend
-            image: ghcr.io/devsecopslonghn/card-credit-backend
+            image: card-credit-backend
             dockerfile: backend/Dockerfile
     permissions:
       contents: read
@@ -66,7 +66,7 @@ jobs:
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ vars.GHCR_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
@@ -77,8 +77,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ matrix.image }}:${{ github.sha }}
-            ${{ matrix.image }}:latest
+            ${{ vars.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ vars.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:latest
 
   update-gitops:
     needs: images
@@ -90,8 +90,8 @@ jobs:
       - name: Checkout GitOps repository
         uses: actions/checkout@v4
         with:
-          repository: devsecopslonghn/k8s-namepsace-chart
-          ref: master
+          repository: ${{ vars.GITOPS_LEGACY_REPOSITORY }}
+          ref: ${{ vars.GITOPS_BRANCH }}
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops
 
@@ -99,6 +99,8 @@ jobs:
         working-directory: gitops
         env:
           IMAGE_TAG: ${{ github.sha }}
+          GHCR_REGISTRY: ${{ vars.GHCR_REGISTRY }}
+          IMAGE_OWNER: ${{ github.repository_owner }}
         run: |
           python3 - <<'PY'
           import os
@@ -113,8 +115,8 @@ jobs:
           block = image.group(0)
           replacements = {
               r"(?m)^  tag:.*$": f"  tag: {os.environ['IMAGE_TAG']}",
-              r"(?m)^    repository: (?:nexus\.apps\.drgdevlab\.com/card-credit/frontend|ghcr\.io/devsecopslonghn/card-credit-frontend)$": "    repository: ghcr.io/devsecopslonghn/card-credit-frontend",
-              r"(?m)^    repository: (?:nexus\.apps\.drgdevlab\.com/card-credit/backend|ghcr\.io/devsecopslonghn/card-credit-backend)$": "    repository: ghcr.io/devsecopslonghn/card-credit-backend",
+              r"(?m)^    repository: (?:nexus\.apps\.drgdevlab\.com/card-credit/frontend|ghcr\.io/devsecopslonghn/card-credit-frontend)$": f"    repository: {os.environ['GHCR_REGISTRY']}/{os.environ['IMAGE_OWNER']}/card-credit-frontend",
+              r"(?m)^    repository: (?:nexus\.apps\.drgdevlab\.com/card-credit/backend|ghcr\.io/devsecopslonghn/card-credit-backend)$": f"    repository: {os.environ['GHCR_REGISTRY']}/{os.environ['IMAGE_OWNER']}/card-credit-backend",
           }
           for pattern, replacement in replacements.items():
               block, count = re.subn(pattern, replacement, block, count=1)
