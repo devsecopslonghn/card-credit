@@ -113,8 +113,8 @@ jobs:
           block = image.group(0)
           replacements = {
               r"(?m)^  tag:.*$": f"  tag: {os.environ['IMAGE_TAG']}",
-              r"(?m)^    repository: nexus\.apps\.drgdevlab\.com/card-credit/frontend$": "    repository: ghcr.io/devsecopslonghn/card-credit-frontend",
-              r"(?m)^    repository: nexus\.apps\.drgdevlab\.com/card-credit/backend$": "    repository: ghcr.io/devsecopslonghn/card-credit-backend",
+              r"(?m)^    repository: (?:nexus\.apps\.drgdevlab\.com/card-credit/frontend|ghcr\.io/devsecopslonghn/card-credit-frontend)$": "    repository: ghcr.io/devsecopslonghn/card-credit-frontend",
+              r"(?m)^    repository: (?:nexus\.apps\.drgdevlab\.com/card-credit/backend|ghcr\.io/devsecopslonghn/card-credit-backend)$": "    repository: ghcr.io/devsecopslonghn/card-credit-backend",
           }
           for pattern, replacement in replacements.items():
               block, count = re.subn(pattern, replacement, block, count=1)
