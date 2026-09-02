@@ -122,14 +122,14 @@ hàng thực nhận trừ phí dịch vụ giao dịch và phí thẻ đã đón
 sử dụng cùng filter đang chọn.
 
 Kubernetes inject SMTP environment trực tiếp từ Secret `card-credit-runtime`
-vào backend. Jenkins không nhận MongoDB, auth hoặc SMTP runtime secrets. Không
-in các giá trị này trong log. Smoke test SMTP thủ công chỉ nên gửi một thư tới
-tài khoản test đã được phê duyệt.
+vào backend. GitHub Actions không nhận MongoDB, auth hoặc SMTP runtime secrets.
+Không in các giá trị này trong log. Smoke test SMTP thủ công chỉ nên gửi một
+thư tới tài khoản test đã được phê duyệt.
 
 ## Container and deployment
 
 The repository builds separate frontend and backend images with the Dockerfiles
-used by Jenkins/GitOps. Local validation should use the npm commands below; the
+used by GitHub Actions/GitOps. Local validation should use the npm commands below; the
 application no longer maintains a Docker Compose environment.
 
 ```bash
@@ -148,11 +148,11 @@ cd ../backend && npm ci && npm run validate
 cd ../frontend && npm ci --include=optional && npm run typecheck && npm run lint && npm test && npm run build
 ```
 
-Jenkins chạy cùng các bước qua `ci-platform` theo thứ tự `shared` → `frontend`
-→ `backend`, được khai báo trong `Jenkinsfile`. `shared` có lockfile và runtime
+GitHub Actions chạy cùng các bước theo thứ tự `shared` → `frontend` → `backend`.
+`shared` có lockfile và runtime
 `zod` riêng; frontend cũng khai báo `zod` trực tiếp vì package linked
 `@card-credit/contracts` import Zod lúc runtime. Không xóa unit test để né lỗi
-dependency. `cd-platform` là pipeline riêng, chỉ cập nhật external GitOps repo
+dependency. Workflow cập nhật GitOps repo
 với immutable `IMAGE_TAG`; `npm test` là curated regression suite cho CI, còn
 `npm run test:all` trong `shared`, `backend` hoặc `frontend` chạy full package
 suite khi cần; push vào repository này chưa đồng nghĩa deployment đã rollout.
@@ -249,7 +249,7 @@ Xem nguyên tắc tại [finance-source-of-truth](docs/finance-source-of-truth.m
 
 ## Bước tiếp theo sau khi push/deploy
 
-1. Theo dõi Jenkins build theo Git SHA mới.
+1. Theo dõi GitHub Actions build theo Git SHA mới.
 2. Chờ image publish và Argo CD reconcile.
 3. Kiểm tra rollout:
 
@@ -278,12 +278,12 @@ Swagger UI is available at `/docs`; the OpenAPI JSON is available at
 `/docs/json`. The document covers REST endpoints and MCP tools. Set
 `API_DOCS_ENABLED=false` to disable it.
 
-Jenkins dùng Kubernetes agent và rootless BuildKit, validate `shared`, build cả
-frontend/backend image với cùng immutable Git SHA, push lên Nexus và cập nhật
-image tag trong repo GitOps qua `cd-platform`. Hai Dockerfile thực thi validation
-tương ứng trong build stages. Jenkins không deploy trực tiếp; Argo CD đọc Helm
-chart và reconcile Kubernetes. Khi điều tra pipeline, đối chiếu checkout SHA,
-SCM URL và branch trước khi kết luận commit bị mất.
+GitHub Actions validate `shared`, build cả frontend/backend image với cùng
+immutable Git SHA, push lên GHCR và cập nhật image tag trong repo GitOps. Hai
+Dockerfile thực thi validation tương ứng trong build stages. GitHub Actions
+không deploy trực tiếp; Argo CD đọc Helm chart và reconcile Kubernetes. Khi
+điều tra pipeline, đối chiếu checkout SHA, SCM URL và branch trước khi kết luận
+commit bị mất.
 
 ## Catalog import
 
