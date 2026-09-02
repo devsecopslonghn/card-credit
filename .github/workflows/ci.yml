@@ -121,7 +121,7 @@ jobs:
               if count != 1:
                   raise SystemExit(f"image reference did not match exactly once: {pattern}")
           text = text[:image.start()] + block + text[image.end():]
-          text = re.sub(r"(?m)^imagePullSecret:.*$", "imagePullSecret: \"\"", text, count=1)
+          text = re.sub(r"(?m)^imagePullSecret:.*$", "imagePullSecret: ghcr-pull", text, count=1)
           path.write_text(text)
           PY
 
