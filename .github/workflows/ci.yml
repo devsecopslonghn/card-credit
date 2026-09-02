@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install workspace dependencies
+        run: |
+          npm --prefix shared ci
+          npm --prefix frontend ci --include=optional
+          npm --prefix backend ci --include=optional
+
+      - name: Validate shared contracts
+        run: npm --prefix shared test
+
+      - name: Validate frontend
+        run: |
+          npm --prefix frontend run typecheck
+          npm --prefix frontend run test:critical
+          npm --prefix frontend run build
+
+      - name: Validate backend
+        run: |
+          npm --prefix backend run typecheck
+          npm --prefix backend run lint
+          npm --prefix backend run test:critical
+          npm --prefix backend run build
+
+  images:
+    needs: quality
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: frontend
+            image: ghcr.io/devsecopslonghn/card-credit-frontend
+            dockerfile: frontend/Dockerfile
+          - name: backend
+            image: ghcr.io/devsecopslonghn/card-credit-backend
+            dockerfile: backend/Dockerfile
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ matrix.image }}:${{ github.sha }}
+            ${{ matrix.image }}:latest
+
+  update-gitops:
+    needs: images
+    if: ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: devsecopslonghn/k8s-namepsace-chart
+          ref: master
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: gitops
+
+      - name: Update image references
+        working-directory: gitops
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          path = Path("card-credit/values.yaml")
+          text = path.read_text()
+          image = re.search(r"(?ms)^image:\n.*?(?=^runtimeSecret:|\Z)", text)
+          if not image:
+              raise SystemExit("image values block was not found")
+          block = image.group(0)
+          replacements = {
+              r"(?m)^  tag:.*$": f"  tag: {os.environ['IMAGE_TAG']}",
+              r"(?m)^    repository: nexus\.apps\.drgdevlab\.com/card-credit/frontend$": "    repository: ghcr.io/devsecopslonghn/card-credit-frontend",
+              r"(?m)^    repository: nexus\.apps\.drgdevlab\.com/card-credit/backend$": "    repository: ghcr.io/devsecopslonghn/card-credit-backend",
+          }
+          for pattern, replacement in replacements.items():
+              block, count = re.subn(pattern, replacement, block, count=1)
+              if count != 1:
+                  raise SystemExit(f"image reference did not match exactly once: {pattern}")
+          text = text[:image.start()] + block + text[image.end():]
+          text = re.sub(r"(?m)^imagePullSecret:.*$", "imagePullSecret: \"\"", text, count=1)
+          path.write_text(text)
+          PY
+
+      - name: Commit GitOps references
+        working-directory: gitops
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add card-credit/values.yaml
+          git diff --cached --quiet || git commit -m "chore(gitops): deploy card-credit ${{ github.sha }} [skip ci]"
+          git push origin master
