@@ -1,7 +1,7 @@
 # Evidence: smoke fixture timing
 
 - task ID: 2026-09-07-smoke-fixture-timeout
-- relevant Git diff/commit: pending commit on `master`; `frontend/tests/smokeBoundary.test.mjs` only, plus task/state evidence.
+- relevant Git diff/commit: `f4e807f test: stabilize smoke fixture timeout`; `frontend/tests/smokeBoundary.test.mjs` plus task/state evidence.
 - root cause or implementation claim: The fixture defaulted `SMOKE_REQUEST_TIMEOUT_MS` to 50ms, which is shorter than child-process startup variability on CI; the reported empty-catalog case aborted before `/login` completed. The default is now 1000ms, while the dedicated timeout subtest overrides it to 50ms.
 - commands/checks executed: `for i in $(seq 1 10); do node --test tests/smokeBoundary.test.mjs; done` equivalent loop from `frontend`; `git diff --check`; `./.agent/gates/verify.sh` from repository root.
 - exit/result summary: 10 consecutive focused runs passed 9/9 tests; trusted default gate passed: shared 28 tests, frontend critical 56 tests/build, backend typecheck/lint/177 tests/build; exit code 0.
