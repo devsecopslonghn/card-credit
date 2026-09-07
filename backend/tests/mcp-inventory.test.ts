@@ -72,6 +72,15 @@ test("MCP HTTP read mode exposes only query tools after an authenticated initial
   const unauthorized = await app.inject({ method: "POST", url: "/mcp", headers: { accept: "application/json, text/event-stream" }, payload: { jsonrpc: "2.0", id: 1, method: "initialize", params: {} } });
   assert.equal(unauthorized.statusCode, 401);
 
+  const missingSession = await app.inject({
+    method: "POST",
+    url: "/mcp",
+    headers: { authorization: `Bearer ${mcpToken}`, accept: "application/json, text/event-stream", "content-type": "application/json" },
+    payload: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+  });
+  assert.equal(missingSession.statusCode, 400);
+  assert.deepEqual(missingSession.json(), { error: "MCP_SESSION_REQUIRED" });
+
   const initialize = await app.inject({
     method: "POST",
     url: "/mcp",

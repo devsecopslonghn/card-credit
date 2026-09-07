@@ -19,7 +19,6 @@ export const registerMcpHttp = (app: FastifyInstance, ctx: ServiceContext, token
   const transports = new Map<string, StreamableHTTPServerTransport>();
   const handle = async (request: FastifyRequest<{ Body: unknown }>, reply: import("fastify").FastifyReply) => {
     if (!authorized(request, token)) return reply.code(401).header("WWW-Authenticate", "Bearer").send({ error: "MCP_UNAUTHORIZED" });
-    reply.hijack();
     const sessionId = request.headers["mcp-session-id"];
     let transport = typeof sessionId === "string" ? transports.get(sessionId) : undefined;
     if (!transport && request.method === "POST" && isInitializeRequest(request.body)) {
@@ -28,6 +27,7 @@ export const registerMcpHttp = (app: FastifyInstance, ctx: ServiceContext, token
       await createMcpServer(createMcpContextProvider(ctx, users), previewCodec, undefined, writerMode).connect(transport);
     }
     if (!transport) return reply.code(400).send({ error: "MCP_SESSION_REQUIRED" });
+    reply.hijack();
     await transport.handleRequest(request.raw, reply.raw, request.body);
   };
   app.post<{ Body: unknown }>("/mcp", handle);
