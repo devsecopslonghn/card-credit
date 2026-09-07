@@ -5,11 +5,19 @@
 Modular financial backend and MCP connector. REST, MCP and jobs call the same
 application services; `shared/` owns runtime contracts and DTOs.
 
+The system has three packages: `shared/` contains framework-free contracts,
+`backend/` contains Fastify, Mongo persistence, domain services, REST and MCP,
+and `frontend/` contains the Next.js UI, browser clients and static assets.
+
 ## Commands
 
 - `cd shared && npm ci && npm test && npm run typecheck`
 - `cd backend && npm ci --include=optional && npm run lint && npm run typecheck && npm test`
+- `cd frontend && npm ci --include=optional && npm run typecheck && npm run lint && npm test && npm run build`
 - Use `npm run test:all` only for the extended suite when available.
+
+The reusable default gate is `.agent/gates/verify.sh`; use
+`.agent/gates/verify.sh full` for package-wide tests.
 
 ## Safety
 
@@ -28,3 +36,9 @@ application services; `shared/` owns runtime contracts and DTOs.
 - `backend/src/models/`: Mongo persistence models.
 - `backend/src/mcp/`: manifest and thin MCP adapters.
 - `backend/tests/` and `shared/tests/`: regression and contract evidence.
+
+## Done
+
+A change is done only when the relevant existing tests, typecheck, lint and
+build checks pass, or a concrete blocker is recorded in `.agent/STATE.md` and
+the task record. Keep task evidence under `.agent/evidence/`.
