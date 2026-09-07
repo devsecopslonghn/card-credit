@@ -55,7 +55,7 @@ FinancialTransactionSchema.index(
   {
     name: "statement_payment_unique",
     unique: true,
-    partialFilterExpression: { transactionType: "STATEMENT_PAYMENT", statementId: { $type: "objectId" } },
+    partialFilterExpression: { transactionType: "STATEMENT_PAYMENT", statementId: { $type: "objectId" }, voidedAt: null },
   },
 );
 export const FinancialTransactionModel =

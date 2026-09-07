@@ -33,7 +33,7 @@ test("paid ledger consistency supports zero-payment statements and rejects parti
   assert.equal(paidLedgerIsConsistent({ paidAmount: 400 }, [{ transactionType: "STATEMENT_PAYMENT", amount: 400, creditDebt: -400 }]), true);
 });
 
-test("financial transaction model declares one payment transaction per workspace statement", () => {
+test("financial transaction model allows a replacement after a payment is voided", () => {
   const indexes = FinancialTransactionModel.schema.indexes() as Array<[Record<string, unknown>, { name?: string; [key: string]: unknown }]>;
   const index = indexes.find(([, options]) => options.name === "statement_payment_unique");
   assert.deepEqual(index, [
@@ -41,7 +41,7 @@ test("financial transaction model declares one payment transaction per workspace
     {
       name: "statement_payment_unique",
       unique: true,
-      partialFilterExpression: { transactionType: "STATEMENT_PAYMENT", statementId: { $type: "objectId" } },
+      partialFilterExpression: { transactionType: "STATEMENT_PAYMENT", statementId: { $type: "objectId" }, voidedAt: null },
     },
   ]);
 });
