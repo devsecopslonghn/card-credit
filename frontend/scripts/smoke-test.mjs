@@ -1,15 +1,8 @@
 #!/usr/bin/env node
 
-const DEFAULT_TIMEOUT_MS = 60_000;
-const DEFAULT_INTERVAL_MS = 2_000;
-
 const baseUrl = (process.env.SMOKE_BASE_URL ?? process.argv[2] ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const backendBaseUrl = (process.env.SMOKE_BACKEND_BASE_URL ?? "").replace(/\/$/, "");
-const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
-const intervalMs = Number(process.env.SMOKE_INTERVAL_MS ?? DEFAULT_INTERVAL_MS);
-const startedAt = Date.now();
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const requestTimeoutMs = Number(process.env.SMOKE_REQUEST_TIMEOUT_MS ?? 10_000);
 
 const fail = (message, details) => {
   console.error(`[smoke] FAIL ${message}`);
@@ -27,7 +20,7 @@ const info = (message) => {
 
 const fetchWithTimeout = async (path, options = {}, targetBaseUrl = baseUrl) => {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Number(options.timeoutMs ?? 10_000));
+  const timeout = setTimeout(() => controller.abort(), Number(options.timeoutMs ?? requestTimeoutMs));
   try {
     return await fetch(`${targetBaseUrl}${path}`, {
       method: "GET",
@@ -40,27 +33,13 @@ const fetchWithTimeout = async (path, options = {}, targetBaseUrl = baseUrl) => 
   }
 };
 
-const waitForHttpOk = async (path) => {
-  let lastError = "";
-
-  while (Date.now() - startedAt < timeoutMs) {
-    try {
-      const response = await fetchWithTimeout(path);
-      if (response.ok || response.status === 307 || response.status === 308) return response;
-      lastError = `${path} returned ${response.status}`;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-    }
-
-    info(`waiting for ${path}: ${lastError}`);
-    await sleep(intervalMs);
-  }
-
-  fail(`${path} did not become healthy within ${timeoutMs}ms`, lastError);
-};
-
 const expectOk = async (path, label = path, targetBaseUrl = baseUrl) => {
-  const response = await fetchWithTimeout(path, {}, targetBaseUrl);
+  let response;
+  try {
+    response = await fetchWithTimeout(path, {}, targetBaseUrl);
+  } catch (error) {
+    fail(`${label} request failed`, error instanceof Error ? error.message : String(error));
+  }
   if (!response.ok) {
     fail(`${label} returned HTTP ${response.status}`, await response.text().catch(() => ""));
   }
@@ -85,44 +64,27 @@ if (backendBaseUrl) {
   if (readiness.status !== "ready") fail("backend readiness payload is invalid");
 }
 
-await waitForHttpOk("/cards");
-pass("/cards is reachable");
+await expectOk("/login", "public login");
 
 const providersResponse = await expectJson("/api/card-catalog/providers", "catalog providers");
-if (!Array.isArray(providersResponse.data) || providersResponse.data.length === 0) {
-  fail("catalog providers returned no providers");
+if (!Array.isArray(providersResponse.data)) {
+  fail("catalog providers response data is not an array");
 }
 pass(`catalog providers returned ${providersResponse.data.length} provider(s)`);
 
 const firstProduct = providersResponse.data.flatMap((provider) => provider.products ?? [])[0];
-if (!firstProduct?.presetId) fail("catalog providers returned no active product for product detail smoke");
+if (firstProduct?.presetId) {
+  await expectJson(`/api/card-catalog/products/${encodeURIComponent(firstProduct.presetId)}`, "catalog product detail");
 
-await expectJson(`/api/card-catalog/products/${encodeURIComponent(firstProduct.presetId)}`, "catalog product detail");
-
-const imagePath = firstProduct.imageUrl || "/card-images/placeholder-card.svg";
-const imageResponse = await expectOk(imagePath, "card image or placeholder");
-const contentType = imageResponse.headers.get("content-type") ?? "";
-if (!contentType.startsWith("image/")) {
-  fail("card image or placeholder did not return an image content-type", contentType);
-}
-pass(`card image content-type is ${contentType}`);
-
-const cards = await expectJson("/api/cards", "cards list");
-if (!Array.isArray(cards)) fail("cards list response is not an array");
-pass(`cards list returned ${cards.length} card(s), confirming database-backed read`);
-
-if (cards.length > 0) {
-  const cardId = cards[0]._id;
-  if (!cardId) fail("first card has no _id for detail smoke");
-  await expectJson(`/api/cards/${encodeURIComponent(cardId)}`, "card detail");
+  const imagePath = firstProduct.imageUrl || "/card-images/placeholder-card.svg";
+  const imageResponse = await expectOk(imagePath, "card image or placeholder");
+  const contentType = imageResponse.headers.get("content-type") ?? "";
+  if (!contentType.startsWith("image/")) {
+    fail("card image or placeholder did not return an image content-type", contentType);
+  }
+  pass(`card image content-type is ${contentType}`);
 } else {
-  info("card detail smoke skipped because cards list is empty");
+  info("catalog product detail and image checks skipped because the public catalog is empty");
 }
 
-const report = await expectJson("/api/financial-reports/summary", "financial report summary");
-if (!report || typeof report !== "object" || !("range" in report) || !("totals" in report)) {
-  fail("report summary shape is invalid");
-}
-pass("financial report summary returned range and totals");
-
-console.log("[smoke] deploy smoke test completed");
+console.log("[smoke] public reachability/catalog smoke test completed");

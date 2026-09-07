@@ -242,12 +242,14 @@ thể bỏ trống từng field và sẽ mặc định UTC current-month đến 
 
 Swagger UI: `/docs`. MCP endpoint: `/mcp`.
 
-Deployment smoke test: `npm --prefix frontend run smoke:deploy` checks the
-frontend/catalog/database-backed read path. Set `SMOKE_BASE_URL` (or pass the
-frontend URL as the first argument). When the backend has a separate ingress
-URL, also set `SMOKE_BACKEND_BASE_URL`; the test then checks `/health` and
-`/ready` there before exercising the frontend. The smoke test does not perform
-mutations and does not replace authenticated user-flow verification.
+Deployment smoke test: `npm --prefix frontend run smoke:deploy` checks public
+frontend reachability, the public card catalog and its image path. Set
+`SMOKE_BASE_URL` (or pass the frontend URL as the first argument). An empty
+catalog is valid; detail/image checks run only when a product is returned. When
+the backend has a separate ingress URL, also set `SMOKE_BACKEND_BASE_URL`; the
+test then checks `/health` and `/ready` there. It does not call session-protected
+card or financial-report APIs, perform mutations, or replace authenticated
+user-flow verification.
 
 ## Dữ liệu tài chính
 
