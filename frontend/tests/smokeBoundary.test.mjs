@@ -29,7 +29,7 @@ const runSmokeFixture = async (routes, options = {}) => {
         SMOKE_BASE_URL: `http://127.0.0.1:${port}`,
         SMOKE_TIMEOUT_MS: "100",
         SMOKE_INTERVAL_MS: "5",
-        SMOKE_REQUEST_TIMEOUT_MS: "50",
+        SMOKE_REQUEST_TIMEOUT_MS: "1000",
         ...options,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -120,7 +120,7 @@ test("public smoke rejects redirects, malformed JSON and HTTP errors", async (t)
   await t.test("timeout", async () => {
     const result = await runSmokeFixture({
       "/login": () => {},
-    });
+    }, { SMOKE_REQUEST_TIMEOUT_MS: "50" });
     assert.notEqual(result.code, 0);
     assert.match(result.stderr, /public login request failed/);
   });
