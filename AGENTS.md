@@ -19,6 +19,14 @@ and `frontend/` contains the Next.js UI, browser clients and static assets.
 The reusable default gate is `.agent/gates/verify.sh`; use
 `.agent/gates/verify.sh full` for package-wide tests.
 
+## Session bootstrap
+
+At the start of every coding session, read `AGENTS.md` and `.agent/STATE.md`,
+classify the task, load only its relevant workflow from `.agent/workflows/` and
+the relevant `.ai/` context/invariants, inspect only the affected repository
+areas, create or update a task record from `.agent/templates/task.md`, then
+execute that workflow and record evidence from `.agent/templates/evidence.md`.
+
 ## Safety
 
 - Read repository state and scoped data before changes; never write production,
