@@ -1,7 +1,7 @@
 # Agent state
 
 - Harness status: V0.1 operational; default verification gate is available.
-- Active task: Smoke fixture timing fix complete.
-- Last verified state: `.agent/gates/verify.sh` passed on 2026-09-07 after increasing the smoke fixture happy-path timeout and retaining the bounded timeout regression (shared, frontend, backend default gates).
+- Active task: Repository split and image sizing complete.
+- Last verified state: FE/BE/chart were pushed as independent repositories on 2026-09-07; FE/BE validation, backend Dockerfile regression coverage, Helm lint/template and GitOps ref checks passed. Evidence: `.agent/evidence/2026-09-07-repository-split-image-sizing.md`.
 - Known blockers: none.
-- Next action: authorized deployment/operator should run the existing data-integrity index hook for the payment incident; if deployed, use `.agent/workflows/post-deploy-verify.md`; no deployment was performed by this task. The public smoke still requires a separate authenticated finance gate for business correctness, and the MCP fix requires an approved deployed endpoint check before runtime claims.
+- Next action: CI should build/publish the new FE/BE images and provide the actual registry image-size report; no deployment was performed by this task. The public smoke still requires a separate authenticated finance gate for business correctness, and the MCP fix requires an approved deployed endpoint check before runtime claims.

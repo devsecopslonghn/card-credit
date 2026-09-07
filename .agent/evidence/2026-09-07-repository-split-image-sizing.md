@@ -1,0 +1,11 @@
+# Evidence: repository split and image sizing
+
+- task ID: 2026-09-07-repository-split-image-sizing
+- relevant Git diff/commit: `devsecopslonghn/card-credit-fe@7f6400b`, `devsecopslonghn/card-credit-be@11c5fa2`, `devsecopslonghn/card-credit-helm-chart@d6f285c`, `k8s-namepsace-chart@387c241`
+- root cause or implementation claim: the previous application/chart layout coupled frontend, backend and deployment ownership. The backend runtime Dockerfile also retained a build dependency layer and performed a second shared dependency installation. The split backend now prunes dev dependencies in the builder and copies that single pruned runtime layer; the chart uses independent frontend/backend image repositories and tags.
+- commands/checks executed: `npm --prefix shared run validate && npm --prefix backend run validate`; `npm --prefix shared run validate && npm --prefix frontend run typecheck && npm --prefix frontend run lint && npm --prefix frontend run test:critical && npm --prefix frontend run build`; `helm lint .`; `helm template card-credit .`; remote `git ls-remote --heads origin master` for all four repositories.
+- exit/result summary: shared contracts PASS; backend 177 tests and build PASS; frontend 56 tests and build PASS; Helm lint PASS (one informational icon recommendation); Helm template assertions PASS; all four master refs exist remotely and all local worktrees are clean.
+- regression coverage: `backend/tests/dockerfile.test.ts` asserts one shared install, builder pruning, runner reuse of pruned `node_modules`, no runner shared reinstall, and direct node startup. Helm lint/template catches stale `.Values.image.tag` references; migration template was corrected to `.Values.image.backend.tag`.
+- important logs/errors: initial Helm lint failed with `templates/data-integrity-migration.yaml ... .Values.image.tag ... expected string` after image tags became per-component; fixed and re-run passed. Local Docker daemon was unavailable (`permission denied /var/run/docker.sock`), so no local OCI image byte size was claimed.
+- known limitations: actual compressed image size and registry scan remain CI/runtime checks because Docker daemon is unavailable locally. Existing production deployment was not manually applied; Argo CD source was updated in GitOps.
+- final result: PASS
