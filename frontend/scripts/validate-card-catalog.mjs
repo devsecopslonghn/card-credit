@@ -1,20 +1,12 @@
-import fs from "node:fs/promises";
 import { validateCatalogProducts } from "../lib/cardCatalogCore.mjs";
+import { readCatalogJson } from "../lib/catalogValidation.mjs";
 import { logError, logInfo } from "../lib/observability/logger.mjs";
 
 const presetsPath = new URL("../data/card-presets.json", import.meta.url);
 const manifestPath = new URL("../data/card-image-manifest.json", import.meta.url);
 
-const readJson = async (url, fallback) => {
-  try {
-    return JSON.parse(await fs.readFile(url, "utf8"));
-  } catch {
-    return fallback;
-  }
-};
-
-const products = await readJson(presetsPath, []);
-const manifest = await readJson(manifestPath, {});
+const products = await readCatalogJson(presetsPath);
+const manifest = await readCatalogJson(manifestPath, {});
 const issues = validateCatalogProducts(products, { manifest });
 
 if (issues.length > 0) {

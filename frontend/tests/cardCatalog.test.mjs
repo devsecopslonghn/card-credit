@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import products from "../data/card-presets.json" with { type: "json" };
 import {
@@ -8,6 +11,7 @@ import {
   validateCatalogProducts,
 } from "../lib/cardCatalogCore.mjs";
 import { parseDuplicateGroups } from "../lib/api/cardDuplicatesCore.mjs";
+import { readCatalogJson } from "../lib/catalogValidation.mjs";
 
 test("catalog validation detects duplicate presetId", () => {
   const duplicate = [{ ...products[0] }, { ...products[0] }];
@@ -56,6 +60,31 @@ test("image fallback uses stable placeholder for missing imageUrl", () => {
   const product = products.find((item) => item.presetId === "mb-visa-modern-youth");
 
   assert.equal(getCatalogImageUrl(product), CARD_IMAGE_PLACEHOLDER_URL);
+});
+
+test("manifest cached image takes precedence over the catalog image URL", () => {
+  const product = products.find((item) => item.presetId === "mb-visa-modern-youth");
+
+  assert.equal(
+    getCatalogImageUrl(product, {
+      [product.presetId]: { status: "cached", localPath: "/card-images/mb-visa-modern-youth.webp" },
+    }),
+    "/card-images/mb-visa-modern-youth.webp",
+  );
+});
+
+test("catalog JSON loading rejects malformed required input instead of returning an empty catalog", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "card-credit-catalog-"));
+  const malformedPath = join(directory, "card-presets.json");
+  await writeFile(malformedPath, "{ malformed json", "utf8");
+
+  await assert.rejects(readCatalogJson(malformedPath), SyntaxError);
+});
+
+test("catalog JSON loading keeps the optional manifest fallback", async () => {
+  const missingPath = join(tmpdir(), "card-credit-missing-manifest.json");
+
+  assert.deepEqual(await readCatalogJson(missingPath, {}), {});
 });
 
 test("duplicate client parses canonical groups and maps card ids to the UI compatibility shape", () => {

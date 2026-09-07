@@ -4,6 +4,7 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_INTERVAL_MS = 2_000;
 
 const baseUrl = (process.env.SMOKE_BASE_URL ?? process.argv[2] ?? "http://127.0.0.1:3000").replace(/\/$/, "");
+const backendBaseUrl = (process.env.SMOKE_BACKEND_BASE_URL ?? "").replace(/\/$/, "");
 const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
 const intervalMs = Number(process.env.SMOKE_INTERVAL_MS ?? DEFAULT_INTERVAL_MS);
 const startedAt = Date.now();
@@ -24,11 +25,11 @@ const info = (message) => {
   console.log(`[smoke] INFO ${message}`);
 };
 
-const fetchWithTimeout = async (path, options = {}) => {
+const fetchWithTimeout = async (path, options = {}, targetBaseUrl = baseUrl) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Number(options.timeoutMs ?? 10_000));
   try {
-    return await fetch(`${baseUrl}${path}`, {
+    return await fetch(`${targetBaseUrl}${path}`, {
       method: "GET",
       redirect: "manual",
       ...options,
@@ -58,8 +59,8 @@ const waitForHttpOk = async (path) => {
   fail(`${path} did not become healthy within ${timeoutMs}ms`, lastError);
 };
 
-const expectOk = async (path, label = path) => {
-  const response = await fetchWithTimeout(path);
+const expectOk = async (path, label = path, targetBaseUrl = baseUrl) => {
+  const response = await fetchWithTimeout(path, {}, targetBaseUrl);
   if (!response.ok) {
     fail(`${label} returned HTTP ${response.status}`, await response.text().catch(() => ""));
   }
@@ -67,14 +68,22 @@ const expectOk = async (path, label = path) => {
   return response;
 };
 
-const expectJson = async (path, label = path) => {
-  const response = await expectOk(path, label);
+const expectJson = async (path, label = path, targetBaseUrl = baseUrl) => {
+  const response = await expectOk(path, label, targetBaseUrl);
   try {
     return await response.json();
   } catch (error) {
     fail(`${label} did not return JSON`, error instanceof Error ? error.message : String(error));
   }
 };
+
+if (backendBaseUrl) {
+  const health = await expectJson("/health", "backend health", backendBaseUrl);
+  if (health.status !== "ok") fail("backend health payload is invalid");
+
+  const readiness = await expectJson("/ready", "backend readiness", backendBaseUrl);
+  if (readiness.status !== "ready") fail("backend readiness payload is invalid");
+}
 
 await waitForHttpOk("/cards");
 pass("/cards is reachable");

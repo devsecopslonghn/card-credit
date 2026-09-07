@@ -35,7 +35,8 @@ trong backend domain/service; REST là adapter và MCP chỉ parse rồi gọi s
   authorization, MongoDB models, domain services, health và readiness.
 - `shared/`: contract API framework-free dùng chung giữa hai runtime.
 - Browser chỉ gọi relative `/api/**`. Next rewrites sang `BACKEND_INTERNAL_URL`;
-  production mặc định dùng `http://backend:3001` trong Compose.
+  production mặc định dùng `http://backend:3001`; giá trị này được override bằng
+  `BACKEND_INTERNAL_URL` khi triển khai.
 - Frontend production image dùng Next.js standalone output, chỉ đóng gói traced
   runtime dependencies thay vì cài lại toàn bộ production dependency ở runner.
 - MongoDB là runtime source of truth. `frontend/data/card-presets.json` chỉ là
@@ -240,6 +241,13 @@ thể bỏ trống từng field và sẽ mặc định UTC current-month đến 
 `from/to` trả `400 INVALID_DATE_RANGE`.
 
 Swagger UI: `/docs`. MCP endpoint: `/mcp`.
+
+Deployment smoke test: `npm --prefix frontend run smoke:deploy` checks the
+frontend/catalog/database-backed read path. Set `SMOKE_BASE_URL` (or pass the
+frontend URL as the first argument). When the backend has a separate ingress
+URL, also set `SMOKE_BACKEND_BASE_URL`; the test then checks `/health` and
+`/ready` there before exercising the frontend. The smoke test does not perform
+mutations and does not replace authenticated user-flow verification.
 
 ## Dữ liệu tài chính
 
